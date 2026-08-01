@@ -7,7 +7,7 @@
 
 ## Repository purpose
 
-This repository builds the package `edit.cfg-json`. It is a
+This repository builds the package `edit-cfg-json`. It is a
 way to edit configuration objects based on `config_as_json.Config`.
 To be written.
 
