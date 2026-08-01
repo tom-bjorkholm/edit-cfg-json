@@ -19,6 +19,8 @@ To be written.
 
 - Protected/internal API notes
 
+- Library design and decisions: [doc/design.md](doc/design.md)
+
 - Build system design: [common_build_tools/README.md](common_build_tools/README.md)
 
 There is an example directory with worked examples for new
