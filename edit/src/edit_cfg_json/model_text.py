@@ -14,10 +14,13 @@ NOT_EDITABLE_FORM = '<not editable yet: {kind}>'
 def row_value_text(row: MemberRow) -> str:
     """Return the value of one member as the text a field would show.
 
-    A scalar is rendered as JSON, so that the user sees exactly what will
-    land in the configuration file. A member that this version of the model
-    cannot edit is named by its JSON kind instead of by its value, because
-    a list or a dict needs more than one field.
+    A string member shows the string itself. The quotes that JSON puts
+    around a string belong to the file format and not to the value, so
+    showing them would make the user believe that the text really begins and
+    ends with a quotation mark. Every other scalar is rendered as JSON,
+    which is also how the user would type it. A member that this version of
+    the model cannot edit is named by its kind instead of by its value,
+    because a list or a dict needs more than one field.
 
     Args:
         row: Member to render.
@@ -27,6 +30,9 @@ def row_value_text(row: MemberRow) -> str:
     """
     if not row.editable:
         return NOT_EDITABLE_FORM.format(kind=type(row.value).__name__)
+    if row.is_text:
+        assert isinstance(row.value, str)
+        return row.value
     return json.dumps(row.value)
 
 

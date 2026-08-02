@@ -12,7 +12,9 @@
     * [name](#edit_cfg_json.edit_model.MemberRow.name)
     * [value](#edit_cfg_json.edit_model.MemberRow.value)
     * [editable](#edit_cfg_json.edit_model.MemberRow.editable)
-  * [\_rows\_from\_json\_text](#edit_cfg_json.edit_model._rows_from_json_text)
+    * [is\_text](#edit_cfg_json.edit_model.MemberRow.is_text)
+  * [\_ordered\_names](#edit_cfg_json.edit_model._ordered_names)
+  * [\_rows\_from\_config](#edit_cfg_json.edit_model._rows_from_config)
   * [EditModel](#edit_cfg_json.edit_model.EditModel)
     * [\_\_init\_\_](#edit_cfg_json.edit_model.EditModel.__init__)
     * [config\_type\_name](#edit_cfg_json.edit_model.EditModel.config_type_name)
@@ -77,10 +79,13 @@ def row_value_text(row: MemberRow) -> str
 
 Return the value of one member as the text a field would show.
 
-A scalar is rendered as JSON, so that the user sees exactly what will
-land in the configuration file. A member that this version of the model
-cannot edit is named by its JSON kind instead of by its value, because
-a list or a dict needs more than one field.
+A string member shows the string itself. The quotes that JSON puts
+around a string belong to the file format and not to the value, so
+showing them would make the user believe that the text really begins and
+ends with a quotation mark. Every other scalar is rendered as JSON,
+which is also how the user would type it. A member that this version of
+the model cannot edit is named by its kind instead of by its value,
+because a list or a dict needs more than one field.
 
 **Arguments**:
 
@@ -159,19 +164,53 @@ of fields rather than a single field, which this version of the
 model does not have. Such a member is still reported as a row, so
 that no configuration member can silently go missing.
 
-<a id="edit_cfg_json.edit_model._rows_from_json_text"></a>
+<a id="edit_cfg_json.edit_model.MemberRow.is_text"></a>
 
-#### \_rows\_from\_json\_text
+#### is\_text
 
 ```python
-def _rows_from_json_text(json_text: str) -> tuple[MemberRow, ...]
+@property
+def is_text() -> bool
 ```
 
-Return one row per member of a serialized configuration object.
+Return whether this member holds a string.
 
-The rows keep the order of the JSON document. `config_as_json` writes
-its keys sorted, so that is the order in which the members appear in
-the configuration file, and not the order they are declared in.
+This is the difference between a value that is text and a value
+whose text is a rendering of it. A string member is shown and
+edited as the string itself, while a number is shown as the text
+it is written as.
+
+<a id="edit_cfg_json.edit_model._ordered_names"></a>
+
+#### \_ordered\_names
+
+```python
+def _ordered_names(config: Config, members: dict[str, JsonType]) -> list[str]
+```
+
+Return the serialized member names in the order they are declared.
+
+The declaration order is the order in which the configuration class
+assigns its members, which `vars()` preserves. That is the order the
+application thinks about its configuration in, so it is the order the
+editor shows. The JSON document cannot supply it, because
+`config_as_json` writes its keys sorted.
+
+A member that the class omits from JSON while its value is `None` is
+not serialized and so gets no row. A serialized name that is not an
+attribute of the object is appended instead of dropped, so that no
+member can go missing whatever a validator or a converter did.
+
+<a id="edit_cfg_json.edit_model._rows_from_config"></a>
+
+#### \_rows\_from\_config
+
+```python
+def _rows_from_config(config: Config,
+                      stderr_file: TextIO) -> tuple[MemberRow, ...]
+```
+
+Return one row per serialized member, in declaration order.
 
 <a id="edit_cfg_json.edit_model.EditModel"></a>
 
@@ -187,9 +226,11 @@ The model does no input or output of its own and owns no event loop, so
 a backend can either be run by a convenience wrapper or be mounted as a
 widget by an application that already runs its own event loop.
 
-Values are held in JSON space, that is as they are written to the
-configuration file, so that an enum member is shown by its name and a
-value being typed does not have to be a valid Python value yet.
+Values are held in JSON space, so that an enum member is held as its
+name and a value being typed does not have to be a valid Python value
+yet. JSON space is about the kind of the value, not about its notation:
+a string member holds the string, and the quotes that the file format
+puts around it are added when the file is written and nowhere else.
 
 This version of the model handles scalar members only. A member whose
 value is a list or a dict is reported as a row that is not editable.
@@ -243,8 +284,10 @@ Return the class name of the edited configuration object.
 def rows() -> Sequence[MemberRow]
 ```
 
-Return one row per configuration member, in file order.
+Return one row per configuration member, in declaration order.
 
-File order is sorted by member name, because that is how
-`config_as_json` writes the file the user edits.
+Declaration order is the order the configuration class assigns its
+members in, and not the sorted order that the JSON file has. How
+the file is written is an implementation detail of saving; what the
+application declared is what the user thinks about.
 

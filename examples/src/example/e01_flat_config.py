@@ -19,12 +19,11 @@ and it does not write a single widget. `EditModel` finds all of that by
 looking at the configuration object it is handed. The configuration schema
 is declared exactly once, in `FlatConfig.__init__`, where it belongs.
 
-The values you see are JSON space values, that is the values as they are
-written to the configuration file: the text member is shown with its quotes,
-because that is how it appears in the file the user edits. For the same
-reason `answer` is shown before `name` even though `name` is declared first:
-`config_as_json` writes its keys sorted, and the editor shows the members in
-the order the file has them.
+The members are shown in the order this class declares them, and the text
+member is shown as the text it holds, without the quotation marks that JSON
+puts around a string in the file. Both follow from the same idea: what the
+editor shows is the configuration object the application declared, and how
+that object is written to a file is an implementation detail of saving.
 
 This first step is read-only. Editing, validation, reading a file and saving
 arrive in the following steps.

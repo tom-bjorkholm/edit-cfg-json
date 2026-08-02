@@ -32,18 +32,43 @@ class MemberRow(NamedTuple):
         """
         return not isinstance(self.value, (dict, list))
 
+    @property
+    def is_text(self) -> bool:
+        """Return whether this member holds a string.
 
-def _rows_from_json_text(json_text: str) -> tuple[MemberRow, ...]:
-    """Return one row per member of a serialized configuration object.
+        This is the difference between a value that is text and a value
+        whose text is a rendering of it. A string member is shown and
+        edited as the string itself, while a number is shown as the text
+        it is written as.
+        """
+        return isinstance(self.value, str)
 
-    The rows keep the order of the JSON document. `config_as_json` writes
-    its keys sorted, so that is the order in which the members appear in
-    the configuration file, and not the order they are declared in.
+
+def _ordered_names(config: Config, members: dict[str, JsonType]) -> list[str]:
+    """Return the serialized member names in the order they are declared.
+
+    The declaration order is the order in which the configuration class
+    assigns its members, which `vars()` preserves. That is the order the
+    application thinks about its configuration in, so it is the order the
+    editor shows. The JSON document cannot supply it, because
+    `config_as_json` writes its keys sorted.
+
+    A member that the class omits from JSON while its value is `None` is
+    not serialized and so gets no row. A serialized name that is not an
+    attribute of the object is appended instead of dropped, so that no
+    member can go missing whatever a validator or a converter did.
     """
-    members = json.loads(json_text)
+    declared = [name for name in vars(config) if name in members]
+    return declared + [name for name in members if name not in declared]
+
+
+def _rows_from_config(config: Config,
+                      stderr_file: TextIO) -> tuple[MemberRow, ...]:
+    """Return one row per serialized member, in declaration order."""
+    members = json.loads(config.as_json_string(stderr_file=stderr_file))
     assert isinstance(members, dict)
-    return tuple(MemberRow(name=name, value=value)
-                 for name, value in members.items())
+    return tuple(MemberRow(name=name, value=members[name])
+                 for name in _ordered_names(config=config, members=members))
 
 
 class EditModel:
@@ -53,9 +78,11 @@ class EditModel:
     a backend can either be run by a convenience wrapper or be mounted as a
     widget by an application that already runs its own event loop.
 
-    Values are held in JSON space, that is as they are written to the
-    configuration file, so that an enum member is shown by its name and a
-    value being typed does not have to be a valid Python value yet.
+    Leaf values are held in JSON space, so that an enum member is held as its
+    name and a value being typed does not have to be a valid Python value
+    yet. JSON space is about the kind of the value, not about its notation:
+    a string member holds the string, and the quotes that the file format
+    puts around it are added when the file is written and nowhere else.
 
     This version of the model handles scalar members only. A member whose
     value is a list or a dict is reported as a row that is not editable.
@@ -82,8 +109,8 @@ class EditModel:
                 does not hold a valid value.
         """
         self._type_name = type(config).__name__
-        self._rows = _rows_from_json_text(
-            deepcopy(config).as_json_string(stderr_file=stderr_file))
+        self._rows = _rows_from_config(config=deepcopy(config),
+                                       stderr_file=stderr_file)
 
     @property
     def config_type_name(self) -> str:
@@ -92,9 +119,11 @@ class EditModel:
 
     @property
     def rows(self) -> Sequence[MemberRow]:
-        """Return one row per configuration member, in file order.
+        """Return one row per configuration member, in declaration order.
 
-        File order is sorted by member name, because that is how
-        `config_as_json` writes the file the user edits.
+        Declaration order is the order the configuration class assigns its
+        members in, and not the sorted order that the JSON file has. How
+        the file is written is an implementation detail of saving; what the
+        application declared is what the user thinks about.
         """
         return self._rows

@@ -13,7 +13,12 @@ from .sample_cfg import FlatCfg, ListCfg, NoneCfg
 def test_flat_text() -> None:
     """Test the rendering has one line per member and no trailing break."""
     assert model_as_text(EditModel(FlatCfg())) == \
-        'answer = 42\nname = "flat text"'
+        'name = flat text\nanswer = 42'
+
+
+def test_text_has_no_quotes() -> None:
+    """Test a string member is shown as the string and not as JSON text."""
+    assert '"' not in model_as_text(EditModel(FlatCfg()))
 
 
 def test_none_text() -> None:
@@ -30,10 +35,12 @@ def test_container_text() -> None:
 
 
 @pytest.mark.parametrize('value, expected',
-                         [(42, '42'), (1.5, '1.5'), ('text', '"text"'),
-                          (True, 'true'), (False, 'false'), (None, 'null'),
-                          ('with "quotes"', '"with \\"quotes\\""'),
-                          ('Björkholm', '"Bj\\u00f6rkholm"')])
+                         [(42, '42'), (1.5, '1.5'), (True, 'true'),
+                          (False, 'false'), (None, 'null'),
+                          ('text', 'text'), ('', ''),
+                          ('with "quotes"', 'with "quotes"'),
+                          ('Björkholm', 'Björkholm'),
+                          ('  spaced  ', '  spaced  '), ('42', '42')])
 def test_row_value_text(value: JsonType, expected: str) -> None:
-    """Test the value text of one row is the JSON form of the value."""
+    """Test a string shows as itself and every other scalar as its JSON."""
     assert row_value_text(MemberRow(name='member', value=value)) == expected

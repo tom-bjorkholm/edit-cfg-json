@@ -11,7 +11,7 @@ import pytest
 from textual.app import App
 from example import e01_flat_config
 
-EXPECTED_DUMP = 'answer = 42\nname = "flat example"'
+EXPECTED_DUMP = 'name = flat example\nanswer = 42'
 """Text that `--ui dump` is expected to print for the default values."""
 
 

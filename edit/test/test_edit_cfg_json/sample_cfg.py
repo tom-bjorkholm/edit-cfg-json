@@ -64,6 +64,20 @@ class ListCfg(SampleCfg):
         self.answer: int = 3
 
 
+class OmitCfg(SampleCfg):
+    """A configuration whose optional member is left out of JSON when None."""
+
+    def declare_members(self) -> None:
+        """Assign one optional member between two ordinary members."""
+        self.first: int = 1
+        self.optional: Optional[str] = None
+        self.last: int = 2
+
+    def _omit_none_from_json(self) -> list[str]:
+        """Return the member that is left out of JSON while it is None."""
+        return ['optional']
+
+
 class RewriteCfg(SampleCfg):
     """A configuration whose validator rewrites its text member.
 

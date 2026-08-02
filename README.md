@@ -41,7 +41,8 @@ To be written.
 
 There is an [examples/](examples/) directory with worked examples for new
 users, also useful for maintainers who want to see intended API usage in
-context.
+context. [examples/src/example/README.md](examples/src/example/README.md)
+lists what each example teaches and how to run it.
 
 ## Generated files
 
@@ -144,7 +145,7 @@ browsed through `reports/index.html`.
 
 ## Test summary
 
-- Test result: 211 passed in 4s
+- Test result: 227 passed in 4s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

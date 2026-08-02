@@ -23,9 +23,12 @@ from edit_cfg_json_tk import TkEditor
 from edit_cfg_json_tk.tk_editor import build_editor_widgets
 from example.e01_flat_config import FlatConfig
 
-EXPECTED_TEXTS = ['FlatConfig', 'answer', '42', 'name', '"flat example"',
+EXPECTED_TEXTS = ['FlatConfig', 'name', 'flat example', 'answer', '42',
                   'Close']
 """Widget texts that both the stubbed and the real Tk test expect."""
+
+EXPECTED_VALUES = ('flat example', '42')
+"""The value texts among EXPECTED_TEXTS, in row order."""
 
 
 class FakeWidget:
@@ -103,8 +106,7 @@ def test_stub_row_frames(stub_tk: None) -> None:
     assert len(frames) == len(model.rows)
     assert all(frame.parent is root for frame in frames)
     value_parents = [widget.parent for widget in FakeWidget.created
-                     if widget.options.get('text') in ('42',
-                                                       '"flat example"')]
+                     if widget.options.get('text') in EXPECTED_VALUES]
     assert value_parents == frames
 
 

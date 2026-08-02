@@ -22,7 +22,7 @@ from edit_cfg_json_textual import TextualEditor
 from edit_cfg_json_textual.textual_editor import EditorApp, VALUE_ID_PREFIX
 from example.e01_flat_config import FlatConfig
 
-EXPECTED_VALUES = {'answer': '42', 'name': '"flat example"'}
+EXPECTED_VALUES = {'name': 'flat example', 'answer': '42'}
 """Value text that the application is expected to show for each member."""
 
 
