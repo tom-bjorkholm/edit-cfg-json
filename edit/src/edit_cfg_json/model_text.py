@@ -4,23 +4,25 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-import json
 from edit_cfg_json.edit_model import EditModel, MemberRow
+from edit_cfg_json.leaf_value import value_as_text
 
 NOT_EDITABLE_FORM = '<not editable yet: {kind}>'
 """Form of the value text of a member this version cannot edit."""
+
+EDITED_MARK = ' (edited)'
+"""Mark that follows the value of a member the user has changed."""
+
+DIRTY_MARK = ' *'
+"""Mark that follows the model label while the buffer has changes."""
 
 
 def row_value_text(row: MemberRow) -> str:
     """Return the value of one member as the text a field would show.
 
-    A string member shows the string itself. The quotes that JSON puts
-    around a string belong to the file format and not to the value, so
-    showing them would make the user believe that the text really begins and
-    ends with a quotation mark. Every other scalar is rendered as JSON,
-    which is also how the user would type it. A member that this version of
-    the model cannot edit is named by its kind instead of by its value,
-    because a list or a dict needs more than one field.
+    A member that this version of the model cannot edit is named by its kind
+    instead of by its value, because a list or a dict needs more than one
+    field. Every other member shows the text of the value it holds.
 
     Args:
         row: Member to render.
@@ -29,11 +31,14 @@ def row_value_text(row: MemberRow) -> str:
         The value text of one member.
     """
     if not row.editable:
-        return NOT_EDITABLE_FORM.format(kind=type(row.value).__name__)
-    if row.is_text:
-        assert isinstance(row.value, str)
-        return row.value
-    return json.dumps(row.value)
+        return NOT_EDITABLE_FORM.format(kind=type(row.original).__name__)
+    return value_as_text(row.value)
+
+
+def _row_as_text(row: MemberRow) -> str:
+    """Return the one line of text that shows the state of one member."""
+    mark = EDITED_MARK if row.edited else ''
+    return f'{row.name} = {row_value_text(row)}{mark}'
 
 
 def model_as_text(model: EditModel) -> str:
@@ -50,5 +55,20 @@ def model_as_text(model: EditModel) -> str:
     Returns:
         One line per member, without a trailing line break.
     """
-    return '\n'.join(f'{row.name} = {row_value_text(row)}'
-                     for row in model.rows)
+    return '\n'.join(_row_as_text(row) for row in model.rows)
+
+
+def model_title(model: EditModel) -> str:
+    """Return the label of the whole model, marked while it has changes.
+
+    Both backends show this, so that neither of them decides on its own how
+    an unsaved change looks.
+
+    Args:
+        model: Model to label.
+
+    Returns:
+        The class name of the configuration, with a mark while there are
+        changes that are worth saving.
+    """
+    return model.config_type_name + (DIRTY_MARK if model.dirty else '')

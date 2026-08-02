@@ -5,11 +5,13 @@
   * [NAME\_CLASS](#edit_cfg_json_textual.textual_editor.NAME_CLASS)
   * [ROW\_CLASS](#edit_cfg_json_textual.textual_editor.ROW_CLASS)
   * [NAME\_WIDTH](#edit_cfg_json_textual.textual_editor.NAME_WIDTH)
+  * [QUIT\_KEY](#edit_cfg_json_textual.textual_editor.QUIT_KEY)
   * [EditorApp](#edit_cfg_json_textual.textual_editor.EditorApp)
     * [BINDINGS](#edit_cfg_json_textual.textual_editor.EditorApp.BINDINGS)
     * [CSS](#edit_cfg_json_textual.textual_editor.EditorApp.CSS)
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_editor.EditorApp.__init__)
     * [compose](#edit_cfg_json_textual.textual_editor.EditorApp.compose)
+    * [on\_input\_changed](#edit_cfg_json_textual.textual_editor.EditorApp.on_input_changed)
   * [TextualEditor](#edit_cfg_json_textual.textual_editor.TextualEditor)
     * [run\_editor](#edit_cfg_json_textual.textual_editor.TextualEditor.run_editor)
 
@@ -17,7 +19,7 @@
 
 # edit\_cfg\_json\_textual.textual\_editor
 
-Read-only Textual view of an edit model.
+Textual view of an edit model, with one editable field per member.
 
 <a id="edit_cfg_json_textual.textual_editor.VALUE_ID_PREFIX"></a>
 
@@ -43,6 +45,16 @@ Style class of the container that holds the widgets of one member.
 
 Width in cells of the column that holds the member names.
 
+<a id="edit_cfg_json_textual.textual_editor.QUIT_KEY"></a>
+
+#### QUIT\_KEY
+
+Key that ends the editor.
+
+A single letter cannot be used for this any more, now that the value of a
+member is edited in a field: an unmodified letter belongs to whichever field
+has the focus, and a user who typed it would expect to see it appear.
+
 <a id="edit_cfg_json_textual.textual_editor.EditorApp"></a>
 
 ## EditorApp Objects
@@ -51,7 +63,7 @@ Width in cells of the column that holds the member names.
 class EditorApp(App[None])
 ```
 
-Textual application that shows one edit model read-only.
+Textual application that edits one edit model.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.BINDINGS"></a>
 
@@ -59,11 +71,17 @@ Textual application that shows one edit model read-only.
 
 The quit key, which the footer shows so that it can be found.
 
+It is a priority binding, so that it is acted on before the field that
+has the focus is offered the key.
+
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.CSS"></a>
 
 #### CSS
 
 One cell high rows, so that the footer stays visible below them.
+
+A field is one cell high as well, which needs its border and its padding
+taken away, because both of them are part of how tall a field is.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.__init__"></a>
 
@@ -77,7 +95,7 @@ Remember the model and name the application after it.
 
 **Arguments**:
 
-- `model` - Model to show.
+- `model` - Model to show and to edit.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.compose"></a>
 
@@ -88,6 +106,20 @@ def compose() -> ComposeResult
 ```
 
 Create one row per configuration member, with header and footer.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp.on_input_changed"></a>
+
+#### on\_input\_changed
+
+```python
+def on_input_changed(event: Input.Changed) -> None
+```
+
+Write one field into the model and show whether it changed.
+
+A field posts this message when it is given its initial value as
+well, which the model handles by treating a set that changes no text
+as no edit at all.
 
 <a id="edit_cfg_json_textual.textual_editor.TextualEditor"></a>
 
@@ -115,5 +147,5 @@ Show the model in a Textual screen until the user quits.
 
 **Arguments**:
 
-- `model` - Model to show.
+- `model` - Model to show and to edit.
 

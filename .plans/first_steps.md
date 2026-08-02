@@ -271,6 +271,21 @@ incomplete, unknown-key and malformed input files. The
 `inspect.signature()` branch needs a config class that accepts
 `auto_ch_hook` and one that does not.
 
+### Step 4B - Enums as attributes in Config
+
+**Observable outcome.** An example is added that has a `Config` class
+with 2 enum attributes: one NeededCompetence(Enum) and one
+AvailableCompetence(IntEnum), both having at least 3 possible values
+and 2 of these values should be `ELECTRICAL` and `ELECTRONIC`.
+(These values are chosen so that a partly typed value could
+ be the beginning of more than one enum value.)
+The values of these enum attribute is shown in editor and can
+be changed in editor.
+
+**Code and test addictions/changes.** It is likely that adding
+the enum values to config that is loaded and edited will highlight
+incompleteness in design and tests that need to be attended to.
+
 ### Step 5 — Saving, and `edit()` — milestone 1
 
 **Observable outcome.** `-i in.json -o out.json --ui textual` opens the
@@ -424,6 +439,7 @@ step that needs it. They are listed here so they are not forgotten.
 
 | Question | Answer needed by |
 | --- | --- |
+| When does a field report that its text means no value at all, and is that on focus loss? See `doc/design.md` section 4.2. | raised at step 3, settled no later than step 7 |
 | Does `Config.write()` validate, making the editor's gate belt and braces? | step 5 |
 | Is `ConfigNestingKind.OPTIONAL_MEMBER` in v1 scope? | step 11 |
 | Does the Textual headless driver in the pinned 8.2.8 behave as the design assumes? | step 1 |

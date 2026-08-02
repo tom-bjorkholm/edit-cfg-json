@@ -16,20 +16,26 @@ both backends and by the example itself.
 # MIT License
 
 import asyncio
-from textual.widgets import Static
+from config_as_json import JsonType
+from textual.widgets import Input
 from edit_cfg_json import EditModel, EditorBackend
 from edit_cfg_json_textual import TextualEditor
-from edit_cfg_json_textual.textual_editor import EditorApp, VALUE_ID_PREFIX
+from edit_cfg_json_textual.textual_editor import EditorApp, QUIT_KEY, \
+    VALUE_ID_PREFIX
 from example.e01_flat_config import FlatConfig
 
 EXPECTED_VALUES = {'name': 'flat example', 'answer': '42'}
 """Value text that the application is expected to show for each member."""
 
 
-def _value_text(app: EditorApp, member_name: str) -> str:
-    """Return the text that the application shows for one member."""
-    widget = app.query_one(f'#{VALUE_ID_PREFIX}{member_name}', Static)
-    return str(widget.content)
+def _field(app: EditorApp, member_name: str) -> Input:
+    """Return the field that the application shows for one member."""
+    return app.query_one(f'#{VALUE_ID_PREFIX}{member_name}', Input)
+
+
+def _model_value(model: EditModel, name: str) -> JsonType:
+    """Return the value that the buffer holds for one member."""
+    return {row.name: row.value for row in model.rows}[name]
 
 
 async def _drive_app() -> tuple[str, dict[str, str], bool]:
@@ -42,10 +48,29 @@ async def _drive_app() -> tuple[str, dict[str, str], bool]:
     app = EditorApp(EditModel(FlatConfig()))
     async with app.run_test() as pilot:
         title = app.title
-        shown = {name: _value_text(app, name) for name in EXPECTED_VALUES}
-        await pilot.press('q')
+        shown = {name: _field(app, name).value for name in EXPECTED_VALUES}
+        await pilot.press(QUIT_KEY)
         await pilot.pause()
         return title, shown, app.is_running
+
+
+async def _type_into_answer(key: str) -> tuple[JsonType, str]:
+    """Run the application headlessly and type one key into a field.
+
+    Args:
+        key: Key to press while the field of the answer member has focus.
+
+    Returns:
+        The value the buffer holds for that member, and the title.
+    """
+    model = EditModel(FlatConfig())
+    app = EditorApp(model)
+    async with app.run_test() as pilot:
+        _field(app, 'answer').focus()
+        await pilot.pause()
+        await pilot.press(key)
+        await pilot.pause()
+        return _model_value(model, 'answer'), app.title
 
 
 def test_app_shows_model() -> None:
@@ -54,6 +79,20 @@ def test_app_shows_model() -> None:
     assert title == 'FlatConfig'
     assert shown == EXPECTED_VALUES
     assert not still_running
+
+
+def test_typing_edits_model() -> None:
+    """Test a key typed into a field reaches the model as a value."""
+    value, title = asyncio.run(_type_into_answer('7'))
+    assert value == 427
+    assert title == 'FlatConfig *'
+
+
+def test_typing_not_a_number() -> None:
+    """Test a field that is not a number yet is still kept by the model."""
+    value, title = asyncio.run(_type_into_answer('x'))
+    assert value == '42x'
+    assert title == 'FlatConfig *'
 
 
 def test_is_editor_backend() -> None:

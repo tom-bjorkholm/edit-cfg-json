@@ -63,9 +63,15 @@ from edit_cfg_json_textual import TextualEditor
 TextualEditor().run_editor(EditModel(config))
 ````
 
-The package is under construction. This first version opens a terminal
-screen showing the configuration members read-only, and quits on `q`.
-Editing, validation and saving follow.
+The package is under construction. This version opens a terminal screen with
+one edit field per configuration member, and quits on `ctrl+q`. Every change
+of a field goes straight into the model, and the title is marked while the
+model holds a change worth saving. Validation, reading a file and saving
+follow.
+
+The quit key is `ctrl+q` and no longer a plain letter, because an unmodified
+letter now belongs to whichever field has the focus: a user who types it
+expects to see it appear in the field.
 
 ## Installing edit-cfg-json-textual
 
@@ -110,7 +116,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 227 passed in 4s
+- Test result: 333 passed in 4s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

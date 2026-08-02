@@ -17,6 +17,8 @@ from {{import_name}} import TkEditor
 TkEditor().run_editor(EditModel(config))
 ````
 
-The package is under construction. This first version opens a window
-showing the configuration members read-only, with a button to close it.
-Editing, validation and saving follow.
+The package is under construction. This version opens a window with one
+edit field per configuration member, and a button to close it. Every change
+of a field goes straight into the model, and the label above the fields is
+marked while the model holds a change worth saving. Validation, reading a
+file and saving follow.

@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-"""Example 1: a read-only view of a flat configuration.
+"""Example 1: editing a flat configuration.
 
 This is the first example of the editor itself. The configuration class is
 as small as a configuration class can be: one text member and one number
@@ -25,8 +25,13 @@ puts around a string in the file. Both follow from the same idea: what the
 editor shows is the configuration object the application declared, and how
 that object is written to a file is an implementation detail of saving.
 
-This first step is read-only. Editing, validation, reading a file and saving
-arrive in the following steps.
+Both members can now be edited. Each of them is a field, and what the user
+types goes into the edit buffer of the model as the value it stands for: the
+text member keeps whatever is typed, and the number member holds a number as
+soon as the text is one. Text that is not a number yet is kept as it was
+typed, because a value that is being typed is not valid for most of the time
+it takes to type it. Validation, which is what says so, arrives in the next
+step.
 
 Run this example with one of:
 
@@ -41,7 +46,16 @@ because that is where the three packages are installed:
 `./venv/bin/python3 examples/src/example/e01_flat_config.py --ui dump`.
 
 The `--ui dump` variant needs neither a window nor a terminal, so it is also
-what the tests of this example use.
+what the tests of this example use. The same edit that a user would type
+into a field can be made from the command line, which is what makes an
+editor observable without a display:
+
+````sh
+python3 examples/src/example/e01_flat_config.py --ui dump --set answer=7
+````
+
+Reading a file and saving arrive in the following steps, so this example
+still starts from the default values and writes nothing.
 """
 
 # Copyright (c) 2026 Tom Björkholm

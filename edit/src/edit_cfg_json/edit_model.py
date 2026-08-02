@@ -9,17 +9,59 @@ from copy import deepcopy
 from typing import NamedTuple, TextIO
 import json
 import sys
-from config_as_json import Config, JsonType
+from config_as_json import Config, ConfigPath, JsonType
+from edit_cfg_json.leaf_value import text_as_value, value_as_text, \
+    values_differ
+
+NOT_EDITABLE_ERROR = 'Member {name} cannot be edited by this version.'
+"""Message of the error raised when a member cannot be edited."""
 
 
 class MemberRow(NamedTuple):
     """One configuration member as it appears in the JSON file."""
 
-    name: str
-    """Name of the configuration member."""
+    path: ConfigPath
+    """Path that addresses this member in the model.
+
+    Every path of a flat configuration has one step. The further steps that
+    lists, dicts and nested configuration objects need arrive together with
+    those, and no call site has to change when they do.
+    """
 
     value: JsonType
-    """Value of the member in JSON space, as it is written to the file."""
+    """Current value of the member in JSON space, as the user edits it."""
+
+    original: JsonType
+    """Value that this member had when the model was built.
+
+    It is what the current value is compared against, and it is also the only
+    type information that the model has. A PEP 526 annotation on an instance
+    attribute is recorded nowhere at runtime, so the value that the
+    configuration object holds is the only source of the type. Reading the
+    type from the current value instead would not work: a number member that
+    the user has half typed holds text for as long as the text is not a
+    number yet, and the member would then stop being a number member.
+    """
+
+    changed_by_validator: bool = False
+    """Whether a validation pass rewrote this value.
+
+    This is storage for a flag that validation sets, which arrives in a later
+    step. It belongs to the model rather than to a backend, so that two
+    backends cannot end up showing it differently.
+    """
+
+    filled_from_default: bool = False
+    """Whether a permissive load supplied this value.
+
+    This is storage for a flag that loading sets, which arrives in a later
+    step, and it belongs to the model for the same reason as the flag above.
+    """
+
+    @property
+    def name(self) -> str:
+        """Return the name of the member, the last step of its path."""
+        return self.path[-1]
 
     @property
     def editable(self) -> bool:
@@ -30,18 +72,29 @@ class MemberRow(NamedTuple):
         model does not have. Such a member is still reported as a row, so
         that no configuration member can silently go missing.
         """
-        return not isinstance(self.value, (dict, list))
+        return not isinstance(self.original, (dict, list))
 
     @property
     def is_text(self) -> bool:
-        """Return whether this member holds a string.
+        """Return whether this member holds text.
 
         This is the difference between a value that is text and a value
-        whose text is a rendering of it. A string member is shown and
-        edited as the string itself, while a number is shown as the text
-        it is written as.
+        whose text is a rendering of it. The text of a text member is the
+        value itself, while the text of a number is how the number is
+        written.
         """
-        return isinstance(self.value, str)
+        return isinstance(self.original, str)
+
+    @property
+    def edited(self) -> bool:
+        """Return whether the user changed this member.
+
+        A member is changed when it would now be written to the file
+        differently, and not when it merely was typed in. Typing a value
+        back to what it was leaves nothing to save, and an editor that still
+        claimed to have changes would be telling the user something untrue.
+        """
+        return values_differ(self.value, self.original)
 
 
 def _ordered_names(config: Config, members: dict[str, JsonType]) -> list[str]:
@@ -62,13 +115,13 @@ def _ordered_names(config: Config, members: dict[str, JsonType]) -> list[str]:
     return declared + [name for name in members if name not in declared]
 
 
-def _rows_from_config(config: Config,
-                      stderr_file: TextIO) -> tuple[MemberRow, ...]:
+def _rows_from_config(config: Config, stderr_file: TextIO) -> list[MemberRow]:
     """Return one row per serialized member, in declaration order."""
     members = json.loads(config.as_json_string(stderr_file=stderr_file))
     assert isinstance(members, dict)
-    return tuple(MemberRow(name=name, value=members[name])
-                 for name in _ordered_names(config=config, members=members))
+    return [MemberRow(path=(name,), value=members[name],
+                      original=members[name])
+            for name in _ordered_names(config=config, members=members)]
 
 
 class EditModel:
@@ -111,6 +164,8 @@ class EditModel:
         self._type_name = type(config).__name__
         self._rows = _rows_from_config(config=deepcopy(config),
                                        stderr_file=stderr_file)
+        self._number = {row.path: number
+                        for number, row in enumerate(self._rows)}
 
     @property
     def config_type_name(self) -> str:
@@ -125,5 +180,38 @@ class EditModel:
         members in, and not the sorted order that the JSON file has. How
         the file is written is an implementation detail of saving; what the
         application declared is what the user thinks about.
+
+        The rows are a snapshot. Editing a member replaces its row, so a row
+        that a caller kept is the state at the time it was read.
         """
-        return self._rows
+        return tuple(self._rows)
+
+    @property
+    def dirty(self) -> bool:
+        """Return whether the buffer holds anything that is worth saving."""
+        return any(row.edited for row in self._rows)
+
+    def set_text(self, path: ConfigPath, text: str) -> None:
+        """Set one member of the buffer from the text of an edit field.
+
+        Text that the field already shows changes nothing, because it is not
+        an edit. That is not only tidiness: a field posts a change when it is
+        given its initial text, and a model that counted that as an edit
+        would report unsaved changes before the user had touched anything.
+
+        Args:
+            path: Path of the member to set.
+            text: Text that the edit field holds.
+
+        Raises:
+            KeyError: The path is not a member of this configuration.
+            ValueError: The member is not one that this version can edit.
+        """
+        number = self._number[path]
+        row = self._rows[number]
+        if not row.editable:
+            raise ValueError(NOT_EDITABLE_ERROR.format(name=row.name))
+        if value_as_text(row.value) == text:
+            return
+        value = text_as_value(text=text, is_text_member=row.is_text)
+        self._rows[number] = row._replace(value=value)

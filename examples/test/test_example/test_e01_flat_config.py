@@ -14,37 +14,80 @@ from example import e01_flat_config
 EXPECTED_DUMP = 'name = flat example\nanswer = 42'
 """Text that `--ui dump` is expected to print for the default values."""
 
+QUIT_KEY = 'ctrl+q'
+"""Key that ends the Textual editor. A letter now belongs to a field."""
+
+
+def _dump(capsys: pytest.CaptureFixture[str], *settings: str) -> str:
+    """Run the example with `--ui dump` and return what it printed."""
+    e01_flat_config.main(['--ui', 'dump', *settings])
+    return capsys.readouterr().out.strip()
+
+
+def _refused(capsys: pytest.CaptureFixture[str], *arguments: str) -> str:
+    """Run the example, expect it to refuse, and return its error text."""
+    with pytest.raises(SystemExit) as exit_info:
+        e01_flat_config.main(list(arguments))
+    assert exit_info.value.code == 2
+    return capsys.readouterr().err
+
 
 def test_dump(capsys: pytest.CaptureFixture[str]) -> None:
     """Test --ui dump prints both members with their default values."""
-    e01_flat_config.main(['--ui', 'dump'])
-    assert capsys.readouterr().out.strip() == EXPECTED_DUMP
+    assert _dump(capsys) == EXPECTED_DUMP
 
 
 def test_ui_is_required(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the example refuses to run without a selected user interface."""
-    with pytest.raises(SystemExit) as exit_info:
-        e01_flat_config.main([])
-    assert exit_info.value.code == 2
-    assert '--ui' in capsys.readouterr().err
+    assert '--ui' in _refused(capsys)
 
 
 def test_unknown_ui(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the example refuses a user interface it does not have."""
-    with pytest.raises(SystemExit) as exit_info:
-        e01_flat_config.main(['--ui', 'curses'])
-    assert exit_info.value.code == 2
-    assert 'curses' in capsys.readouterr().err
+    assert 'curses' in _refused(capsys, '--ui', 'curses')
 
 
 @pytest.mark.parametrize('option', ['-i', '--input', '-o', '--output'])
 def test_files_refused(option: str,
                        capsys: pytest.CaptureFixture[str]) -> None:
     """Test the file options are refused until a later step implements them."""
-    with pytest.raises(SystemExit) as exit_info:
-        e01_flat_config.main(['--ui', 'dump', option, 'some.json'])
-    assert exit_info.value.code == 2
-    assert 'not supported yet' in capsys.readouterr().err
+    assert 'not supported yet' in _refused(capsys, '--ui', 'dump', option,
+                                           'some.json')
+
+
+def test_set_members(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test --set edits the buffer and marks what the user changed."""
+    assert _dump(capsys, '--set', 'name=other', '--set', 'answer=7') == \
+        'name = other (edited)\nanswer = 7 (edited)'
+
+
+def test_set_same_value(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test setting a member to the value it has is not an edit."""
+    assert _dump(capsys, '--set', 'name=flat example') == EXPECTED_DUMP
+
+
+def test_set_empty_value(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a member can be set to an empty field."""
+    assert _dump(capsys, '--set', 'name=') == \
+        'name =  (edited)\nanswer = 42'
+
+
+def test_set_not_a_number(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a number member keeps text that is not a number yet."""
+    assert _dump(capsys, '--set', 'answer=not-a-number') == \
+        'name = flat example\nanswer = not-a-number (edited)'
+
+
+def test_set_unknown_member(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test setting a member that does not exist is refused."""
+    error = _refused(capsys, '--ui', 'dump', '--set', 'missing=1')
+    assert 'missing is not a member' in error
+
+
+def test_set_without_value(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a --set that names no value at all is refused."""
+    error = _refused(capsys, '--ui', 'dump', '--set', 'name')
+    assert '--set needs member=value' in error
 
 
 def _close_window(window: tkinter.Tk) -> None:
@@ -64,7 +107,7 @@ def test_tk_ui_opens(monkeypatch: pytest.MonkeyPatch) -> None:
 async def _quit_at_once(app: App[None]) -> None:
     """Start one Textual application headlessly and press its quit key."""
     async with app.run_test() as pilot:
-        await pilot.press('q')
+        await pilot.press(QUIT_KEY)
 
 
 def _headless_run(titles: list[str]) -> Callable[[App[None]], None]:
@@ -89,3 +132,11 @@ def test_textual_ui_opens(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(App, 'run', _headless_run(titles))
     e01_flat_config.main(['--ui', 'textual'])
     assert titles == ['FlatConfig']
+
+
+def test_textual_ui_edited(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test --ui textual shows an edit that --set made before it started."""
+    titles: list[str] = []
+    monkeypatch.setattr(App, 'run', _headless_run(titles))
+    e01_flat_config.main(['--ui', 'textual', '--set', 'answer=7'])
+    assert titles == ['FlatConfig *']

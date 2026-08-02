@@ -198,6 +198,51 @@ to change this type metadata (which in many cases would trigger an
 error at validation, but might be useful for separating between
 a None value and an empty string value of an `Optional[str]`.)
 
+The type metadata of a leaf is ** derived from the value that leaf held
+when the model was built**, kept beside the value the user is editing.
+Deriving the kind from the current value instead does not work: a number
+member that is half typed holds text for as long as its text is not a
+number yet, and it would stop being a number member for the rest of the
+session. The value the model started with also answers the other question
+the editor asks about a leaf, which is whether the user changed it. That
+comparison is now made on the JSON notation rather than with `==`, because
+Python considers `True` equal to `1` and `1` equal to `1.0` while a file
+writes all three of them differently, and any of those changes changes
+the file. Future versions will probably add more type information on
+more focus on attribute types.
+
+Text that is not JSON at all is kept as a string rather than refused, which
+is what makes a value typable at all: it is invalid for most of the time it
+takes to type it. The string that a number member then holds is not hidden,
+it is simply the wrong type, and section 6.1 reports it as one.
+
+A field writes into the buffer on **every change and not when it loses the
+focus**, because a commit on focus loss would lose the last edit whenever
+saving is reached without leaving the field — from the keyboard, or through
+a button that does not take the focus.
+
+Losing the focus is however the moment at which the **conversion of one
+field** should report itself, because that is when the user has moved on
+from that field. It does not arise yet: the conversions this version has
+cannot fail, since text that is not JSON is kept as a string and the wrong
+type is something section 6.1 reports later. It arises with the leaves that
+`parse_converters()` turns into rich Python types, an enum being the
+obvious one: its member name is not a member of the enum for most of the
+time it takes to type it, so converting on every change would report a
+failure that is not one yet.
+
+Per-field conversion feedback on focus loss is **not** the validation of
+section 6. It is local, it needs no candidate configuration, and it answers
+a different question — whether this text means a value at all, rather than
+whether the configuration is one the application would accept. Both are
+needed, and the value conversion is to be revisited with that in mind.
+
+Rewriting the text a field shows is a third, separate matter, and belongs
+where validation rewrites values (section 6.4).
+
+Each leaf is addressed by a `config_as_json.ConfigPath`, so that a member
+inside a list, a dict or a nested config needs no second way of naming it.
+
 Editing a live `Config` object attribute by attribute was considered and
 rejected: a value being typed passes through intermediate states that are
 not valid, rich Python values exist only after `parse_converters()` runs,
