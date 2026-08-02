@@ -97,7 +97,7 @@ all aliases.)
 
 ### Step 1 — Walking skeleton: read-only view of a flat config
 
-**Implemented and committed**
+Status: **Implemented and committed**
 
 **Observable outcome.** A new example `e01_flat_config.py` defines a
 `Config` subclass with one `str` and one `int` member.
@@ -177,6 +177,8 @@ review, the split is between the core plus `--ui dump` and the two backends,
 in that order.
 
 ### Step 2 — Editing the buffer
+
+Status: **Implemented and committed**
 
 **Observable outcome.** `--set name=other --set answer=7 --ui dump` shows the
 edited buffer instead of the defaults. In both UIs the two rows are
