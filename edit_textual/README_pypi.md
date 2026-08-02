@@ -64,7 +64,7 @@ TextualEditor().run_editor(EditModel(config))
 ````
 
 The package is under construction. This version opens a terminal screen with
-one edit field per configuration member, validates on `f5` and quits on
+one edit field per configuration member, validates on `ctrl+r` and quits on
 `ctrl+q`. Every change of a field goes straight into the model, and the
 title is marked while the model holds a change worth saving. Reading a file
 and saving follow.
@@ -77,7 +77,10 @@ afterwards, and a member that a validator rewrote says so beside its field.
 
 Neither key is a plain letter, because an unmodified letter belongs to
 whichever field has the focus: a user who types it expects to see it appear
-in the field.
+in the field. `f5` validates as well, and is left out of the footer so that
+one action is not named twice there; a function key is the one of the two
+that a keyboard or a terminal is most likely not to deliver, which is why
+the footer names `ctrl+r` instead.
 
 ## Installing edit-cfg-json-textual
 
@@ -122,7 +125,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 390 passed in 5s
+- Test result: 394 passed in 5s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

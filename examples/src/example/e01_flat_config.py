@@ -38,13 +38,25 @@ rules of its own: it hands the buffer to `FlatConfig` and reports what
 `FlatConfig` says, so the user is told exactly what the application would
 say when it read the same values from a file.
 
-The two validators show the two sides of that:
+The validators show the two sides of that:
 
-- `answer` must be between 0 and 100, so there is something that can fail.
+- `answer` must be a whole number between 0 and 100, so there is something
+  that can fail.
 - `name` has its first character upper cased, so there is something that
   rewrites. A validation pass is not read only, and a value that a validator
   rewrote is marked, because changing what the user just typed without
   showing it would be the worst thing the editor could do.
+
+The first of those needs two validators rather than one, and the reason is
+worth knowing. In Python `bool` is a subclass of `int`, so `True` really is
+a whole number as far as `isinstance` is concerned, and a range check alone
+would accept `true` in a field meant for a count.
+`ValueTypeValidator` is what `config_as_json` has for exactly that:
+`not_allowed_type=bool` says that a `bool` is not one of the whole numbers
+this member accepts. Passing `strict=True` instead is the other way to say
+it, because that matches `type(value)` exactly rather than by subclass; the
+denied type is used here because its diagnostic names `bool` and so teaches
+the reader what was rejected.
 
 Run this example with one of:
 
@@ -72,7 +84,7 @@ python3 examples/src/example/e01_flat_config.py --ui dump --set name=other
 
 In the two graphical backends the same pass is asked for rather than done
 for the user: the Tkinter editor has a Validate button and the Textual
-editor validates on `f5`.
+editor validates on `ctrl+r`, or on `f5`.
 
 Reading a file and saving arrive in the following steps, so this example
 still starts from the default values and writes nothing.
@@ -86,7 +98,7 @@ from typing import Optional, TextIO
 import sys
 from config_as_json import Config, IntFloatValidator, MemberValidationStep, \
     PathOrStr, StrCaseChangeValidator, StrCaseSpec, StrPositionSpec, \
-    ValidationPlan
+    ValidationPlan, ValueTypeValidator
 
 LOWEST_ANSWER = 0
 """Smallest number that this configuration accepts as an answer."""
@@ -131,14 +143,21 @@ class FlatConfig(Config):
                          stderr_file=stderr_file)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
-        """Return one validator that refuses and one that rewrites.
+        """Return the validators that refuse and the one that rewrites.
 
         These are ordinary `config_as_json` validators, declared exactly as
         they would be in an application that had no editor at all. The
         editor runs this plan by constructing this class, so an application
         that adds a validator of its own gets it in the editor for free.
+
+        The type of `answer` is checked before its range, so that a value
+        that is no whole number is reported as the wrong type rather than
+        as a number outside the range. `not_allowed_type=bool` is what keeps
+        `true` out of a member meant for a count, since a `bool` is an `int`
+        in Python and a range check on its own would let it through.
         """
         _ = stderr_file
+        whole_number = ValueTypeValidator(int, not_allowed_type=bool)
         in_range = IntFloatValidator[int](min_value=LOWEST_ANSWER,
                                           max_value=HIGHEST_ANSWER,
                                           allowed_values=None)
@@ -147,6 +166,8 @@ class FlatConfig(Config):
             special_position_case=StrCaseSpec.UPPER,
             other_position_case=StrCaseSpec.ORIGINAL)
         return [MemberValidationStep(member_names=['answer'],
+                                     validator=whole_number),
+                MemberValidationStep(member_names=['answer'],
                                      validator=in_range),
                 MemberValidationStep(member_names=['name'],
                                      validator=upper_first)]

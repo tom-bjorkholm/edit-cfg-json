@@ -83,6 +83,19 @@ def test_set_not_a_number(capsys: pytest.CaptureFixture[str]) -> None:
          'Invalid configuration: Value for answer is not of type int.')
 
 
+def test_dump_refused_bool(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a true or false typed into a number member is refused.
+
+    A `bool` is an `int` in Python, so a range check on its own would accept
+    it. The example declares the type of the member as well, which is what
+    `config_as_json` has `ValueTypeValidator` for.
+    """
+    assert _dump(capsys, '--set', 'answer=true') == \
+        ('name = Flat example\nanswer = true (edited)\n'
+         'validation: invalid\n'
+         'Invalid configuration: Value for answer must not be of type bool.')
+
+
 def test_dump_refused_value(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a value outside the allowed range is refused, and why."""
     assert _dump(capsys, '--set', 'answer=500') == \

@@ -17,12 +17,14 @@ both backends and by the example itself.
 
 import asyncio
 from config_as_json import JsonType
+import pytest
 from textual.app import App, ComposeResult
 from textual.widgets import Input, Static
 from edit_cfg_json import EditModel, EditorBackend
 from edit_cfg_json_textual import TextualEditor
 from edit_cfg_json_textual.textual_editor import EditorApp, MARK_ID_PREFIX, \
-    QUIT_KEY, VALIDATE_KEY, VALUE_ID_PREFIX, VERDICT_ID, plain_widget
+    QUIT_KEY, VALIDATE_ALT_KEY, VALIDATE_KEY, VALUE_ID_PREFIX, VERDICT_ID, \
+    plain_widget
 from example.e01_flat_config import FlatConfig
 
 EXPECTED_VALUES = {'name': 'Flat example', 'answer': '42'}
@@ -107,12 +109,14 @@ async def _type_into_answer(key: str) -> tuple[JsonType, str]:
         return _model_value(model, 'answer'), app.title
 
 
-async def _validate_with(member_name: str, text: str) -> tuple[str, str, str]:
+async def _validate_with(member_name: str, text: str,
+                         key: str = VALIDATE_KEY) -> tuple[str, str, str]:
     """Run the application headlessly, set one field and validate.
 
     Args:
         member_name: Member whose field is written into.
         text: Text to put in that field, replacing what is there.
+        key: Key that is pressed to validate.
 
     Returns:
         The validation text, the text the field shows afterwards, and the
@@ -121,8 +125,12 @@ async def _validate_with(member_name: str, text: str) -> tuple[str, str, str]:
     app = EditorApp(EditModel(FlatConfig()))
     async with app.run_test() as pilot:
         _field(app, member_name).value = text
+        # The field keeps the focus while the key is pressed, which is the
+        # situation the editor is really in: a user validates what has just
+        # been typed without leaving the field first.
+        _field(app, member_name).focus()
         await pilot.pause()
-        await pilot.press(VALIDATE_KEY)
+        await pilot.press(key)
         await pilot.pause()
         return (_verdict(app), _field(app, member_name).value,
                 _mark(app, member_name))
@@ -166,11 +174,25 @@ def test_typing_not_a_number() -> None:
     assert title == 'FlatConfig *'
 
 
-def test_validate_accepts() -> None:
-    """Test the validate key reports a buffer the application accepts."""
-    verdict, shown, mark = asyncio.run(_validate_with('answer', '7'))
+@pytest.mark.parametrize('key', [VALIDATE_KEY, VALIDATE_ALT_KEY])
+def test_validate_accepts(key: str) -> None:
+    """Test either validate key reports a buffer the application accepts.
+
+    Both keys are tried because a keyboard or a terminal that does not
+    deliver one of them is exactly why there are two.
+    """
+    verdict, shown, mark = asyncio.run(_validate_with('answer', '7', key))
     assert verdict == VALID_VERDICT
     assert shown == '7'
+    assert mark == ' (edited)'
+
+
+@pytest.mark.parametrize('key', [VALIDATE_KEY, VALIDATE_ALT_KEY])
+def test_key_not_typed(key: str) -> None:
+    """Test a validate key is not typed into the field that has the focus."""
+    verdict, shown, mark = asyncio.run(_validate_with('name', 'Typed', key))
+    assert shown == 'Typed'
+    assert verdict == VALID_VERDICT
     assert mark == ' (edited)'
 
 

@@ -9,6 +9,7 @@
   * [NAME\_WIDTH](#edit_cfg_json_textual.textual_editor.NAME_WIDTH)
   * [QUIT\_KEY](#edit_cfg_json_textual.textual_editor.QUIT_KEY)
   * [VALIDATE\_KEY](#edit_cfg_json_textual.textual_editor.VALIDATE_KEY)
+  * [VALIDATE\_ALT\_KEY](#edit_cfg_json_textual.textual_editor.VALIDATE_ALT_KEY)
   * [\_value\_id](#edit_cfg_json_textual.textual_editor._value_id)
   * [\_mark\_id](#edit_cfg_json_textual.textual_editor._mark_id)
   * [plain\_widget](#edit_cfg_json_textual.textual_editor.plain_widget)
@@ -81,11 +82,26 @@ has the focus, and a user who typed it would expect to see it appear.
 
 #### VALIDATE\_KEY
 
-Key that validates the buffer.
+Key that validates the buffer, and the one the footer names.
 
-A function key for the same reason as the quit key, and this one in
-particular because it is what a user of other editors reaches for to ask a
-tool to check what has been written.
+Not a plain letter, for the same reason as the quit key. This letter in
+particular because a field claims most of the others: `Input` already reads
+`ctrl+a`, `ctrl+c`, `ctrl+d`, `ctrl+e`, `ctrl+k`, `ctrl+u`, `ctrl+v`,
+`ctrl+w` and `ctrl+x`, and the terminal itself claims `ctrl+c`, `ctrl+d`,
+`ctrl+s`, `ctrl+z` and the four that are Backspace, Tab, Return and Escape.
+Of what is left, `r` is the one that means something: re-check.
+
+<a id="edit_cfg_json_textual.textual_editor.VALIDATE_ALT_KEY"></a>
+
+#### VALIDATE\_ALT\_KEY
+
+The other key that validates the buffer.
+
+Function keys are what other editors use to ask a tool to check what has
+been written, so the key is kept. It is not shown in the footer, because a
+footer that named the same action twice would suggest they were two
+actions, and because a function key is the one of the two that a keyboard
+or a terminal is most likely not to deliver.
 
 <a id="edit_cfg_json_textual.textual_editor._value_id"></a>
 
@@ -147,10 +163,12 @@ Textual application that edits one edit model.
 
 #### BINDINGS
 
-The keys the footer shows, so that they can be found.
+What the keys of the editor do, and which of them the footer names.
 
 They are priority bindings, so that they are acted on before the field
-that has the focus is offered the key.
+that has the focus is offered the key. The two keys that validate are
+two bindings rather than one binding of two keys, because that is what
+lets the footer name one of them and still leave the other working.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.CSS"></a>
 
