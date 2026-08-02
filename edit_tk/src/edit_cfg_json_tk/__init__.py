@@ -8,6 +8,6 @@ that nothing has to be imported from an internal module.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from edit_cfg_json_tk.hello import tk_greeting
+from edit_cfg_json_tk.tk_editor import TkEditor
 
-__all__ = ['tk_greeting']
+__all__ = ['TkEditor']

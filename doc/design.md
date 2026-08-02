@@ -187,11 +187,26 @@ The buffer holds JSON-compatible values at the leaves, typed as
 `config_as_json.JsonType`. The user edits what will actually land in the
 file — an enum is edited as its member name.
 
+The buffer is however not JSON text. For example: in the edit field no
+quotation marks are shown around a string. The edit field will show
+the digits `1` and `0` as`10` for both the string `'10'` and the
+integer `10`. The edit buffer needs to hold additional metadata/flags
+with type information for each leaf. There is not yet any decision
+to show the type metadata as a label by the field to the user.
+There is not yet any decision to allow the user of the editor to try
+to change this type metadata (which in many cases would trigger an
+error at validation, but might be useful for separating between
+a None value and an empty string value of an `Optional[str]`.)
+
 Editing a live `Config` object attribute by attribute was considered and
 rejected: a value being typed passes through intermediate states that are
 not valid, rich Python values exist only after `parse_converters()` runs,
 and a half-edited object cannot be validated meaningfully. JSON-space
 leaves also make the validation round-trip in section 6.1 exact.
+
+Notice that the mental model presented to the user should as much as
+possible center around the `Config` objects, and JSON encoding is
+only a way to show and edit individual leaf values.
 
 Per-field flags carried by the model, not by the backends, so that the
 two UIs cannot drift:
