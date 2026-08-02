@@ -15,7 +15,11 @@ from config_as_json import Config, JsonType
 import pytest
 from edit_cfg_json.validation import validate_buffer
 from .sample_cfg import REFUSAL_MESSAGE, AllowedCfg, EnumCfg, ExtraArgCfg, \
-    FlatCfg, ListCfg, OmitCfg, RangeCfg, RefuseCfg, RewriteCfg, TypedCfg
+    FlatCfg, IntEnumCfg, ListCfg, OmitCfg, RangeCfg, RefuseCfg, RewriteCfg, \
+    TypedCfg
+
+ENUM_NAMES = 'is not one of: LOWEST, LOW, HIGH'
+"""What the diagnostics say about text that names no member of `Level`."""
 
 REFUSED_BUFFERS: list[tuple[str, type[Config],
                             dict[str, JsonType], str]] = [
@@ -24,6 +28,9 @@ REFUSED_BUFFERS: list[tuple[str, type[Config],
      'Unexpected parameter more'),
     ('no enum member', EnumCfg, {'colour': 'PURPLE'},
      'PURPLE is not one of: RED, GREEN'),
+    ('no int enum member', IntEnumCfg, {'level': 'MIDDLE'}, ENUM_NAMES),
+    ('ambiguous name', IntEnumCfg, {'level': 'LO'}, ENUM_NAMES),
+    ('enum as a number', IntEnumCfg, {'level': 2}, 'not str as expected'),
     ('outside range', RangeCfg, {'answer': 500},
      'is greater than maximum 100'),
     ('not allowed', AllowedCfg, {'colour': 'blue'}, 'colour'),
@@ -68,6 +75,7 @@ def test_silent_refusal_told() -> None:
                                      'answer': 3}),
                           (OmitCfg, {'first': 1, 'last': 2}),
                           (EnumCfg, {'colour': 'GREEN'}),
+                          (IntEnumCfg, {'level': 'HIGH'}),
                           (RangeCfg, {'answer': 100})])
 def test_accepted_buffer(config_type: type[Config],
                          members: dict[str, JsonType]) -> None:
@@ -94,6 +102,37 @@ def test_rewritten_returned() -> None:
     outcome = validate_buffer(config_type=RewriteCfg,
                               members={'name': 'typed text'})
     assert outcome.members == {'name': 'Typed text'}
+
+
+@pytest.mark.parametrize('typed, whole',
+                         [('HIGH', 'HIGH'), ('HI', 'HIGH'), ('low', 'LOW'),
+                          ('LOW', 'LOW'), ('lowe', 'LOWEST')])
+def test_enum_name_completed(typed: str, whole: str) -> None:
+    """Test text that names one enum member comes back as its whole name.
+
+    The matching of `config_as_json` is forgiving: it tries the usual case
+    variants of the whole name first and then accepts a prefix that only
+    one member has. An exact name is therefore not read as a prefix, which
+    is what keeps `LOW` meaning `LOW` and not being ambiguous with
+    `LOWEST`. The editor sees the completed name as a value that the pass
+    rewrote, which is the same thing that a rewriting validator does.
+    """
+    outcome = validate_buffer(config_type=IntEnumCfg, members={'level': typed})
+    assert outcome.verdict.valid
+    assert outcome.members == {'level': whole}
+
+
+def test_int_enum_is_a_name() -> None:
+    """Test an int enum member is read back as its name and not its number.
+
+    Python's own JSON encoder treats an `IntEnum` member as the `int` it
+    is, so without the write-side conversion of `config_as_json` the buffer
+    would be refreshed with a number that the field could not show as a
+    name any more.
+    """
+    outcome = validate_buffer(config_type=IntEnumCfg,
+                              members={'level': 'HIGH'})
+    assert outcome.members == {'level': 'HIGH'}
 
 
 def test_omitted_absent() -> None:

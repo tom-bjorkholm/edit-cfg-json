@@ -7,8 +7,8 @@
 import pytest
 from config_as_json import JsonType
 from edit_cfg_json import EditModel, MemberRow
-from .sample_cfg import ExtraArgCfg, FlatCfg, ListCfg, NoneCfg, OmitCfg, \
-    RangeCfg, RewriteCfg
+from .sample_cfg import ExtraArgCfg, FlatCfg, IntEnumCfg, ListCfg, NoneCfg, \
+    OmitCfg, RangeCfg, RewriteCfg
 
 
 def _row(model: EditModel, name: str) -> MemberRow:
@@ -74,6 +74,46 @@ def test_text_kept_as_text() -> None:
     assert _row(model, 'name').is_text
     assert _row(model, 'name').value == 'flat text'
     assert not _row(model, 'answer').is_text
+
+
+def test_enum_is_a_name() -> None:
+    """Test an enum member is an ordinary text row holding its name.
+
+    The model knows nothing about enums and needs to know nothing: what the
+    file holds for such a member is the name of the member, so the row is a
+    text row like any other and is edited in one ordinary field.
+    """
+    row = _row(EditModel(IntEnumCfg()), 'level')
+    assert row.value == 'LOWEST'
+    assert row.is_text
+    assert row.editable
+
+
+def test_enum_completed() -> None:
+    """Test text naming one enum member is completed and marked as such.
+
+    This is the same behaviour as a validator that rewrites a value, and it
+    reaches the model the same way, which is why the model needs no rule of
+    its own for it.
+    """
+    model = EditModel(IntEnumCfg())
+    model.set_text(path=('level',), text='HI')
+    assert model.validate().valid
+    assert _row(model, 'level').value == 'HIGH'
+    assert _row(model, 'level').changed_by_validator
+
+
+def test_enum_keeps_typing() -> None:
+    """Test a field holds text that names no enum member yet.
+
+    Every name of an enum is text that names no member for as long as it is
+    half typed, so a buffer that refused such text could not be typed in.
+    """
+    model = EditModel(IntEnumCfg())
+    model.set_text(path=('level',), text='LO')
+    assert not model.validate().valid
+    assert _row(model, 'level').value == 'LO'
+    assert not _row(model, 'level').changed_by_validator
 
 
 def test_caller_not_changed() -> None:

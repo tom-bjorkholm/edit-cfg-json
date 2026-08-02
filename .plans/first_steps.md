@@ -240,6 +240,8 @@ flag and that the next edit to that field clears it.
 
 ### Step 3B - Enums as attributes in Config
 
+Status: **Implemented and committed**
+
 **Observable outcome.** An example is added that has a `Config` class
 with 2 enum attributes: one `NeededCompetence(Enum)` and one
 `AvailableCompetence(IntEnum)`, both having 3 possible values
@@ -249,16 +251,27 @@ be the beginning of more than one enum value.)
 The values of these enum attribute is shown in editor and can
 be changed in editor.
 
-**Examples.** `e01_flat_config.py` gains 2 enum attributes in the
-Config class:
+**Examples.** A new `e02_enum_config.py` holds the 2 enum attributes in a
+Config class of its own:
 - `needed: NeededCompetence = NeededCompetence.ELECTRICAL`
 - `available: AvailableCompetence = AvailableCompetence.MECHANICAL`
 
 There are no explicit validators defined for these 2 attributes,
 the teaching story is that there is a validation of enums built into
 `config_as_json.Config` and that works in the editor as well, 
-provided that the `serialize_converters()` and `parse_converters()`
-are set up.
+provided that the `parse_converters()` are set up.
+
+Only `parse_converters()` turns out to need declaring: the write side of
+an `Enum` and of an `IntEnum` is a documented built-in fallback of
+`config_as_json`, so an explicit `serialize_converters()` would teach that
+an application has to write one when it does not. The example says so
+instead of declaring a redundant one.
+
+**Core.** Nothing. An enum leaf holds the name of its member, which is
+text, so `MemberRow.is_text` already treats it as the text member it is
+and both backends already render it. This step is examples and tests only,
+and the fact that it needs no core change is itself worth confirming with
+tests.
 
 ### Step 4 — Loading
 
@@ -355,7 +368,7 @@ with `cls.__doc__` and never `inspect.getdoc(cls)`, so that a nested class
 without its own docstring shows nothing instead of showing `Config`'s.
 Split at the first blank line into a folded-row summary and an expanded
 full text, and put the show/hide toggle in the model. A new example
-`e02_described_config.py` shows the same flat config with a description
+`e03_described_config.py` shows the same flat config with a description
 mapping; `--ui dump` includes the descriptions, and both UIs toggle them.
 Risk: the toggle is state that both backends will want to own; it belongs
 to the model.
@@ -365,25 +378,40 @@ fields by running `MemberValidationStep.validator.validate_member()` for
 one member of a complete candidate config, per design section 6.3. A
 complete candidate must be built first, because `validate_member` receives
 the whole config and may inspect other members. A new example
-`e03_validated_config.py` carries a custom validator and a projected
+`e04_validated_config.py` carries a custom validator and a projected
 validator; the failure now appears on the offending row in both UIs rather
 than in one block. Risk: this must work for an application's own
 `MemberValidator` subclass, so no test may rely on a validator class that
 ships with `config_as_json` being recognised by type.
+
+Step 7 also makes the enum validation error message nicer.
+The message "Config.parse_json failed to load JSON from string/file.
+Probably incorrectly edited configuration, or using wrong file
+(not config file) as configuration.
+'ELEC is not one of: MECHANICAL, ELECTRICAL, ELECTRONIC' " is correct
+when reading it from a file, but for the user of the editor this is
+confusing as the user of the editor should not care about how the editor
+is implemented. We can and should avoid most occurences of this message
+by looking at `parse_converters()` that tells us what enum class this
+field should hold and then in editor code use
+`config_as_json.string_to_enum_best_match()` to pre-check if the value
+is bad. If the value is bad according to `config_as_json.string_to_enum_best_match()`
+we report that, only once that step has passed do we do the complete
+validation.
 
 **Step 8 — Automatic-change visibility.** Load the file, re-serialize the
 resulting config and diff that against the raw file text; any difference
 means the load changed something. Use the structured
 `ConfigAutoChangeHook` report to explain the diff when the application's
 class accepts a hook, and do without it otherwise. A new example
-`e04_old_format_config.py` carries `ReadOldConfiguration` rules, so
+`e05_old_format_config.py` carries `ReadOldConfiguration` rules, so
 opening an old-format file visibly reports the migration. Risk: the
 hook-independent diff is the primary mechanism and must be tested with a
 config class that does *not* accept a hook.
 
 **Step 9 — The explicit loader.** Add the `ConfigLoader` protocol and the
 `loader` parameter, completing the `edit()` signature of design section 8.
-A new example `e05_factory_config.py` has a config needing constructor
+A new example `e06_factory_config.py` has a config needing constructor
 arguments this library knows nothing about, bound with
 `functools.partial` before the callable reaches the editor. Risk: the
 protocol signature is closed on purpose; resist adding parameters to it.
@@ -393,14 +421,14 @@ protocol signature is closed on purpose; resist adding parameters to it.
 **Step 10 — Lists and dicts of scalars.** Ordinary JSON structure inside
 one config's ownership region: render as an indented tree and edit the
 leaves. No adding, no removing, no nested configs. A new example
-`e06_lists_and_dicts.py`. Risk: this is where `model_as_text` and the two
+`e07_lists_and_dicts.py`. Risk: this is where `model_as_text` and the two
 backends stop being trivially parallel; expect to move tree flattening
 into the core.
 
 **Step 11 — Nested `Config` objects.** `nested_configs()` becomes the
 first-authority source it is in design section 4.1. A nested config is a
 first-class node with its own type, docstring and validity state, and it
-segments the tree. A new example `e07_nested_config.py`, modelled on
+segments the tree. A new example `e08_nested_config.py`, modelled on
 `e33_nested_configs.py`. Open question to settle when this step starts:
 `ConfigNestingKind` also has `OPTIONAL_MEMBER`, which design section 10
 neither includes nor excludes. Decide it explicitly rather than by
@@ -410,7 +438,7 @@ accident.
 and folding a nested config validates that subtree by constructing its
 `config_type` from that subtree's JSON. Show *subtree-valid* and
 *config-valid* as the two distinct states they are; a subtree can be valid
-while the root is not, and both should be shown. `e07_nested_config.py`
+while the root is not, and both should be shown. `e08_nested_config.py`
 gains the badges. Risk: a `WholeConfigValidator` on a parent relates
 members across a nesting boundary, so a green subtree badge must never be
 allowed to read as "the file can be saved".
@@ -421,7 +449,7 @@ allowed to read as "the file can be saved".
 configs, and the `'['` step in description paths meaning "every list
 element or every dictionary value at this point", which is what stops the
 application repeating itself per index or per key. A new example
-`e08_config_containers.py`, modelled on `e34_list_nested_configs.py` and
+`e09_config_containers.py`, modelled on `e34_list_nested_configs.py` and
 `e35_dict_nested_configs.py`.
 
 **Step 14 — Adding and removing elements.** Add and remove elements of
@@ -431,7 +459,7 @@ it has no nesting declaration, there is no template and none can be
 invented: the UI says so and offers reorder and remove but not extend.
 `DICT_VALUE_BY_KEY` members and dicts listed in `_unchecked_dicts` are out
 of v1 scope and must be reported as such rather than half-supported. A new
-example `e09_add_remove.py` demonstrates all three cases side by side,
+example `e10_add_remove.py` demonstrates all three cases side by side,
 including the two that are refused.
 
 ### Milestone 5 — release readiness

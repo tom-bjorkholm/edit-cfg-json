@@ -4,7 +4,7 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from enum import Enum
+from enum import Enum, IntEnum
 from typing import Optional, TextIO
 import sys
 from config_as_json import Config, IntFloatValidator, MemberValidationStep, \
@@ -188,6 +188,41 @@ class EnumCfg(SampleCfg):
         return {'colour': Config.get_converter_dict(Colour)}
 
 
+class Level(IntEnum):
+    """The values that the int enum member of `IntEnumCfg` can hold.
+
+    Two of the three names begin with the same two characters, so that the
+    tests can tell an exact name, a prefix that names one member and a
+    prefix that names two of them apart.
+    """
+
+    LOWEST = 1
+    """The name that `LO` is not enough to pick out."""
+
+    LOW = 2
+    """The name that is also the beginning of another name."""
+
+    HIGH = 3
+    """The name that `HI` is enough to pick out."""
+
+
+class IntEnumCfg(SampleCfg):
+    """A configuration with an int enum member, written as its name.
+
+    An `IntEnum` member is an `int`, so Python's own JSON encoder would
+    write its number. `config_as_json` converts it to its member name
+    before that happens, which is what this class is here to show.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the one int enum member."""
+        self.level: Level = Level.LOWEST
+
+    def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
+        """Return the converter that turns a member name into a member."""
+        return {'level': Config.get_converter_dict(Level)}
+
+
 class SilentRefusal(MemberValidator):  # pylint: disable=too-few-public-methods
     """A member validator of the kind an application writes for itself.
 
@@ -219,7 +254,7 @@ class RefuseCfg(SampleCfg):
                                      validator=SilentRefusal())]
 
 
-class ExtraArgCfg(Config):
+class ExtraArgCfg(SampleCfg):
     """A configuration whose constructor needs an argument of its own.
 
     The editor cannot construct this class, because it knows nothing about
@@ -238,7 +273,9 @@ class ExtraArgCfg(Config):
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
 
-    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
-        """Return no extra validation steps."""
-        _ = stderr_file
-        return []
+    def declare_members(self) -> None:
+        """Declare nothing, because the constructor did it already.
+
+        The one member of this class is the extra constructor argument, so
+        it cannot be assigned anywhere else.
+        """

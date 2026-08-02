@@ -4,12 +4,9 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Callable
-import asyncio
-import tkinter
 import pytest
-from textual.app import App
 from example import e01_flat_config
+from .helpers import dump, open_tk_ui, refused, textual_titles
 
 VALID_LINE = 'validation: valid'
 """Line that `--ui dump` ends with for a buffer the example accepts."""
@@ -17,22 +14,15 @@ VALID_LINE = 'validation: valid'
 EXPECTED_DUMP = f'name = Flat example\nanswer = 42\n{VALID_LINE}'
 """Text that `--ui dump` is expected to print for the default values."""
 
-QUIT_KEY = 'ctrl+q'
-"""Key that ends the Textual editor. A letter now belongs to a field."""
-
 
 def _dump(capsys: pytest.CaptureFixture[str], *settings: str) -> str:
-    """Run the example with `--ui dump` and return what it printed."""
-    e01_flat_config.main(['--ui', 'dump', *settings])
-    return capsys.readouterr().out.strip()
+    """Run this example with `--ui dump` and return what it printed."""
+    return dump(e01_flat_config.main, capsys, *settings)
 
 
 def _refused(capsys: pytest.CaptureFixture[str], *arguments: str) -> str:
-    """Run the example, expect it to refuse, and return its error text."""
-    with pytest.raises(SystemExit) as exit_info:
-        e01_flat_config.main(list(arguments))
-    assert exit_info.value.code == 2
-    return capsys.readouterr().err
+    """Run this example, expect it to refuse, and return its error text."""
+    return refused(e01_flat_config.main, capsys, *arguments)
 
 
 def test_dump(capsys: pytest.CaptureFixture[str]) -> None:
@@ -128,53 +118,17 @@ def test_set_without_value(capsys: pytest.CaptureFixture[str]) -> None:
     assert '--set needs member=value' in error
 
 
-def _close_window(window: tkinter.Tk) -> None:
-    """Stand in for Tk.mainloop by closing the window immediately."""
-    window.destroy()
-
-
 def test_tk_ui_opens(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test --ui tk builds the window and returns when it is closed."""
-    monkeypatch.setattr(tkinter.Tk, 'mainloop', _close_window)
-    try:
-        e01_flat_config.main(['--ui', 'tk'])
-    except tkinter.TclError:
-        pytest.skip('No display available for Tk.')
-
-
-async def _quit_at_once(app: App[None]) -> None:
-    """Start one Textual application headlessly and press its quit key."""
-    async with app.run_test() as pilot:
-        await pilot.press(QUIT_KEY)
-
-
-def _headless_run(titles: list[str]) -> Callable[[App[None]], None]:
-    """Return a replacement for App.run that runs the application headlessly.
-
-    Args:
-        titles: List that receives the title of every started application.
-
-    Returns:
-        A function that can replace `App.run` for the duration of a test.
-    """
-    def run_headless(app: App[None]) -> None:
-        """Record the title, start the application and quit it at once."""
-        titles.append(app.title)
-        asyncio.run(_quit_at_once(app))
-    return run_headless
+    open_tk_ui(e01_flat_config.main, monkeypatch)
 
 
 def test_textual_ui_opens(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test --ui textual starts the application named after the class."""
-    titles: list[str] = []
-    monkeypatch.setattr(App, 'run', _headless_run(titles))
-    e01_flat_config.main(['--ui', 'textual'])
-    assert titles == ['FlatConfig']
+    assert textual_titles(e01_flat_config.main, monkeypatch) == ['FlatConfig']
 
 
 def test_textual_ui_edited(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test --ui textual shows an edit that --set made before it started."""
-    titles: list[str] = []
-    monkeypatch.setattr(App, 'run', _headless_run(titles))
-    e01_flat_config.main(['--ui', 'textual', '--set', 'answer=7'])
-    assert titles == ['FlatConfig *']
+    assert textual_titles(e01_flat_config.main, monkeypatch, '--set',
+                          'answer=7') == ['FlatConfig *']

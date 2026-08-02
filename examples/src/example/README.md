@@ -14,12 +14,12 @@ repository only.
 
 | Example | What it teaches |
 | --- | --- |
-| [e01_flat_config.py](e01_flat_config.py) | The whole library in three lines: hand a `Config` object to `EditModel` and hand the model to a backend. A flat configuration with one text member and one number member, shown read-only. Why the editor never describes the schema a second time, and why the values it shows are the declared members in their declared order rather than the sorted keys of the JSON file. |
+| [e01_flat_config.py](e01_flat_config.py) | The whole library in three lines: hand a `Config` object to `EditModel` and hand the model to a backend. A flat configuration with one text member and one number member, both editable and both validated by the application's own validation plan. Why the editor never describes the schema a second time, why the values it shows are the declared members in their declared order rather than the sorted keys of the JSON file, and why a value that a validator rewrote is marked. |
+| [e02_enum_config.py](e02_enum_config.py) | An `Enum` member and an `IntEnum` member, with no validators at all. An enum is written to the file as the name of its member, so it is edited as text, and a name that is no member is refused by the conversion rather than by a validator. Which of `parse_converters()` and `serialize_converters()` an application has to write, and why matching a name is forgiving enough to complete a prefix. |
 
-More examples arrive with the steps that they demonstrate: editing the
-buffer, validation, reading a file, saving, descriptions and docstrings,
-field level diagnostics, lists and dicts, nested `Config` objects, folding,
-and adding and removing elements.
+More examples arrive with the steps that they demonstrate: reading a file,
+saving, descriptions and docstrings, field level diagnostics, lists and
+dicts, nested `Config` objects, folding, and adding and removing elements.
 
 ## Shared command line handling
 
