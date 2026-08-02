@@ -6,13 +6,30 @@
 
 import pytest
 from example import e01_flat_config
-from .helpers import dump, open_tk_ui, refused, textual_titles
+from .helpers import data_file, dump, open_tk_ui, refused, textual_titles
 
 VALID_LINE = 'validation: valid'
 """Line that `--ui dump` ends with for a buffer the example accepts."""
 
 EXPECTED_DUMP = f'name = Flat example\nanswer = 42\n{VALID_LINE}'
 """Text that `--ui dump` is expected to print for the default values."""
+
+FILLED_LINE = ('This file did not hold every value. What it left out was '
+               'filled in from the defaults, and is marked.')
+"""What the example says about a file that leaves a value out."""
+
+REFUSED_FILES = [('unknown key', 'e01_unknown_key.json',
+                  'holds a key that this configuration does not have'),
+                 ('not json', 'e01_not_json.json',
+                  'does not hold configuration that can be read'),
+                 ('refused value', 'e01_bad_value.json',
+                  'values in this file are not valid'),
+                 ('no such file', 'e01_missing.json', 'cannot be read')]
+"""Every input file of this example that cannot be opened, and why.
+
+The first item of each is the name of the case, which pytest uses to
+identify it, and the last is text the refusal has to contain.
+"""
 
 
 def _dump(capsys: pytest.CaptureFixture[str], *settings: str) -> str:
@@ -40,10 +57,10 @@ def test_unknown_ui(capsys: pytest.CaptureFixture[str]) -> None:
     assert 'curses' in _refused(capsys, '--ui', 'curses')
 
 
-@pytest.mark.parametrize('option', ['-i', '--input', '-o', '--output'])
-def test_files_refused(option: str,
-                       capsys: pytest.CaptureFixture[str]) -> None:
-    """Test the file options are refused until a later step implements them."""
+@pytest.mark.parametrize('option', ['-o', '--output'])
+def test_output_refused(option: str,
+                        capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the output option is refused until saving is implemented."""
     assert 'not supported yet' in _refused(capsys, '--ui', 'dump', option,
                                            'some.json')
 
@@ -118,9 +135,82 @@ def test_set_without_value(capsys: pytest.CaptureFixture[str]) -> None:
     assert '--set needs member=value' in error
 
 
+def test_read_complete_file(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test -i shows the values of the file and not the declared defaults."""
+    assert _dump(capsys, '-i', data_file('e01_complete.json')) == \
+        f'name = From a file\nanswer = 7\n{VALID_LINE}'
+
+
+def test_read_incomplete_file(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a value the file leaves out is filled in and said to be."""
+    assert _dump(capsys, '-i', data_file('e01_incomplete.json')) == \
+        (f'{FILLED_LINE}\nname = Only a name\n'
+         f'answer = 42 (filled from default)\n{VALID_LINE}')
+
+
+def test_defaults_policy(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the permissive policy reads the same incomplete file alike."""
+    assert _dump(capsys, '--policy', 'defaults', '-i',
+                 data_file('e01_incomplete.json')) == \
+        (f'{FILLED_LINE}\nname = Only a name\n'
+         f'answer = 42 (filled from default)\n{VALID_LINE}')
+
+
+def test_strict_policy(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the strict policy refuses the file the default policy opens."""
+    error = _refused(capsys, '--ui', 'dump', '--policy', 'strict', '-i',
+                     data_file('e01_incomplete.json'))
+    assert 'does not hold every value' in error
+    assert 'No value for answer' in error
+
+
+def test_strict_complete_file(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the strict policy opens a file that holds every value."""
+    assert _dump(capsys, '--policy', 'strict', '-i',
+                 data_file('e01_complete.json')) == \
+        f'name = From a file\nanswer = 7\n{VALID_LINE}'
+
+
+@pytest.mark.parametrize('case, name, expected', REFUSED_FILES)
+def test_refused_file(case: str, name: str, expected: str,
+                      capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a file that cannot be opened is a message and not an editor."""
+    error = _refused(capsys, '--ui', 'dump', '-i', data_file(name))
+    assert expected in error, case
+
+
+def test_unknown_policy(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a policy the editor does not have is refused by the parser."""
+    error = _refused(capsys, '--ui', 'dump', '--policy', 'sometimes')
+    assert 'sometimes' in error
+
+
+def test_edit_loaded_value(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a value read from a file can be edited like any other."""
+    assert _dump(capsys, '-i', data_file('e01_complete.json'), '--set',
+                 'answer=9') == \
+        f'name = From a file\nanswer = 9 (edited)\n{VALID_LINE}'
+
+
 def test_tk_ui_opens(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test --ui tk builds the window and returns when it is closed."""
     open_tk_ui(e01_flat_config.main, monkeypatch)
+
+
+def test_tk_ui_loaded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test --ui tk opens on the values of an incomplete file."""
+    open_tk_ui(e01_flat_config.main, monkeypatch, '-i',
+               data_file('e01_incomplete.json'))
+
+
+def test_textual_ui_loaded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test --ui textual opens on a file and has nothing to save yet.
+
+    A value that was filled in from a declared default is not a change the
+    user made, so the title is not marked: nothing has been edited.
+    """
+    assert textual_titles(e01_flat_config.main, monkeypatch, '-i',
+                          data_file('e01_incomplete.json')) == ['FlatConfig']
 
 
 def test_textual_ui_opens(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -10,8 +10,8 @@ from textual.binding import Binding, BindingType
 from textual.containers import Horizontal
 from textual.widget import Widget
 from textual.widgets import Footer, Header, Input, Label, Static
-from edit_cfg_json import EditModel, MemberRow, model_title, row_marks, \
-    row_value_text, verdict_text
+from edit_cfg_json import EditModel, MemberRow, load_text, model_title, \
+    row_marks, row_value_text, verdict_text
 
 VALUE_ID_PREFIX = 'value_'
 """Prefix of the identifier of the widget that shows one member value."""
@@ -21,6 +21,9 @@ MARK_ID_PREFIX = 'mark_'
 
 VERDICT_ID = 'verdict'
 """Identifier of the widget that shows what validation found."""
+
+LOAD_ID = 'load'
+"""Identifier of the widget that shows what reading the file did."""
 
 NAME_CLASS = 'member_name'
 """Style class of the widget that shows one member name."""
@@ -128,8 +131,16 @@ class EditorApp(App[None]):
         self.title = model_title(model)
 
     def compose(self) -> ComposeResult:
-        """Create one row per member, the verdict, a header and a footer."""
+        """Create one row per member, the verdict, a header and a footer.
+
+        What reading the input file did comes above the members, because it
+        is what explains the marks on them. It is created only when there is
+        something to say: the file was read before the model was built, so
+        the message cannot arrive later, and an empty widget would take a
+        line of the screen for a message that will never come.
+        """
         yield Header()
+        yield from self._load_widgets()
         for row in self._model.rows:
             with Horizontal(classes=ROW_CLASS):
                 yield Label(row.name, classes=NAME_CLASS)
@@ -137,6 +148,12 @@ class EditorApp(App[None]):
                 yield plain_widget(row_marks(row), _mark_id(row))
         yield plain_widget(verdict_text(self._model), VERDICT_ID)
         yield Footer()
+
+    def _load_widgets(self) -> ComposeResult:
+        """Create the widget that says what reading the input file did."""
+        message = load_text(self._model)
+        if message:
+            yield plain_widget(message, LOAD_ID)
 
     def _value_widget(self, row: MemberRow) -> Widget:
         """Return the widget that shows the value of one member.

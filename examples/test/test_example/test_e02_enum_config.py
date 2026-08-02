@@ -15,10 +15,14 @@ import pytest
 from example import e02_enum_config
 from example.e02_enum_config import AvailableCompetence, EnumConfig, \
     NeededCompetence
-from .helpers import dump, open_tk_ui, textual_titles
+from .helpers import data_file, dump, open_tk_ui, refused, textual_titles
 
 VALID_LINE = 'validation: valid'
 """Line that `--ui dump` ends with for a buffer the example accepts."""
+
+FILLED_LINE = ('This file did not hold every value. What it left out was '
+               'filled in from the defaults, and is marked.')
+"""What the example says about a file that leaves a value out."""
 
 EXPECTED_DUMP = f'needed = ELECTRICAL\navailable = MECHANICAL\n{VALID_LINE}'
 """Text that `--ui dump` is expected to print for the default values."""
@@ -56,6 +60,11 @@ none.
 def _dump(capsys: pytest.CaptureFixture[str], *settings: str) -> str:
     """Run this example with `--ui dump` and return what it printed."""
     return dump(e02_enum_config.main, capsys, *settings)
+
+
+def _refused(capsys: pytest.CaptureFixture[str], *arguments: str) -> str:
+    """Run this example, expect it to refuse, and return its error text."""
+    return refused(e02_enum_config.main, capsys, *arguments)
 
 
 def test_dump(capsys: pytest.CaptureFixture[str]) -> None:
@@ -124,6 +133,33 @@ def test_parse_gives_enum() -> None:
     config = EnumConfig(from_json_data_text=WRITTEN_TEXT)
     assert config.needed is NeededCompetence.ELECTRONIC
     assert config.available is AvailableCompetence.ELECTRICAL
+
+
+def test_read_enum_names(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test both enum members are read from a file as their names."""
+    assert _dump(capsys, '-i', data_file('e02_complete.json')) == \
+        f'needed = MECHANICAL\navailable = ELECTRONIC\n{VALID_LINE}'
+
+
+def test_enum_filled_in(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test an enum member the file leaves out gets its declared default."""
+    assert _dump(capsys, '-i', data_file('e02_incomplete.json')) == \
+        (f'{FILLED_LINE}\nneeded = ELECTRONIC\n'
+         f'available = MECHANICAL (filled from default)\n{VALID_LINE}')
+
+
+def test_bad_enum_in_file(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a name that is no enum member makes the file unopenable.
+
+    This is where a load differs from an edit. The same `ELECT` typed into a
+    field is kept, because a name is not a name of a member for most of the
+    time it takes to type it. In a file nothing is half typed, so the file
+    cannot be read as configuration at all.
+    """
+    error = _refused(capsys, '--ui', 'dump', '-i',
+                     data_file('e02_bad_enum.json'))
+    assert 'does not hold configuration that can be read' in error
+    assert 'ELECT is not one of: MECHANICAL, ELECTRICAL, ELECTRONIC' in error
 
 
 def test_tk_ui_opens(monkeypatch: pytest.MonkeyPatch) -> None:

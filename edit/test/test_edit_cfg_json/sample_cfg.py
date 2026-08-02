@@ -7,10 +7,10 @@
 from enum import Enum, IntEnum
 from typing import Optional, TextIO
 import sys
-from config_as_json import Config, IntFloatValidator, MemberValidationStep, \
-    MemberValidator, ParseConverter, PathOrStr, StrCaseChangeValidator, \
-    StrCaseSpec, StrPositionSpec, StrValidator, ValidationPlan, \
-    ValueTypeValidator
+from config_as_json import Config, ConfigAutoChangeHook, IntFloatValidator, \
+    MemberValidationStep, MemberValidator, ParseConverter, PathOrStr, \
+    StrCaseChangeValidator, StrCaseSpec, StrPositionSpec, StrValidator, \
+    ValidationPlan, ValueTypeValidator
 
 REFUSAL_MESSAGE = 'The application refuses {name}.'
 """Message of the validator that refuses without saying anything else."""
@@ -252,6 +252,43 @@ class RefuseCfg(SampleCfg):
         _ = stderr_file
         return [MemberValidationStep(member_names=['name'],
                                      validator=SilentRefusal())]
+
+
+class HookCfg(Config):
+    """A configuration whose constructor declares the change hook.
+
+    `Config.__init__` takes the hook, but a class has to declare it and hand
+    it on for the hook to reach it, and the constructor that
+    `config_as_json` documents does not. This class is the one that does, so
+    that the tests can show the editor forwarding the hook to a class that
+    takes it and dropping it for a class that does not.
+    """
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Record the hook that was given and then apply the JSON.
+
+        The hook is recorded under a private name, so that it does not
+        become a member of the configuration: `config_as_json` reads the
+        public attributes of the object as its schema.
+        """
+        self._hook_given = auto_ch_hook
+        self.name: str = 'hook text'
+        self.answer: int = 42
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+
+    def hook_given(self) -> Optional[ConfigAutoChangeHook]:
+        """Return the hook this object was constructed with, if any."""
+        return self._hook_given
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return no extra validation steps."""
+        _ = stderr_file
+        return []
 
 
 class ExtraArgCfg(SampleCfg):

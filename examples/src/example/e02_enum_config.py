@@ -88,6 +88,25 @@ wrong file. The editor shows what the application says, word for word, and
 does not rewrite it into something friendlier. Inventing a better message
 would mean guessing at what went wrong, and a guess that is wrong is worse
 than a sentence too many.
+
+## Enum members read from a file
+
+The same three files, run from the folder the examples live in, show an enum
+member being read, being filled in from the default, and being refused:
+
+````sh
+cd examples/src/example
+python3 e02_enum_config.py --ui dump -i ../../data/e02_complete.json
+python3 e02_enum_config.py --ui dump -i ../../data/e02_incomplete.json
+python3 e02_enum_config.py --ui dump -i ../../data/e02_bad_enum.json
+````
+
+The last of the three is the interesting one, and it is where a load differs
+from an edit. `ELECT` typed into a *field* is kept, because a name is not a
+name of an enum member for most of the time it takes to type it, and the
+validation pass is what says so. The same `ELECT` in a *file* means the file
+cannot be read as configuration at all, so the file is refused and the editor
+does not open. Nothing is half typed in a file.
 """
 
 # Copyright (c) 2026 Tom Björkholm

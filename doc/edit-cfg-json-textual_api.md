@@ -4,6 +4,7 @@
   * [VALUE\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.VALUE_ID_PREFIX)
   * [MARK\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.MARK_ID_PREFIX)
   * [VERDICT\_ID](#edit_cfg_json_textual.textual_editor.VERDICT_ID)
+  * [LOAD\_ID](#edit_cfg_json_textual.textual_editor.LOAD_ID)
   * [NAME\_CLASS](#edit_cfg_json_textual.textual_editor.NAME_CLASS)
   * [ROW\_CLASS](#edit_cfg_json_textual.textual_editor.ROW_CLASS)
   * [NAME\_WIDTH](#edit_cfg_json_textual.textual_editor.NAME_WIDTH)
@@ -44,6 +45,12 @@ Prefix of the identifier of the widget that marks one member.
 #### VERDICT\_ID
 
 Identifier of the widget that shows what validation found.
+
+<a id="edit_cfg_json_textual.textual_editor.LOAD_ID"></a>
+
+#### LOAD\_ID
+
+Identifier of the widget that shows what reading the file did.
 
 <a id="edit_cfg_json_textual.textual_editor.NAME_CLASS"></a>
 
@@ -177,6 +184,12 @@ def compose() -> ComposeResult
 ```
 
 Create one row per member, the verdict, a header and a footer.
+
+What reading the input file did comes above the members, because it
+is what explains the marks on them. It is created only when there is
+something to say: the file was read before the model was built, so
+the message cannot arrive later, and an empty widget would take a
+line of the screen for a message that will never come.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.on_input_changed"></a>
 

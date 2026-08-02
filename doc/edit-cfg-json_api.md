@@ -1,5 +1,30 @@
 # Table of Contents
 
+* [edit\_cfg\_json.loading](#edit_cfg_json.loading)
+  * [HOOK\_NAME](#edit_cfg_json.loading.HOOK_NAME)
+  * [DEFAULTS\_ERRORS](#edit_cfg_json.loading.DEFAULTS_ERRORS)
+  * [NO\_FILE](#edit_cfg_json.loading.NO_FILE)
+  * [NOT\_TEXT](#edit_cfg_json.loading.NOT_TEXT)
+  * [NOT\_CONFIG](#edit_cfg_json.loading.NOT_CONFIG)
+  * [UNKNOWN\_KEY](#edit_cfg_json.loading.UNKNOWN_KEY)
+  * [INCOMPLETE](#edit_cfg_json.loading.INCOMPLETE)
+  * [BAD\_VALUES](#edit_cfg_json.loading.BAD_VALUES)
+  * [NO\_DEFAULTS](#edit_cfg_json.loading.NO_DEFAULTS)
+  * [FILLED\_MESSAGE](#edit_cfg_json.loading.FILLED_MESSAGE)
+  * [LoadPolicy](#edit_cfg_json.loading.LoadPolicy)
+    * [STRICT](#edit_cfg_json.loading.LoadPolicy.STRICT)
+    * [DEFAULTS](#edit_cfg_json.loading.LoadPolicy.DEFAULTS)
+    * [STRICT\_THEN\_DEFAULTS](#edit_cfg_json.loading.LoadPolicy.STRICT_THEN_DEFAULTS)
+  * [DEFAULT\_POLICY](#edit_cfg_json.loading.DEFAULT_POLICY)
+  * [LoadReport](#edit_cfg_json.loading.LoadReport)
+    * [message](#edit_cfg_json.loading.LoadReport.message)
+    * [filled](#edit_cfg_json.loading.LoadReport.filled)
+  * [LoadedConfig](#edit_cfg_json.loading.LoadedConfig)
+    * [config](#edit_cfg_json.loading.LoadedConfig.config)
+    * [report](#edit_cfg_json.loading.LoadedConfig.report)
+  * [ConfigLoadError](#edit_cfg_json.loading.ConfigLoadError)
+    * [\_\_init\_\_](#edit_cfg_json.loading.ConfigLoadError.__init__)
+  * [load\_config](#edit_cfg_json.loading.load_config)
 * [edit\_cfg\_json.backend](#edit_cfg_json.backend)
   * [EditorBackend](#edit_cfg_json.backend.EditorBackend)
     * [run\_editor](#edit_cfg_json.backend.EditorBackend.run_editor)
@@ -11,6 +36,7 @@
   * [NOT\_EDITABLE\_FORM](#edit_cfg_json.model_text.NOT_EDITABLE_FORM)
   * [EDITED\_MARK](#edit_cfg_json.model_text.EDITED_MARK)
   * [VALIDATOR\_MARK](#edit_cfg_json.model_text.VALIDATOR_MARK)
+  * [FILLED\_MARK](#edit_cfg_json.model_text.FILLED_MARK)
   * [DIRTY\_MARK](#edit_cfg_json.model_text.DIRTY_MARK)
   * [VERDICT\_FORM](#edit_cfg_json.model_text.VERDICT_FORM)
   * [VALID\_STATE](#edit_cfg_json.model_text.VALID_STATE)
@@ -19,6 +45,7 @@
   * [row\_value\_text](#edit_cfg_json.model_text.row_value_text)
   * [row\_marks](#edit_cfg_json.model_text.row_marks)
   * [verdict\_text](#edit_cfg_json.model_text.verdict_text)
+  * [load\_text](#edit_cfg_json.model_text.load_text)
   * [model\_as\_text](#edit_cfg_json.model_text.model_as_text)
   * [model\_title](#edit_cfg_json.model_text.model_title)
 * [edit\_cfg\_json.edit\_model](#edit_cfg_json.edit_model)
@@ -36,6 +63,7 @@
   * [EditModel](#edit_cfg_json.edit_model.EditModel)
     * [\_\_init\_\_](#edit_cfg_json.edit_model.EditModel.__init__)
     * [config\_type\_name](#edit_cfg_json.edit_model.EditModel.config_type_name)
+    * [load\_message](#edit_cfg_json.edit_model.EditModel.load_message)
     * [rows](#edit_cfg_json.edit_model.EditModel.rows)
     * [dirty](#edit_cfg_json.edit_model.EditModel.dirty)
     * [verdict](#edit_cfg_json.edit_model.EditModel.verdict)
@@ -50,6 +78,256 @@
     * [verdict](#edit_cfg_json.validation.ValidationPass.verdict)
     * [members](#edit_cfg_json.validation.ValidationPass.members)
   * [validate\_buffer](#edit_cfg_json.validation.validate_buffer)
+
+<a id="edit_cfg_json.loading"></a>
+
+# edit\_cfg\_json.loading
+
+Reading the configuration to edit from one input file.
+
+The editor constructs the configuration object rather than receiving one that
+is already loaded. Both of the things a load has to be told are given to a
+constructor and to nothing else: the hook that reports the automatic changes
+of an old format file, and the policy for declared keys the file does not
+contain.
+
+Three things can be wrong with an input file, and `config_as_json` reports
+two of them as the same `KeyError`. Which of those two it is follows from
+retrying the load with the declared defaults filling in what the file lacks:
+that rescues a file which is merely incomplete, and it still refuses a key
+the configuration does not declare. So the two are told apart by what the
+retry does and never by reading the text of a message.
+
+A file whose values a validator refuses cannot be opened either. That is not
+squeamishness: a member validator returns the value that is stored back into
+the member, so a load that stopped part way through leaves it unknown which
+values were already rewritten and which were not.
+
+<a id="edit_cfg_json.loading.HOOK_NAME"></a>
+
+#### HOOK\_NAME
+
+Name of the constructor keyword that reports automatic changes.
+
+<a id="edit_cfg_json.loading.DEFAULTS_ERRORS"></a>
+
+#### DEFAULTS\_ERRORS
+
+Every way in which constructing the declared defaults can fail.
+
+A class that needs a constructor argument this library knows nothing about
+raises `TypeError`, one that declares no public member raises
+`AttributeError`, and defaults that a validator refuses raise a `ValueError`
+subclass. `NotImplementedError` is deliberately not one of them, for the same
+reason as in the validation of a buffer: it says the configuration class is
+incomplete, which is a defect of the application that no file can put right.
+
+<a id="edit_cfg_json.loading.NO_FILE"></a>
+
+#### NO\_FILE
+
+Message of the refusal of a file that is missing or unreadable.
+
+<a id="edit_cfg_json.loading.NOT_TEXT"></a>
+
+#### NOT\_TEXT
+
+Message of the refusal of a file that is not text at all.
+
+<a id="edit_cfg_json.loading.NOT_CONFIG"></a>
+
+#### NOT\_CONFIG
+
+Message of the refusal of a file the configuration class cannot read.
+
+This covers text that is not JSON and JSON that cannot be turned into the
+values of this configuration, which is what `ConfigBadJson` means. Which of
+the two it was is in the diagnostics below the message.
+
+<a id="edit_cfg_json.loading.UNKNOWN_KEY"></a>
+
+#### UNKNOWN\_KEY
+
+Message of the refusal of a file with a key that is not declared.
+
+<a id="edit_cfg_json.loading.INCOMPLETE"></a>
+
+#### INCOMPLETE
+
+Message of the refusal of an incomplete file under a strict policy.
+
+<a id="edit_cfg_json.loading.BAD_VALUES"></a>
+
+#### BAD\_VALUES
+
+Message of the refusal of a file whose values a validator refuses.
+
+<a id="edit_cfg_json.loading.NO_DEFAULTS"></a>
+
+#### NO\_DEFAULTS
+
+Message of the refusal of a class the editor cannot construct.
+
+<a id="edit_cfg_json.loading.FILLED_MESSAGE"></a>
+
+#### FILLED\_MESSAGE
+
+Message that says a load used the declared defaults of the class.
+
+<a id="edit_cfg_json.loading.LoadPolicy"></a>
+
+## LoadPolicy Objects
+
+```python
+class LoadPolicy(Enum)
+```
+
+Policy for declared keys that the input file does not contain.
+
+<a id="edit_cfg_json.loading.LoadPolicy.STRICT"></a>
+
+#### STRICT
+
+Refuse a file that does not hold every declared key.
+
+<a id="edit_cfg_json.loading.LoadPolicy.DEFAULTS"></a>
+
+#### DEFAULTS
+
+Fill in what the file leaves out from the declared defaults.
+
+<a id="edit_cfg_json.loading.LoadPolicy.STRICT_THEN_DEFAULTS"></a>
+
+#### STRICT\_THEN\_DEFAULTS
+
+Load strictly, and on failure fill in and say that it was needed.
+
+<a id="edit_cfg_json.loading.DEFAULT_POLICY"></a>
+
+#### DEFAULT\_POLICY
+
+Policy used when the application names none of them.
+
+Loading strictly and retrying with the defaults is the default because
+whether a partly specified file is acceptable is an application decision,
+and the answer that suits most applications is to open the file and say that
+it was incomplete.
+
+<a id="edit_cfg_json.loading.LoadReport"></a>
+
+## LoadReport Objects
+
+```python
+class LoadReport(NamedTuple)
+```
+
+What one load of an input file did beyond reading the values.
+
+<a id="edit_cfg_json.loading.LoadReport.message"></a>
+
+#### message
+
+What the user has to be told about the load, empty when nothing.
+
+A load that read a complete file and had nothing remarked about it says
+nothing, so a backend that shows this shows nothing at all.
+
+<a id="edit_cfg_json.loading.LoadReport.filled"></a>
+
+#### filled
+
+Names of the members the declared defaults supplied.
+
+These are the members the input file did not hold. The model marks the
+row of each of them, so the user can see which values are not the ones
+the file asked for.
+
+<a id="edit_cfg_json.loading.LoadedConfig"></a>
+
+## LoadedConfig Objects
+
+```python
+class LoadedConfig(NamedTuple)
+```
+
+The configuration object to edit, and what its load did.
+
+<a id="edit_cfg_json.loading.LoadedConfig.config"></a>
+
+#### config
+
+The object whose values are edited. Never the caller's own object,
+unless there was no input file to read.
+
+<a id="edit_cfg_json.loading.LoadedConfig.report"></a>
+
+#### report
+
+What the load did to the values beyond reading them.
+
+<a id="edit_cfg_json.loading.ConfigLoadError"></a>
+
+## ConfigLoadError Objects
+
+```python
+class ConfigLoadError(Exception)
+```
+
+Refusal to open one input file for editing.
+
+<a id="edit_cfg_json.loading.ConfigLoadError.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(message: str, diagnostics: str = '') -> None
+```
+
+Say why the file cannot be opened, and what was said about it.
+
+**Arguments**:
+
+- `message` - What the editor has to tell the user about this file.
+- `diagnostics` - What the configuration class itself said about it.
+
+<a id="edit_cfg_json.loading.load_config"></a>
+
+#### load\_config
+
+```python
+def load_config(config: Config,
+                in_file: Optional[PathOrStr] = None,
+                policy: LoadPolicy = DEFAULT_POLICY) -> LoadedConfig
+```
+
+Read the configuration to edit from one file, or use the defaults.
+
+The caller's object is the source of the class and of the declared
+defaults, and is not modified. Without an input file it is also the
+object to edit, so that a caller has one code path for both cases.
+
+What the load says is captured rather than printed, because an
+application that runs the editor has a screen and not a terminal behind
+it: what the load has to say belongs where the editor can show it, which
+is the report or the refusal.
+
+**Arguments**:
+
+- `config` - Configuration object saying which class to load and what its
+  declared defaults are. It is not modified.
+- `in_file` - File to read, or None to edit the declared defaults.
+- `policy` - What to do about declared keys the file does not hold.
+  
+
+**Returns**:
+
+  The configuration object to edit, and what the load did to its
+  values beyond reading them.
+  
+
+**Raises**:
+
+- `ConfigLoadError` - The file cannot be opened for editing.
 
 <a id="edit_cfg_json.backend"></a>
 
@@ -200,6 +478,12 @@ Mark that follows the value of a member the user has changed.
 
 Mark that follows the value of a member a validation pass rewrote.
 
+<a id="edit_cfg_json.model_text.FILLED_MARK"></a>
+
+#### FILLED\_MARK
+
+Mark that follows the value of a member the input file did not hold.
+
 <a id="edit_cfg_json.model_text.DIRTY_MARK"></a>
 
 #### DIRTY\_MARK
@@ -263,11 +547,12 @@ def row_marks(row: MemberRow) -> str
 
 Return the marks that follow the value of one member.
 
-Both marks can be shown at once, because they say two different things
-that can both be true: the user changed this member, and a validator
-then changed what the user had written. Both backends read the marks
+Every mark can be shown at once, because they say three different things
+that can all be true: the input file did not hold this member, the user
+changed it, and a validator then changed what the user had written. They
+are in the order in which they can happen. Both backends read the marks
 from here, so that neither of them decides on its own what a member the
-user or a validator touched looks like.
+load, the user or a validator touched looks like.
 
 **Arguments**:
 
@@ -303,6 +588,29 @@ refusing it.
 
   The state of the buffer, followed by any diagnostics.
 
+<a id="edit_cfg_json.model_text.load_text"></a>
+
+#### load\_text
+
+```python
+def load_text(model: EditModel) -> str
+```
+
+Return what reading the input file did, or an empty text.
+
+Both backends show this, so that the two of them cannot tell the user
+two different things about one file.
+
+**Arguments**:
+
+- `model` - Model whose load is reported.
+  
+
+**Returns**:
+
+  What the load did, and nothing at all when it did nothing worth
+  saying.
+
 <a id="edit_cfg_json.model_text.model_as_text"></a>
 
 #### model\_as\_text
@@ -313,12 +621,13 @@ def model_as_text(model: EditModel) -> str
 
 Return the whole model as text, one line per configuration member.
 
-The validation state of the buffer follows the members, so that a
-rendering never leaves it unsaid what the application would make of what
-is shown. This is the rendering used by the examples and by the tests,
-so that every step of the editor can be observed without a display. It
-belongs to the core rather than to a backend because it is user
-interface agnostic.
+What reading the input file did comes before the members, because it is
+what explains the marks on them. The validation state of the buffer
+follows them, so that a rendering never leaves it unsaid what the
+application would make of what is shown. This is the rendering used by
+the examples and by the tests, so that every step of the editor can be
+observed without a display. It belongs to the core rather than to a
+backend because it is user interface agnostic.
 
 **Arguments**:
 
@@ -327,8 +636,8 @@ interface agnostic.
 
 **Returns**:
 
-  One line per member and then the validation state, without a
-  trailing line break.
+  What the load did, one line per member and then the validation
+  state, without a trailing line break.
 
 <a id="edit_cfg_json.model_text.model_title"></a>
 
@@ -421,10 +730,13 @@ differently.
 
 #### filled\_from\_default
 
-Whether a permissive load supplied this value.
+Whether the declared defaults supplied this value.
 
-This is storage for a flag that loading sets, which arrives in a later
-step, and it belongs to the model for the same reason as the flag above.
+It is set when a load that was allowed to use the defaults filled in a
+member the input file did not hold, and it stays set for the rest of the
+session: that the file did not hold this value remains true whatever the
+user then types into it. It belongs to the model for the same reason as
+the flag above, so that two backends cannot show it differently.
 
 <a id="edit_cfg_json.edit_model.MemberRow.name"></a>
 
@@ -518,7 +830,9 @@ value is a list or a dict is reported as a row that is not editable.
 #### \_\_init\_\_
 
 ```python
-def __init__(config: Config, stderr_file: TextIO = sys.stderr) -> None
+def __init__(config: Config,
+             report: LoadReport = LoadReport(),
+             stderr_file: TextIO = sys.stderr) -> None
 ```
 
 Read the JSON space values of one configuration object.
@@ -529,10 +843,15 @@ the value that is stored back into the member. Serializing the
 caller's object directly could therefore change it, and the editor
 never mutates the caller's configuration object.
 
+The model does no input or output of its own, so the file was read
+before this and what reading it did arrives as the report.
+
 **Arguments**:
 
 - `config` - Configuration object to edit. It is the source of both
   the member names and their values, and is not modified.
+- `report` - What reading the input file did beyond reading the
+  values. The default says there was no file to read.
 - `stderr_file` - Stream used for user-facing diagnostics.
   
 
@@ -552,6 +871,21 @@ def config_type_name() -> str
 ```
 
 Return the class name of the edited configuration object.
+
+<a id="edit_cfg_json.edit_model.EditModel.load_message"></a>
+
+#### load\_message
+
+```python
+@property
+def load_message() -> str
+```
+
+Return what reading the input file did, empty when nothing.
+
+It cannot change while the editor runs, because the file was read
+before the model was built. Both backends show it, so that neither of
+them decides on its own what the user is told about the file.
 
 <a id="edit_cfg_json.edit_model.EditModel.rows"></a>
 

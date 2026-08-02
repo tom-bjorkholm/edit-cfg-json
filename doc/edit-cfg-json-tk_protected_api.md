@@ -12,6 +12,7 @@
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.EditorWidgets.__init__)
     * [label\_text](#edit_cfg_json_tk.tk_editor.EditorWidgets.label_text)
     * [verdict\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.verdict_text_shown)
+    * [\_add\_load\_message](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_load_message)
     * [\_add\_buttons](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_buttons)
     * [\_add\_row](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_row)
     * [\_add\_value](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_value)
@@ -135,6 +136,21 @@ def verdict_text_shown() -> str
 ```
 
 Return the text that the validation part of the editor shows.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_load_message"></a>
+
+#### \_add\_load\_message
+
+```python
+def _add_load_message(parent: tkinter.Misc) -> None
+```
+
+Show what reading the input file did, when it did anything.
+
+The widget is created only when there is something to say. The file
+was read before the model was built, so the message cannot arrive
+later, and an empty widget would take a line of the window for a
+message that will never come.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_buttons"></a>
 

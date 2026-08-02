@@ -18,13 +18,22 @@ from collections.abc import Callable, Iterator
 from typing import ClassVar, cast
 import tkinter
 import pytest
-from edit_cfg_json import EditModel, EditorBackend
+from edit_cfg_json import EditModel, EditorBackend, LoadReport
 from edit_cfg_json_tk import TkEditor
 from edit_cfg_json_tk.tk_editor import EditorWidgets, VALIDATE_TEXT
 from example.e01_flat_config import FlatConfig
 
 UNKNOWN_VERDICT = 'validation: not validated'
 """Text the editor shows before anything has been validated."""
+
+LOAD_MESSAGE = 'the file left something out'
+"""Message of the load in the tests that show one."""
+
+FILLED_REPORT = LoadReport(message=LOAD_MESSAGE, filled=frozenset({'answer'}))
+"""Report of a load that filled the number member in from the default."""
+
+FILLED_MARK = ' (filled from default)'
+"""Mark of a member that the input file did not hold."""
 
 VALID_VERDICT = 'validation: valid'
 """Text the editor shows for a buffer the application would accept."""
@@ -35,6 +44,15 @@ EXPECTED_LABELS = ['FlatConfig', 'name', '', 'answer', '', UNKNOWN_VERDICT,
 
 The two empty strings are the marks of the two members, which say nothing
 until the user or a validator has done something to them.
+"""
+
+EXPECTED_LOADED = ['FlatConfig', LOAD_MESSAGE, 'name', '', 'answer',
+                   FILLED_MARK, UNKNOWN_VERDICT, VALIDATE_TEXT, 'Close']
+"""Widget texts of a model whose load filled the number member in.
+
+The message of the load is above the members, because it is what explains
+the mark on one of them. The empty string is the mark of the member the file
+did hold, which has nothing to say.
 """
 
 EXPECTED_FIELDS = ['Flat example', '42']
@@ -330,6 +348,25 @@ def test_real_edit_after(root_or_skip: tkinter.Tk) -> None:
     _real_press(root_or_skip, VALIDATE_TEXT)
     _retype(_real_fields(root_or_skip)[1], '7')
     assert widgets.verdict_text_shown == UNKNOWN_VERDICT
+
+
+def test_stub_load_message(stub_tk: None) -> None:
+    """Test the stubbed editor shows what reading the input file did.
+
+    The exact list of texts is asserted, so it also says that the message
+    comes above the members it explains and that no widget was added for the
+    member the file did hold.
+    """
+    _ = stub_tk
+    _stub_editor(EditModel(FlatConfig(), FILLED_REPORT))
+    assert _stub_texts() == EXPECTED_LOADED
+
+
+def test_real_load_message(root_or_skip: tkinter.Tk) -> None:
+    """Test the real Tk editor shows exactly the same about the load."""
+    EditorWidgets(parent=root_or_skip,
+                  model=EditModel(FlatConfig(), FILLED_REPORT))
+    assert _real_texts(root_or_skip) == EXPECTED_LOADED
 
 
 def test_is_editor_backend() -> None:

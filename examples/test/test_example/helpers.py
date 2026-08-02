@@ -16,6 +16,7 @@ running.
 # MIT License
 
 from collections.abc import Callable
+from pathlib import Path
 import asyncio
 import tkinter
 import pytest
@@ -26,6 +27,25 @@ QUIT_KEY = 'ctrl+q'
 
 NO_DISPLAY = 'No display available for Tk.'
 """Why a test is skipped on a machine that cannot open a window."""
+
+DATA_FOLDER = Path(__file__).resolve().parents[2] / 'data'
+"""Folder holding the input files that the examples are run against.
+
+The path is derived from this file rather than from the working folder, so
+that the tests can be run from anywhere.
+"""
+
+
+def data_file(name: str) -> str:
+    """Return the path of one input file of the examples.
+
+    Args:
+        name: File name inside the data folder of the examples.
+
+    Returns:
+        The path of that file, as the command line takes it.
+    """
+    return str(DATA_FOLDER / name)
 
 
 def dump(main: Callable[[list[str]], None], capsys: pytest.CaptureFixture[str],
@@ -68,16 +88,17 @@ def _close_window(window: tkinter.Tk) -> None:
 
 
 def open_tk_ui(main: Callable[[list[str]], None],
-               monkeypatch: pytest.MonkeyPatch) -> None:
+               monkeypatch: pytest.MonkeyPatch, *settings: str) -> None:
     """Run one example with `--ui tk` and close its window at once.
 
     Args:
         main: The `main` function of the example to run.
         monkeypatch: The pytest fixture that replaces `Tk.mainloop`.
+        settings: Further command line arguments, such as an input file.
     """
     monkeypatch.setattr(tkinter.Tk, 'mainloop', _close_window)
     try:
-        main(['--ui', 'tk'])
+        main(['--ui', 'tk', *settings])
     except tkinter.TclError:
         pytest.skip(NO_DISPLAY)
 

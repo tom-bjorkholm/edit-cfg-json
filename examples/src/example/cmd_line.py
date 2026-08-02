@@ -27,10 +27,17 @@ exactly the model that the two graphical backends render.
 
 The repeatable `--set member=value` option edits the buffer before anything
 is shown. It is what lets an editing step be demonstrated and tested without
-a display: the same edit that a user would type into a field is made from
-the command line, and `--ui dump` then prints the edited buffer. A member
-the user changed is marked, so the edit is visible even when the new value
-looks like the old one.
+a display: the same edit that a user would type into a field is made from the
+command line, and `--ui dump` then prints the edited buffer. A member the user
+changed is marked, so the edit is visible even when the new value looks like
+the old one.
+
+`-i/--input` names the file that the values are read from, and `--policy`
+says what to do about a declared value that the file does not hold. There is
+a file for every case in [examples/data/](../../data/), including the ones
+that cannot be opened, so each of them can be tried without writing a file
+first. A file that cannot be opened is a message and an exit, and never an
+editor that quietly shows the default values instead of what was asked for.
 
 `--ui dump` validates the buffer before it prints it, so the dump always
 says what the application would make of the values it shows. The two
@@ -45,7 +52,8 @@ value has not asked anything yet.
 import argparse
 from typing import Optional
 from config_as_json import Config
-from edit_cfg_json import EditModel, EditorBackend, model_as_text
+from edit_cfg_json import ConfigLoadError, EditModel, EditorBackend, \
+    LoadPolicy, load_config, model_as_text
 
 UI_DUMP = 'dump'
 """Value of `--ui` that prints the model instead of opening a window."""
@@ -58,6 +66,19 @@ UI_TEXTUAL = 'textual'
 
 UI_CHOICES = (UI_DUMP, UI_TK, UI_TEXTUAL)
 """Every accepted value of the required `--ui` option."""
+
+DEFAULT_POLICY_NAME = 'strict-then-defaults'
+"""Value of `--policy` used when the command line names none of them.
+
+It is the default of the editor as well, so a run that says nothing about the
+policy loads strictly and falls back to the declared defaults when the file
+turns out to be incomplete.
+"""
+
+POLICIES = {DEFAULT_POLICY_NAME: LoadPolicy.STRICT_THEN_DEFAULTS,
+            'strict': LoadPolicy.STRICT,
+            'defaults': LoadPolicy.DEFAULTS}
+"""Every accepted value of `--policy`, and what the editor makes of it."""
 
 NOT_YET_MESSAGE = '{option} is not supported yet.'
 """Message used to refuse an option that a later step will implement."""
@@ -79,7 +100,8 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
         example_name: Name of the example, used in help and error text.
 
     Returns:
-        A parser for `--ui`, `--set`, `-i/--input` and `-o/--output`.
+        A parser for `--ui`, `--set`, `--policy`, `-i/--input` and
+        `-o/--output`.
     """
     parser = argparse.ArgumentParser(prog=example_name)
     parser.add_argument('--ui', required=True, choices=UI_CHOICES,
@@ -87,30 +109,56 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
     parser.add_argument('--set', action='append', dest='settings',
                         metavar='MEMBER=VALUE',
                         help='Edit one member before showing it. Repeatable.')
+    parser.add_argument('--policy', default=DEFAULT_POLICY_NAME,
+                        choices=tuple(POLICIES),
+                        help='What to do about values the file leaves out.')
     parser.add_argument('-i', '--input', default=None,
-                        help='Configuration file to read. Not supported yet.')
+                        help='Configuration file to read.')
     parser.add_argument('-o', '--output', default=None,
                         help='Configuration file to write. Not supported yet.')
     return parser
 
 
-def _refuse_files(parser: argparse.ArgumentParser,
-                  parsed: argparse.Namespace) -> None:
-    """Refuse the file options, which are not implemented yet.
+def _refuse_output(parser: argparse.ArgumentParser,
+                   parsed: argparse.Namespace) -> None:
+    """Refuse the output file option, which is not implemented yet.
 
-    The options are accepted already so that the command line of the
-    examples does not have to change again when reading and writing files
-    arrive. Until then, using one of them is an error: an option that looks
-    as if it worked and quietly did nothing would be worse than no option.
+    The option is accepted already so that the command line of the examples
+    does not have to change again when saving arrives. Until then, using it
+    is an error: an option that looked as if it worked and quietly did
+    nothing would be worse than no option.
 
     Args:
         parser: Parser used to report the error and exit.
         parsed: Parsed command line of one example run.
     """
-    if parsed.input is not None:
-        parser.error(NOT_YET_MESSAGE.format(option='-i/--input'))
     if parsed.output is not None:
         parser.error(NOT_YET_MESSAGE.format(option='-o/--output'))
+
+
+def _load_model(parser: argparse.ArgumentParser, config: Config,
+                parsed: argparse.Namespace) -> EditModel:
+    """Read the values to edit, or say why the file cannot be opened.
+
+    This is the whole of what an application does about loading: it hands
+    over its own configuration object, the file it wants read and the policy
+    it wants applied, and the editor constructs what it needs.
+
+    Args:
+        parser: Parser used to report the error and exit.
+        config: Configuration object of the example. It is not modified.
+        parsed: Parsed command line of one example run.
+
+    Returns:
+        A model holding the values of the file, or the declared defaults
+        when no file was named.
+    """
+    try:
+        loaded = load_config(config=config, in_file=parsed.input,
+                             policy=POLICIES[parsed.policy])
+    except ConfigLoadError as error:
+        parser.error(str(error))
+    return EditModel(config=loaded.config, report=loaded.report)
 
 
 def _set_member(parser: argparse.ArgumentParser, model: EditModel, name: str,
@@ -219,7 +267,7 @@ def run_example(example_name: str, config: Config,
     """
     parser = _create_parser(example_name)
     parsed = parser.parse_args(args)
-    _refuse_files(parser=parser, parsed=parsed)
-    model = EditModel(config)
+    _refuse_output(parser=parser, parsed=parsed)
+    model = _load_model(parser=parser, config=config, parsed=parsed)
     _apply_settings(parser=parser, model=model, settings=parsed.settings)
     _show_model(ui_name=parsed.ui, model=model)

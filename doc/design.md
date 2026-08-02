@@ -198,7 +198,7 @@ to change this type metadata (which in many cases would trigger an
 error at validation, but might be useful for separating between
 a None value and an empty string value of an `Optional[str]`.)
 
-The type metadata of a leaf is ** derived from the value that leaf held
+The type metadata of a leaf is **derived from the value that leaf held
 when the model was built**, kept beside the value the user is editing.
 Deriving the kind from the current value instead does not work: a number
 member that is half typed holds text for as long as its text is not a
@@ -329,6 +329,21 @@ When no loader is supplied, the editor derives one from `type(config)`,
 using `inspect.signature()` to decide whether `auto_ch_hook` can be
 forwarded (see section 5.3).
 
+**`Config.__init__` takes no `ok_to_use_defaults`.** Confirmed against the
+implementation in `./venv` at step 4: the parameter belongs to
+`Config.parse_json()` and `Config.read()`, and `__init__` calls both of them
+with the default `False`. So the derived loader has one path for both
+policies: construct the class with no JSON source, which leaves it holding
+its declared defaults, and then call `parse_json()` with the
+`ok_to_use_defaults` the policy asks for. The hook still reaches the object,
+because it is `__init__` that takes it.
+
+The editor also reads the file itself rather than passing a file name on to
+`Config.read()`, which calls `file_must_exist()` and therefore ends the
+process with `sys.exit(1)` when the file is missing. An editor has to say so
+and stay alive. Reading the text here is also what section 5.3 needs for its
+diff, and what section 5.2 needs to know which keys the file contained.
+
 Nested configs need nothing from the application: `nested_configs()`
 already provides each nested `config_type` and its optional
 `factory_function`. One root loader is the whole contract.
@@ -354,14 +369,51 @@ governs *missing* keys only. `Config.check_key_match()` raises `KeyError`
 both for a missing required key and for an **unknown** key in the file,
 and the retry does not help the second case — nor should it, since an
 unknown key is a typo or a file from a newer version and discarding it
-would lose data. The two cases need different messages:
+would lose data.
+
+**That is also how the two are told apart.** The retry decides it: a retry
+that succeeds says the file was merely incomplete, and a retry that raises
+`KeyError` again says there is an unknown key. Nothing reads the text of a
+diagnostic to classify a failure, so the classification is unaffected by
+ROCF renaming a key before the check runs. `STRICT` runs the retry as well,
+because it needs the same distinction to pick a message; there the retry
+only decides which refusal to report and never opens the file.
+
+The outcomes, each with a message of its own:
 
 - missing keys → "your file was incomplete; these values were filled in
-  from defaults" (plus the per-field *filled from default* flag)
+  from defaults" (plus the per-field *filled from default* flag). Under
+  `STRICT` the same file is refused, with its own wording.
 - unknown key → "your file contains a key I do not recognise"; the file
   cannot be opened
-- `ConfigBadJson` → the file is not decodable JSON; the file cannot be
-  opened
+- `ConfigBadJson` → the file cannot be read as configuration; the file
+  cannot be opened. This covers text that is not JSON *and* JSON whose
+  values cannot be converted, an enum name that names no member being the
+  case that arises in practice, since `parse_converters()` runs inside
+  `json.loads()`. The message says that much and the diagnostics say which
+  of the two it was; step 7 of the delivery plan improves the enum case.
+- **values a validator refuses** → the file cannot be opened. `parse_json()`
+  ends with `validate()`, so there is no valid object to build a model from.
+  Settled at step 4, and the reason it is a refusal rather than an editor
+  opened on the file's own values: a member validator returns the value that
+  is stored back into the member, so a load that stopped part way through
+  leaves it unknown which values were already rewritten and which were not,
+  and there is then nothing honest to show. The user is told to correct the
+  file in a text editor first.
+- **a file that cannot be read, or that is not UTF-8 text** → the file
+  cannot be opened. This is the editor's own message, because
+  `Config.read()` would end the process (section 5.1).
+- **a class the editor cannot construct** → the file cannot be opened, and
+  the message names the class. An application whose constructor needs
+  arguments this library knows nothing about supplies the explicit loader of
+  section 5.1 instead.
+
+The per-field *filled from default* flag is computed from the keys the file
+text contained, because a load that was allowed to use the defaults cannot
+afterwards say which of its values came from the file. That is exact for
+every file the editor can open today. It will over-report a member whose key
+ROCF renamed, and section 5.3 with step 8 of the delivery plan is where the
+automatic changes of an old-format file get reported properly.
 
 ### 5.3 Making automatic changes visible
 

@@ -275,6 +275,31 @@ tests.
 
 ### Step 4 — Loading
 
+Status: **Implemented and committed**
+
+**Decided while building it.**
+
+- `Config.__init__` takes no `ok_to_use_defaults`; it belongs to
+  `parse_json()` and `read()`. The derived loader therefore constructs the
+  class with no JSON source and then calls `parse_json()` with the policy's
+  value. Recorded in `doc/design.md` section 5.1.
+- `Config.read()` ends the process with `sys.exit(1)` for a missing file, so
+  the editor reads the file text itself.
+- A file whose values a validator refuses **cannot be opened**, because a
+  member validator returns the value that is stored back into the member and
+  a load that stopped part way through leaves it unknown which values were
+  already rewritten. Two further refusals fell out of the work: a file that
+  cannot be read at all, and a class the editor cannot construct. All of
+  them are recorded in `doc/design.md` section 5.2.
+- Missing and unknown keys are told apart by whether the permissive retry
+  rescues the file, which needs no message text and survives ROCF renaming.
+  `STRICT` runs the retry too, only to pick which refusal to report.
+- New public names: `LoadPolicy`, `load_config`, `LoadedConfig`,
+  `LoadReport`, `ConfigLoadError`, and `load_text` beside the other
+  renderings. No type alias was needed.
+- `cmd_line.py` gained `--policy`, and `examples/data/` holds one input file
+  per outcome so that every case can be seen by hand.
+
 **Observable outcome.** `-i some_file.json --ui dump` shows the values from
 the file rather than the defaults, and marks any leaf that a permissive
 load filled in from a default. A file with an unknown key and a file that
@@ -421,9 +446,10 @@ protocol signature is closed on purpose; resist adding parameters to it.
 **Step 10 — Lists and dicts of scalars.** Ordinary JSON structure inside
 one config's ownership region: render as an indented tree and edit the
 leaves. No adding, no removing, no nested configs. A new example
-`e07_lists_and_dicts.py`. Risk: this is where `model_as_text` and the two
-backends stop being trivially parallel; expect to move tree flattening
-into the core.
+`e07_lists_and_dicts.py`. A dict or dict can be folded to single line,
+or opended to view all elements. Risk: this is where `model_as_text`
+and the two backends stop being trivially parallel; expect to move
+tree flattening into the core.
 
 **Step 11 — Nested `Config` objects.** `nested_configs()` becomes the
 first-authority source it is in design section 4.1. A nested config is a

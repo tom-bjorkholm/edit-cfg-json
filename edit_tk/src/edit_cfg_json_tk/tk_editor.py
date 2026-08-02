@@ -7,8 +7,8 @@
 from collections.abc import Callable
 from typing import NamedTuple, Optional
 import tkinter
-from edit_cfg_json import EditModel, MemberRow, model_title, row_marks, \
-    row_value_text, verdict_text
+from edit_cfg_json import EditModel, MemberRow, load_text, model_title, \
+    row_marks, row_value_text, verdict_text
 
 NAME_COLUMN_WIDTH = 24
 """Width in characters of the column that holds the member names."""
@@ -62,6 +62,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._model = model
         self._label = tkinter.Label(parent, text=model_title(model))
         self._label.pack(pady=PADDING)
+        self._add_load_message(parent)
         self._rows = [self._add_row(parent=parent, row=row)
                       for row in model.rows]
         self._verdict = tkinter.Label(parent, text=verdict_text(model),
@@ -78,6 +79,19 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
     def verdict_text_shown(self) -> str:
         """Return the text that the validation part of the editor shows."""
         return str(self._verdict.cget('text'))
+
+    def _add_load_message(self, parent: tkinter.Misc) -> None:
+        """Show what reading the input file did, when it did anything.
+
+        The widget is created only when there is something to say. The file
+        was read before the model was built, so the message cannot arrive
+        later, and an empty widget would take a line of the window for a
+        message that will never come.
+        """
+        message = load_text(self._model)
+        if message:
+            tkinter.Label(parent, text=message, anchor='w',
+                          justify='left').pack(fill='x', padx=PADDING)
 
     def _add_buttons(self, parent: tkinter.Misc) -> None:
         """Create the button that validates and the one that ends the run."""

@@ -20,15 +20,24 @@ from config_as_json import JsonType
 import pytest
 from textual.app import App, ComposeResult
 from textual.widgets import Input, Static
-from edit_cfg_json import EditModel, EditorBackend
+from edit_cfg_json import EditModel, EditorBackend, LoadReport
 from edit_cfg_json_textual import TextualEditor
-from edit_cfg_json_textual.textual_editor import EditorApp, MARK_ID_PREFIX, \
-    QUIT_KEY, VALIDATE_ALT_KEY, VALIDATE_KEY, VALUE_ID_PREFIX, VERDICT_ID, \
-    plain_widget
+from edit_cfg_json_textual.textual_editor import EditorApp, LOAD_ID, \
+    MARK_ID_PREFIX, QUIT_KEY, VALIDATE_ALT_KEY, VALIDATE_KEY, \
+    VALUE_ID_PREFIX, VERDICT_ID, plain_widget
 from example.e01_flat_config import FlatConfig
 
 EXPECTED_VALUES = {'name': 'Flat example', 'answer': '42'}
 """Value text that the application is expected to show for each member."""
+
+LOAD_MESSAGE = 'the file left something out'
+"""Message of the load in the tests that show one."""
+
+FILLED_REPORT = LoadReport(message=LOAD_MESSAGE, filled=frozenset({'answer'}))
+"""Report of a load that filled the number member in from the default."""
+
+FILLED_MARK = ' (filled from default)'
+"""Mark of a member that the input file did not hold."""
 
 UNKNOWN_VERDICT = 'validation: not validated'
 """Text the editor shows before anything has been validated."""
@@ -216,6 +225,47 @@ def test_validate_rewrites() -> None:
 def test_edit_after_validate() -> None:
     """Test an edit puts the editor back to not having been validated."""
     assert asyncio.run(_edit_after_validate()) == UNKNOWN_VERDICT
+
+
+async def _load_shown() -> tuple[str, str, str]:
+    """Run the application on a model whose load filled a member in.
+
+    Returns:
+        What the application says about the load, the mark of the member the
+        file did not hold, and the mark of the member it did hold.
+    """
+    app = EditorApp(EditModel(FlatConfig(), FILLED_REPORT))
+    async with app.run_test():
+        shown = str(app.query_one(f'#{LOAD_ID}', Static).content)
+        return shown, _mark(app, 'answer'), _mark(app, 'name')
+
+
+async def _no_load_widget() -> bool:
+    """Run the application without a load and look for its widget.
+
+    Returns:
+        Whether a widget for the load was created anyway.
+    """
+    app = EditorApp(EditModel(FlatConfig()))
+    async with app.run_test():
+        return bool(app.query(f'#{LOAD_ID}'))
+
+
+def test_load_message_shown() -> None:
+    """Test the editor shows what reading the input file did, and the mark."""
+    shown, filled, held = asyncio.run(_load_shown())
+    assert shown == LOAD_MESSAGE
+    assert filled == FILLED_MARK
+    assert held == ''
+
+
+def test_no_load_no_widget() -> None:
+    """Test a model with nothing to say about a load gets no widget for it.
+
+    The file is read before the model is built, so a message cannot arrive
+    later, and an empty widget would take a line of the screen for good.
+    """
+    assert not asyncio.run(_no_load_widget())
 
 
 async def _shown_markup() -> str:

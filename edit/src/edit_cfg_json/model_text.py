@@ -16,6 +16,9 @@ EDITED_MARK = ' (edited)'
 VALIDATOR_MARK = ' (changed by validator)'
 """Mark that follows the value of a member a validation pass rewrote."""
 
+FILLED_MARK = ' (filled from default)'
+"""Mark that follows the value of a member the input file did not hold."""
+
 DIRTY_MARK = ' *'
 """Mark that follows the model label while the buffer has changes."""
 
@@ -53,11 +56,12 @@ def row_value_text(row: MemberRow) -> str:
 def row_marks(row: MemberRow) -> str:
     """Return the marks that follow the value of one member.
 
-    Both marks can be shown at once, because they say two different things
-    that can both be true: the user changed this member, and a validator
-    then changed what the user had written. Both backends read the marks
+    Every mark can be shown at once, because they say three different things
+    that can all be true: the input file did not hold this member, the user
+    changed it, and a validator then changed what the user had written. They
+    are in the order in which they can happen. Both backends read the marks
     from here, so that neither of them decides on its own what a member the
-    user or a validator touched looks like.
+    load, the user or a validator touched looks like.
 
     Args:
         row: Member to mark.
@@ -65,9 +69,10 @@ def row_marks(row: MemberRow) -> str:
     Returns:
         The marks of one member, empty when nothing has happened to it.
     """
+    filled = FILLED_MARK if row.filled_from_default else ''
     edited = EDITED_MARK if row.edited else ''
     rewritten = VALIDATOR_MARK if row.changed_by_validator else ''
-    return edited + rewritten
+    return filled + edited + rewritten
 
 
 def _row_as_text(row: MemberRow) -> str:
@@ -98,25 +103,43 @@ def verdict_text(model: EditModel) -> str:
     return '\n'.join(line for line in lines if line)
 
 
+def load_text(model: EditModel) -> str:
+    """Return what reading the input file did, or an empty text.
+
+    Both backends show this, so that the two of them cannot tell the user
+    two different things about one file.
+
+    Args:
+        model: Model whose load is reported.
+
+    Returns:
+        What the load did, and nothing at all when it did nothing worth
+        saying.
+    """
+    return model.load_message
+
+
 def model_as_text(model: EditModel) -> str:
     """Return the whole model as text, one line per configuration member.
 
-    The validation state of the buffer follows the members, so that a
-    rendering never leaves it unsaid what the application would make of what
-    is shown. This is the rendering used by the examples and by the tests,
-    so that every step of the editor can be observed without a display. It
-    belongs to the core rather than to a backend because it is user
-    interface agnostic.
+    What reading the input file did comes before the members, because it is
+    what explains the marks on them. The validation state of the buffer
+    follows them, so that a rendering never leaves it unsaid what the
+    application would make of what is shown. This is the rendering used by
+    the examples and by the tests, so that every step of the editor can be
+    observed without a display. It belongs to the core rather than to a
+    backend because it is user interface agnostic.
 
     Args:
         model: Model to render.
 
     Returns:
-        One line per member and then the validation state, without a
-        trailing line break.
+        What the load did, one line per member and then the validation
+        state, without a trailing line break.
     """
     rows = [_row_as_text(row) for row in model.rows]
-    return '\n'.join(rows + [verdict_text(model)])
+    lines = [load_text(model)] + rows + [verdict_text(model)]
+    return '\n'.join(line for line in lines if line)
 
 
 def model_title(model: EditModel) -> str:

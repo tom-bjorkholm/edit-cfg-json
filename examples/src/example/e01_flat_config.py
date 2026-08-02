@@ -86,8 +86,57 @@ In the two graphical backends the same pass is asked for rather than done
 for the user: the Tkinter editor has a Validate button and the Textual
 editor validates on `ctrl+r`, or on `f5`.
 
-Reading a file and saving arrive in the following steps, so this example
-still starts from the default values and writes nothing.
+## Reading the values from a file
+
+`-i` names the file to read. The application says nothing more than which
+file it is; the editor constructs `FlatConfig` from it, because that is the
+only way to give a load the policy and the automatic change reporting that a
+`Config` object takes in its constructor and nowhere else.
+
+There is a file for each outcome in [examples/data/](../../data/), so all of
+them can be tried by hand:
+
+````sh
+cd examples/src/example
+python3 e01_flat_config.py --ui dump -i ../../data/e01_complete.json
+python3 e01_flat_config.py --ui dump -i ../../data/e01_incomplete.json
+python3 e01_flat_config.py --ui dump -i ../../data/e01_unknown_key.json
+python3 e01_flat_config.py --ui dump -i ../../data/e01_not_json.json
+python3 e01_flat_config.py --ui dump -i ../../data/e01_bad_value.json
+````
+
+Only the first two of those open. The four ways a file can be refused are
+worth knowing, because they are four different mistakes:
+
+- **A value the file does not hold** is filled in from the default this class
+  declares, and that member is marked, so the user can see which values are
+  not the ones the file asked for. This is the default policy, which is
+  `--policy strict-then-defaults`: load strictly, and fall back only when the
+  strict load shows that the file is incomplete. `--policy strict` refuses
+  such a file instead, and `--policy defaults` fills in without trying
+  strictly first.
+- **A key this configuration does not have** is refused under every policy.
+  Filling in governs the keys that are missing and nothing else, and dropping
+  an unknown key would lose whatever the file meant by it: such a file is
+  either from a newer version of the application or has a misspelling in it.
+- **Text that is not configuration** is refused. `config_as_json` reports
+  text that is not JSON, and JSON that cannot be turned into these values, as
+  the same thing, so the message says that much and the diagnostics below it
+  say which of the two it was.
+- **Values a validator refuses** are refused as well, which is the one that
+  needs a word of explanation. A member validator returns the value that is
+  stored back into the member, so a load that stopped part way through leaves
+  it unknown which values were already rewritten and which were not. Showing
+  that half converted state as if it were the file would be worse than saying
+  that the file has to be corrected in a text editor first.
+
+The first two cases are one `KeyError` as far as `config_as_json` is
+concerned, and the editor tells them apart by retrying the load with the
+defaults filling in: that rescues a file which is merely incomplete, and it
+still refuses an unknown key. Nothing anywhere reads the text of a message to
+decide which of the two it was.
+
+Saving arrives in the following step, so this example writes nothing.
 """
 
 # Copyright (c) 2026 Tom Björkholm

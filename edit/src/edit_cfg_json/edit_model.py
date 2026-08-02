@@ -12,6 +12,7 @@ import sys
 from config_as_json import Config, ConfigPath, JsonType
 from edit_cfg_json.leaf_value import text_as_value, value_as_text, \
     values_differ
+from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.validation import ValidationVerdict, validate_buffer
 
 NOT_EDITABLE_ERROR = 'Member {name} cannot be edited by this version.'
@@ -55,10 +56,13 @@ class MemberRow(NamedTuple):
     """
 
     filled_from_default: bool = False
-    """Whether a permissive load supplied this value.
+    """Whether the declared defaults supplied this value.
 
-    This is storage for a flag that loading sets, which arrives in a later
-    step, and it belongs to the model for the same reason as the flag above.
+    It is set when a load that was allowed to use the defaults filled in a
+    member the input file did not hold, and it stays set for the rest of the
+    session: that the file did not hold this value remains true whatever the
+    user then types into it. It belongs to the model for the same reason as
+    the flag above, so that two backends cannot show it differently.
     """
 
     @property
@@ -118,12 +122,14 @@ def _ordered_names(config: Config, members: dict[str, JsonType]) -> list[str]:
     return declared + [name for name in members if name not in declared]
 
 
-def _rows_from_config(config: Config, stderr_file: TextIO) -> list[MemberRow]:
+def _rows_from_config(config: Config, filled: frozenset[str],
+                      stderr_file: TextIO) -> list[MemberRow]:
     """Return one row per serialized member, in declaration order."""
     members = json.loads(config.as_json_string(stderr_file=stderr_file))
     assert isinstance(members, dict)
     return [MemberRow(path=(name,), value=members[name],
-                      original=members[name])
+                      original=members[name],
+                      filled_from_default=name in filled)
             for name in _ordered_names(config=config, members=members)]
 
 
@@ -149,7 +155,7 @@ class EditModel:
     value is a list or a dict is reported as a row that is not editable.
     """
 
-    def __init__(self, config: Config,
+    def __init__(self, config: Config, report: LoadReport = LoadReport(),
                  stderr_file: TextIO = sys.stderr) -> None:
         """Read the JSON space values of one configuration object.
 
@@ -159,9 +165,14 @@ class EditModel:
         caller's object directly could therefore change it, and the editor
         never mutates the caller's configuration object.
 
+        The model does no input or output of its own, so the file was read
+        before this and what reading it did arrives as the report.
+
         Args:
             config: Configuration object to edit. It is the source of both
                 the member names and their values, and is not modified.
+            report: What reading the input file did beyond reading the
+                values. The default says there was no file to read.
             stderr_file: Stream used for user-facing diagnostics.
 
         Raises:
@@ -170,7 +181,9 @@ class EditModel:
                 does not hold a valid value.
         """
         self._config_type = type(config)
+        self._report = report
         self._rows = _rows_from_config(config=deepcopy(config),
+                                       filled=report.filled,
                                        stderr_file=stderr_file)
         self._number = {row.path: number
                         for number, row in enumerate(self._rows)}
@@ -180,6 +193,16 @@ class EditModel:
     def config_type_name(self) -> str:
         """Return the class name of the edited configuration object."""
         return self._config_type.__name__
+
+    @property
+    def load_message(self) -> str:
+        """Return what reading the input file did, empty when nothing.
+
+        It cannot change while the editor runs, because the file was read
+        before the model was built. Both backends show it, so that neither of
+        them decides on its own what the user is told about the file.
+        """
+        return self._report.message
 
     @property
     def rows(self) -> Sequence[MemberRow]:

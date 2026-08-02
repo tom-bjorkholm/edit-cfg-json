@@ -6,8 +6,8 @@
 
 import pytest
 from config_as_json import JsonType
-from edit_cfg_json import EditModel, MemberRow, model_as_text, model_title, \
-    row_marks, row_value_text, verdict_text
+from edit_cfg_json import EditModel, LoadReport, MemberRow, load_text, \
+    model_as_text, model_title, row_marks, row_value_text, verdict_text
 from .sample_cfg import FlatCfg, ListCfg, NoneCfg, RangeCfg, RewriteCfg
 
 UNKNOWN_LINE = 'validation: not validated'
@@ -15,6 +15,12 @@ UNKNOWN_LINE = 'validation: not validated'
 
 VALID_LINE = 'validation: valid'
 """Line that a rendering of an accepted buffer ends with."""
+
+LOAD_LINE = 'the file left something out'
+"""Message of the load in the tests that render one."""
+
+FILLED_REPORT = LoadReport(message=LOAD_LINE, filled=frozenset({'answer'}))
+"""Report of a load that filled the number member in from the default."""
 
 
 def test_flat_text() -> None:
@@ -144,12 +150,45 @@ def test_edited_value_text(value: JsonType, expected: str) -> None:
     assert row_value_text(row) == expected
 
 
-@pytest.mark.parametrize('value, rewritten, expected',
-                         [(42, False, ''), (7, False, ' (edited)'),
-                          (42, True, ' (changed by validator)'),
-                          (7, True, ' (edited) (changed by validator)')])
-def test_row_marks(value: JsonType, rewritten: bool, expected: str) -> None:
-    """Test the two marks of a member are shown together when both apply."""
+@pytest.mark.parametrize('value, rewritten, filled, expected',
+                         [(42, False, False, ''),
+                          (7, False, False, ' (edited)'),
+                          (42, True, False, ' (changed by validator)'),
+                          (7, True, False,
+                           ' (edited) (changed by validator)'),
+                          (42, False, True, ' (filled from default)'),
+                          (7, False, True,
+                           ' (filled from default) (edited)'),
+                          (7, True, True,
+                           ' (filled from default) (edited) '
+                           '(changed by validator)')])
+def test_row_marks(value: JsonType, rewritten: bool, filled: bool,
+                   expected: str) -> None:
+    """Test the marks of a member are shown together when several apply."""
     row = MemberRow(path=('member',), value=value, original=42,
-                    changed_by_validator=rewritten)
+                    changed_by_validator=rewritten, filled_from_default=filled)
     assert row_marks(row) == expected
+
+
+def test_no_load_text() -> None:
+    """Test a model built without a load has nothing to say about one."""
+    assert load_text(EditModel(FlatCfg())) == ''
+
+
+def test_load_text() -> None:
+    """Test the message of the load is what the rendering reports."""
+    assert load_text(EditModel(FlatCfg(), FILLED_REPORT)) == LOAD_LINE
+
+
+def test_load_text_is_first() -> None:
+    """Test the load comes first, because it explains the marks below it."""
+    model = EditModel(FlatCfg(), FILLED_REPORT)
+    assert model_as_text(model) == (
+        f'{LOAD_LINE}\nname = flat text\n'
+        f'answer = 42 (filled from default)\n{UNKNOWN_LINE}')
+
+
+def test_no_load_no_line() -> None:
+    """Test a rendering with nothing to say about a load has no empty line."""
+    assert model_as_text(EditModel(FlatCfg())).splitlines()[0] == \
+        'name = flat text'
