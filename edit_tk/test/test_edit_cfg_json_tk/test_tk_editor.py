@@ -20,14 +20,28 @@ import tkinter
 import pytest
 from edit_cfg_json import EditModel, EditorBackend
 from edit_cfg_json_tk import TkEditor
-from edit_cfg_json_tk.tk_editor import EditorWidgets
+from edit_cfg_json_tk.tk_editor import EditorWidgets, VALIDATE_TEXT
 from example.e01_flat_config import FlatConfig
 
-EXPECTED_LABELS = ['FlatConfig', 'name', 'answer', 'Close']
-"""Widget texts that both the stubbed and the real Tk test expect."""
+UNKNOWN_VERDICT = 'validation: not validated'
+"""Text the editor shows before anything has been validated."""
 
-EXPECTED_FIELDS = ['flat example', '42']
+VALID_VERDICT = 'validation: valid'
+"""Text the editor shows for a buffer the application would accept."""
+
+EXPECTED_LABELS = ['FlatConfig', 'name', '', 'answer', '', UNKNOWN_VERDICT,
+                   VALIDATE_TEXT, 'Close']
+"""Widget texts that both the stubbed and the real Tk test expect.
+
+The two empty strings are the marks of the two members, which say nothing
+until the user or a validator has done something to them.
+"""
+
+EXPECTED_FIELDS = ['Flat example', '42']
 """Field contents that both the stubbed and the real Tk test expect."""
+
+REWRITTEN_MARK = ' (edited) (changed by validator)'
+"""Mark of a member that the user changed and a validator then rewrote."""
 
 
 class FakeWidget:
@@ -60,6 +74,12 @@ class FakeWidget:
 
     def destroy(self) -> None:
         """Ignore window destruction, which the stubbed tests do not need."""
+
+    def invoke(self) -> None:
+        """Call the command of this widget, as a real Tk button does."""
+        command = self.options['command']
+        assert callable(command)
+        command()
 
 
 class FakeVar:
@@ -115,6 +135,14 @@ def _stub_texts() -> list[str]:
             if 'text' in widget.options]
 
 
+def _stub_press(button_text: str) -> None:
+    """Press the one stub button that shows the given text."""
+    buttons = [widget for widget in FakeWidget.created
+               if widget.options.get('text') == button_text]
+    assert len(buttons) == 1
+    buttons[0].invoke()
+
+
 def _real_texts(widget: tkinter.Misc) -> list[str]:
     """Return the text of every real Tk widget below one widget."""
     texts: list[str] = []
@@ -135,13 +163,28 @@ def _real_fields(widget: tkinter.Misc) -> list[tkinter.Entry]:
     return fields
 
 
+def _real_press(widget: tkinter.Misc, button_text: str) -> None:
+    """Press the one real Tk button below one widget that shows the text."""
+    buttons = [child for child in widget.winfo_children()
+               if isinstance(child, tkinter.Button)
+               and str(child.cget('text')) == button_text]
+    assert len(buttons) == 1
+    buttons[0].invoke()
+
+
+def _retype(field: tkinter.Entry, text: str) -> None:
+    """Replace the whole content of one real Tk field."""
+    field.delete(0, 'end')
+    field.insert(0, text)
+
+
 def _model_value(model: EditModel, name: str) -> object:
     """Return the value that the buffer holds for one member."""
     return {row.name: row.value for row in model.rows}[name]
 
 
 def test_stub_widget_texts(stub_tk: None) -> None:
-    """Test the stubbed widgets show the class name, the names and a button."""
+    """Test the stubbed widgets show the class name, the names and buttons."""
     _ = stub_tk
     _stub_editor(EditModel(FlatConfig()))
     assert _stub_texts() == EXPECTED_LABELS
@@ -197,9 +240,7 @@ def test_real_typing(root_or_skip: tkinter.Tk) -> None:
     """Test typing into a real Tk field changes the model and the label."""
     model = EditModel(FlatConfig())
     widgets = EditorWidgets(parent=root_or_skip, model=model)
-    field = _real_fields(root_or_skip)[1]
-    field.delete(0, 'end')
-    field.insert(0, '7')
+    _retype(_real_fields(root_or_skip)[1], '7')
     assert _model_value(model, 'answer') == 7
     assert widgets.label_text == 'FlatConfig *'
 
@@ -210,9 +251,85 @@ def test_real_typing_undone(root_or_skip: tkinter.Tk) -> None:
     widgets = EditorWidgets(parent=root_or_skip, model=model)
     field = _real_fields(root_or_skip)[0]
     field.insert('end', ' and more')
-    field.delete(len('flat example'), 'end')
+    field.delete(len('Flat example'), 'end')
     assert not model.dirty
     assert widgets.label_text == 'FlatConfig'
+
+
+def test_stub_accepts(stub_tk: None) -> None:
+    """Test the stubbed Validate button reports an accepted buffer."""
+    _ = stub_tk
+    widgets = _stub_editor(EditModel(FlatConfig()))
+    _stub_press(VALIDATE_TEXT)
+    assert widgets.verdict_text_shown == VALID_VERDICT
+
+
+def test_real_accepts(root_or_skip: tkinter.Tk) -> None:
+    """Test the real Validate button reports exactly the same."""
+    widgets = EditorWidgets(parent=root_or_skip, model=EditModel(FlatConfig()))
+    _real_press(root_or_skip, VALIDATE_TEXT)
+    assert widgets.verdict_text_shown == VALID_VERDICT
+
+
+def test_stub_refuses(stub_tk: None) -> None:
+    """Test the stubbed editor shows why the application refused a value."""
+    _ = stub_tk
+    widgets = _stub_editor(EditModel(FlatConfig()))
+    FakeVar.created[1].set('500')
+    _stub_press(VALIDATE_TEXT)
+    assert 'validation: invalid' in widgets.verdict_text_shown
+    assert 'greater than maximum 100' in widgets.verdict_text_shown
+
+
+def test_real_refuses(root_or_skip: tkinter.Tk) -> None:
+    """Test the real editor shows the same refusal."""
+    widgets = EditorWidgets(parent=root_or_skip, model=EditModel(FlatConfig()))
+    _retype(_real_fields(root_or_skip)[1], '500')
+    _real_press(root_or_skip, VALIDATE_TEXT)
+    assert 'validation: invalid' in widgets.verdict_text_shown
+    assert 'greater than maximum 100' in widgets.verdict_text_shown
+
+
+def test_stub_rewrites(stub_tk: None) -> None:
+    """Test a value a validator rewrote reaches the stubbed field and mark."""
+    _ = stub_tk
+    model = EditModel(FlatConfig())
+    widgets = _stub_editor(model)
+    FakeVar.created[0].set('other')
+    _stub_press(VALIDATE_TEXT)
+    assert FakeVar.created[0].get() == 'Other'
+    assert _model_value(model, 'name') == 'Other'
+    assert REWRITTEN_MARK in _stub_texts()
+    assert widgets.verdict_text_shown == VALID_VERDICT
+
+
+def test_real_rewrites(root_or_skip: tkinter.Tk) -> None:
+    """Test the real field and mark show exactly the same rewrite."""
+    model = EditModel(FlatConfig())
+    widgets = EditorWidgets(parent=root_or_skip, model=model)
+    _retype(_real_fields(root_or_skip)[0], 'other')
+    _real_press(root_or_skip, VALIDATE_TEXT)
+    assert _real_fields(root_or_skip)[0].get() == 'Other'
+    assert _model_value(model, 'name') == 'Other'
+    assert REWRITTEN_MARK in _real_texts(root_or_skip)
+    assert widgets.verdict_text_shown == VALID_VERDICT
+
+
+def test_stub_edit_after(stub_tk: None) -> None:
+    """Test an edit puts the stubbed editor back to not having validated."""
+    _ = stub_tk
+    widgets = _stub_editor(EditModel(FlatConfig()))
+    _stub_press(VALIDATE_TEXT)
+    FakeVar.created[1].set('7')
+    assert widgets.verdict_text_shown == UNKNOWN_VERDICT
+
+
+def test_real_edit_after(root_or_skip: tkinter.Tk) -> None:
+    """Test the real editor does the same after an edit."""
+    widgets = EditorWidgets(parent=root_or_skip, model=EditModel(FlatConfig()))
+    _real_press(root_or_skip, VALIDATE_TEXT)
+    _retype(_real_fields(root_or_skip)[1], '7')
+    assert widgets.verdict_text_shown == UNKNOWN_VERDICT
 
 
 def test_is_editor_backend() -> None:

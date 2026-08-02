@@ -2,16 +2,21 @@
 
 * [edit\_cfg\_json\_textual.textual\_editor](#edit_cfg_json_textual.textual_editor)
   * [VALUE\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.VALUE_ID_PREFIX)
+  * [MARK\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.MARK_ID_PREFIX)
+  * [VERDICT\_ID](#edit_cfg_json_textual.textual_editor.VERDICT_ID)
   * [NAME\_CLASS](#edit_cfg_json_textual.textual_editor.NAME_CLASS)
   * [ROW\_CLASS](#edit_cfg_json_textual.textual_editor.ROW_CLASS)
   * [NAME\_WIDTH](#edit_cfg_json_textual.textual_editor.NAME_WIDTH)
   * [QUIT\_KEY](#edit_cfg_json_textual.textual_editor.QUIT_KEY)
+  * [VALIDATE\_KEY](#edit_cfg_json_textual.textual_editor.VALIDATE_KEY)
+  * [plain\_widget](#edit_cfg_json_textual.textual_editor.plain_widget)
   * [EditorApp](#edit_cfg_json_textual.textual_editor.EditorApp)
     * [BINDINGS](#edit_cfg_json_textual.textual_editor.EditorApp.BINDINGS)
     * [CSS](#edit_cfg_json_textual.textual_editor.EditorApp.CSS)
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_editor.EditorApp.__init__)
     * [compose](#edit_cfg_json_textual.textual_editor.EditorApp.compose)
     * [on\_input\_changed](#edit_cfg_json_textual.textual_editor.EditorApp.on_input_changed)
+    * [action\_validate](#edit_cfg_json_textual.textual_editor.EditorApp.action_validate)
   * [TextualEditor](#edit_cfg_json_textual.textual_editor.TextualEditor)
     * [run\_editor](#edit_cfg_json_textual.textual_editor.TextualEditor.run_editor)
 
@@ -26,6 +31,18 @@ Textual view of an edit model, with one editable field per member.
 #### VALUE\_ID\_PREFIX
 
 Prefix of the identifier of the widget that shows one member value.
+
+<a id="edit_cfg_json_textual.textual_editor.MARK_ID_PREFIX"></a>
+
+#### MARK\_ID\_PREFIX
+
+Prefix of the identifier of the widget that marks one member.
+
+<a id="edit_cfg_json_textual.textual_editor.VERDICT_ID"></a>
+
+#### VERDICT\_ID
+
+Identifier of the widget that shows what validation found.
 
 <a id="edit_cfg_json_textual.textual_editor.NAME_CLASS"></a>
 
@@ -55,6 +72,42 @@ A single letter cannot be used for this any more, now that the value of a
 member is edited in a field: an unmodified letter belongs to whichever field
 has the focus, and a user who typed it would expect to see it appear.
 
+<a id="edit_cfg_json_textual.textual_editor.VALIDATE_KEY"></a>
+
+#### VALIDATE\_KEY
+
+Key that validates the buffer.
+
+A function key for the same reason as the quit key, and this one in
+particular because it is what a user of other editors reaches for to ask a
+tool to check what has been written.
+
+<a id="edit_cfg_json_textual.textual_editor.plain_widget"></a>
+
+#### plain\_widget
+
+```python
+def plain_widget(text: str, widget_id: str) -> Static
+```
+
+Return a widget that shows text of the configuration as it is.
+
+Textual reads console markup in the text of a widget, so a square
+bracket in a configuration value or in a diagnostic would be taken for
+the beginning of a style and the text between brackets would silently
+disappear. Nothing here is written by this editor, so nothing here is
+markup.
+
+**Arguments**:
+
+- `text` - Text to show exactly as it is.
+- `widget_id` - Identifier the application finds this widget by.
+  
+
+**Returns**:
+
+  A widget showing that text.
+
 <a id="edit_cfg_json_textual.textual_editor.EditorApp"></a>
 
 ## EditorApp Objects
@@ -69,10 +122,10 @@ Textual application that edits one edit model.
 
 #### BINDINGS
 
-The quit key, which the footer shows so that it can be found.
+The keys the footer shows, so that they can be found.
 
-It is a priority binding, so that it is acted on before the field that
-has the focus is offered the key.
+They are priority bindings, so that they are acted on before the field
+that has the focus is offered the key.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.CSS"></a>
 
@@ -105,7 +158,7 @@ Remember the model and name the application after it.
 def compose() -> ComposeResult
 ```
 
-Create one row per configuration member, with header and footer.
+Create one row per member, the verdict, a header and a footer.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.on_input_changed"></a>
 
@@ -115,11 +168,28 @@ Create one row per configuration member, with header and footer.
 def on_input_changed(event: Input.Changed) -> None
 ```
 
-Write one field into the model and show whether it changed.
+Write one field into the model and show what the model says.
 
 A field posts this message when it is given its initial value as
 well, which the model handles by treating a set that changes no text
 as no edit at all.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp.action_validate"></a>
+
+#### action\_validate
+
+```python
+def action_validate() -> None
+```
+
+Validate the buffer and show what the application would say.
+
+The fields are written back from the model afterwards, because a
+validation pass is not read only: a member validator returns the
+value that is stored back into the member, so a value can end up
+different from the one the user typed. Writing the text the model
+already holds into a field is not an edit, so this refresh does not
+undo the marks that the pass has just set.
 
 <a id="edit_cfg_json_textual.textual_editor.TextualEditor"></a>
 

@@ -18,7 +18,13 @@ TkEditor().run_editor(EditModel(config))
 ````
 
 The package is under construction. This version opens a window with one
-edit field per configuration member, and a button to close it. Every change
-of a field goes straight into the model, and the label above the fields is
-marked while the model holds a change worth saving. Validation, reading a
+edit field per configuration member, a Validate button and a Close button.
+Every change of a field goes straight into the model, and the label above
+the fields is marked while the model holds a change worth saving. Reading a
 file and saving follow.
+
+Validate runs the validation of the application's own configuration class
+and shows below the fields what that class would say about the values that
+are in them. A pass is not read only: a validator returns the value that is
+stored back into the member, so the fields are written back from the model
+afterwards, and a member that a validator rewrote says so beside its field.

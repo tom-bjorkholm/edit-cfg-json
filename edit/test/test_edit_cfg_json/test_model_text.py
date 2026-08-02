@@ -7,14 +7,20 @@
 import pytest
 from config_as_json import JsonType
 from edit_cfg_json import EditModel, MemberRow, model_as_text, model_title, \
-    row_value_text
-from .sample_cfg import FlatCfg, ListCfg, NoneCfg
+    row_marks, row_value_text, verdict_text
+from .sample_cfg import FlatCfg, ListCfg, NoneCfg, RangeCfg, RewriteCfg
+
+UNKNOWN_LINE = 'validation: not validated'
+"""Line that a rendering of a model nobody has validated ends with."""
+
+VALID_LINE = 'validation: valid'
+"""Line that a rendering of an accepted buffer ends with."""
 
 
 def test_flat_text() -> None:
-    """Test the rendering has one line per member and no trailing break."""
+    """Test the rendering has one line per member and then the verdict."""
     assert model_as_text(EditModel(FlatCfg())) == \
-        'name = flat text\nanswer = 42'
+        f'name = flat text\nanswer = 42\n{UNKNOWN_LINE}'
 
 
 def test_text_has_no_quotes() -> None:
@@ -39,7 +45,8 @@ def test_edited_text() -> None:
     """Test an edited member is marked, and only that member."""
     model = EditModel(FlatCfg())
     model.set_text(path=('answer',), text='7')
-    assert model_as_text(model) == 'name = flat text\nanswer = 7 (edited)'
+    assert model_as_text(model) == \
+        f'name = flat text\nanswer = 7 (edited)\n{UNKNOWN_LINE}'
 
 
 def test_edit_undone_text() -> None:
@@ -47,7 +54,8 @@ def test_edit_undone_text() -> None:
     model = EditModel(FlatCfg())
     model.set_text(path=('answer',), text='7')
     model.set_text(path=('answer',), text='42')
-    assert model_as_text(model) == 'name = flat text\nanswer = 42'
+    assert model_as_text(model) == \
+        f'name = flat text\nanswer = 42\n{UNKNOWN_LINE}'
 
 
 def test_invalid_value_text() -> None:
@@ -69,6 +77,52 @@ def test_dirty_model_title() -> None:
     assert model_title(model) == 'FlatCfg *'
 
 
+def test_unknown_verdict_text() -> None:
+    """Test a model nobody validated says so rather than saying nothing."""
+    assert verdict_text(EditModel(FlatCfg())) == UNKNOWN_LINE
+
+
+def test_valid_verdict_text() -> None:
+    """Test an accepted buffer is reported with nothing added to it."""
+    model = EditModel(FlatCfg())
+    model.validate()
+    assert verdict_text(model) == VALID_LINE
+
+
+def test_invalid_verdict_text() -> None:
+    """Test a refused buffer is reported with the diagnostics below it."""
+    model = EditModel(RangeCfg())
+    model.set_text(path=('answer',), text='500')
+    model.validate()
+    assert verdict_text(model) == (
+        'validation: invalid\nInvalid configuration: '
+        'Value 500 for answer is greater than maximum 100.')
+
+
+def test_edited_verdict_text() -> None:
+    """Test an edit puts the rendering back to not having been validated."""
+    model = EditModel(FlatCfg())
+    model.validate()
+    model.set_text(path=('answer',), text='7')
+    assert verdict_text(model) == UNKNOWN_LINE
+
+
+def test_rewritten_text() -> None:
+    """Test a member a validator rewrote is shown as rewritten."""
+    model = EditModel(RewriteCfg())
+    model.set_text(path=('name',), text='typed text')
+    model.validate()
+    assert model_as_text(model) == \
+        f'name = Typed text (edited) (changed by validator)\n{VALID_LINE}'
+
+
+def test_verdict_is_last() -> None:
+    """Test the verdict is the last line of a rendering of a whole model."""
+    model = EditModel(FlatCfg())
+    model.validate()
+    assert model_as_text(model).splitlines()[-1] == VALID_LINE
+
+
 @pytest.mark.parametrize('value, expected',
                          [(42, '42'), (1.5, '1.5'), (True, 'true'),
                           (False, 'false'), (None, 'null'),
@@ -88,3 +142,14 @@ def test_edited_value_text(value: JsonType, expected: str) -> None:
     """Test an edited member shows what it holds now, not what it held."""
     row = MemberRow(path=('member',), value=value, original=42)
     assert row_value_text(row) == expected
+
+
+@pytest.mark.parametrize('value, rewritten, expected',
+                         [(42, False, ''), (7, False, ' (edited)'),
+                          (42, True, ' (changed by validator)'),
+                          (7, True, ' (edited) (changed by validator)')])
+def test_row_marks(value: JsonType, rewritten: bool, expected: str) -> None:
+    """Test the two marks of a member are shown together when both apply."""
+    row = MemberRow(path=('member',), value=value, original=42,
+                    changed_by_validator=rewritten)
+    assert row_marks(row) == expected

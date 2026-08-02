@@ -10,8 +10,15 @@
 * [edit\_cfg\_json.model\_text](#edit_cfg_json.model_text)
   * [NOT\_EDITABLE\_FORM](#edit_cfg_json.model_text.NOT_EDITABLE_FORM)
   * [EDITED\_MARK](#edit_cfg_json.model_text.EDITED_MARK)
+  * [VALIDATOR\_MARK](#edit_cfg_json.model_text.VALIDATOR_MARK)
   * [DIRTY\_MARK](#edit_cfg_json.model_text.DIRTY_MARK)
+  * [VERDICT\_FORM](#edit_cfg_json.model_text.VERDICT_FORM)
+  * [VALID\_STATE](#edit_cfg_json.model_text.VALID_STATE)
+  * [INVALID\_STATE](#edit_cfg_json.model_text.INVALID_STATE)
+  * [UNKNOWN\_STATE](#edit_cfg_json.model_text.UNKNOWN_STATE)
   * [row\_value\_text](#edit_cfg_json.model_text.row_value_text)
+  * [row\_marks](#edit_cfg_json.model_text.row_marks)
+  * [verdict\_text](#edit_cfg_json.model_text.verdict_text)
   * [model\_as\_text](#edit_cfg_json.model_text.model_as_text)
   * [model\_title](#edit_cfg_json.model_text.model_title)
 * [edit\_cfg\_json.edit\_model](#edit_cfg_json.edit_model)
@@ -31,7 +38,18 @@
     * [config\_type\_name](#edit_cfg_json.edit_model.EditModel.config_type_name)
     * [rows](#edit_cfg_json.edit_model.EditModel.rows)
     * [dirty](#edit_cfg_json.edit_model.EditModel.dirty)
+    * [verdict](#edit_cfg_json.edit_model.EditModel.verdict)
     * [set\_text](#edit_cfg_json.edit_model.EditModel.set_text)
+    * [validate](#edit_cfg_json.edit_model.EditModel.validate)
+* [edit\_cfg\_json.validation](#edit_cfg_json.validation)
+  * [BUFFER\_ERRORS](#edit_cfg_json.validation.BUFFER_ERRORS)
+  * [ValidationVerdict](#edit_cfg_json.validation.ValidationVerdict)
+    * [valid](#edit_cfg_json.validation.ValidationVerdict.valid)
+    * [diagnostics](#edit_cfg_json.validation.ValidationVerdict.diagnostics)
+  * [ValidationPass](#edit_cfg_json.validation.ValidationPass)
+    * [verdict](#edit_cfg_json.validation.ValidationPass.verdict)
+    * [members](#edit_cfg_json.validation.ValidationPass.members)
+  * [validate\_buffer](#edit_cfg_json.validation.validate_buffer)
 
 <a id="edit_cfg_json.backend"></a>
 
@@ -176,11 +194,41 @@ Form of the value text of a member this version cannot edit.
 
 Mark that follows the value of a member the user has changed.
 
+<a id="edit_cfg_json.model_text.VALIDATOR_MARK"></a>
+
+#### VALIDATOR\_MARK
+
+Mark that follows the value of a member a validation pass rewrote.
+
 <a id="edit_cfg_json.model_text.DIRTY_MARK"></a>
 
 #### DIRTY\_MARK
 
 Mark that follows the model label while the buffer has changes.
+
+<a id="edit_cfg_json.model_text.VERDICT_FORM"></a>
+
+#### VERDICT\_FORM
+
+Form of the line that reports what the last validation pass found.
+
+<a id="edit_cfg_json.model_text.VALID_STATE"></a>
+
+#### VALID\_STATE
+
+State of a buffer that the application itself would accept.
+
+<a id="edit_cfg_json.model_text.INVALID_STATE"></a>
+
+#### INVALID\_STATE
+
+State of a buffer that the application itself would refuse.
+
+<a id="edit_cfg_json.model_text.UNKNOWN_STATE"></a>
+
+#### UNKNOWN\_STATE
+
+State of a buffer that has not been validated since it last changed.
 
 <a id="edit_cfg_json.model_text.row_value_text"></a>
 
@@ -205,6 +253,56 @@ field. Every other member shows the text of the value it holds.
 
   The value text of one member.
 
+<a id="edit_cfg_json.model_text.row_marks"></a>
+
+#### row\_marks
+
+```python
+def row_marks(row: MemberRow) -> str
+```
+
+Return the marks that follow the value of one member.
+
+Both marks can be shown at once, because they say two different things
+that can both be true: the user changed this member, and a validator
+then changed what the user had written. Both backends read the marks
+from here, so that neither of them decides on its own what a member the
+user or a validator touched looks like.
+
+**Arguments**:
+
+- `row` - Member to mark.
+  
+
+**Returns**:
+
+  The marks of one member, empty when nothing has happened to it.
+
+<a id="edit_cfg_json.model_text.verdict_text"></a>
+
+#### verdict\_text
+
+```python
+def verdict_text(model: EditModel) -> str
+```
+
+Return what the last validation pass found, as text.
+
+A buffer that has not been validated since it last changed says so,
+because that is a third state and not a kind of success. The
+diagnostics follow on the lines below, and they can be present for an
+accepted buffer too, since a validator may remark on a value without
+refusing it.
+
+**Arguments**:
+
+- `model` - Model whose validation state is reported.
+  
+
+**Returns**:
+
+  The state of the buffer, followed by any diagnostics.
+
 <a id="edit_cfg_json.model_text.model_as_text"></a>
 
 #### model\_as\_text
@@ -213,12 +311,14 @@ field. Every other member shows the text of the value it holds.
 def model_as_text(model: EditModel) -> str
 ```
 
-Return the whole model as one text line per configuration member.
+Return the whole model as text, one line per configuration member.
 
-This is the rendering used by the examples and by the tests, so that
-every step of the editor can be observed without a display. It belongs
-to the core rather than to a backend because it is user interface
-agnostic.
+The validation state of the buffer follows the members, so that a
+rendering never leaves it unsaid what the application would make of what
+is shown. This is the rendering used by the examples and by the tests,
+so that every step of the editor can be observed without a display. It
+belongs to the core rather than to a backend because it is user
+interface agnostic.
 
 **Arguments**:
 
@@ -227,7 +327,8 @@ agnostic.
 
 **Returns**:
 
-  One line per member, without a trailing line break.
+  One line per member and then the validation state, without a
+  trailing line break.
 
 <a id="edit_cfg_json.model_text.model_title"></a>
 
@@ -310,9 +411,11 @@ number yet, and the member would then stop being a number member.
 
 Whether a validation pass rewrote this value.
 
-This is storage for a flag that validation sets, which arrives in a later
-step. It belongs to the model rather than to a backend, so that two
-backends cannot end up showing it differently.
+A validation pass sets the flag and the next edit of this member clears
+it, so it always answers the same question: is the value shown here
+something a validator made of what was typed? It belongs to the model
+rather than to a backend, so that two backends cannot show it
+differently.
 
 <a id="edit_cfg_json.edit_model.MemberRow.filled_from_default"></a>
 
@@ -402,6 +505,11 @@ yet. JSON space is about the kind of the value, not about its notation:
 a string member holds the string, and the quotes that the file format
 puts around it are added when the file is written and nowhere else.
 
+The buffer is validated by running the application's own configuration
+class over it rather than by any rule of the editor's own, so the user
+sees the diagnostics the application would produce and the editor cannot
+accept anything the application would refuse.
+
 This version of the model handles scalar members only. A member whose
 value is a list or a dict is reported as a row that is not editable.
 
@@ -475,6 +583,22 @@ def dirty() -> bool
 
 Return whether the buffer holds anything that is worth saving.
 
+<a id="edit_cfg_json.edit_model.EditModel.verdict"></a>
+
+#### verdict
+
+```python
+@property
+def verdict() -> Optional[ValidationVerdict]
+```
+
+Return what the last validation pass found, or None.
+
+None is not a kind of failure but a third state: the buffer has not
+been validated since it last changed. A verdict that was reached
+from an earlier buffer would say something untrue about the buffer
+that is there now, so it is dropped rather than kept.
+
 <a id="edit_cfg_json.edit_model.EditModel.set_text"></a>
 
 #### set\_text
@@ -489,6 +613,8 @@ Text that the field already shows changes nothing, because it is not
 an edit. That is not only tidiness: a field posts a change when it is
 given its initial text, and a model that counted that as an edit
 would report unsaved changes before the user had touched anything.
+It is also what lets a backend write the buffer back into its fields
+after a validation pass without that counting as an edit.
 
 **Arguments**:
 
@@ -500,4 +626,135 @@ would report unsaved changes before the user had touched anything.
 
 - `KeyError` - The path is not a member of this configuration.
 - `ValueError` - The member is not one that this version can edit.
+
+<a id="edit_cfg_json.edit_model.EditModel.validate"></a>
+
+#### validate
+
+```python
+def validate() -> ValidationVerdict
+```
+
+Run the application's own validation over the whole buffer.
+
+A validation pass is not read only. `Config.validate()` documents
+that a member validator returns the value that shall be stored back
+into the member, so a validator that changes the case of a string
+rewrites what the user typed. The buffer is therefore refreshed from
+the configuration object that was accepted, and every member the
+pass rewrote is marked: accepting the rewrite silently and showing
+the user the text they typed would be the worst available behaviour.
+
+**Returns**:
+
+  What the pass found. It is also kept, as `verdict`.
+
+<a id="edit_cfg_json.validation"></a>
+
+# edit\_cfg\_json.validation
+
+Running the application's own validation over one edit buffer.
+
+<a id="edit_cfg_json.validation.BUFFER_ERRORS"></a>
+
+#### BUFFER\_ERRORS
+
+Every way in which a configuration class refuses an edit buffer.
+
+`config_as_json` reports a key that is missing or unknown as `KeyError`,
+text that is not JSON as `ConfigBadJson`, and a value that a validator
+refuses as `InvalidConfiguration`, `InvalidConfigurationValue` or
+`InvalidConfigurationType`. Those four are all `ValueError` subclasses, so
+these three classes are exactly those failures and nothing besides them.
+
+`NotImplementedError` is deliberately not one of them. It says that the
+configuration class is incomplete, which is a defect of the application that
+no edit of the buffer can put right, and hiding it in a verdict would send
+the user looking for a mistake that is not theirs.
+
+<a id="edit_cfg_json.validation.ValidationVerdict"></a>
+
+## ValidationVerdict Objects
+
+```python
+class ValidationVerdict(NamedTuple)
+```
+
+What one validation pass over a whole edit buffer found.
+
+<a id="edit_cfg_json.validation.ValidationVerdict.valid"></a>
+
+#### valid
+
+Whether the application itself would accept this buffer.
+
+<a id="edit_cfg_json.validation.ValidationVerdict.diagnostics"></a>
+
+#### diagnostics
+
+What the application itself would tell the user about the buffer.
+
+An accepted buffer can have diagnostics too, because a validator may
+remark on a value without refusing it.
+
+<a id="edit_cfg_json.validation.ValidationPass"></a>
+
+## ValidationPass Objects
+
+```python
+class ValidationPass(NamedTuple)
+```
+
+The verdict of one validation pass and what it validated.
+
+<a id="edit_cfg_json.validation.ValidationPass.verdict"></a>
+
+#### verdict
+
+What the pass found.
+
+<a id="edit_cfg_json.validation.ValidationPass.members"></a>
+
+#### members
+
+One JSON space value per member of the accepted configuration.
+
+A member validator returns the value that is stored back into the
+member, so these are not necessarily the values the pass was given.
+They are empty when the buffer was refused, because there is then no
+configuration object to read them from.
+
+<a id="edit_cfg_json.validation.validate_buffer"></a>
+
+#### validate\_buffer
+
+```python
+def validate_buffer(config_type: type[Config],
+                    members: dict[str, JsonType]) -> ValidationPass
+```
+
+Validate one edit buffer by constructing a candidate configuration.
+
+Constructing a configuration object runs the whole chain that the
+application runs when it reads its own file: key matching, the recursive
+check of dict shapes against the defaults, the parse converters, the
+nested configuration objects and then the validation plan. So the user
+sees exactly the diagnostics that the application would produce, there
+is no second implementation of validation anywhere, and there is no way
+for the editor to accept something the application would then refuse.
+
+The stream the candidate writes to is captured rather than passed on,
+because these diagnostics are the answer to a question the user asked
+and belong on the screen and not in the terminal behind it.
+
+**Arguments**:
+
+- `config_type` - Class of the configuration that is being edited.
+- `members` - The edit buffer, as one JSON space value per member.
+  
+
+**Returns**:
+
+  What the pass found, and the members of the configuration object it
+  built. The members are empty when the buffer was refused.
 

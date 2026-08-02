@@ -1,11 +1,11 @@
 #! /usr/bin/env python3
-"""Example 1: editing a flat configuration.
+"""Example 1: editing and validating a flat configuration.
 
 This is the first example of the editor itself. The configuration class is
 as small as a configuration class can be: one text member and one number
-member, no validators, no nested structure. That is on purpose, because the
-point of this example is not the configuration but the three lines it takes
-to get an editor for it:
+member, no nested structure. That is on purpose, because the point of this
+example is not the configuration but the three lines it takes to get an
+editor for it:
 
 ````python
 config = FlatConfig()          # the application's own configuration object
@@ -25,13 +25,26 @@ puts around a string in the file. Both follow from the same idea: what the
 editor shows is the configuration object the application declared, and how
 that object is written to a file is an implementation detail of saving.
 
-Both members can now be edited. Each of them is a field, and what the user
-types goes into the edit buffer of the model as the value it stands for: the
-text member keeps whatever is typed, and the number member holds a number as
-soon as the text is one. Text that is not a number yet is kept as it was
-typed, because a value that is being typed is not valid for most of the time
-it takes to type it. Validation, which is what says so, arrives in the next
-step.
+Both members can be edited. Each of them is a field, and what the user types
+goes into the edit buffer of the model as the value it stands for: the text
+member keeps whatever is typed, and the number member holds a number as soon
+as the text is one. Text that is not a number yet is kept as it was typed,
+because a value that is being typed is not valid for most of the time it
+takes to type it.
+
+Saying what is wrong with such a value is what the validation plan below is
+for, and it is the second thing this example teaches. The editor has no
+rules of its own: it hands the buffer to `FlatConfig` and reports what
+`FlatConfig` says, so the user is told exactly what the application would
+say when it read the same values from a file.
+
+The two validators show the two sides of that:
+
+- `answer` must be between 0 and 100, so there is something that can fail.
+- `name` has its first character upper cased, so there is something that
+  rewrites. A validation pass is not read only, and a value that a validator
+  rewrote is marked, because changing what the user just typed without
+  showing it would be the worst thing the editor could do.
 
 Run this example with one of:
 
@@ -48,11 +61,18 @@ because that is where the three packages are installed:
 The `--ui dump` variant needs neither a window nor a terminal, so it is also
 what the tests of this example use. The same edit that a user would type
 into a field can be made from the command line, which is what makes an
-editor observable without a display:
+editor observable without a display. These three show the buffer being
+accepted, being refused, and being rewritten:
 
 ````sh
 python3 examples/src/example/e01_flat_config.py --ui dump --set answer=7
+python3 examples/src/example/e01_flat_config.py --ui dump --set answer=500
+python3 examples/src/example/e01_flat_config.py --ui dump --set name=other
 ````
+
+In the two graphical backends the same pass is asked for rather than done
+for the user: the Tkinter editor has a Validate button and the Textual
+editor validates on `f5`.
 
 Reading a file and saving arrive in the following steps, so this example
 still starts from the default values and writes nothing.
@@ -64,7 +84,15 @@ still starts from the default values and writes nothing.
 from pathlib import Path
 from typing import Optional, TextIO
 import sys
-from config_as_json import Config, PathOrStr, ValidationPlan
+from config_as_json import Config, IntFloatValidator, MemberValidationStep, \
+    PathOrStr, StrCaseChangeValidator, StrCaseSpec, StrPositionSpec, \
+    ValidationPlan
+
+LOWEST_ANSWER = 0
+"""Smallest number that this configuration accepts as an answer."""
+
+HIGHEST_ANSWER = 100
+"""Largest number that this configuration accepts as an answer."""
 
 
 class FlatConfig(Config):
@@ -81,8 +109,8 @@ class FlatConfig(Config):
 
         The three keyword arguments are the ones that `config_as_json`
         expects of a configuration class. Keeping to them is what lets the
-        editor construct the class itself in a later step, without the
-        application having to hand over a loader function.
+        editor construct the class itself, which is how it validates: the
+        buffer is written as JSON text and handed to this constructor.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
@@ -92,21 +120,36 @@ class FlatConfig(Config):
         # The members are assigned before super().__init__() is called.
         # These assignments are both the schema and the default values, and
         # they are the only description of the configuration that exists.
-        self.name: str = 'flat example'
+        # The default name starts with an upper case character because the
+        # validation plan below would otherwise rewrite the default itself,
+        # and an editor that changed a value before the user had done
+        # anything would be teaching the wrong lesson.
+        self.name: str = 'Flat example'
         self.answer: int = 42
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
-        """Return no extra validation steps for this example.
+        """Return one validator that refuses and one that rewrites.
 
-        A later example adds validators, which is where the editor starts
-        running them for the user. Here an empty plan keeps the example about
-        the editor rather than about validation.
+        These are ordinary `config_as_json` validators, declared exactly as
+        they would be in an application that had no editor at all. The
+        editor runs this plan by constructing this class, so an application
+        that adds a validator of its own gets it in the editor for free.
         """
         _ = stderr_file
-        return []
+        in_range = IntFloatValidator[int](min_value=LOWEST_ANSWER,
+                                          max_value=HIGHEST_ANSWER,
+                                          allowed_values=None)
+        upper_first = StrCaseChangeValidator(
+            special_position=StrPositionSpec.FIRST_IN_STRING,
+            special_position_case=StrCaseSpec.UPPER,
+            other_position_case=StrCaseSpec.ORIGINAL)
+        return [MemberValidationStep(member_names=['answer'],
+                                     validator=in_range),
+                MemberValidationStep(member_names=['name'],
+                                     validator=upper_first)]
 
 
 def main(args: Optional[list[str]] = None) -> None:

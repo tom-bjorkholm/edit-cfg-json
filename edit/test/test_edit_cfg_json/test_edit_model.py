@@ -7,7 +7,8 @@
 import pytest
 from config_as_json import JsonType
 from edit_cfg_json import EditModel, MemberRow
-from .sample_cfg import FlatCfg, ListCfg, NoneCfg, OmitCfg, RewriteCfg
+from .sample_cfg import ExtraArgCfg, FlatCfg, ListCfg, NoneCfg, OmitCfg, \
+    RangeCfg, RewriteCfg
 
 
 def _row(model: EditModel, name: str) -> MemberRow:
@@ -269,3 +270,137 @@ def test_row_flags_start_off() -> None:
     row = MemberRow(path=('member',), value=1, original=1)
     assert not row.changed_by_validator
     assert not row.filled_from_default
+
+
+def test_verdict_unknown() -> None:
+    """Test a model that was just built has not been validated."""
+    assert EditModel(FlatCfg()).verdict is None
+
+
+def test_validate_accepts() -> None:
+    """Test the values a configuration object starts with are accepted."""
+    verdict = EditModel(FlatCfg()).validate()
+    assert verdict.valid
+    assert verdict.diagnostics == ''
+
+
+def test_verdict_kept() -> None:
+    """Test the verdict of the last pass is what the model reports."""
+    model = EditModel(FlatCfg())
+    verdict = model.validate()
+    assert model.verdict == verdict
+
+
+def test_validate_refuses() -> None:
+    """Test a value the application refuses is reported as it refused it."""
+    model = EditModel(RangeCfg())
+    model.set_text(path=('answer',), text='500')
+    verdict = model.validate()
+    assert not verdict.valid
+    assert 'greater than maximum 100' in verdict.diagnostics
+
+
+def test_refused_keeps_typed() -> None:
+    """Test a refused buffer still holds exactly what the user typed."""
+    model = EditModel(RangeCfg())
+    model.set_text(path=('answer',), text='not-a-number')
+    model.validate()
+    assert _row(model, 'answer').value == 'not-a-number'
+    assert not _row(model, 'answer').changed_by_validator
+
+
+def test_edit_clears_verdict() -> None:
+    """Test editing drops a verdict that was reached from another buffer."""
+    model = EditModel(FlatCfg())
+    model.validate()
+    model.set_text(path=('answer',), text='7')
+    assert model.verdict is None
+
+
+def test_same_text_verdict() -> None:
+    """Test writing the text a field already shows does not drop a verdict.
+
+    This is what lets a backend write the buffer back into its fields after
+    a validation pass without that pass undoing itself.
+    """
+    model = EditModel(FlatCfg())
+    model.validate()
+    model.set_text(path=('answer',), text='42')
+    assert model.verdict is not None
+
+
+def test_rewrite_marked() -> None:
+    """Test a value that a validation pass rewrote is marked as rewritten."""
+    model = EditModel(RewriteCfg())
+    model.set_text(path=('name',), text='typed text')
+    model.validate()
+    assert _row(model, 'name').value == 'Typed text'
+    assert _row(model, 'name').changed_by_validator
+
+
+def test_rewrite_mark_cleared() -> None:
+    """Test the next edit of a rewritten member clears its mark."""
+    model = EditModel(RewriteCfg())
+    model.set_text(path=('name',), text='typed text')
+    model.validate()
+    model.set_text(path=('name',), text='typed text again')
+    assert not _row(model, 'name').changed_by_validator
+
+
+def test_no_rewrite_no_mark() -> None:
+    """Test a pass that changed nothing marks nothing."""
+    model = EditModel(RewriteCfg())
+    model.set_text(path=('name',), text='Typed text')
+    model.validate()
+    assert not _row(model, 'name').changed_by_validator
+
+
+def test_rewrite_is_a_change() -> None:
+    """Test a value a validator wrote is worth saving like any other."""
+    model = EditModel(RewriteCfg())
+    model.set_text(path=('name',), text='typed text')
+    model.validate()
+    assert model.dirty
+    assert _row(model, 'name').edited
+
+
+def test_validate_containers() -> None:
+    """Test a list member and a dict member survive a validation pass."""
+    model = EditModel(ListCfg())
+    assert model.validate().valid
+    assert _row(model, 'tags').value == ['first', 'second']
+    assert not model.dirty
+
+
+def test_omitted_none_ok() -> None:
+    """Test a member left out of JSON while None does not fail a pass."""
+    model = EditModel(OmitCfg())
+    assert model.validate().valid
+    assert [row.name for row in model.rows] == ['first', 'last']
+
+
+def test_no_stderr_output(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the diagnostics of a pass are reported and not printed.
+
+    An application that runs the editor has a screen and not a terminal
+    behind it, so a diagnostic that the user asked for belongs in the
+    verdict, where the editor can show it.
+    """
+    model = EditModel(RangeCfg())
+    model.set_text(path=('answer',), text='500')
+    verdict = model.validate()
+    assert 'greater than maximum 100' in verdict.diagnostics
+    assert capsys.readouterr().err == ''
+
+
+def test_validate_unbuildable() -> None:
+    """Test a class the editor cannot construct is refused, not crashed on.
+
+    The editor knows nothing about the extra constructor argument until the
+    explicit loader of a later step exists, so a pass has to report that as
+    a verdict rather than let the exception reach the user interface.
+    """
+    model = EditModel(ExtraArgCfg(home='here'))
+    verdict = model.validate()
+    assert not verdict.valid
+    assert 'TypeError' in verdict.diagnostics

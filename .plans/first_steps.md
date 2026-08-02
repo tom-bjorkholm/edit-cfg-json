@@ -209,6 +209,8 @@ buffer must tolerate.
 
 ### Step 3 — Validation of the buffer
 
+Status: **Implemented and committed**
+
 **Observable outcome.** `--set answer=not-a-number --ui dump` prints a
 validation verdict and the diagnostics the application itself would
 produce at load time. In both UIs a validate action shows the same
@@ -235,6 +237,28 @@ Without a rewriting validator the section 6.4 behaviour has no example.
 **Tests.** One parametrized core test per caught exception type, driven by
 a buffer crafted to produce it. A test that a rewriting validator sets the
 flag and that the next edit to that field clears it.
+
+### Step 3B - Enums as attributes in Config
+
+**Observable outcome.** An example is added that has a `Config` class
+with 2 enum attributes: one `NeededCompetence(Enum)` and one
+`AvailableCompetence(IntEnum)`, both having 3 possible values
+`MECHANICAL`, `ELECTRICAL` and `ELECTRONIC` for both
+enums. (These values are chosen so that a partly typed value could
+be the beginning of more than one enum value.)
+The values of these enum attribute is shown in editor and can
+be changed in editor.
+
+**Examples.** `e01_flat_config.py` gains 2 enum attributes in the
+Config class:
+- `needed: NeededCompetence = NeededCompetence.ELECTRICAL`
+- `available: AvailableCompetence = AvailableCompetence.MECHANICAL`
+
+There are no explicit validators defined for these 2 attributes,
+the teaching story is that there is a validation of enums built into
+`config_as_json.Config` and that works in the editor as well, 
+provided that the `serialize_converters()` and `parse_converters()`
+are set up.
 
 ### Step 4 — Loading
 
@@ -272,17 +296,6 @@ most of the value of this example.
 incomplete, unknown-key and malformed input files. The
 `inspect.signature()` branch needs a config class that accepts
 `auto_ch_hook` and one that does not.
-
-### Step 4B - Enums as attributes in Config
-
-**Observable outcome.** An example is added that has a `Config` class
-with 2 enum attributes: one NeededCompetence(Enum) and one
-AvailableCompetence(IntEnum), both having at least 3 possible values
-and 2 of these values should be `ELECTRICAL` and `ELECTRONIC`.
-(These values are chosen so that a partly typed value could
- be the beginning of more than one enum value.)
-The values of these enum attribute is shown in editor and can
-be changed in editor.
 
 **Code and test addictions/changes.** It is likely that adding
 the enum values to config that is loaded and edited will highlight

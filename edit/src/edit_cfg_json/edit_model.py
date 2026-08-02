@@ -4,14 +4,15 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
-from typing import NamedTuple, TextIO
+from typing import NamedTuple, Optional, TextIO
 import json
 import sys
 from config_as_json import Config, ConfigPath, JsonType
 from edit_cfg_json.leaf_value import text_as_value, value_as_text, \
     values_differ
+from edit_cfg_json.validation import ValidationVerdict, validate_buffer
 
 NOT_EDITABLE_ERROR = 'Member {name} cannot be edited by this version.'
 """Message of the error raised when a member cannot be edited."""
@@ -46,9 +47,11 @@ class MemberRow(NamedTuple):
     changed_by_validator: bool = False
     """Whether a validation pass rewrote this value.
 
-    This is storage for a flag that validation sets, which arrives in a later
-    step. It belongs to the model rather than to a backend, so that two
-    backends cannot end up showing it differently.
+    A validation pass sets the flag and the next edit of this member clears
+    it, so it always answers the same question: is the value shown here
+    something a validator made of what was typed? It belongs to the model
+    rather than to a backend, so that two backends cannot show it
+    differently.
     """
 
     filled_from_default: bool = False
@@ -137,6 +140,11 @@ class EditModel:
     a string member holds the string, and the quotes that the file format
     puts around it are added when the file is written and nowhere else.
 
+    The buffer is validated by running the application's own configuration
+    class over it rather than by any rule of the editor's own, so the user
+    sees the diagnostics the application would produce and the editor cannot
+    accept anything the application would refuse.
+
     This version of the model handles scalar members only. A member whose
     value is a list or a dict is reported as a row that is not editable.
     """
@@ -161,16 +169,17 @@ class EditModel:
             InvalidConfigurationValue: A member of the configuration object
                 does not hold a valid value.
         """
-        self._type_name = type(config).__name__
+        self._config_type = type(config)
         self._rows = _rows_from_config(config=deepcopy(config),
                                        stderr_file=stderr_file)
         self._number = {row.path: number
                         for number, row in enumerate(self._rows)}
+        self._verdict: Optional[ValidationVerdict] = None
 
     @property
     def config_type_name(self) -> str:
         """Return the class name of the edited configuration object."""
-        return self._type_name
+        return self._config_type.__name__
 
     @property
     def rows(self) -> Sequence[MemberRow]:
@@ -191,6 +200,17 @@ class EditModel:
         """Return whether the buffer holds anything that is worth saving."""
         return any(row.edited for row in self._rows)
 
+    @property
+    def verdict(self) -> Optional[ValidationVerdict]:
+        """Return what the last validation pass found, or None.
+
+        None is not a kind of failure but a third state: the buffer has not
+        been validated since it last changed. A verdict that was reached
+        from an earlier buffer would say something untrue about the buffer
+        that is there now, so it is dropped rather than kept.
+        """
+        return self._verdict
+
     def set_text(self, path: ConfigPath, text: str) -> None:
         """Set one member of the buffer from the text of an edit field.
 
@@ -198,6 +218,8 @@ class EditModel:
         an edit. That is not only tidiness: a field posts a change when it is
         given its initial text, and a model that counted that as an edit
         would report unsaved changes before the user had touched anything.
+        It is also what lets a backend write the buffer back into its fields
+        after a validation pass without that counting as an edit.
 
         Args:
             path: Path of the member to set.
@@ -214,4 +236,50 @@ class EditModel:
         if value_as_text(row.value) == text:
             return
         value = text_as_value(text=text, is_text_member=row.is_text)
-        self._rows[number] = row._replace(value=value)
+        self._rows[number] = row._replace(value=value,
+                                          changed_by_validator=False)
+        self._verdict = None
+
+    def validate(self) -> ValidationVerdict:
+        """Run the application's own validation over the whole buffer.
+
+        A validation pass is not read only. `Config.validate()` documents
+        that a member validator returns the value that shall be stored back
+        into the member, so a validator that changes the case of a string
+        rewrites what the user typed. The buffer is therefore refreshed from
+        the configuration object that was accepted, and every member the
+        pass rewrote is marked: accepting the rewrite silently and showing
+        the user the text they typed would be the worst available behaviour.
+
+        Returns:
+            What the pass found. It is also kept, as `verdict`.
+        """
+        outcome = validate_buffer(config_type=self._config_type,
+                                  members=self._buffer())
+        if outcome.verdict.valid:
+            self._take_validated(outcome.members)
+        self._verdict = outcome.verdict
+        return outcome.verdict
+
+    def _buffer(self) -> dict[str, JsonType]:
+        """Return the buffer as one JSON space value per member.
+
+        Every member of a flat configuration is named by the single step of
+        its path. The members inside lists, dicts and nested configuration
+        objects arrive together with the further steps that address them.
+        """
+        return {row.name: row.value for row in self._rows}
+
+    def _take_validated(self, members: Mapping[str, JsonType]) -> None:
+        """Refresh the buffer from the configuration object that was built.
+
+        A member the validated object does not serialize keeps the value the
+        buffer holds. That happens when a validator sets a member that the
+        class leaves out of JSON while it is None, and there is then no
+        value to read back rather than a value that changed.
+        """
+        for number, row in enumerate(self._rows):
+            value = members.get(row.name, row.value)
+            if values_differ(value, row.value):
+                self._rows[number] = row._replace(value=value,
+                                                  changed_by_validator=True)

@@ -11,7 +11,10 @@ import pytest
 from textual.app import App
 from example import e01_flat_config
 
-EXPECTED_DUMP = 'name = flat example\nanswer = 42'
+VALID_LINE = 'validation: valid'
+"""Line that `--ui dump` ends with for a buffer the example accepts."""
+
+EXPECTED_DUMP = f'name = Flat example\nanswer = 42\n{VALID_LINE}'
 """Text that `--ui dump` is expected to print for the default values."""
 
 QUIT_KEY = 'ctrl+q'
@@ -57,25 +60,47 @@ def test_files_refused(option: str,
 
 def test_set_members(capsys: pytest.CaptureFixture[str]) -> None:
     """Test --set edits the buffer and marks what the user changed."""
-    assert _dump(capsys, '--set', 'name=other', '--set', 'answer=7') == \
-        'name = other (edited)\nanswer = 7 (edited)'
+    assert _dump(capsys, '--set', 'name=Other', '--set', 'answer=7') == \
+        f'name = Other (edited)\nanswer = 7 (edited)\n{VALID_LINE}'
 
 
 def test_set_same_value(capsys: pytest.CaptureFixture[str]) -> None:
     """Test setting a member to the value it has is not an edit."""
-    assert _dump(capsys, '--set', 'name=flat example') == EXPECTED_DUMP
+    assert _dump(capsys, '--set', 'name=Flat example') == EXPECTED_DUMP
 
 
 def test_set_empty_value(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a member can be set to an empty field."""
     assert _dump(capsys, '--set', 'name=') == \
-        'name =  (edited)\nanswer = 42'
+        f'name =  (edited)\nanswer = 42\n{VALID_LINE}'
 
 
 def test_set_not_a_number(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a number member keeps text that is not a number yet."""
     assert _dump(capsys, '--set', 'answer=not-a-number') == \
-        'name = flat example\nanswer = not-a-number (edited)'
+        ('name = Flat example\nanswer = not-a-number (edited)\n'
+         'validation: invalid\n'
+         'Invalid configuration: Value for answer is not of type int.')
+
+
+def test_dump_refused_value(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a value outside the allowed range is refused, and why."""
+    assert _dump(capsys, '--set', 'answer=500') == \
+        ('name = Flat example\nanswer = 500 (edited)\n'
+         'validation: invalid\nInvalid configuration: '
+         'Value 500 for answer is greater than maximum 100.')
+
+
+def test_dump_rewritten_value(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a value that a validator rewrote is shown as rewritten.
+
+    A validation pass is not read only, and this is what makes that visible
+    without a display: the value shown is the one the validator stored back
+    and not the one that was typed.
+    """
+    assert _dump(capsys, '--set', 'name=other') == \
+        ('name = Other (edited) (changed by validator)\n'
+         f'answer = 42\n{VALID_LINE}')
 
 
 def test_set_unknown_member(capsys: pytest.CaptureFixture[str]) -> None:

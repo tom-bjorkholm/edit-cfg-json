@@ -31,6 +31,12 @@ a display: the same edit that a user would type into a field is made from
 the command line, and `--ui dump` then prints the edited buffer. A member
 the user changed is marked, so the edit is visible even when the new value
 looks like the old one.
+
+`--ui dump` validates the buffer before it prints it, so the dump always
+says what the application would make of the values it shows. The two
+graphical backends do not: there the user asks for a validation pass, with
+a button or with a key, because a user who is halfway through typing a
+value has not asked anything yet.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -180,11 +186,17 @@ def _textual_editor() -> EditorBackend:
 def _show_model(ui_name: str, model: EditModel) -> None:
     """Show one model with the user interface that the user selected.
 
+    The text dump validates first, because it prints once and then the run
+    is over: there is no later moment at which the user could ask for it.
+    The two graphical backends leave the pass to the user, who has a button
+    or a key for it.
+
     Args:
         ui_name: One of the values in `UI_CHOICES`.
         model: Model to show.
     """
     if ui_name == UI_DUMP:
+        model.validate()
         print(model_as_text(model))
         return
     editor = _tk_editor() if ui_name == UI_TK else _textual_editor()
