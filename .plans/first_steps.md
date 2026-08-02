@@ -300,6 +300,21 @@ Status: **Implemented and committed**
 - `cmd_line.py` gained `--policy`, and `examples/data/` holds one input file
   per outcome so that every case can be seen by hand.
 
+**Found in review, and the lesson it carries.** No mark of any member was
+visible in the Textual backend, while Tk and `--ui dump` showed all of them.
+Textual's `Input` is a full width widget of its own accord, so it took the
+whole line and the mark beside it was laid out beyond the right edge of the
+screen: present, holding the right text, and visible to nobody. The style
+sheet now gives the value what is left over and the marks what they need.
+
+The tests could not see it, because every Textual test asked a widget what
+it held rather than where it was. The backend's tests now also assert
+**geometry**: that every widget of the editor lies inside the screen, that a
+mark is as wide as the mark it shows, and that a terminal too narrow for
+both cuts the marks rather than the field. All three fail without the style
+rules, which is what makes them worth having. Any later step that adds a
+widget to a row should extend them rather than trust the content assertions.
+
 **Observable outcome.** `-i some_file.json --ui dump` shows the values from
 the file rather than the defaults, and marks any leaf that a permissive
 load filled in from a default. A file with an unknown key and a file that
@@ -347,6 +362,10 @@ Save is refused while the buffer is invalid, with the diagnostics from
 step 3 shown. `--ui dump` reports what would be saved and where. The same
 holds for `--ui tk`.
 
+The editor shall have no opinion about what the filename extension shall
+be for input or output files. Some applications use `.cfg`, some use `.json`,
+and also other file name extensions are in use.
+
 **Core.**
 
 - Saving is: validate the candidate, and on success call `write()` on it.
@@ -363,7 +382,8 @@ holds for `--ui tk`.
   in `./venv` and record the answer in `doc/design.md`.
 
 **Backends.** Save and Cancel actions, with Save disabled or refused
-while invalid.
+while invalid. Both backends shall offer both "Save" and "Save as",
+the difference is that "Save as" first changes the out_file name and path.
 
 **Examples.** `e01_flat_config.py` shows the full round trip and prints
 what `edit()` returned, so that the "returns the saved object, or `None`"

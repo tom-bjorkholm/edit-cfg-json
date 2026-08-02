@@ -25,6 +25,10 @@ The application supplies its `Config` object, optionally a loader
 callable, optionally an input file name, an output file name, and a
 mapping of per-attribute descriptions.
 
+The editor shall have no opinion about what the filename extension shall
+be for input or output files. Some applications use `.cfg`, some use `.json`,
+and also other file name extensions are in use.
+
 ## 2. Repository and package structure
 
 Three folder trees in this repository, each building its own package.

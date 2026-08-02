@@ -172,7 +172,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 487 passed in 6s
+- Test result: 490 passed in 7s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

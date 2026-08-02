@@ -4,7 +4,7 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from typing import ClassVar
+from typing import ClassVar, Optional
 from textual.app import App, ComposeResult
 from textual.binding import Binding, BindingType
 from textual.containers import Horizontal
@@ -28,11 +28,25 @@ LOAD_ID = 'load'
 NAME_CLASS = 'member_name'
 """Style class of the widget that shows one member name."""
 
+VALUE_CLASS = 'member_value'
+"""Style class of the widget that shows or edits one member value."""
+
+MARK_CLASS = 'member_mark'
+"""Style class of the widget that marks one member."""
+
 ROW_CLASS = 'member_row'
 """Style class of the container that holds the widgets of one member."""
 
 NAME_WIDTH = 24
 """Width in cells of the column that holds the member names."""
+
+LEAST_VALUE_WIDTH = 8
+"""Smallest width in cells that the value of a member is given.
+
+A row that does not fit the terminal has to give way somewhere, and it is
+the marks that are cut rather than the field: the field is what the user
+edits, and `model_as_text` shows every mark in full whatever the terminal.
+"""
 
 QUIT_KEY = 'ctrl+q'
 """Key that ends the editor.
@@ -64,6 +78,27 @@ or a terminal is most likely not to deliver.
 """
 
 
+CSS_RULES = (
+    f'.{ROW_CLASS} {{ height: 1; }}',
+    f'.{NAME_CLASS} {{ width: {NAME_WIDTH}; }}',
+    f'.{VALUE_CLASS} {{ width: 1fr; min-width: {LEAST_VALUE_WIDTH}; }}',
+    f'.{MARK_CLASS} {{ width: auto; }}',
+    f'.{ROW_CLASS} Input {{ height: 1; border: none; padding: 0; }}')
+"""The width and the height of every part of one member row.
+
+Rows are one cell high, so that the footer stays visible below them. A field
+is one cell high as well, which needs its border and its padding taken away,
+because both of them are part of how tall a field is.
+
+The widths are the part that has to be said rather than left to Textual. A
+`Input` is a full width widget of its own accord, so it would take the whole
+line and lay the marks of the member out beyond the right edge of the screen,
+where they are there and cannot be seen. The value therefore takes what is
+left over and the marks take what they need, which is the opposite way round
+from the default and the only way round that shows both.
+"""
+
+
 def _value_id(row: MemberRow) -> str:
     """Return the identifier of the widget that shows one member value."""
     return f'{VALUE_ID_PREFIX}{row.name}'
@@ -74,7 +109,8 @@ def _mark_id(row: MemberRow) -> str:
     return f'{MARK_ID_PREFIX}{row.name}'
 
 
-def plain_widget(text: str, widget_id: str) -> Static:
+def plain_widget(text: str, widget_id: str,
+                 classes: Optional[str] = None) -> Static:
     """Return a widget that shows text of the configuration as it is.
 
     Textual reads console markup in the text of a widget, so a square
@@ -86,11 +122,13 @@ def plain_widget(text: str, widget_id: str) -> Static:
     Args:
         text: Text to show exactly as it is.
         widget_id: Identifier the application finds this widget by.
+        classes: Style classes of the widget, or None for a widget that the
+            style sheet does not have to reach.
 
     Returns:
         A widget showing that text.
     """
-    return Static(text, id=widget_id, markup=False)
+    return Static(text, id=widget_id, markup=False, classes=classes)
 
 
 class EditorApp(App[None]):
@@ -109,14 +147,10 @@ class EditorApp(App[None]):
     lets the footer name one of them and still leave the other working.
     """
 
-    CSS: ClassVar[str] = (f'.{ROW_CLASS} {{ height: 1; }}\n'
-                          f'.{NAME_CLASS} {{ width: {NAME_WIDTH}; }}\n'
-                          f'.{ROW_CLASS} Input {{ height: 1; border: none; '
-                          'padding: 0; }')
-    """One cell high rows, so that the footer stays visible below them.
+    CSS: ClassVar[str] = '\n'.join(CSS_RULES)
+    """The widths and heights that make one member fit on one line.
 
-    A field is one cell high as well, which needs its border and its padding
-    taken away, because both of them are part of how tall a field is.
+    See `CSS_RULES`, which is where each of them is explained.
     """
 
     def __init__(self, model: EditModel) -> None:
@@ -145,7 +179,7 @@ class EditorApp(App[None]):
             with Horizontal(classes=ROW_CLASS):
                 yield Label(row.name, classes=NAME_CLASS)
                 yield self._value_widget(row)
-                yield plain_widget(row_marks(row), _mark_id(row))
+                yield plain_widget(row_marks(row), _mark_id(row), MARK_CLASS)
         yield plain_widget(verdict_text(self._model), VERDICT_ID)
         yield Footer()
 
@@ -162,7 +196,8 @@ class EditorApp(App[None]):
         shows text, because there is nothing the user could do to it.
         """
         if not row.editable:
-            return plain_widget(row_value_text(row), _value_id(row))
+            return plain_widget(row_value_text(row), _value_id(row),
+                                VALUE_CLASS)
         self._member_rows[_value_id(row)] = row
         # A field of its own accord selects all of its text when it is given
         # the focus, so that the first key typed replaces the whole value.
@@ -171,7 +206,7 @@ class EditorApp(App[None]):
         # keeps what is there, which is what an editor of existing values
         # should do.
         return Input(value=row_value_text(row), id=_value_id(row),
-                     select_on_focus=False)
+                     select_on_focus=False, classes=VALUE_CLASS)
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Write one field into the model and show what the model says.

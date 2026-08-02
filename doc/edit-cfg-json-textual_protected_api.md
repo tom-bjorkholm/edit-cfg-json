@@ -6,11 +6,15 @@
   * [VERDICT\_ID](#edit_cfg_json_textual.textual_editor.VERDICT_ID)
   * [LOAD\_ID](#edit_cfg_json_textual.textual_editor.LOAD_ID)
   * [NAME\_CLASS](#edit_cfg_json_textual.textual_editor.NAME_CLASS)
+  * [VALUE\_CLASS](#edit_cfg_json_textual.textual_editor.VALUE_CLASS)
+  * [MARK\_CLASS](#edit_cfg_json_textual.textual_editor.MARK_CLASS)
   * [ROW\_CLASS](#edit_cfg_json_textual.textual_editor.ROW_CLASS)
   * [NAME\_WIDTH](#edit_cfg_json_textual.textual_editor.NAME_WIDTH)
+  * [LEAST\_VALUE\_WIDTH](#edit_cfg_json_textual.textual_editor.LEAST_VALUE_WIDTH)
   * [QUIT\_KEY](#edit_cfg_json_textual.textual_editor.QUIT_KEY)
   * [VALIDATE\_KEY](#edit_cfg_json_textual.textual_editor.VALIDATE_KEY)
   * [VALIDATE\_ALT\_KEY](#edit_cfg_json_textual.textual_editor.VALIDATE_ALT_KEY)
+  * [CSS\_RULES](#edit_cfg_json_textual.textual_editor.CSS_RULES)
   * [\_value\_id](#edit_cfg_json_textual.textual_editor._value_id)
   * [\_mark\_id](#edit_cfg_json_textual.textual_editor._mark_id)
   * [plain\_widget](#edit_cfg_json_textual.textual_editor.plain_widget)
@@ -64,6 +68,18 @@ Identifier of the widget that shows what reading the file did.
 
 Style class of the widget that shows one member name.
 
+<a id="edit_cfg_json_textual.textual_editor.VALUE_CLASS"></a>
+
+#### VALUE\_CLASS
+
+Style class of the widget that shows or edits one member value.
+
+<a id="edit_cfg_json_textual.textual_editor.MARK_CLASS"></a>
+
+#### MARK\_CLASS
+
+Style class of the widget that marks one member.
+
 <a id="edit_cfg_json_textual.textual_editor.ROW_CLASS"></a>
 
 #### ROW\_CLASS
@@ -75,6 +91,16 @@ Style class of the container that holds the widgets of one member.
 #### NAME\_WIDTH
 
 Width in cells of the column that holds the member names.
+
+<a id="edit_cfg_json_textual.textual_editor.LEAST_VALUE_WIDTH"></a>
+
+#### LEAST\_VALUE\_WIDTH
+
+Smallest width in cells that the value of a member is given.
+
+A row that does not fit the terminal has to give way somewhere, and it is
+the marks that are cut rather than the field: the field is what the user
+edits, and `model_as_text` shows every mark in full whatever the terminal.
 
 <a id="edit_cfg_json_textual.textual_editor.QUIT_KEY"></a>
 
@@ -111,6 +137,23 @@ footer that named the same action twice would suggest they were two
 actions, and because a function key is the one of the two that a keyboard
 or a terminal is most likely not to deliver.
 
+<a id="edit_cfg_json_textual.textual_editor.CSS_RULES"></a>
+
+#### CSS\_RULES
+
+The width and the height of every part of one member row.
+
+Rows are one cell high, so that the footer stays visible below them. A field
+is one cell high as well, which needs its border and its padding taken away,
+because both of them are part of how tall a field is.
+
+The widths are the part that has to be said rather than left to Textual. A
+`Input` is a full width widget of its own accord, so it would take the whole
+line and lay the marks of the member out beyond the right edge of the screen,
+where they are there and cannot be seen. The value therefore takes what is
+left over and the marks take what they need, which is the opposite way round
+from the default and the only way round that shows both.
+
 <a id="edit_cfg_json_textual.textual_editor._value_id"></a>
 
 #### \_value\_id
@@ -136,7 +179,9 @@ Return the identifier of the widget that marks one member.
 #### plain\_widget
 
 ```python
-def plain_widget(text: str, widget_id: str) -> Static
+def plain_widget(text: str,
+                 widget_id: str,
+                 classes: Optional[str] = None) -> Static
 ```
 
 Return a widget that shows text of the configuration as it is.
@@ -151,6 +196,8 @@ markup.
 
 - `text` - Text to show exactly as it is.
 - `widget_id` - Identifier the application finds this widget by.
+- `classes` - Style classes of the widget, or None for a widget that the
+  style sheet does not have to reach.
   
 
 **Returns**:
@@ -182,10 +229,9 @@ lets the footer name one of them and still leave the other working.
 
 #### CSS
 
-One cell high rows, so that the footer stays visible below them.
+The widths and heights that make one member fit on one line.
 
-A field is one cell high as well, which needs its border and its padding
-taken away, because both of them are part of how tall a field is.
+See `CSS_RULES`, which is where each of them is explained.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.__init__"></a>
 

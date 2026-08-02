@@ -19,12 +19,13 @@ import asyncio
 from config_as_json import JsonType
 import pytest
 from textual.app import App, ComposeResult
+from textual.geometry import Region
 from textual.widgets import Input, Static
 from edit_cfg_json import EditModel, EditorBackend, LoadReport
 from edit_cfg_json_textual import TextualEditor
-from edit_cfg_json_textual.textual_editor import EditorApp, LOAD_ID, \
-    MARK_ID_PREFIX, QUIT_KEY, VALIDATE_ALT_KEY, VALIDATE_KEY, \
-    VALUE_ID_PREFIX, VERDICT_ID, plain_widget
+from edit_cfg_json_textual.textual_editor import EditorApp, \
+    LEAST_VALUE_WIDTH, LOAD_ID, MARK_ID_PREFIX, QUIT_KEY, VALIDATE_ALT_KEY, \
+    VALIDATE_KEY, VALUE_ID_PREFIX, VERDICT_ID, plain_widget
 from example.e01_flat_config import FlatConfig
 
 EXPECTED_VALUES = {'name': 'Flat example', 'answer': '42'}
@@ -50,6 +51,12 @@ REWRITTEN_MARK = ' (edited) (changed by validator)'
 
 MARKUP_TEXT = 'value [red on blue]here[/] is refused'
 """Text of a configuration that happens to look like console markup."""
+
+ROOMY_SIZE = (100, 24)
+"""Terminal size with room for the longest mark a member can carry."""
+
+NARROW_SIZE = (40, 24)
+"""Terminal size too narrow for the field and the marks together."""
 
 
 class MarkupProbe(App[None]):
@@ -266,6 +273,58 @@ def test_no_load_no_widget() -> None:
     later, and an empty widget would take a line of the screen for good.
     """
     assert not asyncio.run(_no_load_widget())
+
+
+async def _laid_out(size: tuple[int, int]) -> tuple[dict[str, Region], Region]:
+    """Run the application and report where each of its widgets ended up.
+
+    Args:
+        size: Terminal size to lay the application out in.
+
+    Returns:
+        The region of every widget that has an identifier, by identifier,
+        and the region of the screen those widgets have to fit inside.
+    """
+    app = EditorApp(EditModel(FlatConfig(), FILLED_REPORT))
+    async with app.run_test(size=size) as pilot:
+        await pilot.pause()
+        placed = {str(widget.id): widget.region
+                  for widget in app.screen.query('*')
+                  if widget.id is not None}
+        return placed, app.screen.region
+
+
+def test_all_on_screen() -> None:
+    """Test every widget of the editor is laid out where it can be seen.
+
+    This asserts the geometry rather than the text, because that is the
+    difference the other tests of this module cannot see. A widget that
+    Textual lays out beyond the right edge of the screen still holds its
+    text and shows it to nobody, and that is how the marks of a member went
+    missing once: `Input` is a full width widget of its own accord, so it
+    took the whole line and left the mark beside it nowhere to be.
+    """
+    placed, screen = asyncio.run(_laid_out(ROOMY_SIZE))
+    beyond = [name for name, region in placed.items()
+              if not screen.contains_region(region)]
+    assert not beyond
+
+
+def test_mark_width() -> None:
+    """Test a mark is given the width of the mark it has to show."""
+    placed, _ = asyncio.run(_laid_out(ROOMY_SIZE))
+    assert placed[f'{MARK_ID_PREFIX}answer'].width == len(FILLED_MARK)
+    assert placed[f'{MARK_ID_PREFIX}name'].width == 0
+
+
+def test_narrow_keeps_field() -> None:
+    """Test a terminal too narrow for both cuts the marks, not the field.
+
+    The field is what the user edits, and `model_as_text` shows every mark
+    in full whatever the terminal does to them.
+    """
+    placed, _ = asyncio.run(_laid_out(NARROW_SIZE))
+    assert placed[f'{VALUE_ID_PREFIX}answer'].width == LEAST_VALUE_WIDTH
 
 
 async def _shown_markup() -> str:
