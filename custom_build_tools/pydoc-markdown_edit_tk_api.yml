@@ -1,0 +1,27 @@
+# pydoc-markdown.yml
+loaders:
+  - type: python
+    # Where to search for Python packages/modules
+    search_path:
+      - ./../edit_tk/src
+    # Packages (directories with __init__.py) to document
+    packages:
+      - edit_cfg_json_tk
+
+processors:
+  - type: filter
+    # Optional: skip private members, etc.
+    expression: >
+      all(
+        not part.startswith('_') or part in ('__init__', '__call__')
+        for part in name.split('.')
+      ) and
+      default()
+    skip_empty_modules: true
+    exclude_private: true
+  - type: smart
+  - type: crossref
+
+renderer:
+  type: markdown
+  filename: ./doc/edit-cfg-json-tk_api.md

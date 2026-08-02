@@ -1,31 +1,88 @@
 # edit-cfg-json
 
 > Looking for installation and user-facing package information?
-> See [edit_cfg_json/README_pypi.md](edit_cfg_json/README_pypi.md),
+> See [edit/README_pypi.md](edit/README_pypi.md),
 > or the PyPI project page
-> [edit_cfg_json](https://pypi.org/project/edit-cfg-json).
+> [edit-cfg-json](https://pypi.org/project/edit-cfg-json).
 
 ## Repository purpose
 
-This repository builds the package `edit-cfg-json`. It is a
-way to edit configuration objects based on `config_as_json.Config`.
+This repository builds three packages that together give an application a
+folding editor for configuration objects based on `config_as_json.Config`:
+
+| Folder | Distribution | Import name |
+| --- | --- | --- |
+| [edit/](edit/) | `edit-cfg-json` | `edit_cfg_json` |
+| [edit_tk/](edit_tk/) | `edit-cfg-json-tk` | `edit_cfg_json_tk` |
+| [edit_textual/](edit_textual/) | `edit-cfg-json-textual` | `edit_cfg_json_textual` |
+
 To be written.
 
 ## Related documentation
 
-- Package overview [edit_cfg_json/README_pypi.md](edit_cfg_json/README_pypi.md)
+- Package overviews (generated, see
+  [Generated files](#generated-files)):
+  [edit/README_pypi.md](edit/README_pypi.md),
+  [edit_tk/README_pypi.md](edit_tk/README_pypi.md),
+  [edit_textual/README_pypi.md](edit_textual/README_pypi.md)
 
-- Public API note
+- Public API: [edit-cfg-json](doc/edit-cfg-json_api.md),
+  [edit-cfg-json-tk](doc/edit-cfg-json-tk_api.md),
+  [edit-cfg-json-textual](doc/edit-cfg-json-textual_api.md)
 
-- Protected/internal API notes
+- Protected/internal API:
+  [edit-cfg-json](doc/edit-cfg-json_protected_api.md),
+  [edit-cfg-json-tk](doc/edit-cfg-json-tk_protected_api.md),
+  [edit-cfg-json-textual](doc/edit-cfg-json-textual_protected_api.md)
 
 - Library design and decisions: [doc/design.md](doc/design.md)
 
 - Build system design: [common_build_tools/README.md](common_build_tools/README.md)
 
-There is an example directory with worked examples for new
+There is an [examples/](examples/) directory with worked examples for new
 users, also useful for maintainers who want to see intended API usage in
 context.
+
+## Generated files
+
+**Do not edit these files. The build overwrites them.**
+
+| Generated file | Written by | Edit instead |
+| --- | --- | --- |
+| `edit*/README_pypi.md` | `custom_build_tools/src/create_pypi_readme_venv.py` | the `readme_parts` fragments below |
+| `doc/*_api.md` | pydoc-markdown, configured by `custom_build_tools/pydoc-markdown*.yml` | the docstrings in the source |
+| The `## Test summary` section of every `README.md` and `README_pypi.md` | the build report step | nothing; it always reflects the last build |
+
+### Editing the README_pypi.md text
+
+Each `README_pypi.md` is assembled from markdown fragments:
+
+- [readme_parts/](readme_parts/) holds the text that is the same for all
+  three packages, such as the overview of how the packages fit together,
+  the Alpha status, installation and license.
+- `edit/readme_parts/`, `edit_tk/readme_parts/` and
+  `edit_textual/readme_parts/` hold the text specific to one package.
+  Each of them also holds a `template.md` that decides the section order
+  for that package.
+
+Fragments may use two directives:
+
+- `{{include: name.md}}` inserts another fragment. The package's own
+  `readme_parts` folder is searched first, then the repository wide one,
+  so a package can override a common fragment by using the same file
+  name.
+- `{{dist_name}}` and `{{import_name}}` insert the distribution name and
+  the import name of the package the file is being generated for. This
+  lets a shared fragment still name the package it ends up in.
+
+Write text that is common to all three packages once, in
+[readme_parts/](readme_parts/), rather than repeating it per package.
+
+The generator runs as a `custom_after_test` build hook, so a fragment
+edit reaches the wheels on the *next* build: this build regenerates the
+files on disk, and the build after it packages them. That is the same
+two-run behaviour that `run_pypi_build.py` already documents for the test
+summary.
 
 ## Cloning
 
@@ -86,3 +143,11 @@ the Python layout check. After a build, the generated reports can be
 browsed through `reports/index.html`.
 
 ## Test summary
+
+- Test result: 176 passed in 3s
+- No flake8 warnings.
+- No mypy errors found.
+- No pylint warnings.
+- No python layout warnings.
+- Built version(s): 0.0.1
+- Build and test using Python 3.14.6

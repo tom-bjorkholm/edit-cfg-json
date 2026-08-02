@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edit-cfg-json"
+authors = [
+  { name="Tom Björkholm", email="klausuler_linnet0q@icloud.com" },
+]
+description = "UI agnostic library for editing config-as-json."
+readme = "README_pypi.md"
+requires-python = ">=3.12"
+license = "MIT"
+keywords = [
+    "edit", "introspection", "configuration", "JSON", "validation"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed"
+]
+dynamic = ["dependencies", "version"]
+
+[project.urls]
+"Homepage" = "https://github.com/tom-bjorkholm/edit-cfg-json"
+"Source code" = "https://github.com/tom-bjorkholm/edit-cfg-json"
+"Documentation" = "https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/"

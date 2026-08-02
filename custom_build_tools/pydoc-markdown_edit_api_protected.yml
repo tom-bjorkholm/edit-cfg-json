@@ -1,0 +1,21 @@
+# pydoc-markdown.yml
+loaders:
+  - type: python
+    # Where to search for Python packages/modules
+    search_path:
+      - ./../edit/src
+    # Packages (directories with __init__.py) to document
+    packages:
+      - edit_cfg_json
+
+processors:
+  - type: filter
+    # Optional: skip private members, etc.
+    skip_empty_modules: true
+    exclude_private: false
+  - type: smart
+  - type: crossref
+
+renderer:
+  type: markdown
+  filename: ./doc/edit-cfg-json_protected_api.md
