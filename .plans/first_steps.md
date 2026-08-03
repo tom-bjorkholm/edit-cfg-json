@@ -74,6 +74,9 @@ that introduces each one is where the name is finally settled.
 | `LoadPolicy` | `Enum` | step 4 |
 | `edit` | function, the modal convenience wrapper | step 5 |
 | `Descriptions` | type alias, `Mapping[ConfigPath, str]` | step 6 |
+| `run_cli` | function, the program given a backend | step 7B |
+| `DumpEditor` | class, the backend that prints the model | step 7B |
+| `default_config` | function, the declared defaults of a class | step 7B |
 | `ConfigLoader` | `Protocol` | step 9 |
 
 `Descriptions` is the only type alias the design asks for, and
@@ -91,7 +94,7 @@ all aliases.)
 | M2 Flat, fully explained | 6 to 9 | Descriptions, docstrings, field-level diagnostics, automatic-change visibility, explicit loader |
 | M3 Structure and folding | 10 to 12 | Lists, dicts, nested `Config` objects, folding with per-subtree badges |
 | M4 Configs in containers | 13 to 14 | `LIST_ELEMENT` and `DICT_VALUE` nesting, adding and removing elements |
-| M5 Release readiness | 15 | v1 documented, classified and published |
+| M5 Release readiness | 15 to 17 | v1 documented, classified and published |
 
 ## 3. Steps 1 to 5, in detail (milestone 1)
 
@@ -456,7 +459,7 @@ unchanged after a save.
 backend holds logic the other also holds, move it into the core now,
 while there are only two small backends to reconcile.
 
-## 4. Steps 6 to 15, as named steps
+## 4. Steps 6 to 20, as named steps
 
 Each of these is detailed just before it is started. What is fixed now is
 the order, the observable outcome and the main risk.
@@ -712,6 +715,166 @@ validation error message nicer by pre-checking the value against what
 introspection can describe an enum member from its class, deciding whether to
 build that now, later, or not at all.
 
+### Step 7B — A ready-to-run program in every package
+
+Status: **Not started**
+
+Numbered `7B` rather than `8` for the same reason as step 3B: the steps
+after it are cross-referenced by number from this file and from
+`doc/design.md`, and renumbering them would be churn with no content in
+it. It is the next step because the corpus it unlocks is what steps 8 to
+14 need, not because it belongs to milestone 2 by subject.
+
+**Why it is here and not at the end.** Steps 4, 5, 6 and 7 each recorded a
+defect that only a real window holding real content showed: marks laid out
+past the right edge of a Textual screen, a Tk canvas that opened 430 pixels
+wide, labels that neither wrap nor shrink, a packing order that put the
+buttons below the bottom edge, two texts under one member fighting over
+pack order. Every one of those is a question about a configuration that is
+not two members long, and answering it today costs a hand-written example.
+This program answers it with any configuration class in the repository.
+`dep_lib_doc/config_as_json/example/` alone holds 37 importable `Config`
+classes — 37 of its 39 modules guard their `main` with `__name__`, so
+importing them is safe — and they line up with what is left to build:
+`e31` and `e37` for old-format reading, `e32` for factories, `e33` to `e35`
+for nesting and containers, `e22` for dict key and value types.
+
+**Decided before building it.**
+
+- **It is a product and not only a development tool.** An application
+  author gets an editor for their configuration class without writing a
+  line of user interface code. The ad-hoc reach during development is a
+  second benefit of the same program, not the justification for it.
+- **The command line owns no logic.** `edit_cfg_json.cli` holds the
+  parsing, the dynamic loading and the reporting, and its entry point takes
+  the backend as an argument for exactly the reason `edit()` does: the core
+  names no user interface. Each package then ships a program of about four
+  statements. Without that split the two backend programs would be near
+  identical, and design section 8 answers duplicate code between the
+  backends by moving logic into the core rather than by suppressing the
+  warning. It is also what makes the program testable with no display and
+  no toolkit, by handing `run_cli` a stub backend.
+- **Three programs, one per distribution.** `edit-cfg-json` runs the dump
+  backend, needs no display, and is a configuration validator for a
+  terminal or for CI; `edit-cfg-json-tk` and `edit-cfg-json-textual` open
+  the editor. Each is reachable as `python -m` on its package as well, so a
+  machine whose script folder is not on `PATH` can still run it.
+- **The dump backend becomes public.** `DumpEditor` moves into the core,
+  because the core's own program needs it and because `cmd_line.py` holds
+  one already. `StandInUser` stays in the examples, and it is what teaches
+  that a backend is one method and anything with that method will do.
+- **The class is told, and never guessed.** `--module MODULE` or
+  `--file PATH`, exactly one of them required, with the class name as a
+  positional argument. A single `module:Class` argument reads well and
+  would have to guess which of the two it was given; design section 8.2.1
+  settled that this library is told and does not guess. It also keeps a
+  Windows drive letter from being a special case, and it lets `argparse`
+  produce the refusal for a missing or a doubled location.
+- **`--policy` now, and the rest at step 19.** A load policy is what a
+  generic launcher meeting a half-written file needs first.
+  `--extension`, `--enforce-extension`, `--key` and `--descriptions` are
+  what the application would know about itself, and they are worth having,
+  but not before the corpus is reachable.
+- **`--save` for the core's program only**, exactly as in `cmd_line.py`: a
+  dump prints once and the run is then over, so there is no later moment at
+  which a user could press Save. That is what makes the core's program able
+  to normalise a file and not only to judge it.
+- **`edit()` takes an object and the program has a class**, so the program
+  must construct one. `loading._defaults()` already does that, with the
+  `inspect.signature()` hook opt-in and the refusal that names the class,
+  so it is published as `default_config` rather than copied. Confirm the
+  name at the start of the step; the alternative is four statements in the
+  CLI that duplicate the refusal message and lose the hook.
+- **The entry-point group of design section 8.1 stays deferred.** Three
+  programs that each supply their own backend need no discovery. A
+  `--ui auto` launcher is what would, and it is still only worth building
+  for a third-party backend.
+- **The program does not replace an example.** Rule 2 of section 1 holds
+  unchanged: what a step does stays observable from
+  `examples/src/example/`.
+
+**Observable outcome.**
+
+- `edit-cfg-json-tk --module myapp.config AppConfig -i /etc/myapp.json`
+  opens the Tk editor on that application's configuration, with no code
+  written by anybody. `--file ./somewhere/cfg.py AppConfig` does the same
+  for a class that is not installed.
+- `edit-cfg-json --module myapp.config AppConfig -i in.json` prints the
+  model as text and the verdict, on a machine with no display, and with
+  `--save` writes the validated file.
+- `PYTHONPATH=dep_lib_doc/config_as_json edit-cfg-json-textual --module
+  example.e33_nested_configs ExampleConfig33` opens a configuration with
+  nested configuration objects in it, which this repository has written no
+  example for and which the editor does not support yet. Whatever that
+  shows is the point of the step.
+- Each refusal has its own message and its own exit code: neither location
+  given, both given, a module that is not installed, a file that is not
+  there or is not Python, a name the module does not hold, a name that is
+  not a `Config` subclass, and a class the editor cannot construct.
+
+**Core.**
+
+- New module `edit_cfg_json/cli.py`: the parser, the two doors to a class,
+  the construction, one editing session and the exit code. `run_cli` takes
+  the backend, the program name and optionally the argument list.
+- `default_config`, publishing what `loading._defaults()` already does.
+- `DumpEditor`, moved in from `cmd_line.py` and re-exported.
+- New `edit_cfg_json/__main__.py`, four statements, running `run_cli` with
+  `DumpEditor`.
+- **The file door puts the file's own folder at the front of `sys.path`
+  and imports by the file's stem**, so a module that imports its siblings
+  works. A module inside a package that uses relative imports cannot be
+  loaded from a bare path at all, and is refused with a message that says
+  to use `--module` with `PYTHONPATH` instead. That is not a corner case:
+  `e33` in `dep_lib_doc` is exactly such a file, which is why the
+  observable outcome above reaches it through `--module`.
+- **Importing a module runs it.** The help text and the readme say so. It
+  is not guarded against, because it is the same exposure as
+  `python somefile.py` and a guard could only be a pretence.
+
+**Backends.** One `__main__.py` per backend package supplying its own
+backend, and `[project.scripts]` in each `pyproject.toml`. No change to
+`TkEditor`, to `TextualEditor` or to either package's `edit`.
+
+**Examples.** `cmd_line.py` imports `DumpEditor` from the core instead of
+defining one, and says in its docstring that the core ships that backend
+and that `StandInUser` below it is one written by hand. Nothing else: the
+examples keep their own command line, which is about teaching and not
+about launching.
+
+**Tests.**
+
+- Core, parametrized over the refusals: no location, both locations, an
+  uninstalled module, a missing file, a file that is not Python, a name the
+  module does not hold, a name that is not a `Config` subclass, and
+  `ExtraArgCfg` for the class that cannot be constructed. Each asserts the
+  message and the exit code, not one or the other.
+- The `--module` door through the test package's own
+  `test_edit_cfg_json.sample_cfg`, and the `--file` door through a
+  self-contained configuration module written into `tmp_path`.
+- A round trip with a stub backend that saves, and `--policy` crossed with
+  a complete and an incomplete input file.
+- `sys.modules` and `sys.path` are left as they were found after a
+  `--file` run, because that door mutates both.
+- One subprocess test per package that `python -m` really runs and really
+  supplies that package's backend. These pass against installed wheels,
+  which is what the build tests anyway, and will fail during fast
+  iteration until `./run_build.py` has run.
+
+**Risks.** Both are about duplicate code, and neither is answered by a
+suppression.
+
+- The core CLI's options overlap `cmd_line.py`'s `-i`, `-o` and
+  `--policy`. If pylint reports it on a clean build, the answer is a core
+  function that adds the shared options to a parser, which would shrink the
+  examples as well.
+- The core's `DumpEditor` would overlap the examples' copy, which is why
+  the copy goes rather than stays.
+
+Also check that the build's package consistency step is content with
+`[project.scripts]` in a `pyproject.toml` whose `name` a `setup.py` also
+declares, against the install step rather than by assumption.
+
 **Step 8 — Automatic-change visibility.** Load the file, re-serialize the
 resulting config and diff that against the raw file text; any difference
 means the load changed something. Use the structured
@@ -728,6 +891,17 @@ A new example `e06_factory_config.py` has a config needing constructor
 arguments this library knows nothing about, bound with
 `functools.partial` before the callable reaches the editor. Risk: the
 protocol signature is closed on purpose; resist adding parameters to it.
+
+The program of step 7B gains its factory door here, and it is the only
+part of this step that is not simply additive. A `--loader NAME` names a
+`ConfigLoader` in the same module or file that `--module` or `--file`
+already named, and the program calls it with no JSON source to get the
+object that `edit()` wants as its `config`. Two things to settle when the
+step starts: whether the positional class name stays required when a
+loader is named, and what the program does with a loader that a command
+line cannot finish binding — because `functools.partial` over arguments
+this library knows nothing about is precisely what a command line cannot
+supply, and saying so plainly is better than a half-answer.
 
 ### Milestone 3 — structure and folding
 
@@ -824,6 +998,33 @@ backend, which is also what makes the step observable.
 meaning. That is the property section 8.2.5 was written to protect, so
 the step is not done until an application written against today's
 packages still builds and behaves exactly as it did.
+
+**Step 19 — The rest of the program's command line.** The four options
+step 7B deliberately left out: `--extension` and `--enforce-extension` for
+an application whose configuration files are not called `.json`, `--key
+ACTION=COMBINATIONS` for one whose users want other keys, and
+`--descriptions NAME` naming a `Descriptions` mapping in the same module or
+file as the class. The last of those is the interesting one: it uses the
+attribute loading the program already has, and it is the only way a generic
+launcher can show what an application says about its own members, which is
+otherwise the one thing an application can tell the editor that this
+program cannot pass on. By this step there are two parsers with the same
+options in the repository, so settle then whether `cmd_line.py` and the
+core's CLI share their definitions.
+
+**Step 20 — The program asks for what the command line left out.** A
+wizard: the program opens with no location, no class name and no files, and
+asks for them in the toolkit it was started in. What has been chosen, what
+is still missing and whether the class could be loaded is state, and by the
+lesson of step 6 about the explanation toggle it belongs in the core so
+that the two backends cannot drift about it. Each backend then contributes
+a dialog or a screen, and a file chooser, which is where the two toolkits
+differ most and where neither has a headless test that is worth much. This
+is a bigger step than the program it completes — roughly the whole of step
+7B again per backend — and it is only worth building once the program has
+users who would rather not type a module path. It is the reason step 7B
+puts the loading and the reporting in the core: a wizard replaces the
+argument parsing and nothing else.
 
 ## 5. Open questions recorded, not answered
 
