@@ -3,6 +3,8 @@
 * [edit\_cfg\_json\_textual.textual\_editor](#edit_cfg_json_textual.textual_editor)
   * [VALUE\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.VALUE_ID_PREFIX)
   * [MARK\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.MARK_ID_PREFIX)
+  * [DESCRIPTION\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.DESCRIPTION_ID_PREFIX)
+  * [DOCSTRING\_ID](#edit_cfg_json_textual.textual_editor.DOCSTRING_ID)
   * [VERDICT\_ID](#edit_cfg_json_textual.textual_editor.VERDICT_ID)
   * [SAVE\_ID](#edit_cfg_json_textual.textual_editor.SAVE_ID)
   * [LOAD\_ID](#edit_cfg_json_textual.textual_editor.LOAD_ID)
@@ -12,22 +14,28 @@
   * [VALUE\_CLASS](#edit_cfg_json_textual.textual_editor.VALUE_CLASS)
   * [MARK\_CLASS](#edit_cfg_json_textual.textual_editor.MARK_CLASS)
   * [ROW\_CLASS](#edit_cfg_json_textual.textual_editor.ROW_CLASS)
+  * [MEMBER\_CLASS](#edit_cfg_json_textual.textual_editor.MEMBER_CLASS)
+  * [DESCRIPTION\_CLASS](#edit_cfg_json_textual.textual_editor.DESCRIPTION_CLASS)
   * [NAME\_WIDTH](#edit_cfg_json_textual.textual_editor.NAME_WIDTH)
+  * [DESCRIPTION\_INDENT](#edit_cfg_json_textual.textual_editor.DESCRIPTION_INDENT)
   * [LEAST\_VALUE\_WIDTH](#edit_cfg_json_textual.textual_editor.LEAST_VALUE_WIDTH)
   * [QUIT\_COMMAND](#edit_cfg_json_textual.textual_editor.QUIT_COMMAND)
   * [CANCEL\_COMMAND](#edit_cfg_json_textual.textual_editor.CANCEL_COMMAND)
   * [VALIDATE\_COMMAND](#edit_cfg_json_textual.textual_editor.VALIDATE_COMMAND)
   * [SAVE\_COMMAND](#edit_cfg_json_textual.textual_editor.SAVE_COMMAND)
   * [SAVE\_AS\_COMMAND](#edit_cfg_json_textual.textual_editor.SAVE_AS_COMMAND)
+  * [EXPLAIN\_COMMAND](#edit_cfg_json_textual.textual_editor.EXPLAIN_COMMAND)
   * [VALIDATE\_HELP](#edit_cfg_json_textual.textual_editor.VALIDATE_HELP)
   * [SAVE\_HELP](#edit_cfg_json_textual.textual_editor.SAVE_HELP)
   * [SAVE\_AS\_HELP](#edit_cfg_json_textual.textual_editor.SAVE_AS_HELP)
+  * [EXPLAIN\_HELP](#edit_cfg_json_textual.textual_editor.EXPLAIN_HELP)
   * [SAVE\_AS\_PROMPT](#edit_cfg_json_textual.textual_editor.SAVE_AS_PROMPT)
   * [SAVE\_AS\_LEAVE](#edit_cfg_json_textual.textual_editor.SAVE_AS_LEAVE)
   * [EDITOR\_ACTIONS](#edit_cfg_json_textual.textual_editor.EDITOR_ACTIONS)
   * [CSS\_RULES](#edit_cfg_json_textual.textual_editor.CSS_RULES)
   * [\_value\_id](#edit_cfg_json_textual.textual_editor._value_id)
   * [\_mark\_id](#edit_cfg_json_textual.textual_editor._mark_id)
+  * [\_description\_id](#edit_cfg_json_textual.textual_editor._description_id)
   * [plain\_widget](#edit_cfg_json_textual.textual_editor.plain_widget)
   * [bind\_action](#edit_cfg_json_textual.textual_editor.bind_action)
   * [SaveAsScreen](#edit_cfg_json_textual.textual_editor.SaveAsScreen)
@@ -44,10 +52,14 @@
     * [compose](#edit_cfg_json_textual.textual_editor.EditorApp.compose)
     * [get\_system\_commands](#edit_cfg_json_textual.textual_editor.EditorApp.get_system_commands)
     * [\_load\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._load_widgets)
+    * [\_docstring\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._docstring_widgets)
+    * [\_description\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._description_widgets)
     * [\_value\_widget](#edit_cfg_json_textual.textual_editor.EditorApp._value_widget)
     * [on\_input\_changed](#edit_cfg_json_textual.textual_editor.EditorApp.on_input_changed)
     * [action\_validate](#edit_cfg_json_textual.textual_editor.EditorApp.action_validate)
     * [action\_save](#edit_cfg_json_textual.textual_editor.EditorApp.action_save)
+    * [action\_explain](#edit_cfg_json_textual.textual_editor.EditorApp.action_explain)
+    * [\_show\_explanations](#edit_cfg_json_textual.textual_editor.EditorApp._show_explanations)
     * [action\_save\_as](#edit_cfg_json_textual.textual_editor.EditorApp.action_save_as)
     * [check\_action](#edit_cfg_json_textual.textual_editor.EditorApp.check_action)
     * [\_out\_file\_text](#edit_cfg_json_textual.textual_editor.EditorApp._out_file_text)
@@ -76,6 +88,18 @@ Prefix of the identifier of the widget that shows one member value.
 #### MARK\_ID\_PREFIX
 
 Prefix of the identifier of the widget that marks one member.
+
+<a id="edit_cfg_json_textual.textual_editor.DESCRIPTION_ID_PREFIX"></a>
+
+#### DESCRIPTION\_ID\_PREFIX
+
+Prefix of the identifier of the widget that describes one member.
+
+<a id="edit_cfg_json_textual.textual_editor.DOCSTRING_ID"></a>
+
+#### DOCSTRING\_ID
+
+Identifier of the widget that shows what the configuration class says.
 
 <a id="edit_cfg_json_textual.textual_editor.VERDICT_ID"></a>
 
@@ -131,11 +155,32 @@ Style class of the widget that marks one member.
 
 Style class of the container that holds the widgets of one member.
 
+<a id="edit_cfg_json_textual.textual_editor.MEMBER_CLASS"></a>
+
+#### MEMBER\_CLASS
+
+Style class of the container that holds one member and its description.
+
+<a id="edit_cfg_json_textual.textual_editor.DESCRIPTION_CLASS"></a>
+
+#### DESCRIPTION\_CLASS
+
+Style class of the widget that says what one member is for.
+
 <a id="edit_cfg_json_textual.textual_editor.NAME_WIDTH"></a>
 
 #### NAME\_WIDTH
 
 Width in cells of the column that holds the member names.
+
+<a id="edit_cfg_json_textual.textual_editor.DESCRIPTION_INDENT"></a>
+
+#### DESCRIPTION\_INDENT
+
+Indentation in cells of the description of one member.
+
+The indentation is what says that the line belongs to the member above it
+rather than being a member of its own.
 
 <a id="edit_cfg_json_textual.textual_editor.LEAST_VALUE_WIDTH"></a>
 
@@ -177,6 +222,16 @@ Name of the command palette entry that writes the output file.
 
 Name of the command palette entry that chooses a file and writes it.
 
+<a id="edit_cfg_json_textual.textual_editor.EXPLAIN_COMMAND"></a>
+
+#### EXPLAIN\_COMMAND
+
+Name of the action that shows or hides the explanatory text.
+
+One name for both directions, which is also what the Tk button shows for this
+action: the name says what it is about, and whether the explanations are
+there is something the screen itself says.
+
 <a id="edit_cfg_json_textual.textual_editor.VALIDATE_HELP"></a>
 
 #### VALIDATE\_HELP
@@ -194,6 +249,12 @@ What the command palette says the save entry does.
 #### SAVE\_AS\_HELP
 
 What the command palette says the save as entry does.
+
+<a id="edit_cfg_json_textual.textual_editor.EXPLAIN_HELP"></a>
+
+#### EXPLAIN\_HELP
+
+What the command palette says the explain entry does.
 
 <a id="edit_cfg_json_textual.textual_editor.SAVE_AS_PROMPT"></a>
 
@@ -233,6 +294,12 @@ Rows are one cell high, so that the footer stays visible below them. A field
 is one cell high as well, which needs its border and its padding taken away,
 because both of them are part of how tall a field is.
 
+A member is as high as it needs to be rather than one cell, because it is the
+row and the description below it, and the explanatory text is as high as the
+lines it takes: a container of Textual's own accord takes an equal share of
+the height it is given, which would leave two members holding half a screen
+each.
+
 The widths are the part that has to be said rather than left to Textual. A
 `Input` is a full width widget of its own accord, so it would take the whole
 line and lay the marks of the member out beyond the right edge of the screen,
@@ -264,6 +331,16 @@ def _mark_id(row: MemberRow) -> str
 ```
 
 Return the identifier of the widget that marks one member.
+
+<a id="edit_cfg_json_textual.textual_editor._description_id"></a>
+
+#### \_description\_id
+
+```python
+def _description_id(row: MemberRow) -> str
+```
+
+Return the identifier of the widget that describes one member.
 
 <a id="edit_cfg_json_textual.textual_editor.plain_widget"></a>
 
@@ -481,11 +558,14 @@ def compose() -> ComposeResult
 
 Create one row per member, the verdict, a header and a footer.
 
-What reading the input file did comes above the members, because it
-is what explains the marks on them. It is created only when there is
-something to say: the file was read before the model was built, so
-the message cannot arrive later, and an empty widget would take a
-line of the screen for a message that will never come.
+What the configuration class says about itself comes above everything
+else, because what the whole configuration is for is what the members
+below it are read in the light of. What reading the input file did
+comes next, because it is what explains the marks on them. Both are
+created only when there is something to say: the file was read before
+the model was built, and a class either has a docstring or has not, so
+neither of the two can arrive later and an empty widget would take a
+line of the screen for good.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.get_system_commands"></a>
 
@@ -500,8 +580,8 @@ Offer the actions of the editor in the command palette as well.
 Every terminal can reach the palette, because it is opened with one
 key and then typed into. That is what makes it the answer for
 `SAVE_AS_KEY`, which a terminal without the Kitty keyboard protocol
-cannot tell apart from `SAVE_KEY`. The other two actions are here for
-the same reason a menu lists what has a shortcut: a user who has not
+cannot tell apart from `SAVE_KEY`. The other actions are here for the
+same reason a menu lists what has a shortcut: a user who has not
 learnt the keys should still be able to work.
 
 **Arguments**:
@@ -522,6 +602,32 @@ def _load_widgets() -> ComposeResult
 ```
 
 Create the widget that says what reading the input file did.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._docstring_widgets"></a>
+
+#### \_docstring\_widgets
+
+```python
+def _docstring_widgets() -> ComposeResult
+```
+
+Create the widget that says what the configuration class says.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._description_widgets"></a>
+
+#### \_description\_widgets
+
+```python
+def _description_widgets(row: MemberRow) -> ComposeResult
+```
+
+Create the widget that says what one member is for, if anything.
+
+A member the application said nothing about gets no widget, because
+there is nothing that could ever appear in it. A widget that is
+created starts out shown or hidden as the model says, which is not the
+same as shown: a model can have been told to hide the explanations
+before the editor was started.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp._value_widget"></a>
 
@@ -577,6 +683,34 @@ A session that has no file to write yet is asked where to write,
 which is what every editor does and what the design asks a backend
 for. There is no way round to loop back here, because the question
 is what gives the session a file.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp.action_explain"></a>
+
+#### action\_explain
+
+```python
+def action_explain() -> None
+```
+
+Show or hide what the application says about these values.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._show_explanations"></a>
+
+#### \_show\_explanations
+
+```python
+def _show_explanations() -> None
+```
+
+Show as much of the explanatory text as the model says to show.
+
+Whether a description is shown is asked of the core rather than
+decided here, so that this backend and the Tk one cannot end up
+disagreeing about what hiding the explanations means.
+
+This is not part of `_show_state`, which runs on every key the user
+types: nothing typed into a field can change what this configuration
+is for or what one of its members means.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.action_save_as"></a>
 
@@ -712,6 +846,7 @@ Show the model in a Textual screen until the user quits.
 ```python
 def edit(config: Config,
          *,
+         descriptions: Optional[Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
@@ -728,6 +863,8 @@ documented there.
 **Arguments**:
 
 - `config` - Configuration object to edit. It is never modified.
+- `descriptions` - What the application says about the members it
+  declares, or None when it says nothing.
 - `in_file` - File to read, or None to start from the declared defaults.
 - `out_file` - File to write, or None to write the input file.
 - `policy` - What to do about declared keys the input file does not hold.

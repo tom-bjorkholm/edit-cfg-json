@@ -23,14 +23,15 @@ import pytest
 from textual.app import App, ComposeResult
 from textual.geometry import Region
 from textual.widgets import Input, Label, Static
-from edit_cfg_json import ActionSettings, EditModel, EditorBackend, \
-    LoadReport, Settings
+from edit_cfg_json import ActionSettings, Descriptions, EditModel, \
+    EditorBackend, LoadReport, Settings
 from edit_cfg_json_textual import TextualEditor
 from edit_cfg_json_textual import edit as textual_edit
-from edit_cfg_json_textual.textual_editor import EditorApp, \
-    LEAST_VALUE_WIDTH, LOAD_ID, MARK_ID_PREFIX, SAVE_AS_BOX_ID, \
-    SAVE_AS_COMMAND, SAVE_AS_ID, SAVE_COMMAND, SAVE_ID, VALIDATE_COMMAND, \
-    VALUE_ID_PREFIX, VERDICT_ID, plain_widget
+from edit_cfg_json_textual.textual_editor import DESCRIPTION_ID_PREFIX, \
+    DOCSTRING_ID, EditorApp, EXPLAIN_COMMAND, LEAST_VALUE_WIDTH, LOAD_ID, \
+    MARK_ID_PREFIX, SAVE_AS_BOX_ID, SAVE_AS_COMMAND, SAVE_AS_ID, \
+    SAVE_COMMAND, SAVE_ID, VALIDATE_COMMAND, VALUE_ID_PREFIX, VERDICT_ID, \
+    plain_widget
 from example.e01_flat_config import FlatConfig
 
 DEFAULT_ACTIONS = ActionSettings()
@@ -55,6 +56,19 @@ SAVE_KEY = DEFAULT_ACTIONS.save[0]
 
 SAVE_AS_KEY = DEFAULT_ACTIONS.save_as[0]
 """Key that chooses an output file and then writes it."""
+
+EXPLAIN_KEY = DEFAULT_ACTIONS.explain[0]
+"""Key that shows or hides the explanatory text, and the one the footer
+names."""
+
+EXPLAIN_ALT_KEY = DEFAULT_ACTIONS.explain[1]
+"""The other key that shows or hides the explanatory text."""
+
+ABOUT_NAME = 'What the name of this configuration is for.'
+"""Description of the one member that the tests below describe."""
+
+DESCRIPTIONS: Descriptions = {('name',): ABOUT_NAME}
+"""What an application says about the members of the example."""
 
 EXPECTED_VALUES = {'name': 'Flat example', 'answer': '42'}
 """Value text that the application is expected to show for each member."""
@@ -325,6 +339,9 @@ def test_no_load_no_widget() -> None:
 async def _laid_out(size: tuple[int, int]) -> tuple[dict[str, Region], Region]:
     """Run the application and report where each of its widgets ended up.
 
+    The model has everything the editor can show, so that a widget of any
+    kind that is laid out where it cannot be seen is found here.
+
     Args:
         size: Terminal size to lay the application out in.
 
@@ -332,7 +349,8 @@ async def _laid_out(size: tuple[int, int]) -> tuple[dict[str, Region], Region]:
         The region of every widget that has an identifier, by identifier,
         and the region of the screen those widgets have to fit inside.
     """
-    app = EditorApp(EditModel(FlatConfig(), FILLED_REPORT))
+    app = EditorApp(EditModel(FlatConfig(), FILLED_REPORT,
+                              descriptions=DESCRIPTIONS))
     async with app.run_test(size=size) as pilot:
         await pilot.pause()
         placed = {str(widget.id): widget.region
@@ -584,19 +602,21 @@ def test_question_is_modal() -> None:
     editor turning its own actions off, one more Save would stack a second
     question on the first, and Quit would abandon the question altogether.
     """
-    async def pressed() -> tuple[int, bool]:
+    async def pressed() -> tuple[int, bool, str]:
         """Ask the question and then press every key of the editor."""
-        app = EditorApp(EditModel(FlatConfig()))
+        app = _described_app()
         async with app.run_test() as pilot:
             await pilot.press(SAVE_AS_KEY)
             await pilot.pause()
-            for key in (SAVE_KEY, SAVE_AS_KEY, VALIDATE_KEY, QUIT_KEY):
+            for key in (SAVE_KEY, SAVE_AS_KEY, VALIDATE_KEY, EXPLAIN_KEY,
+                        QUIT_KEY):
                 await pilot.press(key)
                 await pilot.pause()
-            return len(app.screen_stack), app.is_running
-    depth, running = asyncio.run(pressed())
+            return len(app.screen_stack), app.is_running, _docstring(app)
+    depth, running, docstring = asyncio.run(pressed())
     assert depth == 2
     assert running
+    assert docstring == EditModel(FlatConfig()).docstring
 
 
 def test_keys_work_after(tmp_path: Path) -> None:
@@ -633,6 +653,7 @@ def test_palette_has_actions() -> None:
     assert VALIDATE_COMMAND in offered
     assert SAVE_COMMAND in offered
     assert SAVE_AS_COMMAND in offered
+    assert EXPLAIN_COMMAND in offered
 
 
 def test_palette_keeps_own() -> None:
@@ -644,6 +665,125 @@ def test_palette_keeps_own() -> None:
             return [command.title
                     for command in app.get_system_commands(app.screen)]
     assert 'Quit' in asyncio.run(names())
+
+
+class NoDocConfig(FlatConfig):
+    """This docstring is taken away below, so that this class has none."""
+
+
+# A configuration class written without a docstring is one the editor has to
+# handle, and it cannot be written here, because every class in this
+# repository has to have one. Taking it away afterwards is the same thing.
+NoDocConfig.__doc__ = None
+
+
+def _docstring(app: EditorApp) -> str:
+    """Return the text that the application shows for the whole class."""
+    return str(app.query_one(f'#{DOCSTRING_ID}', Static).content)
+
+
+def _description(app: EditorApp, member_name: str) -> Static:
+    """Return the widget that the application shows about one member."""
+    return app.query_one(f'#{DESCRIPTION_ID_PREFIX}{member_name}', Static)
+
+
+def _described_app() -> EditorApp:
+    """Return an application on a model whose text member is described."""
+    return EditorApp(EditModel(FlatConfig(), descriptions=DESCRIPTIONS))
+
+
+async def _explained(*keys: str) -> tuple[str, bool, str]:
+    """Run the described application and press every key it is given.
+
+    Args:
+        keys: Keys to press, which are the ones that show or hide the
+            explanatory text.
+
+    Returns:
+        What the application says about the configuration class, whether the
+        description of the member is being shown, and the description itself.
+    """
+    app = _described_app()
+    async with app.run_test() as pilot:
+        for key in keys:
+            await pilot.press(key)
+            await pilot.pause()
+        widget = _description(app, 'name')
+        return _docstring(app), widget.display, str(widget.content)
+
+
+def test_explanations_shown() -> None:
+    """Test the editor starts by showing what the configuration is for."""
+    docstring, shown, description = asyncio.run(_explained())
+    assert docstring == EditModel(FlatConfig()).docstring
+    assert shown
+    assert description == ABOUT_NAME
+
+
+@pytest.mark.parametrize('key', [EXPLAIN_KEY, EXPLAIN_ALT_KEY])
+def test_explain_hides(key: str) -> None:
+    """Test either explain key leaves the summary and hides the rest.
+
+    Both keys are tried because a terminal or a keyboard that does not
+    deliver a function key is exactly why there are two.
+    """
+    docstring, shown, _ = asyncio.run(_explained(key))
+    assert docstring == EditModel(FlatConfig()).summary
+    assert not shown
+
+
+def test_explain_shows_again() -> None:
+    """Test the same key brings the explanatory text back."""
+    docstring, shown, _ = asyncio.run(_explained(EXPLAIN_KEY, EXPLAIN_KEY))
+    assert docstring == EditModel(FlatConfig()).docstring
+    assert shown
+
+
+def test_hidden_at_start() -> None:
+    """Test a model that was told to hide them opens with them hidden.
+
+    Which of the two states the editor is in belongs to the model, so a model
+    that reached this backend already toggled has to be honoured rather than
+    overruled.
+    """
+    model = EditModel(FlatConfig(), descriptions=DESCRIPTIONS)
+    model.toggle_explanations()
+
+    async def shown() -> tuple[str, bool]:
+        """Run the application and read what it is showing."""
+        app = EditorApp(model)
+        async with app.run_test():
+            return _docstring(app), _description(app, 'name').display
+    docstring, showing = asyncio.run(shown())
+    assert docstring == model.summary
+    assert not showing
+
+
+def test_no_about_widget() -> None:
+    """Test a member the application says nothing about gets no widget.
+
+    There is nothing that could ever appear in it, so the row has one widget
+    less rather than an empty one.
+    """
+    async def widgets() -> tuple[int, int]:
+        """Run the described application and count the two members."""
+        app = _described_app()
+        async with app.run_test():
+            return (len(app.query(f'#{DESCRIPTION_ID_PREFIX}name')),
+                    len(app.query(f'#{DESCRIPTION_ID_PREFIX}answer')))
+    described, undescribed = asyncio.run(widgets())
+    assert described == 1
+    assert not undescribed
+
+
+def test_no_docstring_widget() -> None:
+    """Test a class with no docstring of its own gets no widget for one."""
+    async def widgets() -> int:
+        """Run an application on such a class and look for the widget."""
+        app = EditorApp(EditModel(NoDocConfig()))
+        async with app.run_test():
+            return len(app.query(f'#{DOCSTRING_ID}'))
+    assert not asyncio.run(widgets())
 
 
 def _keys(actions: ActionSettings) -> Settings:

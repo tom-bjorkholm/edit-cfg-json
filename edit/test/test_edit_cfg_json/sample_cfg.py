@@ -57,6 +57,41 @@ class FlatCfg(SampleCfg):
         self.answer: int = 42
 
 
+class DocumentedCfg(SampleCfg):
+    """One line that says what this configuration is for.
+
+    A second paragraph that is the detail of this class.
+    """
+
+    def declare_members(self) -> None:
+        """Assign one member, because the docstring is the point of this."""
+        self.name: str = 'documented'
+
+
+class NoDocCfg(DocumentedCfg):
+    """This docstring is taken away below, so that this class has none."""
+
+
+# A configuration class written without a docstring is one the editor has to
+# handle, and it cannot be written here, because every class in this
+# repository has to have one. Taking it away afterwards is the same thing: a
+# class defined without a docstring holds None under `__doc__` in its own
+# namespace, which is exactly what this assignment puts there.
+NoDocCfg.__doc__ = None
+
+
+class WrappedDocCfg(DocumentedCfg):
+    """This docstring is replaced below, by one that spans two lines."""
+
+
+# An application may write a summary that runs over two lines, which no
+# docstring convention allows and which the checks of this repository refuse.
+# Putting one here is how the editor is given one to read.
+WrappedDocCfg.__doc__ = ('A summary that is long enough to have been written\n'
+                         '    on two lines of the source file.\n\n'
+                         '    A second paragraph that is the detail.\n    ')
+
+
 class NoneCfg(SampleCfg):
     """A configuration whose text member defaults to None."""
 

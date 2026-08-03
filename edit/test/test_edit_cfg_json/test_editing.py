@@ -179,6 +179,16 @@ def test_invalid_not_saved(tmp_path: Path) -> None:
     assert not out_file.exists()
 
 
+def test_descriptions_given() -> None:
+    """Test what the application says about its members reaches the model."""
+    backend = Closer()
+    about = 'What the name of this configuration is for.'
+    edit(config=FlatCfg(), backend=backend, descriptions={('name',): about})
+    rows = {row.name: row for row in backend.seen[0].rows}
+    assert rows['name'].description == about
+    assert rows['answer'].description == ''
+
+
 def test_settings_reach_model() -> None:
     """Test the settings of the application reach the model a backend gets."""
     backend = Closer()

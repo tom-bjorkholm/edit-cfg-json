@@ -58,6 +58,7 @@
     * [save](#edit_cfg_json.settings.ActionSettings.save)
     * [save\_as](#edit_cfg_json.settings.ActionSettings.save_as)
     * [cancel](#edit_cfg_json.settings.ActionSettings.cancel)
+    * [explain](#edit_cfg_json.settings.ActionSettings.explain)
   * [Settings](#edit_cfg_json.settings.Settings)
     * [actions](#edit_cfg_json.settings.Settings.actions)
     * [file\_extension](#edit_cfg_json.settings.Settings.file_extension)
@@ -80,8 +81,12 @@
   * [UNKNOWN\_STATE](#edit_cfg_json.model_text.UNKNOWN_STATE)
   * [SAVE\_TO\_FORM](#edit_cfg_json.model_text.SAVE_TO_FORM)
   * [NO\_DESTINATION\_TEXT](#edit_cfg_json.model_text.NO_DESTINATION_TEXT)
+  * [SUMMARY\_SEPARATOR](#edit_cfg_json.model_text.SUMMARY_SEPARATOR)
+  * [DESCRIPTION\_INDENT](#edit_cfg_json.model_text.DESCRIPTION_INDENT)
   * [row\_value\_text](#edit_cfg_json.model_text.row_value_text)
   * [row\_marks](#edit_cfg_json.model_text.row_marks)
+  * [docstring\_text](#edit_cfg_json.model_text.docstring_text)
+  * [row\_description](#edit_cfg_json.model_text.row_description)
   * [verdict\_text](#edit_cfg_json.model_text.verdict_text)
   * [load\_text](#edit_cfg_json.model_text.load_text)
   * [save\_text](#edit_cfg_json.model_text.save_text)
@@ -95,6 +100,7 @@
     * [original](#edit_cfg_json.edit_model.MemberRow.original)
     * [changed\_by\_validator](#edit_cfg_json.edit_model.MemberRow.changed_by_validator)
     * [filled\_from\_default](#edit_cfg_json.edit_model.MemberRow.filled_from_default)
+    * [description](#edit_cfg_json.edit_model.MemberRow.description)
     * [name](#edit_cfg_json.edit_model.MemberRow.name)
     * [editable](#edit_cfg_json.edit_model.MemberRow.editable)
     * [is\_text](#edit_cfg_json.edit_model.MemberRow.is_text)
@@ -102,6 +108,10 @@
   * [EditModel](#edit_cfg_json.edit_model.EditModel)
     * [\_\_init\_\_](#edit_cfg_json.edit_model.EditModel.__init__)
     * [config\_type\_name](#edit_cfg_json.edit_model.EditModel.config_type_name)
+    * [summary](#edit_cfg_json.edit_model.EditModel.summary)
+    * [docstring](#edit_cfg_json.edit_model.EditModel.docstring)
+    * [explanations\_shown](#edit_cfg_json.edit_model.EditModel.explanations_shown)
+    * [toggle\_explanations](#edit_cfg_json.edit_model.EditModel.toggle_explanations)
     * [settings](#edit_cfg_json.edit_model.EditModel.settings)
     * [load\_message](#edit_cfg_json.edit_model.EditModel.load_message)
     * [rows](#edit_cfg_json.edit_model.EditModel.rows)
@@ -114,6 +124,11 @@
     * [set\_out\_file](#edit_cfg_json.edit_model.EditModel.set_out_file)
     * [validate](#edit_cfg_json.edit_model.EditModel.validate)
     * [save](#edit_cfg_json.edit_model.EditModel.save)
+* [edit\_cfg\_json.descriptions](#edit_cfg_json.descriptions)
+  * [EVERY\_ELEMENT](#edit_cfg_json.descriptions.EVERY_ELEMENT)
+  * [path\_description](#edit_cfg_json.descriptions.path_description)
+  * [class\_docstring](#edit_cfg_json.descriptions.class_docstring)
+  * [class\_summary](#edit_cfg_json.descriptions.class_summary)
 * [edit\_cfg\_json.validation](#edit_cfg_json.validation)
   * [BUFFER\_ERRORS](#edit_cfg_json.validation.BUFFER_ERRORS)
   * [ValidationVerdict](#edit_cfg_json.validation.ValidationVerdict)
@@ -453,6 +468,7 @@ build the model, mount the backend.
 def edit(config: Config,
          backend: EditorBackend,
          *,
+         descriptions: Optional[Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = DEFAULT_POLICY,
@@ -478,6 +494,11 @@ and the backend asks the user for a destination before it can save.
   saved object is handed back rather than expected to be found in
   this one.
 - `backend` - User interface to run this session in.
+- `descriptions` - What the application says about the members it
+  declares, or None when it says nothing. A configuration explains
+  itself as far as it can without this — the docstring of its class
+  labels the object — and a member no description reaches is shown
+  without one.
 - `in_file` - File to read, or None to start from the declared defaults.
 - `out_file` - File to write, or None to write the input file. A name
   that has no extension gets the one the application uses for its
@@ -873,6 +894,21 @@ The question about the output file is the only one so far. The Tk
 backend binds nothing for this, because the only question it asks is the
 toolkit's own file dialog, which answers this key itself.
 
+<a id="edit_cfg_json.settings.ActionSettings.explain"></a>
+
+#### explain
+
+Keys that show or hide what the application says about the values.
+
+`f1` because a function key is what asks for help everywhere else, and
+because it is free: of the keys an editor would want, a field claims most
+of the control letters and the application itself claims the rest.
+
+`ctrl+g` because a terminal or a keyboard that does not deliver a function
+key would otherwise leave this action to the button and the command
+palette. It is one of the few control letters that Textual's own field
+does not read for itself.
+
 <a id="edit_cfg_json.settings.Settings"></a>
 
 ## Settings Objects
@@ -1082,6 +1118,24 @@ Form of the line that says where saving would write.
 
 Line shown while no output file has been chosen.
 
+<a id="edit_cfg_json.model_text.SUMMARY_SEPARATOR"></a>
+
+#### SUMMARY\_SEPARATOR
+
+What separates the label of the configuration from its summary.
+
+They share one line while the explanations are hidden, because the summary is
+one line for the whole configuration and hiding it would save nothing.
+
+<a id="edit_cfg_json.model_text.DESCRIPTION_INDENT"></a>
+
+#### DESCRIPTION\_INDENT
+
+What the description of a member is indented by, below that member.
+
+The indentation is what says that the line belongs to the member above it
+rather than being a member of its own.
+
 <a id="edit_cfg_json.model_text.row_value_text"></a>
 
 #### row\_value\_text
@@ -1130,6 +1184,60 @@ load, the user or a validator touched looks like.
 **Returns**:
 
   The marks of one member, empty when nothing has happened to it.
+
+<a id="edit_cfg_json.model_text.docstring_text"></a>
+
+#### docstring\_text
+
+```python
+def docstring_text(model: EditModel) -> str
+```
+
+Return what the configuration class says about itself, as it is shown.
+
+The summary while the explanations are hidden and the whole docstring
+while they are shown, which is what the toggle of the model is for: the
+summary is one line for the whole configuration and is worth keeping,
+and the rest of the docstring is what a user who knows this
+configuration wants out of the way.
+
+Both backends show this, so that neither of them decides on its own how
+much of a docstring the user is offered.
+
+**Arguments**:
+
+- `model` - Model whose configuration class is reported.
+  
+
+**Returns**:
+
+  The text to show for the configuration object, and nothing at all
+  when its class has no docstring of its own.
+
+<a id="edit_cfg_json.model_text.row_description"></a>
+
+#### row\_description
+
+```python
+def row_description(model: EditModel, row: MemberRow) -> str
+```
+
+Return what the application says about one member, as it is shown.
+
+It is the description of the member while the explanations are shown, and
+nothing while they are hidden. Which of the two it is belongs to the
+model, so that the two backends cannot hide different things.
+
+**Arguments**:
+
+- `model` - Model that the member belongs to.
+- `row` - Member to describe.
+  
+
+**Returns**:
+
+  The description of one member, empty while it is not being shown or
+  when the application said nothing about that member.
 
 <a id="edit_cfg_json.model_text.verdict_text"></a>
 
@@ -1216,8 +1324,10 @@ def model_as_text(model: EditModel) -> str
 
 Return the whole model as text, one line per configuration member.
 
-What reading the input file did comes before the members, because it is
-what explains the marks on them. The validation state of the buffer
+The configuration object labels itself first, because what the whole
+configuration is for is what the members below it are read in the light
+of. What reading the input file did comes next, because it is what
+explains the marks on those members. The validation state of the buffer
 follows them, and the saving after that, in the order in which a session
 reaches them, so that a rendering never leaves it unsaid what the
 application would make of what is shown or where it would be written.
@@ -1233,8 +1343,10 @@ agnostic.
 
 **Returns**:
 
-  What the load did, one line per member, and then the validation
-  state and the saving, without a trailing line break.
+  The label of the configuration and what its class says about itself,
+  what the load did, one line per member with its description below it,
+  and then the validation state and the saving, without a trailing line
+  break.
 
 <a id="edit_cfg_json.model_text.model_title"></a>
 
@@ -1340,6 +1452,17 @@ session: that the file did not hold this value remains true whatever the
 user then types into it. It belongs to the model for the same reason as
 the flag above, so that two backends cannot show it differently.
 
+<a id="edit_cfg_json.edit_model.MemberRow.description"></a>
+
+#### description
+
+What the application says about this member, empty when nothing.
+
+It is read once, when the model is built, because it says what the member
+is for and that does not change while it is edited. A member the
+application said nothing about keeps an empty description and is shown
+without one, which is all that an unexplained member costs.
+
 <a id="edit_cfg_json.edit_model.MemberRow.name"></a>
 
 #### name
@@ -1427,6 +1550,12 @@ accept anything the application would refuse. Saving runs that same pass
 and writes the object it accepted, so nothing reaches the file that the
 application would not read back.
 
+What the editor says about the values it shows comes from the application
+and from its configuration class, and never from the editor: the
+docstring of the class labels the configuration object, and the
+description mapping labels the individual members. Both are optional, and
+whether they are shown is state of this model rather than of a backend.
+
 This version of the model handles scalar members only. A member whose
 value is a list or a dict is reported as a row that is not editable.
 
@@ -1437,6 +1566,8 @@ value is a list or a dict is reported as a row that is not editable.
 ```python
 def __init__(config: Config,
              report: LoadReport = LoadReport(),
+             *,
+             descriptions: Optional[Descriptions] = None,
              out_file: Optional[PathOrStr] = None,
              settings: SettingsSource = Settings(),
              stderr_file: TextIO = sys.stderr) -> None
@@ -1459,6 +1590,10 @@ before this and what reading it did arrives as the report.
   the member names and their values, and is not modified.
 - `report` - What reading the input file did beyond reading the
   values. The default says there was no file to read.
+- `descriptions` - What the application says about the members it
+  declares, or None when it says nothing. A member that no
+  description reaches is shown without one, which is all that
+  saying nothing costs.
 - `out_file` - File that saving writes, or None when the user has not
   chosen one yet and the editor has to ask before it can save.
   It is taken exactly as it is, because a destination that was
@@ -1488,6 +1623,69 @@ def config_type_name() -> str
 ```
 
 Return the class name of the edited configuration object.
+
+<a id="edit_cfg_json.edit_model.EditModel.summary"></a>
+
+#### summary
+
+```python
+@property
+def summary() -> str
+```
+
+Return the one line summary of the configuration class.
+
+It is the first paragraph of the docstring of that class, and it is
+empty when the class has no docstring of its own. It is short enough
+to be shown on a single row, which is why it stays visible while the
+rest of the explanatory text is hidden.
+
+<a id="edit_cfg_json.edit_model.EditModel.docstring"></a>
+
+#### docstring
+
+```python
+@property
+def docstring() -> str
+```
+
+Return the whole docstring of the configuration class.
+
+It is empty when the class has none of its own. The docstring of a
+base class is deliberately not used in its place: a label that
+describes this library rather than the configuration would be worse
+than no label at all.
+
+<a id="edit_cfg_json.edit_model.EditModel.explanations_shown"></a>
+
+#### explanations\_shown
+
+```python
+@property
+def explanations_shown() -> bool
+```
+
+Return whether the explanatory text is being shown in full.
+
+The summary of the configuration is shown either way, because it is
+one line for the whole configuration. What this answers is whether
+the rest of that docstring and the description of every member are
+shown as well, which is one line per member and is what a user who
+knows this configuration wants back.
+
+It belongs to the model rather than to a backend, so that an
+application cannot end up with two user interfaces that disagree
+about whether they are explaining themselves.
+
+<a id="edit_cfg_json.edit_model.EditModel.toggle_explanations"></a>
+
+#### toggle\_explanations
+
+```python
+def toggle_explanations() -> None
+```
+
+Show the explanatory text if it is hidden, and hide it if not.
 
 <a id="edit_cfg_json.edit_model.EditModel.settings"></a>
 
@@ -1730,6 +1928,109 @@ and the model stops reporting itself as dirty.
 
   Whether the file was written, and what to tell the user. It is
   also kept, as `save_message`.
+
+<a id="edit_cfg_json.descriptions"></a>
+
+# edit\_cfg\_json.descriptions
+
+The explanatory text that the editor shows about a configuration.
+
+There are two sources of it, they are independent, and both of them are
+optional. The docstring of the configuration class labels the configuration
+object, and a mapping supplied by the application labels the individual
+members.
+
+It takes two sources because only one of them exists. A class has a
+docstring and every reader of the code can see it, while a member has
+nothing of the kind at runtime: a string literal written after an assignment
+is discarded by the compiler, and a PEP 526 annotation on an instance
+attribute is recorded nowhere at all. So the members are described by the
+application in a mapping, and the editor invents nothing.
+
+<a id="edit_cfg_json.descriptions.EVERY_ELEMENT"></a>
+
+#### EVERY\_ELEMENT
+
+The path step that means every list element or dictionary value here.
+
+It is the step that `config_as_json` gives this meaning to, and it keeps it
+here, which is what stops an application from having to repeat one
+description once per list index or once per dictionary key.
+
+<a id="edit_cfg_json.descriptions.path_description"></a>
+
+#### path\_description
+
+```python
+def path_description(descriptions: Descriptions, path: ConfigPath) -> str
+```
+
+Return what the application says about one member, or nothing.
+
+A selector that addresses no member of this configuration is simply never
+used, and is not an error: a wrong description is a cosmetic mistake, and
+refusing to open the editor over one would be a much larger one.
+
+**Arguments**:
+
+- `descriptions` - What the application says about its members.
+- `path` - Path of the member that is being described.
+  
+
+**Returns**:
+
+  The description of that member, and an empty text when the
+  application said nothing about it.
+
+<a id="edit_cfg_json.descriptions.class_docstring"></a>
+
+#### class\_docstring
+
+```python
+def class_docstring(config_type: type[Config]) -> str
+```
+
+Return the whole docstring of one configuration class, or nothing.
+
+`config_type.__doc__` and deliberately not `inspect.getdoc()`, which
+inherits from the base classes: a configuration class without a docstring
+of its own would then be labelled with the docstring of `Config`, and a
+label that describes the library rather than the configuration is worse
+than no label at all.
+
+**Arguments**:
+
+- `config_type` - Class of the configuration that is being described.
+  
+
+**Returns**:
+
+  The docstring of that class as `inspect.cleandoc` leaves it, and an
+  empty text when the class has none of its own.
+
+<a id="edit_cfg_json.descriptions.class_summary"></a>
+
+#### class\_summary
+
+```python
+def class_summary(config_type: type[Config]) -> str
+```
+
+Return the first paragraph of the docstring, as a single line.
+
+The first paragraph is the summary a docstring is written to begin with,
+and one line is what a label of one row can show. The line breaks inside
+that paragraph belong to the width of a source file and not to the text,
+so they are not kept.
+
+**Arguments**:
+
+- `config_type` - Class of the configuration that is being described.
+  
+
+**Returns**:
+
+  The summary of that class, and an empty text when it has no docstring.
 
 <a id="edit_cfg_json.validation"></a>
 

@@ -3,9 +3,11 @@
 * [edit\_cfg\_json\_tk.tk\_editor](#edit_cfg_json_tk.tk_editor)
   * [NAME\_COLUMN\_WIDTH](#edit_cfg_json_tk.tk_editor.NAME_COLUMN_WIDTH)
   * [PADDING](#edit_cfg_json_tk.tk_editor.PADDING)
+  * [DESCRIPTION\_INDENT](#edit_cfg_json_tk.tk_editor.DESCRIPTION_INDENT)
   * [VALIDATE\_TEXT](#edit_cfg_json_tk.tk_editor.VALIDATE_TEXT)
   * [SAVE\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_TEXT)
   * [SAVE\_AS\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_AS_TEXT)
+  * [EXPLAIN\_TEXT](#edit_cfg_json_tk.tk_editor.EXPLAIN_TEXT)
   * [CLOSE\_TEXT](#edit_cfg_json_tk.tk_editor.CLOSE_TEXT)
   * [SAVE\_AS\_TITLE](#edit_cfg_json_tk.tk_editor.SAVE_AS_TITLE)
   * [CONFIG\_FILES](#edit_cfg_json_tk.tk_editor.CONFIG_FILES)
@@ -13,23 +15,30 @@
   * [\_file\_types](#edit_cfg_json_tk.tk_editor._file_types)
   * [\_key\_handler](#edit_cfg_json_tk.tk_editor._key_handler)
   * [\_bind\_key](#edit_cfg_json_tk.tk_editor._bind_key)
+  * [\_show\_description](#edit_cfg_json_tk.tk_editor._show_description)
   * [RowWidgets](#edit_cfg_json_tk.tk_editor.RowWidgets)
     * [field](#edit_cfg_json_tk.tk_editor.RowWidgets.field)
     * [mark](#edit_cfg_json_tk.tk_editor.RowWidgets.mark)
+    * [description](#edit_cfg_json_tk.tk_editor.RowWidgets.description)
   * [EditorWidgets](#edit_cfg_json_tk.tk_editor.EditorWidgets)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.EditorWidgets.__init__)
     * [label\_text](#edit_cfg_json_tk.tk_editor.EditorWidgets.label_text)
     * [verdict\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.verdict_text_shown)
     * [save\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.save_text_shown)
+    * [docstring\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.docstring_shown)
+    * [\_add\_docstring](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_docstring)
     * [\_add\_load\_message](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_load_message)
     * [\_add\_buttons](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_buttons)
     * [\_bind\_keys](#edit_cfg_json_tk.tk_editor.EditorWidgets._bind_keys)
     * [\_add\_row](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_row)
+    * [\_add\_description](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_description)
     * [\_add\_value](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_value)
     * [\_writer](#edit_cfg_json_tk.tk_editor.EditorWidgets._writer)
     * [\_validate](#edit_cfg_json_tk.tk_editor.EditorWidgets._validate)
     * [\_save](#edit_cfg_json_tk.tk_editor.EditorWidgets._save)
     * [\_save\_as](#edit_cfg_json_tk.tk_editor.EditorWidgets._save_as)
+    * [\_explain](#edit_cfg_json_tk.tk_editor.EditorWidgets._explain)
+    * [\_show\_explanations](#edit_cfg_json_tk.tk_editor.EditorWidgets._show_explanations)
     * [\_refresh](#edit_cfg_json_tk.tk_editor.EditorWidgets._refresh)
     * [\_show\_state](#edit_cfg_json_tk.tk_editor.EditorWidgets._show_state)
   * [TkEditor](#edit_cfg_json_tk.tk_editor.TkEditor)
@@ -60,6 +69,15 @@ Width in characters of the column that holds the member names.
 
 Padding in pixels around the widgets of the editor.
 
+<a id="edit_cfg_json_tk.tk_editor.DESCRIPTION_INDENT"></a>
+
+#### DESCRIPTION\_INDENT
+
+Indentation in pixels of the description of one member.
+
+The indentation is what says that the line belongs to the member above it
+rather than being a member of its own.
+
 <a id="edit_cfg_json_tk.tk_editor.VALIDATE_TEXT"></a>
 
 #### VALIDATE\_TEXT
@@ -77,6 +95,16 @@ Text of the button that writes the output file.
 #### SAVE\_AS\_TEXT
 
 Text of the button that chooses an output file and then writes it.
+
+<a id="edit_cfg_json_tk.tk_editor.EXPLAIN_TEXT"></a>
+
+#### EXPLAIN\_TEXT
+
+Text of the button that shows or hides the explanatory text.
+
+One text for both directions, which is also what the Textual footer and the
+command palette show for this action: the button names what it is about, and
+whether the explanations are there is something the window itself says.
 
 <a id="edit_cfg_json_tk.tk_editor.CLOSE_TEXT"></a>
 
@@ -175,6 +203,32 @@ action of this backend has a button as well.
 - `key` - One key combination, as `ActionSettings` writes them.
 - `command` - What that key does.
 
+<a id="edit_cfg_json_tk.tk_editor._show_description"></a>
+
+#### \_show\_description
+
+```python
+def _show_description(label: Optional[tkinter.Label], text: str) -> None
+```
+
+Show the description of one member, or hide it when there is none.
+
+The text is what the core says to show for this member, which is nothing
+while the explanations are hidden, so this backend does not decide for
+itself what hiding them means.
+
+Hiding is taking the widget out of the layout and not emptying its text,
+because a label with no text still takes the height of a line, and a
+window with a blank line under every member would have hidden nothing.
+The widget is the last one inside the frame of its member, so packing it
+again puts it back where it was.
+
+**Arguments**:
+
+- `label` - Widget that shows the description of one member, or None for a
+  member the application said nothing about.
+- `text` - Description to show, empty when it is not being shown.
+
 <a id="edit_cfg_json_tk.tk_editor.RowWidgets"></a>
 
 ## RowWidgets Objects
@@ -196,6 +250,15 @@ The field of an editable member, and None for every other member.
 #### mark
 
 The widget that says what has happened to this member.
+
+<a id="edit_cfg_json_tk.tk_editor.RowWidgets.description"></a>
+
+#### description
+
+The widget that says what this member is for.
+
+It is None for a member the application said nothing about, because there
+is then nothing that could ever appear in it.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets"></a>
 
@@ -230,7 +293,7 @@ def __init__(parent: tkinter.Misc,
              on_close: Optional[Callable[[], None]] = None) -> None
 ```
 
-Create the label, one row per member, the verdict and the buttons.
+Create the labels, one row per member, the verdict and the buttons.
 
 The parent is a widget and not a window, so that the same rows can
 later be mounted inside a window that an application owns itself.
@@ -278,6 +341,42 @@ def save_text_shown() -> str
 ```
 
 Return the text that the saving part of the editor shows.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets.docstring_shown"></a>
+
+#### docstring\_shown
+
+```python
+@property
+def docstring_shown() -> str
+```
+
+Return the text that the label of the configuration class shows.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_docstring"></a>
+
+#### \_add\_docstring
+
+```python
+def _add_docstring(parent: tkinter.Misc) -> Optional[tkinter.Label]
+```
+
+Show what the configuration class says about itself, if anything.
+
+The widget is created only when that class has a docstring of its
+own. What the explain action changes is how much of a docstring is
+shown and not whether there is one, so a class without one would
+leave an empty widget taking a line of the window for good.
+
+**Arguments**:
+
+- `parent` - Widget that becomes the parent of the created widget.
+  
+
+**Returns**:
+
+  The widget that shows the docstring, or None when the
+  configuration class has none.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_load_message"></a>
 
@@ -338,7 +437,36 @@ answer from a settings callable cannot change.
 def _add_row(parent: tkinter.Misc, row: MemberRow) -> RowWidgets
 ```
 
-Create the name widget, the value widget and the mark widget.
+Create the widgets of one member, and its description below them.
+
+The member gets a frame of its own, holding the line that is edited
+and the description under it, so that hiding the description and
+showing it again cannot move it away from the member it belongs to.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_description"></a>
+
+#### \_add\_description
+
+```python
+def _add_description(parent: tkinter.Misc,
+                     row: MemberRow) -> Optional[tkinter.Label]
+```
+
+Create the widget that says what one member is for, if anything.
+
+A member the application said nothing about gets no widget, because
+there is nothing that could ever appear in it.
+
+**Arguments**:
+
+- `parent` - Frame of the member that is being described.
+- `row` - Member to describe.
+  
+
+**Returns**:
+
+  The widget that shows the description, or None when the
+  application said nothing about this member.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_value"></a>
 
@@ -423,6 +551,30 @@ The name that comes back is handed to the model, which is what
 completes it and what refuses it, so that a user of this backend and
 a user of the other one are told the same thing about one name.
 
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._explain"></a>
+
+#### \_explain
+
+```python
+def _explain() -> None
+```
+
+Show or hide what the application says about these values.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._show_explanations"></a>
+
+#### \_show\_explanations
+
+```python
+def _show_explanations() -> None
+```
+
+Show as much of the explanatory text as the model says to show.
+
+It is not part of `_show_state`, which runs on every key the user
+types: nothing the user types into a field can change what this
+configuration is for or what one of its members means.
+
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._refresh"></a>
 
 #### \_refresh
@@ -504,6 +656,7 @@ the editor in a widget that application owns.
 ```python
 def edit(config: Config,
          *,
+         descriptions: Optional[Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
@@ -520,6 +673,8 @@ documented there.
 **Arguments**:
 
 - `config` - Configuration object to edit. It is never modified.
+- `descriptions` - What the application says about the members it
+  declares, or None when it says nothing.
 - `in_file` - File to read, or None to start from the declared defaults.
 - `out_file` - File to write, or None to write the input file.
 - `policy` - What to do about declared keys the input file does not hold.

@@ -31,6 +31,7 @@ def test_default_keys() -> None:
     assert actions.save == ('ctrl+s',)
     assert actions.save_as == ('ctrl+shift+s', 'f12')
     assert actions.cancel == ('escape',)
+    assert actions.explain == ('f1', 'ctrl+g')
 
 
 def test_no_opinion() -> None:
@@ -44,7 +45,8 @@ def test_no_opinion() -> None:
 def test_every_action_named() -> None:
     """Test every action of the editor is an attribute of its own."""
     names = {field.name for field in fields(ActionSettings)}
-    assert names == {'quit', 'validate', 'save', 'save_as', 'cancel'}
+    assert names == {'quit', 'validate', 'save', 'save_as', 'cancel',
+                     'explain'}
 
 
 @pytest.mark.parametrize('keys', [('ctrl+w',), (), ('ctrl+w', 'f2')])

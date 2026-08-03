@@ -10,6 +10,8 @@ from typing import NamedTuple, Optional, TextIO
 import json
 import sys
 from config_as_json import Config, ConfigPath, JsonType, PathOrStr
+from edit_cfg_json.descriptions import Descriptions, class_docstring, \
+    class_summary, path_description
 from edit_cfg_json.leaf_value import text_as_value, value_as_text, \
     values_differ
 from edit_cfg_json.loading import LoadReport
@@ -75,6 +77,15 @@ class MemberRow(NamedTuple):
     the flag above, so that two backends cannot show it differently.
     """
 
+    description: str = ''
+    """What the application says about this member, empty when nothing.
+
+    It is read once, when the model is built, because it says what the member
+    is for and that does not change while it is edited. A member the
+    application said nothing about keeps an empty description and is shown
+    without one, which is all that an unexplained member costs.
+    """
+
     @property
     def name(self) -> str:
         """Return the name of the member, the last step of its path."""
@@ -133,7 +144,29 @@ def _ordered_names(config: Config, members: dict[str, JsonType]) -> list[str]:
     return declared + [name for name in members if name not in declared]
 
 
+def _row_of(name: str, value: JsonType, filled: frozenset[str],
+            descriptions: Descriptions) -> MemberRow:
+    """Return the row of one serialized member of a configuration.
+
+    Args:
+        name: Name of the member, which is the one step of its path while
+            every member of the configuration is a scalar.
+        value: JSON space value that the member holds.
+        filled: Names of the members the declared defaults supplied.
+        descriptions: What the application says about its members.
+
+    Returns:
+        The row of that member, as the model starts out holding it.
+    """
+    path = (name,)
+    return MemberRow(path=path, value=value, original=value,
+                     filled_from_default=name in filled,
+                     description=path_description(descriptions=descriptions,
+                                                  path=path))
+
+
 def _rows_from_config(config: Config, filled: frozenset[str],
+                      descriptions: Descriptions,
                       stderr_file: TextIO) -> dict[ConfigPath, MemberRow]:
     """Return one row per serialized member, by path, in declaration order.
 
@@ -144,9 +177,8 @@ def _rows_from_config(config: Config, filled: frozenset[str],
     """
     members = json.loads(config.as_json_string(stderr_file=stderr_file))
     assert isinstance(members, dict)
-    return {(name,): MemberRow(path=(name,), value=members[name],
-                               original=members[name],
-                               filled_from_default=name in filled)
+    return {(name,): _row_of(name=name, value=members[name], filled=filled,
+                             descriptions=descriptions)
             for name in _ordered_names(config=config, members=members)}
 
 
@@ -191,6 +223,12 @@ class EditModel:
     and writes the object it accepted, so nothing reaches the file that the
     application would not read back.
 
+    What the editor says about the values it shows comes from the application
+    and from its configuration class, and never from the editor: the
+    docstring of the class labels the configuration object, and the
+    description mapping labels the individual members. Both are optional, and
+    whether they are shown is state of this model rather than of a backend.
+
     This version of the model handles scalar members only. A member whose
     value is a list or a dict is reported as a row that is not editable.
     """
@@ -199,7 +237,8 @@ class EditModel:
     # and each of them says one independent thing about this session. See
     # the same disable on `edit`, which passes them on.
     # pylint: disable-next=too-many-arguments
-    def __init__(self, config: Config, report: LoadReport = LoadReport(),
+    def __init__(self, config: Config, report: LoadReport = LoadReport(), *,
+                 descriptions: Optional[Descriptions] = None,
                  out_file: Optional[PathOrStr] = None,
                  settings: SettingsSource = Settings(),
                  stderr_file: TextIO = sys.stderr) -> None:
@@ -219,6 +258,10 @@ class EditModel:
                 the member names and their values, and is not modified.
             report: What reading the input file did beyond reading the
                 values. The default says there was no file to read.
+            descriptions: What the application says about the members it
+                declares, or None when it says nothing. A member that no
+                description reaches is shown without one, which is all that
+                saying nothing costs.
             out_file: File that saving writes, or None when the user has not
                 chosen one yet and the editor has to ask before it can save.
                 It is taken exactly as it is, because a destination that was
@@ -240,15 +283,59 @@ class EditModel:
         self._report = report
         self._rows = _rows_from_config(config=deepcopy(config),
                                        filled=report.filled,
+                                       descriptions=descriptions or {},
                                        stderr_file=stderr_file)
         self._verdict: Optional[ValidationVerdict] = None
         self._settings = settings
         self._saving = SaveState(out_file=out_file)
+        self._explained = True
 
     @property
     def config_type_name(self) -> str:
         """Return the class name of the edited configuration object."""
         return self._config_type.__name__
+
+    @property
+    def summary(self) -> str:
+        """Return the one line summary of the configuration class.
+
+        It is the first paragraph of the docstring of that class, and it is
+        empty when the class has no docstring of its own. It is short enough
+        to be shown on a single row, which is why it stays visible while the
+        rest of the explanatory text is hidden.
+        """
+        return class_summary(self._config_type)
+
+    @property
+    def docstring(self) -> str:
+        """Return the whole docstring of the configuration class.
+
+        It is empty when the class has none of its own. The docstring of a
+        base class is deliberately not used in its place: a label that
+        describes this library rather than the configuration would be worse
+        than no label at all.
+        """
+        return class_docstring(self._config_type)
+
+    @property
+    def explanations_shown(self) -> bool:
+        """Return whether the explanatory text is being shown in full.
+
+        The summary of the configuration is shown either way, because it is
+        one line for the whole configuration. What this answers is whether
+        the rest of that docstring and the description of every member are
+        shown as well, which is one line per member and is what a user who
+        knows this configuration wants back.
+
+        It belongs to the model rather than to a backend, so that an
+        application cannot end up with two user interfaces that disagree
+        about whether they are explaining themselves.
+        """
+        return self._explained
+
+    def toggle_explanations(self) -> None:
+        """Show the explanatory text if it is hidden, and hide it if not."""
+        self._explained = not self._explained
 
     @property
     def settings(self) -> Settings:

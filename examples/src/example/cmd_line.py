@@ -44,6 +44,18 @@ which is what an editor is normally asked to do. With neither, there is
 nowhere to write, and the two graphical backends ask for a destination when
 Save is pressed.
 
+An example that has something to say about the members it declares hands a
+description mapping to `run_example`, which passes it on to `edit()`. There is
+no command line option for that, because it is not the kind of thing a command
+line could supply: it is what the application knows about its own
+configuration, and the editor has no way of finding it out.
+
+`--toggle-explain` stands in for the key that shows or hides the explanatory
+text, in the same way that `--set` stands in for a user typing into a field.
+The editor starts with the explanations shown, so this flag is what shows the
+hidden form: the label of the configuration keeps its one line summary, and
+the rest of the class docstring and the description of every member go away.
+
 `--ui dump` validates the buffer before it prints it, so the dump always
 says what the application would make of the values it shows. The two
 graphical backends do not: there the user asks for a validation pass, with
@@ -86,8 +98,8 @@ import argparse
 from dataclasses import fields
 from typing import Optional
 from config_as_json import Config
-from edit_cfg_json import ActionSettings, ConfigLoadError, EditModel, \
-    EditorBackend, LoadPolicy, Settings, edit, model_as_text
+from edit_cfg_json import ActionSettings, ConfigLoadError, Descriptions, \
+    EditModel, EditorBackend, LoadPolicy, Settings, edit, model_as_text
 
 UI_DUMP = 'dump'
 """Value of `--ui` that prints the model instead of opening a window."""
@@ -144,8 +156,9 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
         example_name: Name of the example, used in help and error text.
 
     Returns:
-        A parser for `--ui`, `--set`, `--policy`, `--save`, `--extension`,
-        `--enforce-extension`, `--key`, `-i/--input` and `-o/--output`.
+        A parser for `--ui`, `--set`, `--toggle-explain`, `--policy`,
+        `--save`, `--extension`, `--enforce-extension`, `--key`,
+        `-i/--input` and `-o/--output`.
     """
     parser = argparse.ArgumentParser(prog=example_name)
     parser.add_argument('--ui', required=True, choices=UI_CHOICES,
@@ -153,6 +166,8 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
     parser.add_argument('--set', action='append', dest='edits',
                         metavar='MEMBER=VALUE',
                         help='Edit one member before showing it. Repeatable.')
+    parser.add_argument('--toggle-explain', action='store_true',
+                        help='Hide the explanations, as the key does.')
     parser.add_argument('--extension', default=None,
                         help='File name extension this application uses.')
     parser.add_argument('--enforce-extension', action='store_true',
@@ -324,36 +339,40 @@ class DumpEditor:  # pylint: disable=too-few-public-methods
         print(model_as_text(model))
 
 
-class SetEditor:  # pylint: disable=too-few-public-methods
-    """A backend that types the `--set` edits in and then runs another one.
+class StandInUser:  # pylint: disable=too-few-public-methods
+    """A backend that does what a user would, and then runs another one.
 
-    The edits belong on this side of `edit()` rather than before it, because
-    `edit()` owns the model: it reads the file and builds the model itself,
-    which is what gives a load its policy and its change reporting. `--set`
-    stands in for a user typing, and a user types into an editor that is
+    What it does belongs on this side of `edit()` rather than before it,
+    because `edit()` owns the model: it reads the file and builds the model
+    itself, which is what gives a load its policy and its change reporting.
+    `--set` stands in for a user typing and `--toggle-explain` for a user
+    pressing the explain key, and both of those happen in an editor that is
     already open.
     """
 
     def __init__(self, inner: EditorBackend, parser: argparse.ArgumentParser,
-                 edits: Optional[list[str]]) -> None:
-        """Remember the edits to make and the backend to run afterwards.
+                 parsed: argparse.Namespace) -> None:
+        """Remember what to do to the model and what to run afterwards.
 
         Args:
             inner: Backend that shows the model once it has been edited.
             parser: Parser used to report a bad `--set` and exit.
-            edits: The `--set` values, or None when there were none.
+            parsed: Parsed command line of one example run.
         """
         self._inner = inner
         self._parser = parser
-        self._edits = edits
+        self._parsed = parsed
 
     def run_editor(self, model: EditModel) -> None:
-        """Apply every `--set` and then hand the model to the real backend.
+        """Act as the user would, and hand the model to the real backend.
 
         Args:
             model: Model to edit and then to show.
         """
-        _apply_edits(parser=self._parser, model=model, edits=self._edits)
+        _apply_edits(parser=self._parser, model=model,
+                     edits=self._parsed.edits)
+        if self._parsed.toggle_explain:
+            model.toggle_explanations()
         self._inner.run_editor(model)
 
 
@@ -413,21 +432,22 @@ def _result_text(saved: Optional[Config]) -> str:
 
 
 def _run_editor(parser: argparse.ArgumentParser, config: Config,
-                backend: EditorBackend,
-                parsed: argparse.Namespace) -> Optional[Config]:
+                backend: EditorBackend, parsed: argparse.Namespace,
+                descriptions: Optional[Descriptions]) -> Optional[Config]:
     """Run one editing session, or say why the input file cannot be opened.
 
     This is the whole of what an application does: it hands over its own
-    configuration object, the files it wants read and written, the policy it
-    wants applied, what it has already decided about keys and file names,
-    and the user interface to use. The editor does the rest, and gives back
-    what it wrote.
+    configuration object, what it says about the members of it, the files it
+    wants read and written, the policy it wants applied, what it has already
+    decided about keys and file names, and the user interface to use. The
+    editor does the rest, and gives back what it wrote.
 
     Args:
         parser: Parser used to report the error and exit.
         config: Configuration object of the example. It is not modified.
         backend: User interface to run the session in.
         parsed: Parsed command line of one example run.
+        descriptions: What the example says about its members, or None.
 
     Returns:
         The configuration object that was saved, or None when the session
@@ -435,7 +455,8 @@ def _run_editor(parser: argparse.ArgumentParser, config: Config,
     """
     try:
         saved = edit(config=config, backend=backend, in_file=parsed.input,
-                     out_file=parsed.output, policy=POLICIES[parsed.policy],
+                     descriptions=descriptions, out_file=parsed.output,
+                     policy=POLICIES[parsed.policy],
                      settings=_settings(parser=parser, parsed=parsed))
     except ConfigLoadError as error:
         # `parser.error` writes the message and ends the process, so nothing
@@ -445,23 +466,27 @@ def _run_editor(parser: argparse.ArgumentParser, config: Config,
 
 
 def run_example(example_name: str, config: Config,
-                args: Optional[list[str]] = None) -> None:
+                args: Optional[list[str]] = None,
+                descriptions: Optional[Descriptions] = None) -> None:
     """Run one example program from the command line.
 
     This is the whole contract between an example and this module: the
-    example says what it is called and hands over the configuration object
-    it wants to edit.
+    example says what it is called, hands over the configuration object it
+    wants to edit, and says what it has to say about the members of it.
 
     Args:
         example_name: Name of the example, used in help and error text.
         config: Configuration object that the example wants to edit. The
             editor never modifies it.
         args: Optional replacement for `sys.argv[1:]`, mainly for tests.
+        descriptions: What this example says about the members it declares,
+            or None for an example that says nothing about them.
     """
     parser = _create_parser(example_name)
     parsed = parser.parse_args(args)
     _refuse_save(parser=parser, parsed=parsed)
-    backend = SetEditor(inner=_selected_backend(parsed), parser=parser,
-                        edits=parsed.edits)
+    backend = StandInUser(inner=_selected_backend(parsed), parser=parser,
+                          parsed=parsed)
     print(_result_text(_run_editor(parser=parser, config=config,
-                                   backend=backend, parsed=parsed)))
+                                   backend=backend, parsed=parsed,
+                                   descriptions=descriptions)))

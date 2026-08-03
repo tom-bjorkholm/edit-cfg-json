@@ -8,9 +8,15 @@ from pathlib import Path
 import json
 import pytest
 from config_as_json import JsonType
-from edit_cfg_json import EditModel, MemberRow, Settings
-from .sample_cfg import ExtraArgCfg, FlatCfg, IntEnumCfg, ListCfg, NoneCfg, \
-    OmitCfg, RangeCfg, RewriteCfg
+from edit_cfg_json import Descriptions, EditModel, MemberRow, Settings
+from .sample_cfg import DocumentedCfg, ExtraArgCfg, FlatCfg, IntEnumCfg, \
+    ListCfg, NoneCfg, OmitCfg, RangeCfg, RewriteCfg
+
+ABOUT_NAME = 'What the name of this configuration is for.'
+"""Description of the one member that the tests below describe."""
+
+DESCRIPTIONS: Descriptions = {('name',): ABOUT_NAME}
+"""What an application says about the members of a flat configuration."""
 
 
 def _row(model: EditModel, name: str) -> MemberRow:
@@ -318,6 +324,58 @@ def test_row_flags_start_off() -> None:
     row = MemberRow(path=('member',), value=1, original=1)
     assert not row.changed_by_validator
     assert not row.filled_from_default
+    assert row.description == ''
+
+
+def test_described_rows() -> None:
+    """Test the description of a member reaches the row of that member."""
+    model = EditModel(FlatCfg(), descriptions=DESCRIPTIONS)
+    assert _row(model, 'name').description == ABOUT_NAME
+    assert _row(model, 'answer').description == ''
+
+
+def test_no_descriptions() -> None:
+    """Test an application that describes nothing gets rows without one."""
+    assert all(row.description == '' for row in EditModel(FlatCfg()).rows)
+
+
+def test_description_stays() -> None:
+    """Test what a member is for is still said after it has been edited.
+
+    A description says what the member is for, which is not something the
+    user can change by typing a value into it or by saving one.
+    """
+    model = EditModel(FlatCfg(), descriptions=DESCRIPTIONS)
+    model.set_text(path=('name',), text='other text')
+    model.validate()
+    assert _row(model, 'name').description == ABOUT_NAME
+
+
+def test_class_docstring() -> None:
+    """Test the model reports the docstring of the configuration class."""
+    model = EditModel(DocumentedCfg())
+    assert model.summary == \
+        'One line that says what this configuration is for.'
+    assert model.docstring.startswith(model.summary)
+    assert model.docstring.endswith('the detail of this class.')
+
+
+def test_explanations_shown() -> None:
+    """Test the editor starts by explaining itself.
+
+    An application that wrote descriptions wrote them to be read, and a user
+    who does not want them presses one key.
+    """
+    assert EditModel(FlatCfg()).explanations_shown
+
+
+def test_toggle_explanations() -> None:
+    """Test the toggle hides the explanations and shows them again."""
+    model = EditModel(FlatCfg())
+    model.toggle_explanations()
+    assert not model.explanations_shown
+    model.toggle_explanations()
+    assert model.explanations_shown
 
 
 def test_verdict_unknown() -> None:

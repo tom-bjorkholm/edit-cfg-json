@@ -253,8 +253,10 @@ HIGHEST_ANSWER = 100
 class FlatConfig(Config):
     """A configuration with one text member and one number member.
 
-    A later step shows this class docstring in the editor as the label of
-    the configuration object, which is a good reason to write one.
+    The editor shows this docstring as the label of the configuration object,
+    which is a good reason to write one. The line above is the summary and
+    stays visible; this paragraph is the detail and goes away with the explain
+    key. Example 3 is about that, and about describing the members themselves.
     """
 
     def __init__(self, from_json_data_text: Optional[str] = None,

@@ -3,9 +3,11 @@
 * [edit\_cfg\_json\_tk.tk\_editor](#edit_cfg_json_tk.tk_editor)
   * [NAME\_COLUMN\_WIDTH](#edit_cfg_json_tk.tk_editor.NAME_COLUMN_WIDTH)
   * [PADDING](#edit_cfg_json_tk.tk_editor.PADDING)
+  * [DESCRIPTION\_INDENT](#edit_cfg_json_tk.tk_editor.DESCRIPTION_INDENT)
   * [VALIDATE\_TEXT](#edit_cfg_json_tk.tk_editor.VALIDATE_TEXT)
   * [SAVE\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_TEXT)
   * [SAVE\_AS\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_AS_TEXT)
+  * [EXPLAIN\_TEXT](#edit_cfg_json_tk.tk_editor.EXPLAIN_TEXT)
   * [CLOSE\_TEXT](#edit_cfg_json_tk.tk_editor.CLOSE_TEXT)
   * [SAVE\_AS\_TITLE](#edit_cfg_json_tk.tk_editor.SAVE_AS_TITLE)
   * [CONFIG\_FILES](#edit_cfg_json_tk.tk_editor.CONFIG_FILES)
@@ -13,11 +15,13 @@
   * [RowWidgets](#edit_cfg_json_tk.tk_editor.RowWidgets)
     * [field](#edit_cfg_json_tk.tk_editor.RowWidgets.field)
     * [mark](#edit_cfg_json_tk.tk_editor.RowWidgets.mark)
+    * [description](#edit_cfg_json_tk.tk_editor.RowWidgets.description)
   * [EditorWidgets](#edit_cfg_json_tk.tk_editor.EditorWidgets)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.EditorWidgets.__init__)
     * [label\_text](#edit_cfg_json_tk.tk_editor.EditorWidgets.label_text)
     * [verdict\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.verdict_text_shown)
     * [save\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.save_text_shown)
+    * [docstring\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.docstring_shown)
   * [TkEditor](#edit_cfg_json_tk.tk_editor.TkEditor)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.TkEditor.__init__)
     * [run\_editor](#edit_cfg_json_tk.tk_editor.TkEditor.run_editor)
@@ -45,6 +49,15 @@ Width in characters of the column that holds the member names.
 
 Padding in pixels around the widgets of the editor.
 
+<a id="edit_cfg_json_tk.tk_editor.DESCRIPTION_INDENT"></a>
+
+#### DESCRIPTION\_INDENT
+
+Indentation in pixels of the description of one member.
+
+The indentation is what says that the line belongs to the member above it
+rather than being a member of its own.
+
 <a id="edit_cfg_json_tk.tk_editor.VALIDATE_TEXT"></a>
 
 #### VALIDATE\_TEXT
@@ -62,6 +75,16 @@ Text of the button that writes the output file.
 #### SAVE\_AS\_TEXT
 
 Text of the button that chooses an output file and then writes it.
+
+<a id="edit_cfg_json_tk.tk_editor.EXPLAIN_TEXT"></a>
+
+#### EXPLAIN\_TEXT
+
+Text of the button that shows or hides the explanatory text.
+
+One text for both directions, which is also what the Textual footer and the
+command palette show for this action: the button names what it is about, and
+whether the explanations are there is something the window itself says.
 
 <a id="edit_cfg_json_tk.tk_editor.CLOSE_TEXT"></a>
 
@@ -114,6 +137,15 @@ The field of an editable member, and None for every other member.
 
 The widget that says what has happened to this member.
 
+<a id="edit_cfg_json_tk.tk_editor.RowWidgets.description"></a>
+
+#### description
+
+The widget that says what this member is for.
+
+It is None for a member the application said nothing about, because there
+is then nothing that could ever appear in it.
+
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets"></a>
 
 ## EditorWidgets Objects
@@ -147,7 +179,7 @@ def __init__(parent: tkinter.Misc,
              on_close: Optional[Callable[[], None]] = None) -> None
 ```
 
-Create the label, one row per member, the verdict and the buttons.
+Create the labels, one row per member, the verdict and the buttons.
 
 The parent is a widget and not a window, so that the same rows can
 later be mounted inside a window that an application owns itself.
@@ -195,6 +227,17 @@ def save_text_shown() -> str
 ```
 
 Return the text that the saving part of the editor shows.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets.docstring_shown"></a>
+
+#### docstring\_shown
+
+```python
+@property
+def docstring_shown() -> str
+```
+
+Return the text that the label of the configuration class shows.
 
 <a id="edit_cfg_json_tk.tk_editor.TkEditor"></a>
 
@@ -251,6 +294,7 @@ the editor in a widget that application owns.
 ```python
 def edit(config: Config,
          *,
+         descriptions: Optional[Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
@@ -267,6 +311,8 @@ documented there.
 **Arguments**:
 
 - `config` - Configuration object to edit. It is never modified.
+- `descriptions` - What the application says about the members it
+  declares, or None when it says nothing.
 - `in_file` - File to read, or None to start from the declared defaults.
 - `out_file` - File to write, or None to write the input file.
 - `policy` - What to do about declared keys the input file does not hold.

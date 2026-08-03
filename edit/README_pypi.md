@@ -57,18 +57,20 @@ Everything a user of this package needs is re-exported from the top-level
 `edit_cfg_json` package, so it can be imported directly:
 
 ````python
-from edit_cfg_json import ActionSettings, ConfigLoadError, EditModel, \
-    EditorBackend, LoadPolicy, LoadReport, LoadedConfig, MemberRow, \
-    SaveOutcome, Settings, SettingsSource, ValidationVerdict, edit, \
-    load_config, load_text, model_as_text, model_title, row_marks, \
-    row_value_text, save_text, verdict_text
+from edit_cfg_json import ActionSettings, ConfigLoadError, Descriptions, \
+    EditModel, EditorBackend, LoadPolicy, LoadReport, LoadedConfig, \
+    MemberRow, SaveOutcome, Settings, SettingsSource, ValidationVerdict, \
+    docstring_text, edit, load_config, load_text, model_as_text, \
+    model_title, row_description, row_marks, row_value_text, save_text, \
+    verdict_text
 ````
 
 | Name | What it is |
 | --- | --- |
 | `edit` | The whole of an editing session in one call: read the input file, build the model, run a backend to completion, and give back the configuration object that was saved, or `None` when nothing was. The backend is a parameter because this package never imports a user interface library; each backend package also exports an `edit` of its own that supplies itself. |
 | `EditModel` | The editable state of one `config_as_json.Config` object, discovered by looking at that object. Its members keep the order the configuration class declares them in, their values are held in JSON space, `set_text` writes the text of one edit field into one of them, `validate` runs the application's own validation over the whole buffer, and `save` writes it to `out_file` if the application would accept it. |
-| `MemberRow` | One configuration member of the model: the path that addresses it, the value it holds now, the value it started with, and the flags that say what has happened to it. |
+| `MemberRow` | One configuration member of the model: the path that addresses it, the value it holds now, the value it started with, what the application says the member is for, and the flags that say what has happened to it. |
+| `Descriptions` | What the application says about the members it declares: a mapping from the absolute `config_as_json.ConfigPath` of a member to the text that explains it. It is the one type alias this library declares. |
 | `ValidationVerdict` | What one validation pass found: whether the application itself would accept the buffer, and the diagnostics it would produce. `EditModel.verdict` is the verdict of the last pass, or `None` while the buffer has not been validated since it last changed. |
 | `SaveOutcome` | What one attempt to save did: whether the output file was written, and what to tell the user about it. `EditModel.save_message` is the message of the last attempt. |
 | `load_config` | Reads the configuration to edit from one input file, or hands back the caller's own object when there is no file. It constructs the configuration class itself, because a load policy and the reporting of automatic changes are given to a constructor and to nothing else. |
@@ -83,6 +85,8 @@ from edit_cfg_json import ActionSettings, ConfigLoadError, EditModel, \
 | `model_as_text` | The plain text rendering of a whole model, used by the examples and by the tests so that the editor can be observed without a display. It begins with what the load did and ends with the validation state and the saving, so a rendering never leaves any of them unsaid. |
 | `model_title` | The label of a whole model, marked while the buffer holds a change worth saving. Both backends show it, so neither of them decides on its own how an unsaved change looks. |
 | `load_text` | What reading the input file did, as text, and nothing at all when it did nothing worth saying. Both backends show it, so the two of them cannot tell the user two different things about one file. |
+| `docstring_text` | What the configuration class says about itself, as much of it as is being shown: the whole docstring while the explanations are shown, and its first paragraph while they are hidden. Both backends show it, so neither of them decides on its own how much of a docstring the user is offered. |
+| `row_description` | What the application says one member is for, as it is being shown: the description while the explanations are shown, and nothing while they are hidden. |
 | `row_marks` | The marks of one member: that the input file did not hold it, that the user changed it, and that a validation pass then rewrote what the user wrote. All of them can apply at once. |
 | `row_value_text` | The value of one member as the text a field shows. A string is shown as the string itself, without the quotation marks that the file format puts around it. Both backends use it, so neither of them formats values itself. |
 | `verdict_text` | The validation state of a model as text, with the diagnostics below it. Both backends show it, so the two of them cannot describe one verdict differently. |
@@ -136,6 +140,52 @@ from the configuration object that was accepted, and every value the pass
 rewrote is marked, because changing what the user just typed without showing
 it would be the worst of the available behaviours.
 
+## Explaining the values to the user
+
+Two sources of explanatory text, independent of each other and both optional.
+Neither of them is something the editor could invent, and one of them the
+application does not have to pass at all:
+
+- **The docstring of the configuration class** labels the configuration
+  object. Nothing is passed for this; the class has it and the editor reads
+  it. `cls.__doc__` and never `inspect.getdoc()`, so that a class without a
+  docstring of its own is labelled with nothing rather than with the docstring
+  of a base class.
+- **A `Descriptions` mapping** labels the individual members, because a member
+  has nothing of the kind at runtime: a string literal written after an
+  assignment is discarded, and a PEP 526 annotation on an instance attribute
+  is recorded nowhere.
+
+````python
+from edit_cfg_json import Descriptions, edit
+
+DESCRIPTIONS: Descriptions = {
+    ('max_items',): 'How many items one report may hold, from 1 to 100.',
+    ('limits', '['): 'What every one of these limits means.'}
+
+saved = edit(config=config, backend=backend, descriptions=DESCRIPTIONS)
+````
+
+A member is named by the absolute `config_as_json.ConfigPath` that addresses
+it, so a member inside a list, a dict or a nested configuration object needs
+no second way of naming it. The `'['` step keeps its `config_as_json` meaning
+of every list element or every dictionary value at that point, and two
+selectors that both address one member are resolved in favour of the more
+specific one. A selector that addresses no member at all is never used and is
+never an error: a wrong description is a cosmetic mistake, and refusing to
+open the editor over one would be a much larger one. So is a member the
+mapping says nothing about, which is shown without a description.
+
+The explanations take a line per member, and a user who knows this
+configuration by heart does not want them, so they can be hidden:
+`EditModel.explanations_shown` says whether they are, and
+`EditModel.toggle_explanations` is what the `explain` action of both backends
+calls. What stays visible either way is `EditModel.summary`, the first
+paragraph of the class docstring, because one line for the whole configuration
+is worth keeping. That state belongs to the model rather than to a backend, so
+that an application cannot end up with two user interfaces that disagree about
+whether they are explaining themselves.
+
 ## Writing the output file
 
 Saving is validating and then writing, and it is refused wherever the
@@ -185,8 +235,8 @@ saved = edit(config=config, backend=backend, in_file='my_config.cfg',
 ````
 
 `ActionSettings` has one attribute per action of the editor — `quit`,
-`validate`, `save`, `save_as` and `cancel` — and each of them holds every
-combination that runs that action. The first is the one a footer or a menu
+`validate`, `save`, `save_as`, `cancel` and `explain` — and each of them holds
+every combination that runs that action. The first is the one a footer or a menu
 names and the rest work without being named. An empty tuple takes the key
 away and not the action, which is still reachable through a button or a
 command palette. Combinations are written in Textual's key names, in lower
@@ -258,7 +308,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 684 passed in 12s
+- Test result: 739 passed in 13s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

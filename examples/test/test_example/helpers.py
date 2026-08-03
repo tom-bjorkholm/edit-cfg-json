@@ -19,9 +19,10 @@ from collections.abc import Callable
 from pathlib import Path
 import asyncio
 import tkinter
+from config_as_json import Config
 import pytest
 from textual.app import App
-from edit_cfg_json import ActionSettings
+from edit_cfg_json import ActionSettings, EditModel
 
 QUIT_KEY = ActionSettings().quit[0]
 """Key that ends the Textual editor for an application with no opinion.
@@ -54,6 +55,31 @@ back, because both are part of the contract of the library and a contract is
 better seen than read. The two lines are here rather than in each test
 module, so that one example more does not mean one more copy of them.
 """
+
+
+def head(config: Config, edited: bool = False) -> str:
+    """Return the lines that a dump of one configuration begins with.
+
+    A dump begins by labelling the configuration object: the name of its
+    class, marked while there is something worth saving, and then the
+    docstring of that class. The docstring is read from the model rather than
+    written out in each test module, because what a docstring becomes is
+    decided in the core and tested there. What these tests are about is that
+    the examples are shown with the one they have.
+
+    Args:
+        config: Configuration object of the example, which is what says both
+            what the class is called and what it says about itself.
+        edited: Whether the buffer holds something worth saving, which the
+            label of the configuration is marked while it does.
+
+    Returns:
+        The first lines of a dump of that configuration.
+    """
+    model = EditModel(config)
+    mark = ' *' if edited else ''
+    lines = [f'{type(config).__name__}{mark}', model.docstring]
+    return '\n'.join(line for line in lines if line)
 
 
 def saved_tail(out_file: Path, class_name: str) -> str:

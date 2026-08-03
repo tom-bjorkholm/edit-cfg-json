@@ -131,6 +131,19 @@ class ActionSettings:
     toolkit's own file dialog, which answers this key itself.
     """
 
+    explain: tuple[str, ...] = ('f1', 'ctrl+g')
+    """Keys that show or hide what the application says about the values.
+
+    `f1` because a function key is what asks for help everywhere else, and
+    because it is free: of the keys an editor would want, a field claims most
+    of the control letters and the application itself claims the rest.
+
+    `ctrl+g` because a terminal or a keyboard that does not deliver a function
+    key would otherwise leave this action to the button and the command
+    palette. It is one of the few control letters that Textual's own field
+    does not read for itself.
+    """
+
     def __post_init__(self) -> None:
         """Refuse one key combination that two actions would both run.
 

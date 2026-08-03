@@ -7,10 +7,34 @@
 from pathlib import Path
 import pytest
 from config_as_json import JsonType
-from edit_cfg_json import EditModel, LoadReport, MemberRow, load_text, \
-    model_as_text, model_title, row_marks, row_value_text, save_text, \
-    verdict_text
-from .sample_cfg import FlatCfg, ListCfg, NoneCfg, RangeCfg, RewriteCfg
+from edit_cfg_json import Descriptions, EditModel, LoadReport, MemberRow, \
+    docstring_text, load_text, model_as_text, model_title, row_description, \
+    row_marks, row_value_text, save_text, verdict_text
+from .sample_cfg import DocumentedCfg, FlatCfg, ListCfg, NoDocCfg, NoneCfg, \
+    RangeCfg, RewriteCfg
+
+FLAT_DOC = 'A configuration with one text member and one number member.'
+"""The docstring of `FlatCfg`, which is a summary and nothing else."""
+
+HEAD = f'FlatCfg\n{FLAT_DOC}'
+"""The lines that every rendering of `FlatCfg` begins with.
+
+The label of the configuration comes first, because what the whole
+configuration is for is what the members below it are read in the light of,
+and the docstring of its class follows it.
+"""
+
+EDITED_HEAD = f'FlatCfg *\n{FLAT_DOC}'
+"""The same lines while the buffer holds something worth saving."""
+
+HIDDEN_HEAD = f'FlatCfg - {FLAT_DOC}'
+"""The one line that begins a rendering with the explanations hidden."""
+
+ABOUT_NAME = 'What the name of this configuration is for.'
+"""Description of the one member that the tests below describe."""
+
+DESCRIPTIONS: Descriptions = {('name',): ABOUT_NAME}
+"""What an application says about the members of a flat configuration."""
 
 UNKNOWN_LINE = 'validation: not validated'
 """Line that a rendering of a model nobody has validated ends with."""
@@ -31,7 +55,8 @@ NO_FILE_LINE = 'save to: no file chosen yet'
 def test_flat_text() -> None:
     """Test the rendering has one line per member and then the verdict."""
     assert model_as_text(EditModel(FlatCfg())) == \
-        f'name = flat text\nanswer = 42\n{UNKNOWN_LINE}\n{NO_FILE_LINE}'
+        (f'{HEAD}\nname = flat text\nanswer = 42\n{UNKNOWN_LINE}\n'
+         f'{NO_FILE_LINE}')
 
 
 def test_text_has_no_quotes() -> None:
@@ -57,8 +82,8 @@ def test_edited_text() -> None:
     model = EditModel(FlatCfg())
     model.set_text(path=('answer',), text='7')
     assert model_as_text(model) == (
-        f'name = flat text\nanswer = 7 (edited)\n{UNKNOWN_LINE}\n'
-        f'{NO_FILE_LINE}')
+        f'{EDITED_HEAD}\nname = flat text\nanswer = 7 (edited)\n'
+        f'{UNKNOWN_LINE}\n{NO_FILE_LINE}')
 
 
 def test_edit_undone_text() -> None:
@@ -67,7 +92,8 @@ def test_edit_undone_text() -> None:
     model.set_text(path=('answer',), text='7')
     model.set_text(path=('answer',), text='42')
     assert model_as_text(model) == \
-        f'name = flat text\nanswer = 42\n{UNKNOWN_LINE}\n{NO_FILE_LINE}'
+        (f'{HEAD}\nname = flat text\nanswer = 42\n{UNKNOWN_LINE}\n'
+         f'{NO_FILE_LINE}')
 
 
 def test_invalid_value_text() -> None:
@@ -124,9 +150,9 @@ def test_rewritten_text() -> None:
     model = EditModel(RewriteCfg())
     model.set_text(path=('name',), text='typed text')
     model.validate()
-    assert model_as_text(model) == (
-        f'name = Typed text (edited) (changed by validator)\n'
-        f'{VALID_LINE}\n{NO_FILE_LINE}')
+    assert model_as_text(model).splitlines()[-3:] == [
+        'name = Typed text (edited) (changed by validator)', VALID_LINE,
+        NO_FILE_LINE]
 
 
 def test_verdict_before_save() -> None:
@@ -192,17 +218,17 @@ def test_load_text() -> None:
 
 
 def test_load_text_is_first() -> None:
-    """Test the load comes first, because it explains the marks below it."""
+    """Test the load comes above the members it explains the marks on."""
     model = EditModel(FlatCfg(), FILLED_REPORT)
     assert model_as_text(model) == (
-        f'{LOAD_LINE}\nname = flat text\n'
+        f'{HEAD}\n{LOAD_LINE}\nname = flat text\n'
         f'answer = 42 (filled from default)\n{UNKNOWN_LINE}\n'
         f'{NO_FILE_LINE}')
 
 
 def test_no_load_no_line() -> None:
     """Test a rendering with nothing to say about a load has no empty line."""
-    assert model_as_text(EditModel(FlatCfg())).splitlines()[0] == \
+    assert model_as_text(EditModel(FlatCfg())).splitlines()[2] == \
         'name = flat text'
 
 
@@ -248,6 +274,75 @@ def test_edit_after_save_text(tmp_path: Path) -> None:
     model.save()
     model.set_text(path=('answer',), text='7')
     assert save_text(model) == f'save to: {out_file}'
+
+
+def test_docstring_text() -> None:
+    """Test the whole docstring is what is shown while it is being shown."""
+    model = EditModel(DocumentedCfg())
+    assert docstring_text(model) == model.docstring
+    assert '\n\n' in docstring_text(model)
+
+
+def test_hidden_doc_text() -> None:
+    """Test the summary is what is left when the explanations are hidden.
+
+    One line for the whole configuration is worth keeping whatever the user
+    asked to be rid of.
+    """
+    model = EditModel(DocumentedCfg())
+    model.toggle_explanations()
+    assert docstring_text(model) == model.summary
+    assert '\n' not in docstring_text(model)
+
+
+def test_no_docstring_text() -> None:
+    """Test a class with no docstring is rendered with no label of its own.
+
+    A rendering of it begins with the name of the class and goes straight on
+    to the members, rather than with the docstring of a base class.
+    """
+    model = EditModel(NoDocCfg())
+    assert docstring_text(model) == ''
+    assert model_as_text(model).splitlines()[:2] == ['NoDocCfg',
+                                                     'name = documented']
+
+
+def test_row_description() -> None:
+    """Test the description of a member is shown while they are shown."""
+    model = EditModel(FlatCfg(), descriptions=DESCRIPTIONS)
+    rows = {row.name: row for row in model.rows}
+    assert row_description(model=model, row=rows['name']) == ABOUT_NAME
+    assert row_description(model=model, row=rows['answer']) == ''
+
+
+def test_hidden_row_about() -> None:
+    """Test a description says nothing while the explanations are hidden."""
+    model = EditModel(FlatCfg(), descriptions=DESCRIPTIONS)
+    model.toggle_explanations()
+    rows = {row.name: row for row in model.rows}
+    assert row_description(model=model, row=rows['name']) == ''
+
+
+def test_described_text() -> None:
+    """Test a described member has its description on the line below it."""
+    model = EditModel(FlatCfg(), descriptions=DESCRIPTIONS)
+    assert model_as_text(model) == (
+        f'{HEAD}\nname = flat text\n    {ABOUT_NAME}\nanswer = 42\n'
+        f'{UNKNOWN_LINE}\n{NO_FILE_LINE}')
+
+
+def test_hidden_text() -> None:
+    """Test hiding the explanations leaves the values and the summary.
+
+    The summary shares the first line with the label of the configuration
+    here, because one line for the whole configuration is what is left when
+    the explanations are hidden.
+    """
+    model = EditModel(FlatCfg(), descriptions=DESCRIPTIONS)
+    model.toggle_explanations()
+    assert model_as_text(model) == (
+        f'{HIDDEN_HEAD}\nname = flat text\nanswer = 42\n{UNKNOWN_LINE}\n'
+        f'{NO_FILE_LINE}')
 
 
 def test_saved_title(tmp_path: Path) -> None:

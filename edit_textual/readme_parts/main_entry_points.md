@@ -44,6 +44,7 @@ chose nothing they are the defaults of `edit_cfg_json.ActionSettings`:
 | `ctrl+s` | Save |
 | `ctrl+shift+s` or `f12` | Save as |
 | `ctrl+q` | Quit |
+| `f1`, or `ctrl+g` | Explain |
 
 Every change of a field goes straight into the model, and the title is marked
 while the model holds a change worth saving.
@@ -69,6 +70,16 @@ session has no file to write yet, which is what every editor does. The
 question starts at the file that would be written now, so saving a copy
 beside the original is a matter of changing a few characters.
 
+Explaining shows or hides what the application says about these values: the
+whole docstring of the configuration class above the fields, and the
+description of each described member below its own field. The editor opens
+with them shown, and what is left when they are hidden is the first paragraph
+of that docstring, because one line for the whole configuration is worth
+keeping. A member the application described gets a line and one it said
+nothing about gets none, rather than an empty one. Which of the two states the
+editor is in belongs to the model, so this backend and the Tk one cannot
+disagree about it.
+
 Quitting writes nothing of its own. It is the "cancel" of the editor; saving
 leaves the editor open, and what has been saved has been saved.
 
@@ -90,7 +101,8 @@ letter as a single byte with nowhere to put the shift, so on such a terminal
 this key arrives as `ctrl+s` and saves instead of asking where to save.
 Textual asks the terminal for the Kitty keyboard protocol at startup, and a
 terminal that speaks it reports the two keys apart. That is why **Validate,
-Save and Save as are also in the command palette**, which `ctrl+p` opens:
+Save, Save as and Explain are also in the command palette**, which `ctrl+p`
+opens:
 every terminal can reach the palette, because it is a letter typed into a
 field and not a key combination at all. The palette's own **Keys** entry
 lists every binding of the editor, including the ones the footer has no room

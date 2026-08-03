@@ -16,10 +16,11 @@ repository only.
 | --- | --- |
 | [e01_flat_config.py](e01_flat_config.py) | The whole library in one call: hand a `Config` object and a backend to `edit()`. A flat configuration with one text member and one number member, both editable and both validated by the application's own validation plan. Why the editor never describes the schema a second time, why the values it shows are the declared members in their declared order rather than the sorted keys of the JSON file, and why a value that a validator rewrote is marked. Also the four ways an input file can be refused, the one way it can be incomplete and still be opened, and the round trip that ends with a written file and the object that was written. |
 | [e02_enum_config.py](e02_enum_config.py) | An `Enum` member and an `IntEnum` member, with no validators at all. An enum is written to the file as the name of its member, so it is edited as text, and a name that is no member is refused by the conversion rather than by a validator. Which of `parse_converters()` and `serialize_converters()` an application has to write, why matching a name is forgiving enough to complete a prefix, and why a half typed name in a field is kept while the same name in a file refuses the file. |
+| [e03_described_config.py](e03_described_config.py) | Explaining the values to whoever edits them. The docstring of the configuration class labels the object and needs no passing, because the class already has it; the members need a `Descriptions` mapping, because a member docstring does not exist at runtime. Absolute paths as its keys, one member deliberately left undescribed, why a range is explained in words rather than read out of the validator that enforces it, and the key that hides all of it again. |
 
-More examples arrive with the steps that they demonstrate: descriptions and
-docstrings, field level diagnostics, lists and dicts, nested `Config`
-objects, folding, and adding and removing elements.
+More examples arrive with the steps that they demonstrate: field level
+diagnostics, lists and dicts, nested `Config` objects, folding, and adding and
+removing elements.
 
 ## Shared command line handling
 
@@ -34,10 +35,14 @@ takes the same options:
 | `--ui tk` | Open the editor in a Tkinter window. |
 | `--ui textual` | Open the editor in the terminal, with Textual. |
 | `--set member=value` | Edit one member before showing it. Repeatable. |
+| `--toggle-explain` | Hide the explanations, as the explain key does. |
 | `-i`, `--input` | Configuration file to read. |
 | `--policy` | What to do about a declared value the file does not hold. |
 | `-o`, `--output` | Configuration file to write, or the input file. |
 | `--save` | Really write that file. Only with `--ui dump`. |
+| `--extension` | File name extension this application uses for its configuration. |
+| `--enforce-extension` | Refuse a file that has another extension. |
+| `--key ACTION=COMBINATIONS` | Keys of one action of the editor. Repeatable. |
 
 `--ui` is required. There is no default, because which one you want is not
 something the example can guess, and a silent choice would teach the wrong
@@ -66,6 +71,17 @@ contract is better seen than read.
 or `defaults`. The input files in [examples/data/](../../data/) cover every
 outcome of a load, including the three kinds of file that cannot be opened,
 so each of them can be tried without writing a file first.
+
+`--extension`, `--enforce-extension` and `--key` stand in for the application
+that the editor runs inside. A real application does not parse these from a
+command line: it knows its own answers and builds one `edit_cfg_json.Settings`
+from them. They are options here so that each answer can be tried without a
+program per answer.
+
+`--toggle-explain` stands in for the key that shows or hides the explanatory
+text, in the same way that `--set` stands in for a user typing into a field.
+The editor starts with the explanations shown, so this flag is what shows the
+hidden form.
 
 ## Running an example
 

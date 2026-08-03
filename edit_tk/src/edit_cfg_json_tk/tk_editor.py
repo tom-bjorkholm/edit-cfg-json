@@ -10,9 +10,9 @@ import sys
 import tkinter
 from tkinter import filedialog
 from config_as_json import Config, PathOrStr
-from edit_cfg_json import EditModel, LoadPolicy, MemberRow, Settings, \
-    SettingsSource, load_text, model_title, row_marks, row_value_text, \
-    save_text, verdict_text
+from edit_cfg_json import Descriptions, EditModel, LoadPolicy, MemberRow, \
+    Settings, SettingsSource, docstring_text, load_text, model_title, \
+    row_description, row_marks, row_value_text, save_text, verdict_text
 from edit_cfg_json import edit as core_edit
 from edit_cfg_json_tk.key_names import tk_sequence
 
@@ -22,6 +22,13 @@ NAME_COLUMN_WIDTH = 24
 PADDING = 4
 """Padding in pixels around the widgets of the editor."""
 
+DESCRIPTION_INDENT = 24
+"""Indentation in pixels of the description of one member.
+
+The indentation is what says that the line belongs to the member above it
+rather than being a member of its own.
+"""
+
 VALIDATE_TEXT = 'Validate'
 """Text of the button that runs the validation of the application."""
 
@@ -30,6 +37,14 @@ SAVE_TEXT = 'Save'
 
 SAVE_AS_TEXT = 'Save as...'
 """Text of the button that chooses an output file and then writes it."""
+
+EXPLAIN_TEXT = 'Explain'
+"""Text of the button that shows or hides the explanatory text.
+
+One text for both directions, which is also what the Textual footer and the
+command palette show for this action: the button names what it is about, and
+whether the explanations are there is something the window itself says.
+"""
 
 CLOSE_TEXT = 'Close'
 """Text of the button that ends the editor.
@@ -118,6 +133,33 @@ def _bind_key(window: tkinter.Misc, key: str,
         pass
 
 
+def _show_description(label: Optional[tkinter.Label], text: str) -> None:
+    """Show the description of one member, or hide it when there is none.
+
+    The text is what the core says to show for this member, which is nothing
+    while the explanations are hidden, so this backend does not decide for
+    itself what hiding them means.
+
+    Hiding is taking the widget out of the layout and not emptying its text,
+    because a label with no text still takes the height of a line, and a
+    window with a blank line under every member would have hidden nothing.
+    The widget is the last one inside the frame of its member, so packing it
+    again puts it back where it was.
+
+    Args:
+        label: Widget that shows the description of one member, or None for a
+            member the application said nothing about.
+        text: Description to show, empty when it is not being shown.
+    """
+    if label is None:
+        return
+    if not text:
+        label.pack_forget()
+        return
+    label.config(text=text)
+    label.pack(fill='x', padx=(DESCRIPTION_INDENT, PADDING))
+
+
 class RowWidgets(NamedTuple):
     """The widgets that one configuration member owns."""
 
@@ -126,6 +168,13 @@ class RowWidgets(NamedTuple):
 
     mark: tkinter.Label
     """The widget that says what has happened to this member."""
+
+    description: Optional[tkinter.Label]
+    """The widget that says what this member is for.
+
+    It is None for a member the application said nothing about, because there
+    is then nothing that could ever appear in it.
+    """
 
 
 class EditorWidgets:  # pylint: disable=too-few-public-methods
@@ -146,7 +195,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
 
     def __init__(self, parent: tkinter.Misc, model: EditModel, *,
                  on_close: Optional[Callable[[], None]] = None) -> None:
-        """Create the label, one row per member, the verdict and the buttons.
+        """Create the labels, one row per member, the verdict and the buttons.
 
         The parent is a widget and not a window, so that the same rows can
         later be mounted inside a window that an application owns itself.
@@ -165,6 +214,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._close = on_close or parent.winfo_toplevel().destroy
         self._label = tkinter.Label(parent, text=model_title(model))
         self._label.pack(pady=PADDING)
+        self._docstring = self._add_docstring(parent)
         self._add_load_message(parent)
         self._rows = [self._add_row(parent=parent, row=row)
                       for row in model.rows]
@@ -192,6 +242,35 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         """Return the text that the saving part of the editor shows."""
         return str(self._saving.cget('text'))
 
+    @property
+    def docstring_shown(self) -> str:
+        """Return the text that the label of the configuration class shows."""
+        if self._docstring is None:
+            return ''
+        return str(self._docstring.cget('text'))
+
+    def _add_docstring(self, parent: tkinter.Misc) -> Optional[tkinter.Label]:
+        """Show what the configuration class says about itself, if anything.
+
+        The widget is created only when that class has a docstring of its
+        own. What the explain action changes is how much of a docstring is
+        shown and not whether there is one, so a class without one would
+        leave an empty widget taking a line of the window for good.
+
+        Args:
+            parent: Widget that becomes the parent of the created widget.
+
+        Returns:
+            The widget that shows the docstring, or None when the
+            configuration class has none.
+        """
+        if not self._model.docstring:
+            return None
+        label = tkinter.Label(parent, text=docstring_text(self._model),
+                              anchor='w', justify='left')
+        label.pack(fill='x', padx=PADDING)
+        return label
+
     def _add_load_message(self, parent: tkinter.Misc) -> None:
         """Show what reading the input file did, when it did anything.
 
@@ -216,6 +295,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         for text, command in ((VALIDATE_TEXT, self._validate),
                               (SAVE_TEXT, self._save),
                               (SAVE_AS_TEXT, self._save_as),
+                              (EXPLAIN_TEXT, self._explain),
                               (CLOSE_TEXT, self._close)):
             tkinter.Button(line, text=text, command=command).pack(side='left',
                                                                   padx=PADDING)
@@ -239,20 +319,52 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         for keys, command in ((actions.quit, self._close),
                               (actions.validate, self._validate),
                               (actions.save, self._save),
-                              (actions.save_as, self._save_as)):
+                              (actions.save_as, self._save_as),
+                              (actions.explain, self._explain)):
             for key in keys:
                 _bind_key(window=window, key=key, command=command)
 
     def _add_row(self, parent: tkinter.Misc, row: MemberRow) -> RowWidgets:
-        """Create the name widget, the value widget and the mark widget."""
-        line = tkinter.Frame(parent)
-        line.pack(fill='x', padx=PADDING)
+        """Create the widgets of one member, and its description below them.
+
+        The member gets a frame of its own, holding the line that is edited
+        and the description under it, so that hiding the description and
+        showing it again cannot move it away from the member it belongs to.
+        """
+        frame = tkinter.Frame(parent)
+        frame.pack(fill='x', padx=PADDING)
+        line = tkinter.Frame(frame)
+        line.pack(fill='x')
         tkinter.Label(line, text=row.name, width=NAME_COLUMN_WIDTH,
                       anchor='w').pack(side='left')
         field = self._add_value(parent=line, row=row)
         mark = tkinter.Label(line, text=row_marks(row), anchor='w')
         mark.pack(side='left')
-        return RowWidgets(field=field, mark=mark)
+        return RowWidgets(field=field, mark=mark,
+                          description=self._add_description(parent=frame,
+                                                            row=row))
+
+    def _add_description(self, parent: tkinter.Misc,
+                         row: MemberRow) -> Optional[tkinter.Label]:
+        """Create the widget that says what one member is for, if anything.
+
+        A member the application said nothing about gets no widget, because
+        there is nothing that could ever appear in it.
+
+        Args:
+            parent: Frame of the member that is being described.
+            row: Member to describe.
+
+        Returns:
+            The widget that shows the description, or None when the
+            application said nothing about this member.
+        """
+        if not row.description:
+            return None
+        label = tkinter.Label(parent, anchor='w', justify='left')
+        _show_description(label, text=row_description(model=self._model,
+                                                      row=row))
+        return label
 
     def _add_value(self, parent: tkinter.Misc,
                    row: MemberRow) -> Optional[tkinter.StringVar]:
@@ -336,6 +448,24 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
             self._model.set_out_file(chosen)
             self._save()
 
+    def _explain(self) -> None:
+        """Show or hide what the application says about these values."""
+        self._model.toggle_explanations()
+        self._show_explanations()
+
+    def _show_explanations(self) -> None:
+        """Show as much of the explanatory text as the model says to show.
+
+        It is not part of `_show_state`, which runs on every key the user
+        types: nothing the user types into a field can change what this
+        configuration is for or what one of its members means.
+        """
+        if self._docstring is not None:
+            self._docstring.config(text=docstring_text(self._model))
+        for row, widgets in zip(self._model.rows, self._rows, strict=True):
+            _show_description(widgets.description,
+                              text=row_description(model=self._model, row=row))
+
     def _refresh(self) -> None:
         """Write the buffer back into the fields and show the new state.
 
@@ -396,7 +526,8 @@ class TkEditor:  # pylint: disable=too-few-public-methods
 # See the same disable in the core: every argument after the first is an
 # optional keyword saying one independent thing about the session.
 # pylint: disable-next=too-many-arguments
-def edit(config: Config, *, in_file: Optional[PathOrStr] = None,
+def edit(config: Config, *, descriptions: Optional[Descriptions] = None,
+         in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
          settings: SettingsSource = Settings(),
@@ -409,6 +540,8 @@ def edit(config: Config, *, in_file: Optional[PathOrStr] = None,
 
     Args:
         config: Configuration object to edit. It is never modified.
+        descriptions: What the application says about the members it
+            declares, or None when it says nothing.
         in_file: File to read, or None to start from the declared defaults.
         out_file: File to write, or None to write the input file.
         policy: What to do about declared keys the input file does not hold.
@@ -422,6 +555,7 @@ def edit(config: Config, *, in_file: Optional[PathOrStr] = None,
     Raises:
         ConfigLoadError: The input file cannot be opened for editing.
     """
-    return core_edit(config=config, backend=TkEditor(), in_file=in_file,
+    return core_edit(config=config, backend=TkEditor(),
+                     descriptions=descriptions, in_file=in_file,
                      out_file=out_file, policy=policy, settings=settings,
                      stderr_file=stderr_file)

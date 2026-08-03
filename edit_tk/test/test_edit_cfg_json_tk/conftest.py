@@ -7,6 +7,25 @@
 from collections.abc import Iterator
 import tkinter
 import pytest
+from .helpers import FakeVar, FakeWidget
+
+
+@pytest.fixture(name='stub_tk')
+def fixture_stub_tk(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Replace the Tkinter widget and variable classes with stubs.
+
+    It lives here rather than in `helpers`, because a fixture is found by the
+    tests of a package through its `conftest`, and the four test modules of
+    this backend all want this one.
+    """
+    FakeWidget.created.clear()
+    FakeVar.created.clear()
+    for widget_name in ('Frame', 'Label', 'Button', 'Entry'):
+        monkeypatch.setattr(tkinter, widget_name, FakeWidget)
+    monkeypatch.setattr(tkinter, 'StringVar', FakeVar)
+    yield
+    FakeWidget.created.clear()
+    FakeVar.created.clear()
 
 
 @pytest.fixture(name='root_or_skip')

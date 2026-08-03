@@ -1,0 +1,6 @@
+{
+    "max_items": 5,
+    "priority": "URGENT",
+    "project_name": "From a file",
+    "report_file": "from_a_file.md"
+}

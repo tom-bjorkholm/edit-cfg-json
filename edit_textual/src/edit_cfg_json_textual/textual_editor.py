@@ -14,9 +14,9 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen, Screen
 from textual.widget import Widget
 from textual.widgets import Footer, Header, Input, Label, Static
-from edit_cfg_json import EditModel, LoadPolicy, MemberRow, Settings, \
-    SettingsSource, load_text, model_title, row_marks, row_value_text, \
-    save_text, verdict_text
+from edit_cfg_json import Descriptions, EditModel, LoadPolicy, MemberRow, \
+    Settings, SettingsSource, docstring_text, load_text, model_title, \
+    row_description, row_marks, row_value_text, save_text, verdict_text
 from edit_cfg_json import edit as core_edit
 
 VALUE_ID_PREFIX = 'value_'
@@ -24,6 +24,12 @@ VALUE_ID_PREFIX = 'value_'
 
 MARK_ID_PREFIX = 'mark_'
 """Prefix of the identifier of the widget that marks one member."""
+
+DESCRIPTION_ID_PREFIX = 'about_'
+"""Prefix of the identifier of the widget that describes one member."""
+
+DOCSTRING_ID = 'docstring'
+"""Identifier of the widget that shows what the configuration class says."""
 
 VERDICT_ID = 'verdict'
 """Identifier of the widget that shows what validation found."""
@@ -52,8 +58,21 @@ MARK_CLASS = 'member_mark'
 ROW_CLASS = 'member_row'
 """Style class of the container that holds the widgets of one member."""
 
+MEMBER_CLASS = 'member'
+"""Style class of the container that holds one member and its description."""
+
+DESCRIPTION_CLASS = 'member_about'
+"""Style class of the widget that says what one member is for."""
+
 NAME_WIDTH = 24
 """Width in cells of the column that holds the member names."""
+
+DESCRIPTION_INDENT = 4
+"""Indentation in cells of the description of one member.
+
+The indentation is what says that the line belongs to the member above it
+rather than being a member of its own.
+"""
 
 LEAST_VALUE_WIDTH = 8
 """Smallest width in cells that the value of a member is given.
@@ -78,6 +97,14 @@ SAVE_COMMAND = 'Save'
 SAVE_AS_COMMAND = 'Save as'
 """Name of the command palette entry that chooses a file and writes it."""
 
+EXPLAIN_COMMAND = 'Explain'
+"""Name of the action that shows or hides the explanatory text.
+
+One name for both directions, which is also what the Tk button shows for this
+action: the name says what it is about, and whether the explanations are
+there is something the screen itself says.
+"""
+
 VALIDATE_HELP = 'Ask the application what it makes of these values'
 """What the command palette says the validate entry does."""
 
@@ -86,6 +113,9 @@ SAVE_HELP = 'Write these values to the output file'
 
 SAVE_AS_HELP = 'Choose the file to write, and write it'
 """What the command palette says the save as entry does."""
+
+EXPLAIN_HELP = 'Show or hide what the application says about these values'
+"""What the command palette says the explain entry does."""
 
 SAVE_AS_PROMPT = 'Save as (Enter writes the file):'
 """What the screen that asks for the output file says."""
@@ -98,7 +128,7 @@ because an application that took `escape` for itself would otherwise be
 telling its users to press a key that does nothing.
 """
 
-EDITOR_ACTIONS = ('quit', 'validate', 'save', 'save_as')
+EDITOR_ACTIONS = ('quit', 'validate', 'save', 'save_as', 'explain')
 """The actions of the editor, which a question of its own turns off.
 
 Textual offers a priority binding of an application the key before the screen
@@ -110,10 +140,14 @@ application says that its own actions do not apply while it is there.
 
 
 CSS_RULES = (
+    f'.{MEMBER_CLASS} {{ height: auto; }}',
     f'.{ROW_CLASS} {{ height: 1; }}',
     f'.{NAME_CLASS} {{ width: {NAME_WIDTH}; }}',
     f'.{VALUE_CLASS} {{ width: 1fr; min-width: {LEAST_VALUE_WIDTH}; }}',
     f'.{MARK_CLASS} {{ width: auto; }}',
+    f'.{DESCRIPTION_CLASS} {{ width: 1fr; height: auto;'
+    f' padding-left: {DESCRIPTION_INDENT}; }}',
+    f'#{DOCSTRING_ID} {{ width: 1fr; height: auto; }}',
     f'.{ROW_CLASS} Input {{ height: 1; border: none; padding: 0; }}',
     'SaveAsScreen { align: center middle; }',
     f'#{SAVE_AS_BOX_ID} {{ width: 80%; height: auto; padding: 1 2;'
@@ -123,6 +157,12 @@ CSS_RULES = (
 Rows are one cell high, so that the footer stays visible below them. A field
 is one cell high as well, which needs its border and its padding taken away,
 because both of them are part of how tall a field is.
+
+A member is as high as it needs to be rather than one cell, because it is the
+row and the description below it, and the explanatory text is as high as the
+lines it takes: a container of Textual's own accord takes an equal share of
+the height it is given, which would leave two members holding half a screen
+each.
 
 The widths are the part that has to be said rather than left to Textual. A
 `Input` is a full width widget of its own accord, so it would take the whole
@@ -146,6 +186,11 @@ def _value_id(row: MemberRow) -> str:
 def _mark_id(row: MemberRow) -> str:
     """Return the identifier of the widget that marks one member."""
     return f'{MARK_ID_PREFIX}{row.name}'
+
+
+def _description_id(row: MemberRow) -> str:
+    """Return the identifier of the widget that describes one member."""
+    return f'{DESCRIPTION_ID_PREFIX}{row.name}'
 
 
 def plain_widget(text: str, widget_id: str,
@@ -300,26 +345,34 @@ class EditorApp(App[None]):
                 (actions.quit, 'quit', QUIT_COMMAND),
                 (actions.validate, 'validate', VALIDATE_COMMAND),
                 (actions.save, 'save', SAVE_COMMAND),
-                (actions.save_as, 'save_as', SAVE_AS_COMMAND)):
+                (actions.save_as, 'save_as', SAVE_AS_COMMAND),
+                (actions.explain, 'explain', EXPLAIN_COMMAND)):
             bind_action(self._bindings, keys=keys, action=action,
                         description=name)
 
     def compose(self) -> ComposeResult:
         """Create one row per member, the verdict, a header and a footer.
 
-        What reading the input file did comes above the members, because it
-        is what explains the marks on them. It is created only when there is
-        something to say: the file was read before the model was built, so
-        the message cannot arrive later, and an empty widget would take a
-        line of the screen for a message that will never come.
+        What the configuration class says about itself comes above everything
+        else, because what the whole configuration is for is what the members
+        below it are read in the light of. What reading the input file did
+        comes next, because it is what explains the marks on them. Both are
+        created only when there is something to say: the file was read before
+        the model was built, and a class either has a docstring or has not, so
+        neither of the two can arrive later and an empty widget would take a
+        line of the screen for good.
         """
         yield Header()
+        yield from self._docstring_widgets()
         yield from self._load_widgets()
         for row in self._model.rows:
-            with Horizontal(classes=ROW_CLASS):
-                yield Label(row.name, classes=NAME_CLASS)
-                yield self._value_widget(row)
-                yield plain_widget(row_marks(row), _mark_id(row), MARK_CLASS)
+            with Vertical(classes=MEMBER_CLASS):
+                with Horizontal(classes=ROW_CLASS):
+                    yield Label(row.name, classes=NAME_CLASS)
+                    yield self._value_widget(row)
+                    yield plain_widget(row_marks(row), _mark_id(row),
+                                       MARK_CLASS)
+                yield from self._description_widgets(row)
         yield plain_widget(verdict_text(self._model), VERDICT_ID)
         yield plain_widget(save_text(self._model), SAVE_ID)
         yield Footer()
@@ -331,8 +384,8 @@ class EditorApp(App[None]):
         Every terminal can reach the palette, because it is opened with one
         key and then typed into. That is what makes it the answer for
         `SAVE_AS_KEY`, which a terminal without the Kitty keyboard protocol
-        cannot tell apart from `SAVE_KEY`. The other two actions are here for
-        the same reason a menu lists what has a shortcut: a user who has not
+        cannot tell apart from `SAVE_KEY`. The other actions are here for the
+        same reason a menu lists what has a shortcut: a user who has not
         learnt the keys should still be able to work.
 
         Args:
@@ -346,12 +399,33 @@ class EditorApp(App[None]):
                             self.action_validate)
         yield SystemCommand(SAVE_COMMAND, SAVE_HELP, self.action_save)
         yield SystemCommand(SAVE_AS_COMMAND, SAVE_AS_HELP, self.action_save_as)
+        yield SystemCommand(EXPLAIN_COMMAND, EXPLAIN_HELP, self.action_explain)
 
     def _load_widgets(self) -> ComposeResult:
         """Create the widget that says what reading the input file did."""
         message = load_text(self._model)
         if message:
             yield plain_widget(message, LOAD_ID)
+
+    def _docstring_widgets(self) -> ComposeResult:
+        """Create the widget that says what the configuration class says."""
+        if self._model.docstring:
+            yield plain_widget(docstring_text(self._model), DOCSTRING_ID)
+
+    def _description_widgets(self, row: MemberRow) -> ComposeResult:
+        """Create the widget that says what one member is for, if anything.
+
+        A member the application said nothing about gets no widget, because
+        there is nothing that could ever appear in it. A widget that is
+        created starts out shown or hidden as the model says, which is not the
+        same as shown: a model can have been told to hide the explanations
+        before the editor was started.
+        """
+        if row.description:
+            widget = plain_widget(row.description, _description_id(row),
+                                  DESCRIPTION_CLASS)
+            widget.display = bool(row_description(model=self._model, row=row))
+            yield widget
 
     def _value_widget(self, row: MemberRow) -> Widget:
         """Return the widget that shows the value of one member.
@@ -406,6 +480,31 @@ class EditorApp(App[None]):
             return
         self._model.save()
         self._refresh()
+
+    def action_explain(self) -> None:
+        """Show or hide what the application says about these values."""
+        self._model.toggle_explanations()
+        self._show_explanations()
+
+    def _show_explanations(self) -> None:
+        """Show as much of the explanatory text as the model says to show.
+
+        Whether a description is shown is asked of the core rather than
+        decided here, so that this backend and the Tk one cannot end up
+        disagreeing about what hiding the explanations means.
+
+        This is not part of `_show_state`, which runs on every key the user
+        types: nothing typed into a field can change what this configuration
+        is for or what one of its members means.
+        """
+        if self._model.docstring:
+            self.query_one(f'#{DOCSTRING_ID}',
+                           Static).update(docstring_text(self._model))
+        for row in self._model.rows:
+            if row.description:
+                description = row_description(model=self._model, row=row)
+                self.query_one(f'#{_description_id(row)}',
+                               Static).display = bool(description)
 
     def action_save_as(self) -> None:
         """Ask which file to write, and write it when one was named."""
@@ -501,7 +600,8 @@ class TextualEditor:  # pylint: disable=too-few-public-methods
 # See the same disable in the core: every argument after the first is an
 # optional keyword saying one independent thing about the session.
 # pylint: disable-next=too-many-arguments
-def edit(config: Config, *, in_file: Optional[PathOrStr] = None,
+def edit(config: Config, *, descriptions: Optional[Descriptions] = None,
+         in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
          settings: SettingsSource = Settings(),
@@ -514,6 +614,8 @@ def edit(config: Config, *, in_file: Optional[PathOrStr] = None,
 
     Args:
         config: Configuration object to edit. It is never modified.
+        descriptions: What the application says about the members it
+            declares, or None when it says nothing.
         in_file: File to read, or None to start from the declared defaults.
         out_file: File to write, or None to write the input file.
         policy: What to do about declared keys the input file does not hold.
@@ -527,6 +629,7 @@ def edit(config: Config, *, in_file: Optional[PathOrStr] = None,
     Raises:
         ConfigLoadError: The input file cannot be opened for editing.
     """
-    return core_edit(config=config, backend=TextualEditor(), in_file=in_file,
+    return core_edit(config=config, backend=TextualEditor(),
+                     descriptions=descriptions, in_file=in_file,
                      out_file=out_file, policy=policy, settings=settings,
                      stderr_file=stderr_file)

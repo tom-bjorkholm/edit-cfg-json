@@ -37,6 +37,15 @@ which are written to the file as the name of an enum member.
 | [e02_incomplete.json](e02_incomplete.json) | Opens under the default policy: `available` is filled in from the declared default and marked. Refused under `--policy strict`. |
 | [e02_bad_enum.json](e02_bad_enum.json) | Refused under every policy. `ELECT` is the beginning of both `ELECTRICAL` and `ELECTRONIC`, so it names no member, and the diagnostics list the three names that exist. |
 
+## Files for `e03_described_config.py`
+
+`DescribedConfig` declares two text members, one number member and one enum
+member, and the mapping of that example describes three of the four.
+
+| File | What happens |
+| --- | --- |
+| [e03_complete.json](e03_complete.json) | Opens with every value from the file. The descriptions are text about the members and not part of them, so a file holds exactly what the other examples' files hold. |
+
 ## Why a file with a bad value cannot be opened
 
 An editor that refused to open the very file that has to be repaired would

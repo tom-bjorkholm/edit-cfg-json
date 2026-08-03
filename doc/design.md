@@ -284,6 +284,10 @@ Two complementary, independently optional sources of explanatory text:
   blank line into a summary for the folded row and full text for the
   expanded view. A show/hide toggle belongs in the model.
 
+  The summary is collapsed to a single line, because where a docstring is
+  broken is a fact about the width of a source file and not about the text,
+  and a label of one row has one line.
+
   Use `cls.__doc__`, **not** `inspect.getdoc(cls)`. `getdoc()` inherits
   from base classes, so a nested config class without its own docstring
   would silently display `Config`'s docstring — actively misleading in
@@ -311,6 +315,45 @@ nesting boundaries fall. A second divergence: overlapping selectors
 resolve in favour of the more specific one rather than raising. A wrong
 description is a cosmetic bug; refusing to open the editor over one is
 not.
+
+**Which of two selectors is the more specific one** is settled at step 6, and
+it has to be, because two selectors of the same length can both address one
+member and be equally short. A step that names a key is more specific than the
+`'['` step, and an earlier step decides before a later one, so
+`('a', 'b', '[')` wins over `('a', '[', 'c')` for the member `('a', 'b', 'c')`:
+the selector that agrees with the member sooner is the one that is about it
+more nearly. Two *different* selectors can never tie, because two selectors
+with the same pattern of named steps that both address one member are the same
+selector. Nothing is validated: a selector that addresses no member of this
+configuration is simply never used, which is the same decision as the
+paragraph above and for the same reason.
+
+### 4.4 Showing and hiding the explanations
+
+Explanatory text costs a line per member, and a user who knows this
+configuration by heart wants it back. So there is one toggle for all of it,
+its state belongs to the model, and both backends read it there — the same
+rule that already holds for the marks, the title and the messages, and for the
+same reason: two user interfaces that disagreed about whether they were
+explaining themselves would be worse than either behaviour.
+
+What the toggle covers, settled at step 6:
+
+- **shown** — the whole class docstring, and the description of every
+  described member below that member
+- **hidden** — the summary of the class docstring, and nothing else
+
+The summary survives hiding because it is one line for the whole
+configuration, so hiding it would save nothing worth the loss. The editor
+**starts with the explanations shown**: an application that took the trouble
+to write a description mapping wrote it to be read, and a user who does not
+want it presses one key.
+
+A member the application said nothing about is shown without a description
+rather than with an empty one, and a class with no docstring of its own is
+shown without a label rather than with `Config`'s. Both are principle 4 of
+section 3 rather than incompleteness to be fixed later, and both mean the
+backends create no widget at all for what can never have anything in it.
 
 ## 5. Loading
 
@@ -584,18 +627,29 @@ now, and is a rewrite if it is not.
   model itself and mounts the backend as a widget.
 
 ```python
-def edit(config: Config, backend: EditorBackend,
-         descriptions: Descriptions, *,
+def edit(config: Config, backend: EditorBackend, *,
+         descriptions: Optional[Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          loader: Optional[ConfigLoader] = None,
          policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
+         settings: SettingsSource = Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]:
 ```
 
 The `config` argument serves as the schema and defaults source and stays
 the ergonomic front door; `loader` is the door for applications with
 constructor arguments we do not know about.
+
+`descriptions` is an optional keyword and not the required positional argument
+this document first gave it. An application that describes none of its members
+is a perfectly good caller: the docstring of its configuration class still
+labels the object, and principle 4 of section 3 says that what the editor
+cannot be told it does without. Requiring the argument would also have made
+every existing call site pass an empty mapping to say nothing. Settled at
+step 6, where the same reasoning made `EditModel`'s arguments after the load
+report keyword-only: each of them says one independent thing about the session,
+and none of them is worth passing by position.
 
 The `backend` argument is one this document originally left out, and it has
 to be there: the core never imports a user interface library, so it cannot
@@ -802,8 +856,9 @@ class ActionSettings:
     quit: tuple[str, ...] = ('ctrl+q',)
     validate: tuple[str, ...] = ('ctrl+r', 'f5')
     save: tuple[str, ...] = ('ctrl+s',)
-    save_as: tuple[str, ...] = ('ctrl+shift+s',)
+    save_as: tuple[str, ...] = ('ctrl+shift+s', 'f12')
     cancel: tuple[str, ...] = ('escape',)
+    explain: tuple[str, ...] = ('f1', 'ctrl+g')
 
 
 @dataclass(frozen=True)
@@ -825,6 +880,14 @@ no application.
 Both classes are frozen. The editor is given what an application decided and
 has no business changing it, and a frozen dataclass says so in the one place
 where saying it costs nothing.
+
+`explain` is the attribute that step 6 added, and it is what the promise above
+was written for: an action added later is an added attribute, and no
+application that was written before it breaks. Its keys are `f1`, because a
+function key is what asks for help everywhere else and because a field claims
+most of the control letters, and `ctrl+g`, because a terminal or a keyboard
+that does not deliver a function key would otherwise leave the action to the
+button and the command palette.
 
 ### 9.2 Key combinations
 

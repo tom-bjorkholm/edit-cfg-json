@@ -81,10 +81,10 @@ saved = model.saved_config
 ````
 
 The package is under construction. This version opens a window with one edit
-field per configuration member, four buttons — Validate, Save, Save as and
-Close — and a key for each of them. Every change of a field goes straight
-into the model, and the label above the fields is marked while the model
-holds a change worth saving.
+field per configuration member, five buttons — Validate, Save, Save as,
+Explain and Close — and a key for each of them. Every change of a field goes
+straight into the model, and the label above the fields is marked while the
+model holds a change worth saving.
 
 Validate runs the validation of the application's own configuration class
 and shows below the fields what that class would say about the values that
@@ -107,6 +107,16 @@ enforces its extension gets that filter and no other. An application with no
 opinion gets a dialog with none, because this library has none of its own
 about what a configuration file is called. Save asks the same question when
 the session has no file to write yet, which is what every editor does.
+
+Explain shows or hides what the application says about these values: the
+whole docstring of the configuration class above the fields, and the
+description of each described member below its own field. The editor opens
+with them shown, and what is left when they are hidden is the first paragraph
+of that docstring, because one line for the whole configuration is worth
+keeping. A member the application described gets a line and one it said
+nothing about gets none, rather than an empty one. Which of the two states the
+editor is in belongs to the model, so this backend and the Textual one cannot
+disagree about it.
 
 Close writes nothing of its own. It is the "cancel" of the editor, and it is
 called Close rather than Cancel because saving leaves the editor open: a
@@ -131,6 +141,7 @@ are the defaults of `edit_cfg_json.ActionSettings`:
 | `ctrl+s` | Save |
 | `ctrl+shift+s` or `f12` | Save as |
 | `ctrl+q` | Close |
+| `f1`, or `ctrl+g` | Explain |
 
 Combinations are written in the notation that `ActionSettings` documents,
 which this package translates into the event sequences of Tk: `ctrl+shift+s`
@@ -191,7 +202,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 684 passed in 12s
+- Test result: 739 passed in 13s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

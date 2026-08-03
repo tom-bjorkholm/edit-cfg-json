@@ -14,6 +14,7 @@ from typing import Optional, TextIO
 import sys
 from config_as_json import Config, PathOrStr
 from edit_cfg_json.backend import EditorBackend
+from edit_cfg_json.descriptions import Descriptions
 from edit_cfg_json.edit_model import EditModel
 from edit_cfg_json.loading import DEFAULT_POLICY, LoadPolicy, load_config
 from edit_cfg_json.settings import Settings, SettingsSource
@@ -26,6 +27,7 @@ from edit_cfg_json.settings import Settings, SettingsSource
 # statements it saves.
 # pylint: disable-next=too-many-arguments
 def edit(config: Config, backend: EditorBackend, *,
+         descriptions: Optional[Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = DEFAULT_POLICY,
@@ -48,6 +50,11 @@ def edit(config: Config, backend: EditorBackend, *,
             saved object is handed back rather than expected to be found in
             this one.
         backend: User interface to run this session in.
+        descriptions: What the application says about the members it
+            declares, or None when it says nothing. A configuration explains
+            itself as far as it can without this — the docstring of its class
+            labels the object — and a member no description reaches is shown
+            without one.
         in_file: File to read, or None to start from the declared defaults.
         out_file: File to write, or None to write the input file. A name
             that has no extension gets the one the application uses for its
@@ -69,8 +76,8 @@ def edit(config: Config, backend: EditorBackend, *,
     loaded = load_config(config=config, in_file=in_file, policy=policy,
                          settings=settings)
     model = EditModel(config=loaded.config, report=loaded.report,
-                      out_file=in_file, settings=settings,
-                      stderr_file=stderr_file)
+                      descriptions=descriptions, out_file=in_file,
+                      settings=settings, stderr_file=stderr_file)
     # A destination this call names is one that was chosen for this session,
     # so it gets the extension of the application when it has none of its
     # own. The input file is inherited rather than chosen, and is taken

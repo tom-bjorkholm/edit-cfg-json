@@ -463,7 +463,62 @@ the order, the observable outcome and the main risk.
 
 ### Milestone 2 — flat config, fully explained
 
-**Step 6 — Descriptions and docstrings.** Introduce the `Descriptions`
+**Step 6 — Descriptions and docstrings.**
+
+Status: **Implemented and committed.**
+
+**Decided while building it.**
+
+- **The toggle covers all of the explanatory text, and the summary survives
+  it.** Shown is the whole class docstring plus a description under every
+  described member; hidden is the summary of that docstring and nothing else.
+  One line for the whole configuration is worth keeping, and the per-member
+  lines are the real cost. The editor starts with the explanations shown,
+  because an application that wrote a description mapping wrote it to be read.
+  Recorded in `doc/design.md` section 4.4.
+- **Which of two selectors is more specific** had to be settled: a named step
+  beats the `'['` step and an earlier step decides before a later one, so no
+  two selectors can tie. Recorded in section 4.3.
+- **`descriptions` is an optional keyword** and not the required positional
+  argument that design section 8 gave it. An application that describes
+  nothing is a good caller, and the alternative was every existing call site
+  passing an empty mapping to say nothing. `EditModel`'s arguments after the
+  load report became keyword-only in the same move, which is what they already
+  were at every call site.
+- **`model_as_text` gained a head**: the label of the configuration, and then
+  as much of the docstring as is being shown. The docstring is the label of the
+  configuration object, so it needed the object to be labelled first, and the
+  dump had not been showing that label at all.
+- New public names: `Descriptions`, `docstring_text`, `row_description`, plus
+  `EditModel.summary`, `docstring`, `explanations_shown` and
+  `toggle_explanations`, and `MemberRow.description`. `ActionSettings` gained
+  `explain`, with `('f1', 'ctrl+g')`.
+- `cmd_line.py` gained `--toggle-explain`, which stands in for the explain key
+  as `--set` stands in for typing, and `run_example` gained a `descriptions`
+  argument. `SetEditor` became `StandInUser`, since it now does two things a
+  user would do.
+- The Tk backend gained an Explain button and the Textual one an Explain
+  palette entry, so an action whose key a terminal will not deliver is still
+  reachable. Both create no widget at all for a member the application said
+  nothing about, and none for a class with no docstring.
+
+**Found while building it, and the lesson it carries.** The tests of the Tk
+backend went over the 1000 line limit, so they were split: `helpers.py` holds
+the stubs, the ways of reading a real Tk window and the widget texts that both
+of them expect, `conftest.py` holds the fixture that both need, and the tests
+are now `test_tk_editor.py`, `test_tk_saving.py`, `test_tk_keys.py` and
+`test_tk_explaining.py`. That was worth doing rather than compacting: the
+shared expectations are now in one place, so the four modules cannot drift
+apart about what the editor looks like.
+
+**Observable outcome.** `e03_described_config.py --ui dump` prints the
+docstring of the configuration class, one line per member, and the description
+of every described member below its member. `--toggle-explain` prints the same
+model with the summary and the values alone. Both graphical backends show the
+same and hide it again on `f1`, on `ctrl+g`, or with the Explain button or
+palette entry.
+
+**What it was planned to be.** Introduce the `Descriptions`
 alias, absolute `ConfigPath` keys only, with the more specific selector
 winning over the less specific rather than raising. Read class docstrings
 with `cls.__doc__` and never `inspect.getdoc(cls)`, so that a nested class
