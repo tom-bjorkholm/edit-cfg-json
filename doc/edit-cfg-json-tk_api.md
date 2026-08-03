@@ -2,8 +2,16 @@
 
 * [edit\_cfg\_json\_tk.tk\_editor](#edit_cfg_json_tk.tk_editor)
   * [NAME\_COLUMN\_WIDTH](#edit_cfg_json_tk.tk_editor.NAME_COLUMN_WIDTH)
+  * [LEAST\_FIELD\_WIDTH](#edit_cfg_json_tk.tk_editor.LEAST_FIELD_WIDTH)
   * [PADDING](#edit_cfg_json_tk.tk_editor.PADDING)
   * [DESCRIPTION\_INDENT](#edit_cfg_json_tk.tk_editor.DESCRIPTION_INDENT)
+  * [BODY\_HEIGHT](#edit_cfg_json_tk.tk_editor.BODY_HEIGHT)
+  * [LEAST\_WRAP\_WIDTH](#edit_cfg_json_tk.tk_editor.LEAST_WRAP_WIDTH)
+  * [BODY\_WIDTH](#edit_cfg_json_tk.tk_editor.BODY_WIDTH)
+  * [EMPHASIS\_COLOURS](#edit_cfg_json_tk.tk_editor.EMPHASIS_COLOURS)
+  * [FIELD\_BACKGROUND](#edit_cfg_json_tk.tk_editor.FIELD_BACKGROUND)
+  * [FIELD\_FOREGROUND](#edit_cfg_json_tk.tk_editor.FIELD_FOREGROUND)
+  * [FIELD\_BORDER](#edit_cfg_json_tk.tk_editor.FIELD_BORDER)
   * [VALIDATE\_TEXT](#edit_cfg_json_tk.tk_editor.VALIDATE_TEXT)
   * [SAVE\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_TEXT)
   * [SAVE\_AS\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_AS_TEXT)
@@ -12,6 +20,15 @@
   * [SAVE\_AS\_TITLE](#edit_cfg_json_tk.tk_editor.SAVE_AS_TITLE)
   * [CONFIG\_FILES](#edit_cfg_json_tk.tk_editor.CONFIG_FILES)
   * [ALL\_FILES](#edit_cfg_json_tk.tk_editor.ALL_FILES)
+  * [ScrollingArea](#edit_cfg_json_tk.tk_editor.ScrollingArea)
+    * [area](#edit_cfg_json_tk.tk_editor.ScrollingArea.area)
+    * [body](#edit_cfg_json_tk.tk_editor.ScrollingArea.body)
+  * [StateWidgets](#edit_cfg_json_tk.tk_editor.StateWidgets)
+    * [title](#edit_cfg_json_tk.tk_editor.StateWidgets.title)
+    * [docstring](#edit_cfg_json_tk.tk_editor.StateWidgets.docstring)
+    * [verdict](#edit_cfg_json_tk.tk_editor.StateWidgets.verdict)
+    * [saving](#edit_cfg_json_tk.tk_editor.StateWidgets.saving)
+    * [explained](#edit_cfg_json_tk.tk_editor.StateWidgets.explained)
   * [RowWidgets](#edit_cfg_json_tk.tk_editor.RowWidgets)
     * [field](#edit_cfg_json_tk.tk_editor.RowWidgets.field)
     * [mark](#edit_cfg_json_tk.tk_editor.RowWidgets.mark)
@@ -37,11 +54,31 @@
 
 Tkinter view of an edit model, with one editable field per member.
 
+Everything this backend takes from the core is reached through `core`, which is
+`edit_cfg_json` itself. A backend may use the public API of the core and
+nothing else, and naming it at every call site is what makes that visible; it
+also keeps the two backends from each holding the same block of twenty
+imported names, which is a duplication with nothing to factor out, since
+neither backend may import the other.
+
 <a id="edit_cfg_json_tk.tk_editor.NAME_COLUMN_WIDTH"></a>
 
 #### NAME\_COLUMN\_WIDTH
 
 Width in characters of the column that holds the member names.
+
+<a id="edit_cfg_json_tk.tk_editor.LEAST_FIELD_WIDTH"></a>
+
+#### LEAST\_FIELD\_WIDTH
+
+Width in characters that a field asks for, and can be squeezed to.
+
+A field takes every bit of the width that the name and the marks of its member
+leave over, so this is not how wide a field is: it is how far a field gives way
+when the window is too narrow for all three. The marks are what a narrow window
+would otherwise cut off, and a mark that is there and cannot be read is worse
+than a field with fewer characters in view. The Textual backend gives way in
+the same direction and for the same reason.
 
 <a id="edit_cfg_json_tk.tk_editor.PADDING"></a>
 
@@ -57,6 +94,81 @@ Indentation in pixels of the description of one member.
 
 The indentation is what says that the line belongs to the member above it
 rather than being a member of its own.
+
+<a id="edit_cfg_json_tk.tk_editor.BODY_HEIGHT"></a>
+
+#### BODY\_HEIGHT
+
+Largest height in pixels that the scrolling part of the editor is given.
+
+A configuration of any size therefore opens a window that fits a screen, and
+what does not fit is scrolled to rather than lost. A configuration smaller
+than this gets a window that is smaller than this, because the height is what
+the body asks for up to this limit and not this limit.
+
+<a id="edit_cfg_json_tk.tk_editor.LEAST_WRAP_WIDTH"></a>
+
+#### LEAST\_WRAP\_WIDTH
+
+Narrowest line in pixels that a paragraph of the editor is wrapped to.
+
+A window can be made narrower than any text is readable in, and wrapping to
+what is left of it would leave one word per line. Below this the text is cut
+off by the window instead, which is the lesser of the two.
+
+<a id="edit_cfg_json_tk.tk_editor.BODY_WIDTH"></a>
+
+#### BODY\_WIDTH
+
+Largest width in pixels that the scrolling part of the editor asks for.
+
+A canvas asks for a width of its own that has nothing to do with what is on
+it, so the width the editor opens at has to be said here: what the body asks
+for, up to this. Wider than this is left to the user, who can make the window
+any size, and every text that is a paragraph wraps to whatever width there is.
+
+<a id="edit_cfg_json_tk.tk_editor.EMPHASIS_COLOURS"></a>
+
+#### EMPHASIS\_COLOURS
+
+The colour of every reason the core has to show something differently.
+
+One colour per member of `edit_cfg_json.Emphasis`, chosen to be read on the
+light window that Tk gives this editor: a grey that is dark enough for a
+paragraph of explanation to be comfortable rather than faint, and a blue, an
+amber, a green and a red that carry on a light background.
+
+Tk has no theme to ask, unlike the Textual backend, which names colours of its
+terminal's theme and follows it into a dark mode. A Tk that has been put into
+a dark mode by its platform would want other values here, and that belongs
+with the rest of what an application decides rather than in the middle of a
+backend; see section 9 of `doc/design.md`.
+
+<a id="edit_cfg_json_tk.tk_editor.FIELD_BACKGROUND"></a>
+
+#### FIELD\_BACKGROUND
+
+Background of a field the user can edit.
+
+The window is white, so a field that kept the white background of its own
+accord could not be told from a label: the values were there to be edited and
+nothing said so. The tint plus the border below are what say it.
+
+<a id="edit_cfg_json_tk.tk_editor.FIELD_FOREGROUND"></a>
+
+#### FIELD\_FOREGROUND
+
+Colour of the text inside a field.
+
+It is stated rather than inherited, because the background above is stated:
+a platform that decided the text of a field should be white would otherwise
+put white text on a light field.
+
+<a id="edit_cfg_json_tk.tk_editor.FIELD_BORDER"></a>
+
+#### FIELD\_BORDER
+
+Colour of the line around a field the user can edit.
 
 <a id="edit_cfg_json_tk.tk_editor.VALIDATE_TEXT"></a>
 
@@ -80,11 +192,13 @@ Text of the button that chooses an output file and then writes it.
 
 #### EXPLAIN\_TEXT
 
-Text of the button that shows or hides the explanatory text.
+Text of the tick-box that shows or hides the explanatory text.
 
-One text for both directions, which is also what the Textual footer and the
-command palette show for this action: the button names what it is about, and
-whether the explanations are there is something the window itself says.
+A tick-box and not a button, because the action is a toggle and a button
+called Explain that hides the explanations reads as the wrong thing entirely.
+The tick says which of the two states the editor is in, so one text is true in
+both. The Textual backend has no button row to put one in and renames its own
+action instead.
 
 <a id="edit_cfg_json_tk.tk_editor.CLOSE_TEXT"></a>
 
@@ -114,6 +228,78 @@ What the dialog calls the files of the extension the application uses.
 #### ALL\_FILES
 
 What the dialog calls every other file.
+
+<a id="edit_cfg_json_tk.tk_editor.ScrollingArea"></a>
+
+## ScrollingArea Objects
+
+```python
+class ScrollingArea(NamedTuple)
+```
+
+The part of the editor that scrolls, before it has been placed.
+
+<a id="edit_cfg_json_tk.tk_editor.ScrollingArea.area"></a>
+
+#### area
+
+The frame to pack where the scrolling part of the editor belongs.
+
+<a id="edit_cfg_json_tk.tk_editor.ScrollingArea.body"></a>
+
+#### body
+
+The frame to build the scrolling part of the editor in.
+
+<a id="edit_cfg_json_tk.tk_editor.StateWidgets"></a>
+
+## StateWidgets Objects
+
+```python
+class StateWidgets(NamedTuple)
+```
+
+The widgets that say what is true of the whole model.
+
+They are one object rather than one attribute each, so that the class
+below has a handful of things to hold rather than a dozen.
+
+<a id="edit_cfg_json_tk.tk_editor.StateWidgets.title"></a>
+
+#### title
+
+The label that names the configuration and marks unsaved changes.
+
+<a id="edit_cfg_json_tk.tk_editor.StateWidgets.docstring"></a>
+
+#### docstring
+
+The label that says what the configuration class says about itself.
+
+It is None for a class with no docstring of its own, because there is then
+nothing that could ever appear in it.
+
+<a id="edit_cfg_json_tk.tk_editor.StateWidgets.verdict"></a>
+
+#### verdict
+
+The label that says what the application makes of these values.
+
+<a id="edit_cfg_json_tk.tk_editor.StateWidgets.saving"></a>
+
+#### saving
+
+The label that says what saving did, or where it would write.
+
+<a id="edit_cfg_json_tk.tk_editor.StateWidgets.explained"></a>
+
+#### explained
+
+Whether the tick-box of the explanations is ticked.
+
+The variable is what a `Checkbutton` shows its state through, and it has
+to be kept for as long as the tick-box lives: a `tkinter.Variable` unsets
+its Tcl variable when it is collected.
 
 <a id="edit_cfg_json_tk.tk_editor.RowWidgets"></a>
 
@@ -174,7 +360,7 @@ one and the pairing is checked rather than assumed.
 
 ```python
 def __init__(parent: tkinter.Misc,
-             model: EditModel,
+             model: core.EditModel,
              *,
              on_close: Optional[Callable[[], None]] = None) -> None
 ```
@@ -268,7 +454,7 @@ Create a backend that has not shown a model yet.
 #### run\_editor
 
 ```python
-def run_editor(model: EditModel) -> None
+def run_editor(model: core.EditModel) -> None
 ```
 
 Show the model in a Tk window until the user closes it.
@@ -294,11 +480,11 @@ the editor in a widget that application owns.
 ```python
 def edit(config: Config,
          *,
-         descriptions: Optional[Descriptions] = None,
+         descriptions: Optional[core.Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
-         policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
-         settings: SettingsSource = Settings(),
+         policy: core.LoadPolicy = core.LoadPolicy.STRICT_THEN_DEFAULTS,
+         settings: core.SettingsSource = core.Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]
 ```
 

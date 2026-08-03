@@ -1,113 +1,28 @@
 #! /usr/bin/env python3
-"""Tests for the Textual backend, driven headlessly.
-
-Textual runs headlessly in process, so the equivalent of a withdrawn Tk
-window is available everywhere, including on a machine with no display.
-`App.run_test()` is an asynchronous context manager, and it is driven from
-an ordinary test function with `asyncio.run`, which keeps the test session
-free of an extra asynchronous test plugin.
-
-The configuration class comes from the example rather than from a class of
-its own, so that the same flat configuration is used by the core tests, by
-both backends and by the example itself.
-"""
+"""Tests for the widgets of the Textual backend, and for editing in them."""
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from pathlib import Path
 import asyncio
-import json
 from config_as_json import JsonType
 import pytest
 from textual.app import App, ComposeResult
+from textual.containers import VerticalScroll
 from textual.geometry import Region
-from textual.widgets import Input, Label, Static
-from edit_cfg_json import ActionSettings, Descriptions, EditModel, \
-    EditorBackend, LoadReport, Settings
-from edit_cfg_json_textual import TextualEditor
-from edit_cfg_json_textual import edit as textual_edit
-from edit_cfg_json_textual.textual_editor import DESCRIPTION_ID_PREFIX, \
-    DOCSTRING_ID, EditorApp, EXPLAIN_COMMAND, LEAST_VALUE_WIDTH, LOAD_ID, \
-    MARK_ID_PREFIX, SAVE_AS_BOX_ID, SAVE_AS_COMMAND, SAVE_AS_ID, \
-    SAVE_COMMAND, SAVE_ID, VALIDATE_COMMAND, VALUE_ID_PREFIX, VERDICT_ID, \
+from textual.widgets import Static
+from edit_cfg_json import EditModel
+from edit_cfg_json_textual.textual_editor import BODY_ID, EditorApp, \
+    LEAST_VALUE_WIDTH, LOAD_ID, MARK_ID_PREFIX, SAVE_ID, VALUE_ID_PREFIX, \
     plain_widget
 from example.e01_flat_config import FlatConfig
-
-DEFAULT_ACTIONS = ActionSettings()
-"""The keys of the editor for an application with no opinion of its own.
-
-The tests press the keys of the settings rather than keys of their own, so
-that a default that moves moves them with it. Which keys those are is
-decided in the core and tested there.
-"""
-
-QUIT_KEY = DEFAULT_ACTIONS.quit[0]
-"""Key that ends the editor."""
-
-VALIDATE_KEY = DEFAULT_ACTIONS.validate[0]
-"""Key that validates the buffer, and the one the footer names."""
-
-VALIDATE_ALT_KEY = DEFAULT_ACTIONS.validate[1]
-"""The other key that validates the buffer."""
-
-SAVE_KEY = DEFAULT_ACTIONS.save[0]
-"""Key that writes the output file."""
-
-SAVE_AS_KEY = DEFAULT_ACTIONS.save_as[0]
-"""Key that chooses an output file and then writes it."""
-
-EXPLAIN_KEY = DEFAULT_ACTIONS.explain[0]
-"""Key that shows or hides the explanatory text, and the one the footer
-names."""
-
-EXPLAIN_ALT_KEY = DEFAULT_ACTIONS.explain[1]
-"""The other key that shows or hides the explanatory text."""
-
-ABOUT_NAME = 'What the name of this configuration is for.'
-"""Description of the one member that the tests below describe."""
-
-DESCRIPTIONS: Descriptions = {('name',): ABOUT_NAME}
-"""What an application says about the members of the example."""
-
-EXPECTED_VALUES = {'name': 'Flat example', 'answer': '42'}
-"""Value text that the application is expected to show for each member."""
-
-LOAD_MESSAGE = 'the file left something out'
-"""Message of the load in the tests that show one."""
-
-FILLED_REPORT = LoadReport(message=LOAD_MESSAGE, filled=frozenset({'answer'}))
-"""Report of a load that filled the number member in from the default."""
-
-FILLED_MARK = ' (filled from default)'
-"""Mark of a member that the input file did not hold."""
-
-UNKNOWN_VERDICT = 'validation: not validated'
-"""Text the editor shows before anything has been validated."""
-
-VALID_VERDICT = 'validation: valid'
-"""Text the editor shows for a buffer the application would accept."""
-
-REWRITTEN_MARK = ' (edited) (changed by validator)'
-"""Mark of a member that the user changed and a validator then rewrote."""
+from .helpers import DESCRIPTIONS, EXPECTED_VALUES, FILLED_MARK, \
+    FILLED_REPORT, LOAD_MESSAGE, NARROW_SIZE, QUIT_KEY, REWRITTEN_MARK, \
+    ROOMY_SIZE, SHORT_SIZE, UNKNOWN_VERDICT, VALIDATE_ALT_KEY, VALIDATE_KEY, \
+    VALID_VERDICT, field_of, mark_of, model_value, verdict_of
 
 MARKUP_TEXT = 'value [red on blue]here[/] is refused'
 """Text of a configuration that happens to look like console markup."""
-
-ROOMY_SIZE = (100, 24)
-"""Terminal size with room for the longest mark a member can carry."""
-
-NARROW_SIZE = (40, 24)
-"""Terminal size too narrow for the field and the marks together."""
-
-NO_FILE_TEXT = 'save to: no file chosen yet'
-"""Text the editor shows while no output file has been chosen."""
-
-ENTER_KEY = 'enter'
-"""Key that answers the question about the output file."""
-
-ESCAPE_KEY = 'escape'
-"""Key that leaves the question about the output file unanswered."""
 
 
 class MarkupProbe(App[None]):
@@ -116,37 +31,6 @@ class MarkupProbe(App[None]):
     def compose(self) -> ComposeResult:
         """Create the one widget that is under test."""
         yield plain_widget(MARKUP_TEXT, 'probe')
-
-
-def _field(app: EditorApp, member_name: str) -> Input:
-    """Return the field that the application shows for one member."""
-    return app.query_one(f'#{VALUE_ID_PREFIX}{member_name}', Input)
-
-
-def _mark(app: EditorApp, member_name: str) -> str:
-    """Return the mark that the application shows for one member."""
-    widget = app.query_one(f'#{MARK_ID_PREFIX}{member_name}', Static)
-    return str(widget.content)
-
-
-def _verdict(app: EditorApp) -> str:
-    """Return the validation text that the application shows."""
-    return str(app.query_one(f'#{VERDICT_ID}', Static).content)
-
-
-def _saving(app: EditorApp) -> str:
-    """Return the saving text that the application shows."""
-    return str(app.query_one(f'#{SAVE_ID}', Static).content)
-
-
-def _written(out_file: Path) -> object:
-    """Return what one output file holds, as JSON space values."""
-    return json.loads(out_file.read_text(encoding='UTF-8'))
-
-
-def _model_value(model: EditModel, name: str) -> JsonType:
-    """Return the value that the buffer holds for one member."""
-    return {row.name: row.value for row in model.rows}[name]
 
 
 async def _drive_app() -> tuple[str, dict[str, str], str, bool]:
@@ -160,8 +44,8 @@ async def _drive_app() -> tuple[str, dict[str, str], str, bool]:
     app = EditorApp(EditModel(FlatConfig()))
     async with app.run_test() as pilot:
         title = app.title
-        shown = {name: _field(app, name).value for name in EXPECTED_VALUES}
-        verdict = _verdict(app)
+        shown = {name: field_of(app, name).value for name in EXPECTED_VALUES}
+        verdict = verdict_of(app)
         await pilot.press(QUIT_KEY)
         await pilot.pause()
         return title, shown, verdict, app.is_running
@@ -179,11 +63,11 @@ async def _type_into_answer(key: str) -> tuple[JsonType, str]:
     model = EditModel(FlatConfig())
     app = EditorApp(model)
     async with app.run_test() as pilot:
-        _field(app, 'answer').focus()
+        field_of(app, 'answer').focus()
         await pilot.pause()
         await pilot.press(key)
         await pilot.pause()
-        return _model_value(model, 'answer'), app.title
+        return model_value(model, 'answer'), app.title
 
 
 async def _validate_with(member_name: str, text: str,
@@ -201,16 +85,16 @@ async def _validate_with(member_name: str, text: str,
     """
     app = EditorApp(EditModel(FlatConfig()))
     async with app.run_test() as pilot:
-        _field(app, member_name).value = text
+        field_of(app, member_name).value = text
         # The field keeps the focus while the key is pressed, which is the
         # situation the editor is really in: a user validates what has just
         # been typed without leaving the field first.
-        _field(app, member_name).focus()
+        field_of(app, member_name).focus()
         await pilot.pause()
         await pilot.press(key)
         await pilot.pause()
-        return (_verdict(app), _field(app, member_name).value,
-                _mark(app, member_name))
+        return (verdict_of(app), field_of(app, member_name).value,
+                mark_of(app, member_name))
 
 
 async def _edit_after_validate() -> str:
@@ -223,9 +107,9 @@ async def _edit_after_validate() -> str:
     async with app.run_test() as pilot:
         await pilot.press(VALIDATE_KEY)
         await pilot.pause()
-        _field(app, 'answer').value = '7'
+        field_of(app, 'answer').value = '7'
         await pilot.pause()
-        return _verdict(app)
+        return verdict_of(app)
 
 
 def test_app_shows_model() -> None:
@@ -305,7 +189,7 @@ async def _load_shown() -> tuple[str, str, str]:
     app = EditorApp(EditModel(FlatConfig(), FILLED_REPORT))
     async with app.run_test():
         shown = str(app.query_one(f'#{LOAD_ID}', Static).content)
-        return shown, _mark(app, 'answer'), _mark(app, 'name')
+        return shown, mark_of(app, 'answer'), mark_of(app, 'name')
 
 
 async def _no_load_widget() -> bool:
@@ -360,7 +244,7 @@ async def _laid_out(size: tuple[int, int]) -> tuple[dict[str, Region], Region]:
 
 
 def test_all_on_screen() -> None:
-    """Test every widget of the editor is laid out where it can be seen.
+    """Test no widget of the editor is laid out beyond the edges of it.
 
     This asserts the geometry rather than the text, because that is the
     difference the other tests of this module cannot see. A widget that
@@ -368,11 +252,57 @@ def test_all_on_screen() -> None:
     text and shows it to nobody, and that is how the marks of a member went
     missing once: `Input` is a full width widget of its own accord, so it
     took the whole line and left the mark beside it nowhere to be.
+
+    Only the two sides are asserted. Below the bottom is where the body puts
+    what is too tall for the terminal, and it is reached by scrolling to it
+    rather than being lost, which the test below is about.
     """
     placed, screen = asyncio.run(_laid_out(ROOMY_SIZE))
     beyond = [name for name, region in placed.items()
-              if not screen.contains_region(region)]
+              if region.x < screen.x or region.right > screen.right]
     assert not beyond
+
+
+async def _scrolling(size: tuple[int, int]) -> tuple[int, int, bool]:
+    """Run the application and report what its body does about its height.
+
+    Args:
+        size: Terminal size to lay the application out in.
+
+    Returns:
+        How far the body can be scrolled, how far it went when it was asked
+        for all of it, and whether the saving line stayed where it was.
+    """
+    app = EditorApp(EditModel(FlatConfig(), FILLED_REPORT,
+                              descriptions=DESCRIPTIONS))
+    async with app.run_test(size=size) as pilot:
+        await pilot.pause()
+        body = app.query_one(f'#{BODY_ID}', VerticalScroll)
+        before = app.query_one(f'#{SAVE_ID}', Static).region
+        limit = int(body.max_scroll_y)
+        body.scroll_to(y=limit, animate=False)
+        await pilot.pause()
+        return (limit, int(body.scroll_offset.y),
+                app.query_one(f'#{SAVE_ID}', Static).region == before)
+
+
+def test_body_scrolls() -> None:
+    """Test a configuration too tall for the terminal is scrolled to.
+
+    What the application makes of the values and where they would be written
+    stay where they are, because they are what a user reaches for after
+    editing rather than something to scroll to.
+    """
+    limit, moved, kept = asyncio.run(_scrolling(SHORT_SIZE))
+    assert limit > 0
+    assert moved == limit
+    assert kept
+
+
+def test_no_scroll_if_fits() -> None:
+    """Test a configuration that fits has nothing to scroll."""
+    limit, _, _ = asyncio.run(_scrolling(ROOMY_SIZE))
+    assert limit == 0
 
 
 def test_mark_width() -> None:
@@ -382,7 +312,7 @@ def test_mark_width() -> None:
     assert placed[f'{MARK_ID_PREFIX}name'].width == 0
 
 
-def test_narrow_keeps_field() -> None:
+def test_narrow_keepsfield_of() -> None:
     """Test a terminal too narrow for both cuts the marks, not the field.
 
     The field is what the user edits, and `model_as_text` shows every mark
@@ -407,524 +337,3 @@ def test_markup_shown_as_text() -> None:
     brackets and the text between them.
     """
     assert asyncio.run(_shown_markup()) == MARKUP_TEXT
-
-
-async def _save_with(model: EditModel, member_name: str = 'answer',
-                     text: str = '7') -> tuple[str, str, str]:
-    """Run the application headlessly, edit one field and press Save.
-
-    Args:
-        model: Model to run the application on.
-        member_name: Member whose field is written into.
-        text: Text to put in that field, replacing what is there.
-
-    Returns:
-        The saving text, the validation text, and the title.
-    """
-    app = EditorApp(model)
-    async with app.run_test() as pilot:
-        _field(app, member_name).value = text
-        await pilot.pause()
-        await pilot.press(SAVE_KEY)
-        await pilot.pause()
-        return _saving(app), _verdict(app), app.title
-
-
-def test_save_writes(tmp_path: Path) -> None:
-    """Test the save key writes the edited values to the output file."""
-    out_file = tmp_path / 'out.json'
-    model = EditModel(FlatConfig(), out_file=out_file)
-    saving, verdict, title = asyncio.run(_save_with(model))
-    assert saving == f'Saved to {out_file}.'
-    assert verdict == VALID_VERDICT
-    assert title == 'FlatConfig'
-    assert _written(out_file) == {'name': 'Flat example', 'answer': 7}
-
-
-def test_save_refused(tmp_path: Path) -> None:
-    """Test an invalid buffer is not written, and the verdict says why."""
-    out_file = tmp_path / 'out.json'
-    model = EditModel(FlatConfig(), out_file=out_file)
-    saving, verdict, title = asyncio.run(_save_with(model, text='500'))
-    assert 'cannot be saved' in saving
-    assert 'greater than maximum 100' in verdict
-    assert title == 'FlatConfig *'
-    assert not out_file.exists()
-
-
-def test_save_rewrites(tmp_path: Path) -> None:
-    """Test a value a validator rewrote is what reaches the file.
-
-    Saving validates, so it rewrites what validating would rewrite, and the
-    field is refreshed to show what really went into the file.
-    """
-    out_file = tmp_path / 'out.json'
-    model = EditModel(FlatConfig(), out_file=out_file)
-    saving, _, _ = asyncio.run(_save_with(model, 'name', 'other'))
-    assert saving == f'Saved to {out_file}.'
-    assert _written(out_file) == {'name': 'Other', 'answer': 42}
-
-
-def test_destination_shown(tmp_path: Path) -> None:
-    """Test a session with a file says where it would write, before saving."""
-    out_file = tmp_path / 'out.json'
-
-    async def shown() -> str:
-        """Run the application and read what it says about saving."""
-        app = EditorApp(EditModel(FlatConfig(), out_file=out_file))
-        async with app.run_test():
-            return _saving(app)
-    assert asyncio.run(shown()) == f'save to: {out_file}'
-
-
-def test_no_destination_shown() -> None:
-    """Test a session with no file says that rather than saying nothing."""
-    async def shown() -> str:
-        """Run the application and read what it says about saving."""
-        app = EditorApp(EditModel(FlatConfig()))
-        async with app.run_test():
-            return _saving(app)
-    assert asyncio.run(shown()) == NO_FILE_TEXT
-
-
-async def _save_as(model: EditModel, typed: str, key: str = SAVE_AS_KEY,
-                   answer: str = ENTER_KEY) -> str:
-    """Run the application headlessly and answer the Save as question.
-
-    Args:
-        model: Model to run the application on.
-        typed: File name to type into the question.
-        key: Key pressed to ask the question.
-        answer: Key pressed to finish with it.
-
-    Returns:
-        The saving text the editor shows afterwards.
-    """
-    app = EditorApp(model)
-    async with app.run_test() as pilot:
-        await pilot.press(key)
-        await pilot.pause()
-        app.screen.query_one(f'#{SAVE_AS_ID}', Input).value = typed
-        await pilot.pause()
-        await pilot.press(answer)
-        await pilot.pause()
-        return _saving(app)
-
-
-def test_save_as_writes(tmp_path: Path) -> None:
-    """Test Save as asks which file to write and then writes it."""
-    out_file = tmp_path / 'chosen.cfg'
-    model = EditModel(FlatConfig())
-    assert asyncio.run(_save_as(model, str(out_file))) == \
-        f'Saved to {out_file}.'
-    assert model.out_file == str(out_file)
-    assert _written(out_file) == {'name': 'Flat example', 'answer': 42}
-
-
-def test_save_as_cancelled(tmp_path: Path) -> None:
-    """Test leaving the question unanswered chooses nothing and writes it."""
-    out_file = tmp_path / 'chosen.cfg'
-    model = EditModel(FlatConfig())
-    assert asyncio.run(_save_as(model, str(out_file),
-                                answer=ESCAPE_KEY)) == NO_FILE_TEXT
-    assert model.out_file is None
-    assert not out_file.exists()
-
-
-def test_save_as_empty(tmp_path: Path) -> None:
-    """Test an empty answer is the same as no answer at all.
-
-    There is no file whose name is nothing, so an empty field cannot become
-    a destination.
-    """
-    _ = tmp_path
-    model = EditModel(FlatConfig())
-    assert asyncio.run(_save_as(model, '')) == NO_FILE_TEXT
-    assert model.out_file is None
-
-
-def test_save_asks_when_none(tmp_path: Path) -> None:
-    """Test Save asks where to write when the session has no file yet.
-
-    That is what every editor does, and it is the reason a model may be
-    built with no destination at all.
-    """
-    out_file = tmp_path / 'asked.json'
-    model = EditModel(FlatConfig())
-    assert asyncio.run(_save_as(model, str(out_file), key=SAVE_KEY)) == \
-        f'Saved to {out_file}.'
-    assert out_file.exists()
-
-
-def test_save_as_starts_at(tmp_path: Path) -> None:
-    """Test the question starts at the file that would be written now.
-
-    Saving a copy beside the original is then a matter of changing a few
-    characters rather than of typing a whole path.
-    """
-    out_file = tmp_path / 'out.json'
-
-    async def shown() -> str:
-        """Ask the question and read what its field starts with."""
-        app = EditorApp(EditModel(FlatConfig(), out_file=out_file))
-        async with app.run_test() as pilot:
-            await pilot.press(SAVE_AS_KEY)
-            await pilot.pause()
-            return app.screen.query_one(f'#{SAVE_AS_ID}', Input).value
-    assert asyncio.run(shown()) == str(out_file)
-
-
-@pytest.mark.parametrize('size', [ROOMY_SIZE, NARROW_SIZE])
-def test_save_as_on_screen(size: tuple[int, int]) -> None:
-    """Test the question about the output file is laid out where it is seen.
-
-    A terminal too narrow for it would otherwise lay it out beyond the edge
-    of the screen, which is how the marks of a member went missing once.
-    """
-    async def placed() -> tuple[Region, Region]:
-        """Ask the question and report where its box ended up."""
-        app = EditorApp(EditModel(FlatConfig()))
-        async with app.run_test(size=size) as pilot:
-            await pilot.press(SAVE_AS_KEY)
-            await pilot.pause()
-            box = app.screen.query_one(f'#{SAVE_AS_BOX_ID}')
-            return box.region, app.screen.region
-    region, screen = asyncio.run(placed())
-    assert screen.contains_region(region)
-
-
-def test_question_is_modal() -> None:
-    """Test the keys of the editor do nothing while the question is open.
-
-    Textual dispatches a priority binding of an application from the whole
-    chain rather than from the part of it above the last modal screen, so it
-    goes on offering the editor its keys while the question is up. Without the
-    editor turning its own actions off, one more Save would stack a second
-    question on the first, and Quit would abandon the question altogether.
-    """
-    async def pressed() -> tuple[int, bool, str]:
-        """Ask the question and then press every key of the editor."""
-        app = _described_app()
-        async with app.run_test() as pilot:
-            await pilot.press(SAVE_AS_KEY)
-            await pilot.pause()
-            for key in (SAVE_KEY, SAVE_AS_KEY, VALIDATE_KEY, EXPLAIN_KEY,
-                        QUIT_KEY):
-                await pilot.press(key)
-                await pilot.pause()
-            return len(app.screen_stack), app.is_running, _docstring(app)
-    depth, running, docstring = asyncio.run(pressed())
-    assert depth == 2
-    assert running
-    assert docstring == EditModel(FlatConfig()).docstring
-
-
-def test_keys_work_after(tmp_path: Path) -> None:
-    """Test the keys of the editor work again once the question is gone."""
-    out_file = tmp_path / 'out.json'
-
-    async def answered() -> str:
-        """Leave the question unanswered and then save the ordinary way."""
-        app = EditorApp(EditModel(FlatConfig(), out_file=out_file))
-        async with app.run_test() as pilot:
-            await pilot.press(SAVE_AS_KEY)
-            await pilot.pause()
-            await pilot.press(ESCAPE_KEY)
-            await pilot.pause()
-            await pilot.press(SAVE_KEY)
-            await pilot.pause()
-            return _saving(app)
-    assert asyncio.run(answered()) == f'Saved to {out_file}.'
-
-
-def test_palette_has_actions() -> None:
-    """Test the command palette offers the actions of the editor as well.
-
-    Every terminal can reach the palette, which is what makes it the answer
-    for a key combination a terminal cannot encode.
-    """
-    async def names() -> list[str]:
-        """Run the application and read what its palette would offer."""
-        app = EditorApp(EditModel(FlatConfig()))
-        async with app.run_test():
-            return [command.title
-                    for command in app.get_system_commands(app.screen)]
-    offered = asyncio.run(names())
-    assert VALIDATE_COMMAND in offered
-    assert SAVE_COMMAND in offered
-    assert SAVE_AS_COMMAND in offered
-    assert EXPLAIN_COMMAND in offered
-
-
-def test_palette_keeps_own() -> None:
-    """Test the commands of Textual itself are still there beside them."""
-    async def names() -> list[str]:
-        """Run the application and read what its palette would offer."""
-        app = EditorApp(EditModel(FlatConfig()))
-        async with app.run_test():
-            return [command.title
-                    for command in app.get_system_commands(app.screen)]
-    assert 'Quit' in asyncio.run(names())
-
-
-class NoDocConfig(FlatConfig):
-    """This docstring is taken away below, so that this class has none."""
-
-
-# A configuration class written without a docstring is one the editor has to
-# handle, and it cannot be written here, because every class in this
-# repository has to have one. Taking it away afterwards is the same thing.
-NoDocConfig.__doc__ = None
-
-
-def _docstring(app: EditorApp) -> str:
-    """Return the text that the application shows for the whole class."""
-    return str(app.query_one(f'#{DOCSTRING_ID}', Static).content)
-
-
-def _description(app: EditorApp, member_name: str) -> Static:
-    """Return the widget that the application shows about one member."""
-    return app.query_one(f'#{DESCRIPTION_ID_PREFIX}{member_name}', Static)
-
-
-def _described_app() -> EditorApp:
-    """Return an application on a model whose text member is described."""
-    return EditorApp(EditModel(FlatConfig(), descriptions=DESCRIPTIONS))
-
-
-async def _explained(*keys: str) -> tuple[str, bool, str]:
-    """Run the described application and press every key it is given.
-
-    Args:
-        keys: Keys to press, which are the ones that show or hide the
-            explanatory text.
-
-    Returns:
-        What the application says about the configuration class, whether the
-        description of the member is being shown, and the description itself.
-    """
-    app = _described_app()
-    async with app.run_test() as pilot:
-        for key in keys:
-            await pilot.press(key)
-            await pilot.pause()
-        widget = _description(app, 'name')
-        return _docstring(app), widget.display, str(widget.content)
-
-
-def test_explanations_shown() -> None:
-    """Test the editor starts by showing what the configuration is for."""
-    docstring, shown, description = asyncio.run(_explained())
-    assert docstring == EditModel(FlatConfig()).docstring
-    assert shown
-    assert description == ABOUT_NAME
-
-
-@pytest.mark.parametrize('key', [EXPLAIN_KEY, EXPLAIN_ALT_KEY])
-def test_explain_hides(key: str) -> None:
-    """Test either explain key leaves the summary and hides the rest.
-
-    Both keys are tried because a terminal or a keyboard that does not
-    deliver a function key is exactly why there are two.
-    """
-    docstring, shown, _ = asyncio.run(_explained(key))
-    assert docstring == EditModel(FlatConfig()).summary
-    assert not shown
-
-
-def test_explain_shows_again() -> None:
-    """Test the same key brings the explanatory text back."""
-    docstring, shown, _ = asyncio.run(_explained(EXPLAIN_KEY, EXPLAIN_KEY))
-    assert docstring == EditModel(FlatConfig()).docstring
-    assert shown
-
-
-def test_hidden_at_start() -> None:
-    """Test a model that was told to hide them opens with them hidden.
-
-    Which of the two states the editor is in belongs to the model, so a model
-    that reached this backend already toggled has to be honoured rather than
-    overruled.
-    """
-    model = EditModel(FlatConfig(), descriptions=DESCRIPTIONS)
-    model.toggle_explanations()
-
-    async def shown() -> tuple[str, bool]:
-        """Run the application and read what it is showing."""
-        app = EditorApp(model)
-        async with app.run_test():
-            return _docstring(app), _description(app, 'name').display
-    docstring, showing = asyncio.run(shown())
-    assert docstring == model.summary
-    assert not showing
-
-
-def test_no_about_widget() -> None:
-    """Test a member the application says nothing about gets no widget.
-
-    There is nothing that could ever appear in it, so the row has one widget
-    less rather than an empty one.
-    """
-    async def widgets() -> tuple[int, int]:
-        """Run the described application and count the two members."""
-        app = _described_app()
-        async with app.run_test():
-            return (len(app.query(f'#{DESCRIPTION_ID_PREFIX}name')),
-                    len(app.query(f'#{DESCRIPTION_ID_PREFIX}answer')))
-    described, undescribed = asyncio.run(widgets())
-    assert described == 1
-    assert not undescribed
-
-
-def test_no_docstring_widget() -> None:
-    """Test a class with no docstring of its own gets no widget for one."""
-    async def widgets() -> int:
-        """Run an application on such a class and look for the widget."""
-        app = EditorApp(EditModel(NoDocConfig()))
-        async with app.run_test():
-            return len(app.query(f'#{DOCSTRING_ID}'))
-    assert not asyncio.run(widgets())
-
-
-def _keys(actions: ActionSettings) -> Settings:
-    """Return the settings of an application that chose these keys."""
-    return Settings(actions=actions)
-
-
-def _shown_keys(app: EditorApp) -> dict[str, str]:
-    """Return the key that the footer names for each action it shows."""
-    return {binding.action: binding.key
-            for (_, binding, enabled, _) in app.screen.active_bindings.values()
-            if enabled and binding.show}
-
-
-def test_chosen_key_saves(tmp_path: Path) -> None:
-    """Test a save key the application chose is the one that saves."""
-    out_file = tmp_path / 'out.json'
-    model = EditModel(FlatConfig(), out_file=out_file,
-                      settings=_keys(ActionSettings(save=('ctrl+w',))))
-
-    async def press(key: str) -> str:
-        """Run the application and press one key."""
-        app = EditorApp(model)
-        async with app.run_test() as pilot:
-            await pilot.press(key)
-            await pilot.pause()
-            return _saving(app)
-    assert asyncio.run(press('ctrl+s')) == f'save to: {out_file}'
-    assert asyncio.run(press('ctrl+w')) == f'Saved to {out_file}.'
-
-
-def test_second_key_works(tmp_path: Path) -> None:
-    """Test every key of an action runs it, and the footer names the first."""
-    _ = tmp_path
-
-    async def shown() -> tuple[dict[str, str], str]:
-        """Run the application, read the footer and use the second key."""
-        app = EditorApp(EditModel(FlatConfig()))
-        async with app.run_test() as pilot:
-            named = _shown_keys(app)
-            await pilot.press(VALIDATE_ALT_KEY)
-            await pilot.pause()
-            return named, _verdict(app)
-    named, verdict = asyncio.run(shown())
-    assert named['validate'] == VALIDATE_KEY
-    assert verdict == VALID_VERDICT
-
-
-def test_action_without_key(tmp_path: Path) -> None:
-    """Test an action the application gave no key keeps its palette entry.
-
-    Taking the key away is not taking the action away, which is what makes
-    it safe for an application to take a combination for itself.
-    """
-    _ = tmp_path
-
-    async def offered() -> tuple[list[str], bool, dict[str, str]]:
-        """Run the application, press the key that is gone, and look."""
-        app = EditorApp(EditModel(FlatConfig(),
-                                  settings=_keys(ActionSettings(save_as=()))))
-        async with app.run_test() as pilot:
-            await pilot.press(SAVE_AS_KEY)
-            await pilot.pause()
-            asked = bool(app.screen.query(f'#{SAVE_AS_BOX_ID}'))
-            return ([command.title
-                     for command in app.get_system_commands(app.screen)],
-                    asked, _shown_keys(app))
-    commands, asked, named = asyncio.run(offered())
-    assert SAVE_AS_COMMAND in commands
-    assert not asked
-    assert 'save_as' not in named
-
-
-def test_cancel_key_chosen(tmp_path: Path) -> None:
-    """Test the key that leaves the question is the one that was chosen."""
-    out_file = tmp_path / 'chosen.cfg'
-    model = EditModel(FlatConfig(),
-                      settings=_keys(ActionSettings(cancel=('f8',))))
-    assert asyncio.run(_save_as(model, str(out_file), answer='f8')) == \
-        NO_FILE_TEXT
-    assert model.out_file is None
-
-
-def test_question_names_key() -> None:
-    """Test the question names the key that leaves it, whichever it is."""
-    async def prompt(actions: ActionSettings) -> str:
-        """Run the application and read what the question says."""
-        app = EditorApp(EditModel(FlatConfig(), settings=_keys(actions)))
-        async with app.run_test() as pilot:
-            await pilot.press(SAVE_AS_KEY)
-            await pilot.pause()
-            return str(app.screen.query_one(Label).content)
-    assert 'escape leaves it' in asyncio.run(prompt(ActionSettings()))
-    chosen = ActionSettings(cancel=('f8',))
-    assert 'f8 leaves it' in asyncio.run(prompt(chosen))
-    assert 'leaves it' not in asyncio.run(prompt(ActionSettings(cancel=())))
-
-
-def _headless(save: bool) -> object:
-    """Return a replacement for App.run that saves or only quits.
-
-    Args:
-        save: Whether the stand-in user presses Save before quitting.
-
-    Returns:
-        A function that can replace `App.run` for the duration of a test.
-    """
-    async def drive(app: App[None]) -> None:
-        """Start the application headlessly and act as a user would."""
-        async with app.run_test() as pilot:
-            if save:
-                await pilot.press(SAVE_KEY)
-                await pilot.pause()
-            await pilot.press(QUIT_KEY)
-
-    def run_headless(app: App[None]) -> None:
-        """Stand in for App.run, which needs a terminal."""
-        asyncio.run(drive(app))
-    return run_headless
-
-
-def test_edit_returns_saved(monkeypatch: pytest.MonkeyPatch,
-                            tmp_path: Path) -> None:
-    """Test the edit of this package saves and gives the object back."""
-    out_file = tmp_path / 'out.json'
-    monkeypatch.setattr(App, 'run', _headless(save=True))
-    saved = textual_edit(config=FlatConfig(), out_file=out_file)
-    assert isinstance(saved, FlatConfig)
-    assert _written(out_file) == {'name': 'Flat example', 'answer': 42}
-
-
-def test_edit_returns_none(monkeypatch: pytest.MonkeyPatch,
-                           tmp_path: Path) -> None:
-    """Test a session that only quits saves nothing and gives back None."""
-    out_file = tmp_path / 'out.json'
-    monkeypatch.setattr(App, 'run', _headless(save=False))
-    assert textual_edit(config=FlatConfig(), out_file=out_file) is None
-    assert not out_file.exists()
-
-
-def test_is_editor_backend() -> None:
-    """Test TextualEditor can be used where an EditorBackend is expected."""
-    backend: EditorBackend = TextualEditor()
-    assert hasattr(backend, 'run_editor')

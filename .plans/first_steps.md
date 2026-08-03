@@ -492,7 +492,9 @@ Status: **Implemented and committed.**
 - New public names: `Descriptions`, `docstring_text`, `row_description`, plus
   `EditModel.summary`, `docstring`, `explanations_shown` and
   `toggle_explanations`, and `MemberRow.description`. `ActionSettings` gained
-  `explain`, with `('f1', 'ctrl+g')`.
+  `explain`, with `('f1', 'ctrl+g')`. The review added `Emphasis`,
+  `EXPLANATION`, `MEMBER_MARK`, `LOAD_REMARK`, `verdict_emphasis`,
+  `save_emphasis` and `EditModel.save_outcome`.
 - `cmd_line.py` gained `--toggle-explain`, which stands in for the explain key
   as `--set` stands in for typing, and `run_example` gained a `descriptions`
   argument. `SetEditor` became `StandInUser`, since it now does two things a
@@ -506,10 +508,87 @@ Status: **Implemented and committed.**
 backend went over the 1000 line limit, so they were split: `helpers.py` holds
 the stubs, the ways of reading a real Tk window and the widget texts that both
 of them expect, `conftest.py` holds the fixture that both need, and the tests
-are now `test_tk_editor.py`, `test_tk_saving.py`, `test_tk_keys.py` and
-`test_tk_explaining.py`. That was worth doing rather than compacting: the
-shared expectations are now in one place, so the four modules cannot drift
-apart about what the editor looks like.
+are now `test_tk_editor.py`, `test_tk_saving.py`, `test_tk_keys.py`,
+`test_tk_explaining.py` and `test_tk_looks.py`. The tests of the Textual
+backend went the same way for the same reason, into `helpers.py` and five test
+modules. That was worth doing rather than compacting: the shared expectations
+are now in one place, so the modules cannot drift apart about what the editor
+looks like.
+
+**Found in review, and what came of it.** Four things that only a window
+shows, and one lesson worth keeping.
+
+- **An action that is a toggle has to say which way it goes.** A button called
+  Explain that hides the explanations is the wrong reading, and the two
+  toolkits need two answers: Tk has a button row, so it gets a tick-box, and
+  Textual has a footer of key bindings, so its action is renamed between
+  "Explain" and "Hide explanation". Recorded in `doc/design.md` section 4.4.
+- **A configuration of any size does not fit a window**, and with the
+  explanations shown it fits one even less. Both backends now scroll the
+  label, the docstring, the load message and the members, and keep the
+  verdict, the saving and the buttons or footer where they are. Textual gives
+  the body the height that is left over; Tk has no scrolling frame and needs a
+  canvas, a scrollbar and a frame on the canvas, plus the mouse wheel bound
+  where the keys are. Recorded in section 4.6, and the wheel is added to the
+  open question of section 8.2.7.
+- **A white field on a white window is invisible.** The fields now state their
+  own background, text and caret colour, so what can be typed into can be told
+  from what only says something.
+- **With the explanations there is a great deal of text**, and it is not all
+  the same kind of thing. `Emphasis` is the vocabulary the core now has for
+  that, `verdict_emphasis` and `save_emphasis` are the two answers that depend
+  on the state of the model, and each backend has one table from a kind to
+  what its own toolkit understands. Recorded in section 4.5.
+
+**The lesson.** A window is not a text rendering, and the tests that only read
+what a widget holds could see none of these four. The Tk tests now read
+colours and drive the scrolling, and the Textual tests read the binding that
+the footer is built from and scroll the body — which is the same lesson steps 4
+and 5 each learnt once already, in their own way.
+
+**Found in the second review, from screenshots of the window.** The scrolling
+and the sizes were wrong in three ways that only a real window shows, and all
+three are recorded in `doc/design.md` section 4.6.
+
+- **The part that does not scroll has to be packed first.** Tk gives each child
+  the space it asks for in the order they were packed, so a window too short
+  for everything laid the verdict, the saving and the buttons out below its
+  bottom edge, where no scrolling reached them. The frame is created second, so
+  that the widgets are still created in the order they are read in.
+- **The size the editor opens at has to be said.** A canvas asks for a width of
+  its own that has nothing to do with what is on it, so the window opened 430
+  pixels wide and cut off every paragraph. The canvas now asks for what the
+  body asks for, up to the size of a window.
+- **A Tk label neither wraps nor shrinks.** Every paragraph now follows the
+  width it is given, and the mark of a member is the one text that does not:
+  a narrow window squeezes the field instead, which is the direction the
+  Textual style sheet already gave way in.
+
+**And the lesson that goes with them.** Tk lays out the widgets *inside* a
+frame only once the window is mapped, so the withdrawn window of category 2 can
+say where the frames are and not what is in them. The three rules are therefore
+tested where they are decided — the packing order, the size the canvas asks
+for, the line width a label follows — and one test that maps a real window and
+measures the lot is the first `focus_sensitive` test in the repository, which
+is the category design section 10.2 reserved for exactly this and which the
+build has been deselecting since step 1.
+
+**Two things the checkers found in that work, and what they cost.**
+
+- `tkinter.Event[tkinter.Misc]` is a generic class to a type checker and a
+  plain one at runtime. Python 3.14 defers an annotation and 3.12 and 3.13
+  evaluate it where it is written, so the four wheel and resize callbacks
+  write that type as text. Found by the 3.12 build and by pylint, and not by
+  mypy or by the 3.14 build, which is the whole reason for the three version
+  sweep.
+- The two backends had come to import the same twenty names from the core,
+  which pylint reported as duplicate code — rightly, and with nothing to
+  factor out, because neither backend may import the other. They now reach the
+  core through `import edit_cfg_json as core`, which removes the duplication
+  rather than hiding it and says at every call site that this is the published
+  API of the core and not something local. A local suppression was tried first
+  and does not work: pylint reports `duplicate-code` against a module and not
+  against a line.
 
 **Observable outcome.** `e03_described_config.py --ui dump` prints the
 docstring of the configuration class, one line per member, and the description

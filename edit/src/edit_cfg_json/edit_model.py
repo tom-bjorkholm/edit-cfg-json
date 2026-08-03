@@ -398,6 +398,17 @@ class EditModel:
         return self._saving.out_file
 
     @property
+    def save_outcome(self) -> Optional[SaveOutcome]:
+        """Return what the last attempt to save did, or None when none.
+
+        None is not a kind of failure but a third state, exactly as it is for
+        the verdict: nothing has been saved since the buffer last changed.
+        Whether an attempt succeeded is what a backend cannot read out of the
+        message, and it is what decides how that message is shown.
+        """
+        return self._saving.outcome
+
+    @property
     def save_message(self) -> str:
         """Return what the last attempt to save did, empty when none.
 

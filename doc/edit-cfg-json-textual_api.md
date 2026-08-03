@@ -8,6 +8,7 @@
   * [VERDICT\_ID](#edit_cfg_json_textual.textual_editor.VERDICT_ID)
   * [SAVE\_ID](#edit_cfg_json_textual.textual_editor.SAVE_ID)
   * [LOAD\_ID](#edit_cfg_json_textual.textual_editor.LOAD_ID)
+  * [BODY\_ID](#edit_cfg_json_textual.textual_editor.BODY_ID)
   * [SAVE\_AS\_BOX\_ID](#edit_cfg_json_textual.textual_editor.SAVE_AS_BOX_ID)
   * [SAVE\_AS\_ID](#edit_cfg_json_textual.textual_editor.SAVE_AS_ID)
   * [NAME\_CLASS](#edit_cfg_json_textual.textual_editor.NAME_CLASS)
@@ -25,15 +26,19 @@
   * [SAVE\_COMMAND](#edit_cfg_json_textual.textual_editor.SAVE_COMMAND)
   * [SAVE\_AS\_COMMAND](#edit_cfg_json_textual.textual_editor.SAVE_AS_COMMAND)
   * [EXPLAIN\_COMMAND](#edit_cfg_json_textual.textual_editor.EXPLAIN_COMMAND)
+  * [HIDE\_COMMAND](#edit_cfg_json_textual.textual_editor.HIDE_COMMAND)
   * [VALIDATE\_HELP](#edit_cfg_json_textual.textual_editor.VALIDATE_HELP)
   * [SAVE\_HELP](#edit_cfg_json_textual.textual_editor.SAVE_HELP)
   * [SAVE\_AS\_HELP](#edit_cfg_json_textual.textual_editor.SAVE_AS_HELP)
   * [EXPLAIN\_HELP](#edit_cfg_json_textual.textual_editor.EXPLAIN_HELP)
+  * [EMPHASIS\_CLASSES](#edit_cfg_json_textual.textual_editor.EMPHASIS_CLASSES)
   * [SAVE\_AS\_PROMPT](#edit_cfg_json_textual.textual_editor.SAVE_AS_PROMPT)
   * [SAVE\_AS\_LEAVE](#edit_cfg_json_textual.textual_editor.SAVE_AS_LEAVE)
   * [EDITOR\_ACTIONS](#edit_cfg_json_textual.textual_editor.EDITOR_ACTIONS)
+  * [COLOUR\_RULES](#edit_cfg_json_textual.textual_editor.COLOUR_RULES)
   * [CSS\_RULES](#edit_cfg_json_textual.textual_editor.CSS_RULES)
   * [plain\_widget](#edit_cfg_json_textual.textual_editor.plain_widget)
+  * [show\_emphasis](#edit_cfg_json_textual.textual_editor.show_emphasis)
   * [bind\_action](#edit_cfg_json_textual.textual_editor.bind_action)
   * [SaveAsScreen](#edit_cfg_json_textual.textual_editor.SaveAsScreen)
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_editor.SaveAsScreen.__init__)
@@ -61,6 +66,13 @@
 # edit\_cfg\_json\_textual.textual\_editor
 
 Textual view of an edit model, with one editable field per member.
+
+Everything this backend takes from the core is reached through `core`, which is
+`edit_cfg_json` itself. A backend may use the public API of the core and
+nothing else, and naming it at every call site is what makes that visible; it
+also keeps the two backends from each holding the same block of twenty
+imported names, which is a duplication with nothing to factor out, since
+neither backend may import the other.
 
 <a id="edit_cfg_json_textual.textual_editor.VALUE_ID_PREFIX"></a>
 
@@ -103,6 +115,12 @@ Identifier of the widget that shows what saving did or would do.
 #### LOAD\_ID
 
 Identifier of the widget that shows what reading the file did.
+
+<a id="edit_cfg_json_textual.textual_editor.BODY_ID"></a>
+
+#### BODY\_ID
+
+Identifier of the part of the screen that scrolls.
 
 <a id="edit_cfg_json_textual.textual_editor.SAVE_AS_BOX_ID"></a>
 
@@ -211,11 +229,18 @@ Name of the command palette entry that chooses a file and writes it.
 
 #### EXPLAIN\_COMMAND
 
-Name of the action that shows or hides the explanatory text.
+What the explain action is called while the explanations are hidden.
 
-One name for both directions, which is also what the Tk button shows for this
-action: the name says what it is about, and whether the explanations are
-there is something the screen itself says.
+<a id="edit_cfg_json_textual.textual_editor.HIDE_COMMAND"></a>
+
+#### HIDE\_COMMAND
+
+What it is called while they are shown.
+
+The name says what the next press does rather than what the action is about,
+because "Explain" beside explanations that are already there reads as an offer
+to do something that has been done. The Tk backend answers the same question
+with a tick-box, which is what a button row can do and a footer cannot.
 
 <a id="edit_cfg_json_textual.textual_editor.VALIDATE_HELP"></a>
 
@@ -240,6 +265,18 @@ What the command palette says the save as entry does.
 #### EXPLAIN\_HELP
 
 What the command palette says the explain entry does.
+
+<a id="edit_cfg_json_textual.textual_editor.EMPHASIS_CLASSES"></a>
+
+#### EMPHASIS\_CLASSES
+
+The style class of every reason the core has to show something differently.
+
+One class per member of `edit_cfg_json.Emphasis`, and the style sheet gives
+each of them a theme colour, so that the editor follows the terminal into its
+light or dark
+mode instead of naming colours of its own. What each kind of text is comes
+from the core, so the two backends cannot colour one thing two ways.
 
 <a id="edit_cfg_json_textual.textual_editor.SAVE_AS_PROMPT"></a>
 
@@ -269,6 +306,20 @@ dispatch of a priority binding walks the whole chain and not the part of it
 above the last modal screen. So a modal screen is only really modal if the
 application says that its own actions do not apply while it is there.
 
+<a id="edit_cfg_json_textual.textual_editor.COLOUR_RULES"></a>
+
+#### COLOUR\_RULES
+
+What each reason to stand out looks like, as a colour of the theme.
+
+Theme colours and not colours of this backend's own: they are what follows the
+terminal into its light or dark mode, and an editor that named colours itself
+would be legible in one of the two and a guess in the other.
+
+The values and their names are left alone, so the thing the user came to edit
+is the most legible thing on the screen. Everything else is either secondary
+text or a state to act on, which is what `edit_cfg_json.Emphasis` names.
+
 <a id="edit_cfg_json_textual.textual_editor.CSS_RULES"></a>
 
 #### CSS\_RULES
@@ -284,6 +335,11 @@ row and the description below it, and the explanatory text is as high as the
 lines it takes: a container of Textual's own accord takes an equal share of
 the height it is given, which would leave two members holding half a screen
 each.
+
+The body takes whatever height is left over, which is what makes it the part
+that scrolls: a configuration of any size fits a terminal of any size, and the
+verdict, the saving and the footer stay where the user left them, because they
+are what a user reaches for after editing rather than something to scroll to.
 
 The widths are the part that has to be said rather than left to Textual. A
 `Input` is a full width widget of its own accord, so it would take the whole
@@ -304,7 +360,8 @@ the fields inside a member row.
 ```python
 def plain_widget(text: str,
                  widget_id: str,
-                 classes: Optional[str] = None) -> Static
+                 classes: Optional[str] = None,
+                 emphasis: Optional[core.Emphasis] = None) -> Static
 ```
 
 Return a widget that shows text of the configuration as it is.
@@ -321,11 +378,33 @@ markup.
 - `widget_id` - Identifier the application finds this widget by.
 - `classes` - Style classes of the widget, or None for a widget that the
   style sheet does not have to reach.
+- `emphasis` - Why this text stands out from the values, or None for a
+  widget that is shown in the ordinary text colour.
   
 
 **Returns**:
 
   A widget showing that text.
+
+<a id="edit_cfg_json_textual.textual_editor.show_emphasis"></a>
+
+#### show\_emphasis
+
+```python
+def show_emphasis(widget: Widget, emphasis: Optional[core.Emphasis]) -> None
+```
+
+Show one widget in the way that one reason to stand out asks for.
+
+Every class of `EMPHASIS_CLASSES` is set or unset, so that a widget whose
+emphasis changes as the model changes cannot end up carrying two of them
+at once.
+
+**Arguments**:
+
+- `widget` - Widget to show.
+- `emphasis` - Why the text of that widget stands out from the values, or
+  None for the ordinary text colour.
 
 <a id="edit_cfg_json_textual.textual_editor.bind_action"></a>
 
@@ -463,7 +542,7 @@ See `CSS_RULES`, which is where each of them is explained.
 #### \_\_init\_\_
 
 ```python
-def __init__(model: EditModel) -> None
+def __init__(model: core.EditModel) -> None
 ```
 
 Remember the model and name the application after it.
@@ -490,6 +569,12 @@ created only when there is something to say: the file was read before
 the model was built, and a class either has a docstring or has not, so
 neither of the two can arrive later and an empty widget would take a
 line of the screen for good.
+
+Those and the members are the part that scrolls, because they are the
+part that a configuration of any size makes as tall as it likes. What
+the application makes of the values and where they would be written
+stay below it, where a user who has just edited something looks for
+them.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.get_system_commands"></a>
 
@@ -569,6 +654,10 @@ def action_explain() -> None
 
 Show or hide what the application says about these values.
 
+The action is renamed as well, because what it is called says what the
+next press will do: "Explain" beside explanations that are already
+there would read as an offer to do something that has been done.
+
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.action_save_as"></a>
 
 #### action\_save\_as
@@ -625,7 +714,7 @@ lives in the core.
 #### run\_editor
 
 ```python
-def run_editor(model: EditModel) -> None
+def run_editor(model: core.EditModel) -> None
 ```
 
 Show the model in a Textual screen until the user quits.
@@ -641,11 +730,11 @@ Show the model in a Textual screen until the user quits.
 ```python
 def edit(config: Config,
          *,
-         descriptions: Optional[Descriptions] = None,
+         descriptions: Optional[core.Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
-         policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
-         settings: SettingsSource = Settings(),
+         policy: core.LoadPolicy = core.LoadPolicy.STRICT_THEN_DEFAULTS,
+         settings: core.SettingsSource = core.Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]
 ```
 

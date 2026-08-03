@@ -355,6 +355,99 @@ shown without a label rather than with `Config`'s. Both are principle 4 of
 section 3 rather than incompleteness to be fixed later, and both mean the
 backends create no widget at all for what can never have anything in it.
 
+**The toggle is one action, and each backend says so in its own way.** A
+button that said "Explain" while the explanations were already there would be
+offering something that has been done, which is the one thing the wording must
+not do. Tk has a button row, so it gets a tick-box: one text, true in both
+states, and the tick says which state it is in. Textual has a footer of key
+bindings and no button row, so its action is *renamed* instead — "Explain"
+while they are hidden, "Hide explanation" while they are shown — and the same
+name reaches its command palette. Settled at step 6 after review: the two
+answers differ because the two toolkits offer an action differently, and the
+question each of them answers is the same one.
+
+### 4.5 Telling the kinds of text apart
+
+Once the explanations are on the screen, most of what is there is not the
+values. A value is what the user came to change, a description is text about
+that value, and a refused validation is something to act on, and a user who has
+to read all three to tell them apart is reading too much. They are therefore
+told apart by colour.
+
+**What kind each piece of text is belongs to the core, and what colour a kind
+is belongs to each backend.** `Emphasis` is that vocabulary: `MUTED` for text
+about the values and for a state that has not been reached, `ATTENTION` for
+something that has happened to a member, `WARNING` for a remark about the input
+file, and `GOOD` and `BAD` for what the application accepted and refused. There
+is deliberately no member for ordinary text: the values and their names are left
+alone, which is what makes them the most legible thing on the screen.
+
+The two decisions that depend on the state of the model — what the validation
+and the saving are shown as — are functions of the core rather than of a
+backend, because they are the two that a backend could otherwise answer
+differently. Whether a save succeeded is also not readable from its message,
+which is why `EditModel.save_outcome` exists beside `save_message`.
+
+Colour itself cannot be in the core: Textual names colours of its terminal's
+theme and follows it into a dark mode, Tk has no theme to ask and needs colour
+values, and neither can be expressed in the other. Each backend therefore has
+one table from `Emphasis` to what its own toolkit understands, and that table is
+the only place a colour is written down.
+
+**What a light or a dark background does to that** is answered for Textual and
+open for Tk. Textual's theme colours are right in both, because the terminal
+decides which theme is in use. Tk gets colour values chosen for the light window
+it is given, and a Tk that a platform has put into a dark mode would want other
+values. That is a theming decision of exactly the kind section 9 is for and is
+left to the step that has an application asking for it; what is not left is the
+legibility of a **field**, which states its own background, text and caret
+colour so that it cannot end up as light text on a light field.
+
+### 4.6 A configuration bigger than the window
+
+A configuration of any interesting size does not fit a window, and with the
+explanations shown it fits one even less. So the editor scrolls, and what
+scrolls is **the label, the docstring, the load message and the members**. The
+validation verdict, the saving line and the buttons or the footer stay where
+they are, because they are what a user reaches for after editing rather than
+something to be scrolled to.
+
+Both backends do that, and the size of a window is the one thing neither of
+them can leave to the model: Textual gives the body the height that is left
+over, and Tk has no scrolling frame at all and needs the canvas, the scrollbar
+and the frame on the canvas that this amounts to.
+
+Three things about the Tk side had to be learnt from a window rather than from
+a design, and are recorded because none of them is obvious:
+
+- **The part that does not scroll is packed first.** Tk gives each child the
+  space it asks for in the order they were packed, so the verdict, the saving
+  and the buttons were laid out below the bottom edge of any window too short
+  for everything, where no scrolling could reach them. It is created second,
+  so that the widgets are still created in the order they are read in.
+- **The size the editor opens at has to be said.** A canvas asks for a width
+  and a height of its own that have nothing to do with what is on it, so the
+  body is measured and the canvas asks for that, up to the size of a window.
+  A configuration smaller than that limit opens a window smaller than it.
+- **A paragraph has to be told to wrap.** A Tk label neither wraps nor shrinks
+  of its own accord: text wider than the window is simply cut off. Every text
+  of the editor that is a paragraph follows the width it is given; the mark of
+  a member is the one that does not, because it belongs beside its field on one
+  line, and a narrow window squeezes the field rather than the mark — which is
+  the same direction the Textual style sheet gives way in.
+
+Textual needs none of those three: it wraps, it shrinks, and its footer is
+docked. What the two backends share is which part scrolls, and that is what
+this section is about.
+
+**Testing this needs a window that is on the screen.** Tk lays out the widgets
+*inside* a frame only once the window has been mapped, so a withdrawn window
+can say where the frames are and not what is in them. The rules above are
+therefore tested where they are decided — the packing order, the size the
+canvas asks for, the line width a label follows — and one test that maps a real
+window and measures the lot belongs to category 3 of section 10.2, deselected
+by the build and run by hand.
+
 ## 5. Loading
 
 ### 5.1 The loader protocol
@@ -811,6 +904,12 @@ waiting for the step.
   binding on each field, giving the panel a `bindtag` of its own, or
   making it focusable. Textual has no equivalent question, because a
   widget's bindings already dispatch only from the focused widget upwards.
+
+  **The mouse wheel is bound on the same widget and is the same question.** A
+  wheel event goes to the widget under the pointer, which is usually a field or
+  a label inside the body rather than the canvas that scrolls, so binding the
+  canvas alone would leave the wheel working over the empty parts and nowhere
+  else. Whatever answers the keys answers this too.
 - **Whether the core names the mounting contract.** A `Protocol` for it
   would let a third-party backend implement the same shape, as
   `EditorBackend` does for the modal one. It is additive whenever it is

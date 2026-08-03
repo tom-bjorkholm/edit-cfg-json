@@ -1,5 +1,13 @@
 #! /usr/bin/env python3
-"""Textual view of an edit model, with one editable field per member."""
+"""Textual view of an edit model, with one editable field per member.
+
+Everything this backend takes from the core is reached through `core`, which is
+`edit_cfg_json` itself. A backend may use the public API of the core and
+nothing else, and naming it at every call site is what makes that visible; it
+also keeps the two backends from each holding the same block of twenty
+imported names, which is a duplication with nothing to factor out, since
+neither backend may import the other.
+"""
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
@@ -10,14 +18,11 @@ import sys
 from config_as_json import Config, PathOrStr
 from textual.app import App, ComposeResult, SystemCommand
 from textual.binding import BindingsMap
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen, Screen
 from textual.widget import Widget
 from textual.widgets import Footer, Header, Input, Label, Static
-from edit_cfg_json import Descriptions, EditModel, LoadPolicy, MemberRow, \
-    Settings, SettingsSource, docstring_text, load_text, model_title, \
-    row_description, row_marks, row_value_text, save_text, verdict_text
-from edit_cfg_json import edit as core_edit
+import edit_cfg_json as core
 
 VALUE_ID_PREFIX = 'value_'
 """Prefix of the identifier of the widget that shows one member value."""
@@ -39,6 +44,9 @@ SAVE_ID = 'saving'
 
 LOAD_ID = 'load'
 """Identifier of the widget that shows what reading the file did."""
+
+BODY_ID = 'body'
+"""Identifier of the part of the screen that scrolls."""
 
 SAVE_AS_BOX_ID = 'save_as_box'
 """Identifier of the box that asks which file to write."""
@@ -98,11 +106,15 @@ SAVE_AS_COMMAND = 'Save as'
 """Name of the command palette entry that chooses a file and writes it."""
 
 EXPLAIN_COMMAND = 'Explain'
-"""Name of the action that shows or hides the explanatory text.
+"""What the explain action is called while the explanations are hidden."""
 
-One name for both directions, which is also what the Tk button shows for this
-action: the name says what it is about, and whether the explanations are
-there is something the screen itself says.
+HIDE_COMMAND = 'Hide explanation'
+"""What it is called while they are shown.
+
+The name says what the next press does rather than what the action is about,
+because "Explain" beside explanations that are already there reads as an offer
+to do something that has been done. The Tk backend answers the same question
+with a tick-box, which is what a button row can do and a footer cannot.
 """
 
 VALIDATE_HELP = 'Ask the application what it makes of these values'
@@ -116,6 +128,20 @@ SAVE_AS_HELP = 'Choose the file to write, and write it'
 
 EXPLAIN_HELP = 'Show or hide what the application says about these values'
 """What the command palette says the explain entry does."""
+
+EMPHASIS_CLASSES = {core.Emphasis.MUTED: 'muted',
+                    core.Emphasis.ATTENTION: 'attention',
+                    core.Emphasis.WARNING: 'warning',
+                    core.Emphasis.GOOD: 'good',
+                    core.Emphasis.BAD: 'bad'}
+"""The style class of every reason the core has to show something differently.
+
+One class per member of `edit_cfg_json.Emphasis`, and the style sheet gives
+each of them a theme colour, so that the editor follows the terminal into its
+light or dark
+mode instead of naming colours of its own. What each kind of text is comes
+from the core, so the two backends cannot colour one thing two ways.
+"""
 
 SAVE_AS_PROMPT = 'Save as (Enter writes the file):'
 """What the screen that asks for the output file says."""
@@ -139,7 +165,25 @@ application says that its own actions do not apply while it is there.
 """
 
 
-CSS_RULES = (
+COLOUR_RULES = ('.muted { color: $text-muted; }',
+                '.attention { color: $text-accent; }',
+                '.warning { color: $text-warning; }',
+                '.good { color: $text-success; }',
+                '.bad { color: $text-error; }')
+"""What each reason to stand out looks like, as a colour of the theme.
+
+Theme colours and not colours of this backend's own: they are what follows the
+terminal into its light or dark mode, and an editor that named colours itself
+would be legible in one of the two and a guess in the other.
+
+The values and their names are left alone, so the thing the user came to edit
+is the most legible thing on the screen. Everything else is either secondary
+text or a state to act on, which is what `edit_cfg_json.Emphasis` names.
+"""
+
+
+CSS_RULES = COLOUR_RULES + (
+    f'#{BODY_ID} {{ height: 1fr; }}',
     f'.{MEMBER_CLASS} {{ height: auto; }}',
     f'.{ROW_CLASS} {{ height: 1; }}',
     f'.{NAME_CLASS} {{ width: {NAME_WIDTH}; }}',
@@ -164,6 +208,11 @@ lines it takes: a container of Textual's own accord takes an equal share of
 the height it is given, which would leave two members holding half a screen
 each.
 
+The body takes whatever height is left over, which is what makes it the part
+that scrolls: a configuration of any size fits a terminal of any size, and the
+verdict, the saving and the footer stay where the user left them, because they
+are what a user reaches for after editing rather than something to scroll to.
+
 The widths are the part that has to be said rather than left to Textual. A
 `Input` is a full width widget of its own accord, so it would take the whole
 line and lay the marks of the member out beyond the right edge of the screen,
@@ -178,23 +227,23 @@ the fields inside a member row.
 """
 
 
-def _value_id(row: MemberRow) -> str:
+def _value_id(row: core.MemberRow) -> str:
     """Return the identifier of the widget that shows one member value."""
     return f'{VALUE_ID_PREFIX}{row.name}'
 
 
-def _mark_id(row: MemberRow) -> str:
+def _mark_id(row: core.MemberRow) -> str:
     """Return the identifier of the widget that marks one member."""
     return f'{MARK_ID_PREFIX}{row.name}'
 
 
-def _description_id(row: MemberRow) -> str:
+def _description_id(row: core.MemberRow) -> str:
     """Return the identifier of the widget that describes one member."""
     return f'{DESCRIPTION_ID_PREFIX}{row.name}'
 
 
-def plain_widget(text: str, widget_id: str,
-                 classes: Optional[str] = None) -> Static:
+def plain_widget(text: str, widget_id: str, classes: Optional[str] = None,
+                 emphasis: Optional[core.Emphasis] = None) -> Static:
     """Return a widget that shows text of the configuration as it is.
 
     Textual reads console markup in the text of a widget, so a square
@@ -208,11 +257,31 @@ def plain_widget(text: str, widget_id: str,
         widget_id: Identifier the application finds this widget by.
         classes: Style classes of the widget, or None for a widget that the
             style sheet does not have to reach.
+        emphasis: Why this text stands out from the values, or None for a
+            widget that is shown in the ordinary text colour.
 
     Returns:
         A widget showing that text.
     """
-    return Static(text, id=widget_id, markup=False, classes=classes)
+    widget = Static(text, id=widget_id, markup=False, classes=classes)
+    show_emphasis(widget, emphasis)
+    return widget
+
+
+def show_emphasis(widget: Widget, emphasis: Optional[core.Emphasis]) -> None:
+    """Show one widget in the way that one reason to stand out asks for.
+
+    Every class of `EMPHASIS_CLASSES` is set or unset, so that a widget whose
+    emphasis changes as the model changes cannot end up carrying two of them
+    at once.
+
+    Args:
+        widget: Widget to show.
+        emphasis: Why the text of that widget stands out from the values, or
+            None for the ordinary text colour.
+    """
+    for kind, name in EMPHASIS_CLASSES.items():
+        widget.set_class(kind is emphasis, name)
 
 
 def bind_action(bindings: BindingsMap, keys: Sequence[str], action: str,
@@ -314,7 +383,7 @@ class EditorApp(App[None]):
     See `CSS_RULES`, which is where each of them is explained.
     """
 
-    def __init__(self, model: EditModel) -> None:
+    def __init__(self, model: core.EditModel) -> None:
         """Remember the model and name the application after it.
 
         Args:
@@ -322,8 +391,8 @@ class EditorApp(App[None]):
         """
         super().__init__()
         self._model = model
-        self._member_rows: dict[str, MemberRow] = {}
-        self.title = model_title(model)
+        self._member_rows: dict[str, core.MemberRow] = {}
+        self.title = core.model_title(model)
         self._bind_editor_keys()
 
     def _bind_editor_keys(self) -> None:
@@ -345,10 +414,31 @@ class EditorApp(App[None]):
                 (actions.quit, 'quit', QUIT_COMMAND),
                 (actions.validate, 'validate', VALIDATE_COMMAND),
                 (actions.save, 'save', SAVE_COMMAND),
-                (actions.save_as, 'save_as', SAVE_AS_COMMAND),
-                (actions.explain, 'explain', EXPLAIN_COMMAND)):
+                (actions.save_as, 'save_as', SAVE_AS_COMMAND)):
             bind_action(self._bindings, keys=keys, action=action,
                         description=name)
+        self._bind_explain()
+
+    def _bind_explain(self) -> None:
+        """Bind the explain keys, named for what the next press will do.
+
+        The name of this one action depends on the state of the model, so its
+        bindings are made again whenever that state changes. A `Binding` cannot
+        be renamed, so the bindings of these keys are dropped and made afresh;
+        `refresh_bindings` is then what tells the footer to read them again.
+        """
+        keys = self._model.settings.actions.explain
+        for key in keys:
+            self._bindings.key_to_bindings.pop(key, None)
+        bind_action(self._bindings, keys=keys, action='explain',
+                    description=self._explain_name())
+        self.refresh_bindings()
+
+    def _explain_name(self) -> str:
+        """Return what the explain action is called as things stand now."""
+        if self._model.explanations_shown:
+            return HIDE_COMMAND
+        return EXPLAIN_COMMAND
 
     def compose(self) -> ComposeResult:
         """Create one row per member, the verdict, a header and a footer.
@@ -361,20 +451,29 @@ class EditorApp(App[None]):
         the model was built, and a class either has a docstring or has not, so
         neither of the two can arrive later and an empty widget would take a
         line of the screen for good.
+
+        Those and the members are the part that scrolls, because they are the
+        part that a configuration of any size makes as tall as it likes. What
+        the application makes of the values and where they would be written
+        stay below it, where a user who has just edited something looks for
+        them.
         """
         yield Header()
-        yield from self._docstring_widgets()
-        yield from self._load_widgets()
-        for row in self._model.rows:
-            with Vertical(classes=MEMBER_CLASS):
-                with Horizontal(classes=ROW_CLASS):
-                    yield Label(row.name, classes=NAME_CLASS)
-                    yield self._value_widget(row)
-                    yield plain_widget(row_marks(row), _mark_id(row),
-                                       MARK_CLASS)
-                yield from self._description_widgets(row)
-        yield plain_widget(verdict_text(self._model), VERDICT_ID)
-        yield plain_widget(save_text(self._model), SAVE_ID)
+        with VerticalScroll(id=BODY_ID):
+            yield from self._docstring_widgets()
+            yield from self._load_widgets()
+            for row in self._model.rows:
+                with Vertical(classes=MEMBER_CLASS):
+                    with Horizontal(classes=ROW_CLASS):
+                        yield Label(row.name, classes=NAME_CLASS)
+                        yield self._value_widget(row)
+                        yield plain_widget(core.row_marks(row), _mark_id(row),
+                                           MARK_CLASS, core.MEMBER_MARK)
+                    yield from self._description_widgets(row)
+        yield plain_widget(core.verdict_text(self._model), VERDICT_ID,
+                           emphasis=core.verdict_emphasis(self._model))
+        yield plain_widget(core.save_text(self._model), SAVE_ID,
+                           emphasis=core.save_emphasis(self._model))
         yield Footer()
 
     def get_system_commands(self, screen: Screen[object]
@@ -399,20 +498,22 @@ class EditorApp(App[None]):
                             self.action_validate)
         yield SystemCommand(SAVE_COMMAND, SAVE_HELP, self.action_save)
         yield SystemCommand(SAVE_AS_COMMAND, SAVE_AS_HELP, self.action_save_as)
-        yield SystemCommand(EXPLAIN_COMMAND, EXPLAIN_HELP, self.action_explain)
+        yield SystemCommand(self._explain_name(), EXPLAIN_HELP,
+                            self.action_explain)
 
     def _load_widgets(self) -> ComposeResult:
         """Create the widget that says what reading the input file did."""
-        message = load_text(self._model)
+        message = core.load_text(self._model)
         if message:
-            yield plain_widget(message, LOAD_ID)
+            yield plain_widget(message, LOAD_ID, emphasis=core.LOAD_REMARK)
 
     def _docstring_widgets(self) -> ComposeResult:
         """Create the widget that says what the configuration class says."""
         if self._model.docstring:
-            yield plain_widget(docstring_text(self._model), DOCSTRING_ID)
+            yield plain_widget(core.docstring_text(self._model), DOCSTRING_ID,
+                               emphasis=core.EXPLANATION)
 
-    def _description_widgets(self, row: MemberRow) -> ComposeResult:
+    def _description_widgets(self, row: core.MemberRow) -> ComposeResult:
         """Create the widget that says what one member is for, if anything.
 
         A member the application said nothing about gets no widget, because
@@ -423,18 +524,19 @@ class EditorApp(App[None]):
         """
         if row.description:
             widget = plain_widget(row.description, _description_id(row),
-                                  DESCRIPTION_CLASS)
-            widget.display = bool(row_description(model=self._model, row=row))
+                                  DESCRIPTION_CLASS, core.EXPLANATION)
+            shown = core.row_description(model=self._model, row=row)
+            widget.display = bool(shown)
             yield widget
 
-    def _value_widget(self, row: MemberRow) -> Widget:
+    def _value_widget(self, row: core.MemberRow) -> Widget:
         """Return the widget that shows the value of one member.
 
         A member that the model cannot edit yet gets a widget that only
         shows text, because there is nothing the user could do to it.
         """
         if not row.editable:
-            return plain_widget(row_value_text(row), _value_id(row),
+            return plain_widget(core.row_value_text(row), _value_id(row),
                                 VALUE_CLASS)
         self._member_rows[_value_id(row)] = row
         # A field of its own accord selects all of its text when it is given
@@ -443,7 +545,7 @@ class EditorApp(App[None]):
         # behave differently: a Tk field puts the cursor in the text and
         # keeps what is there, which is what an editor of existing values
         # should do.
-        return Input(value=row_value_text(row), id=_value_id(row),
+        return Input(value=core.row_value_text(row), id=_value_id(row),
                      select_on_focus=False, classes=VALUE_CLASS)
 
     def on_input_changed(self, event: Input.Changed) -> None:
@@ -482,9 +584,15 @@ class EditorApp(App[None]):
         self._refresh()
 
     def action_explain(self) -> None:
-        """Show or hide what the application says about these values."""
+        """Show or hide what the application says about these values.
+
+        The action is renamed as well, because what it is called says what the
+        next press will do: "Explain" beside explanations that are already
+        there would read as an offer to do something that has been done.
+        """
         self._model.toggle_explanations()
         self._show_explanations()
+        self._bind_explain()
 
     def _show_explanations(self) -> None:
         """Show as much of the explanatory text as the model says to show.
@@ -499,10 +607,10 @@ class EditorApp(App[None]):
         """
         if self._model.docstring:
             self.query_one(f'#{DOCSTRING_ID}',
-                           Static).update(docstring_text(self._model))
+                           Static).update(core.docstring_text(self._model))
         for row in self._model.rows:
             if row.description:
-                description = row_description(model=self._model, row=row)
+                description = core.row_description(model=self._model, row=row)
                 self.query_one(f'#{_description_id(row)}',
                                Static).display = bool(description)
 
@@ -563,21 +671,42 @@ class EditorApp(App[None]):
         """
         for row in self._model.rows:
             if _value_id(row) in self._member_rows:
-                self._field(row).value = row_value_text(row)
+                self._field(row).value = core.row_value_text(row)
         self._show_state()
 
-    def _field(self, row: MemberRow) -> Input:
+    def _field(self, row: core.MemberRow) -> Input:
         """Return the field that this application shows for one member."""
         return self.query_one(f'#{_value_id(row)}', Input)
 
     def _show_state(self) -> None:
-        """Show the title, the verdict, the saving and every member mark."""
-        self.title = model_title(self._model)
-        verdict = self.query_one(f'#{VERDICT_ID}', Static)
-        verdict.update(verdict_text(self._model))
-        self.query_one(f'#{SAVE_ID}', Static).update(save_text(self._model))
+        """Show the title, the verdict, the saving and every member mark.
+
+        The verdict and the saving change colour as well as text, because what
+        they say is either what the application accepted, what it refused, or
+        what has not been asked of it yet, and a user who has to read three
+        lines to tell those apart is reading too much.
+        """
+        self.title = core.model_title(self._model)
+        self._told(VERDICT_ID, text=core.verdict_text(self._model),
+                   emphasis=core.verdict_emphasis(self._model))
+        self._told(SAVE_ID, text=core.save_text(self._model),
+                   emphasis=core.save_emphasis(self._model))
         for row in self._model.rows:
-            self.query_one(f'#{_mark_id(row)}', Static).update(row_marks(row))
+            self.query_one(f'#{_mark_id(row)}',
+                           Static).update(core.row_marks(row))
+
+    def _told(self, widget_id: str, text: str,
+              emphasis: core.Emphasis) -> None:
+        """Show one text of the editor, in the way its state asks for.
+
+        Args:
+            widget_id: Identifier of the widget that shows it.
+            text: Text to show.
+            emphasis: Why that text stands out from the values.
+        """
+        widget = self.query_one(f'#{widget_id}', Static)
+        widget.update(text)
+        show_emphasis(widget, emphasis)
 
 
 class TextualEditor:  # pylint: disable=too-few-public-methods
@@ -588,7 +717,7 @@ class TextualEditor:  # pylint: disable=too-few-public-methods
     lives in the core.
     """
 
-    def run_editor(self, model: EditModel) -> None:
+    def run_editor(self, model: core.EditModel) -> None:
         """Show the model in a Textual screen until the user quits.
 
         Args:
@@ -600,11 +729,11 @@ class TextualEditor:  # pylint: disable=too-few-public-methods
 # See the same disable in the core: every argument after the first is an
 # optional keyword saying one independent thing about the session.
 # pylint: disable-next=too-many-arguments
-def edit(config: Config, *, descriptions: Optional[Descriptions] = None,
+def edit(config: Config, *, descriptions: Optional[core.Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
-         policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
-         settings: SettingsSource = Settings(),
+         policy: core.LoadPolicy = core.LoadPolicy.STRICT_THEN_DEFAULTS,
+         settings: core.SettingsSource = core.Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]:
     """Edit one configuration in the terminal, and return what was saved.
 
@@ -629,7 +758,7 @@ def edit(config: Config, *, descriptions: Optional[Descriptions] = None,
     Raises:
         ConfigLoadError: The input file cannot be opened for editing.
     """
-    return core_edit(config=config, backend=TextualEditor(),
+    return core.edit(config=config, backend=TextualEditor(),
                      descriptions=descriptions, in_file=in_file,
                      out_file=out_file, policy=policy, settings=settings,
                      stderr_file=stderr_file)

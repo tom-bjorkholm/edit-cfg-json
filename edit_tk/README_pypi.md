@@ -81,10 +81,15 @@ saved = model.saved_config
 ````
 
 The package is under construction. This version opens a window with one edit
-field per configuration member, five buttons — Validate, Save, Save as,
-Explain and Close — and a key for each of them. Every change of a field goes
-straight into the model, and the label above the fields is marked while the
-model holds a change worth saving.
+field per configuration member, four buttons — Validate, Save, Save as and
+Close — a tick-box for Explain, and a key for each of them. Every change of a
+field goes straight into the model, and the label above the fields is marked
+while the model holds a change worth saving.
+
+A field is shown with a background, a border and a caret colour of its own, so
+that what can be typed into can be told from what only says something. Those
+are stated rather than inherited: the window is white, so a field that kept the
+background it was given could not be seen at all.
 
 Validate runs the validation of the application's own configuration class
 and shows below the fields what that class would say about the values that
@@ -118,6 +123,12 @@ nothing about gets none, rather than an empty one. Which of the two states the
 editor is in belongs to the model, so this backend and the Textual one cannot
 disagree about it.
 
+It is a tick-box rather than a button, and the tick is what says which of the
+two states the window is in: a button saying Explain beside explanations that
+are already there would be offering something that has been done. The key of
+the action moves the tick with it, because Tk moves it only when it was the
+tick-box that was pressed.
+
 Close writes nothing of its own. It is the "cancel" of the editor, and it is
 called Close rather than Cancel because saving leaves the editor open: a
 button called Cancel beside values that have already been written would read
@@ -128,6 +139,33 @@ anything, because it is what explains the marks below it: a member that the
 file did not hold says so beside its field. Both the message and the marks
 are read from the model, so the two backends cannot tell the user two
 different things about one file.
+
+## Scrolling, and the colours
+
+The label, the docstring, the load message and the member rows are on a canvas
+that scrolls, and the verdict, the saving line and the buttons are below it and
+stay where they are: they are what a user reaches for after editing rather than
+something to scroll to. The scrollbar is beside the canvas, and the mouse wheel
+scrolls it however the platform reports one.
+
+The window opens at the size the configuration asks for, up to the size of a
+window, so a small configuration gets a small window and a large one is
+scrolled through rather than cut off. Every text that is a paragraph — the
+docstring, a description, a message, a diagnostic — wraps to the width there
+is, whatever the user resizes the window to. The mark of a member is the one
+text that does not wrap, because it belongs beside its field on one line: a
+window too narrow for the name, the field and the mark squeezes the field,
+which the user can scroll within, rather than cutting off a mark, which they
+could not read at all.
+
+Each kind of text has a colour, so that the explanations do not read as loudly
+as the values and a refused validation does not read like an accepted one.
+Which kind each piece of text is comes from `edit_cfg_json.Emphasis` and is
+therefore the same here as in the Textual backend; what the colours are is this
+package's own, in `EMPHASIS_COLOURS`, because Tk has no theme to ask. They are
+chosen for the light window that Tk gives this editor. A Tk that a platform has
+put into a dark mode would want other values, and that is a theming decision
+the library has not been asked for yet.
 
 ## About the keys
 
@@ -202,7 +240,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 739 passed in 13s
+- Test result: 782 passed, 1 deselected in 16s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

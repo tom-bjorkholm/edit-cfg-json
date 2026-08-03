@@ -14,9 +14,9 @@ import pytest
 from edit_cfg_json import EditModel
 from edit_cfg_json_tk.tk_editor import EditorWidgets, EXPLAIN_TEXT
 from example.e01_flat_config import FlatConfig
-from .helpers import DESCRIBED_LABELS, DESCRIPTIONS, FLAT_DOCSTRING, \
-    FLAT_SUMMARY, HIDDEN_LABELS, NoDocConfig, real_press, real_texts, \
-    stub_editor, stub_press, stub_texts, stub_window
+from .helpers import DESCRIBED_LABELS, DESCRIPTIONS, FakeFlag, \
+    FLAT_DOCSTRING, FLAT_SUMMARY, HIDDEN_LABELS, NoDocConfig, real_press, \
+    real_texts, real_ticks, stub_editor, stub_press, stub_texts, stub_window
 
 
 def _described_stub() -> EditorWidgets:
@@ -112,3 +112,45 @@ def test_real_no_docstring(root_or_skip: tkinter.Tk) -> None:
                             model=EditModel(NoDocConfig()))
     assert widgets.docstring_shown == ''
     assert FLAT_SUMMARY not in real_texts(root_or_skip)
+
+
+def test_stub_tick_follows(stub_tk: None) -> None:
+    """Test the tick-box says which of the two states the editor is in.
+
+    A button would have had to be called Explain in both states, and beside
+    explanations that are already there that reads as an offer to do
+    something that has been done.
+    """
+    _ = stub_tk
+    _described_stub()
+    assert len(FakeFlag.created) == 1
+    tick = FakeFlag.created[0]
+    assert tick.get()
+    stub_press(EXPLAIN_TEXT)
+    assert not tick.get()
+    stub_press(EXPLAIN_TEXT)
+    assert tick.get()
+
+
+def test_stub_tick_after_key(stub_tk: None) -> None:
+    """Test the key of the explain action moves the tick as well.
+
+    Tk flips the tick itself only when it was the tick-box that was pressed,
+    so a tick that was left to Tk would disagree with the window as soon as
+    the key was used.
+    """
+    _ = stub_tk
+    _described_stub()
+    stub_window().bindings['<F1>']()
+    assert not FakeFlag.created[0].get()
+    assert stub_texts(packed_only=True) == HIDDEN_LABELS
+
+
+def test_real_tick_follows(root_or_skip: tkinter.Tk) -> None:
+    """Test the real tick-box is ticked while the explanations are shown."""
+    _described_real(root_or_skip)
+    assert real_ticks(root_or_skip) == [True]
+    real_press(root_or_skip, EXPLAIN_TEXT)
+    assert real_ticks(root_or_skip) == [False]
+    real_press(root_or_skip, EXPLAIN_TEXT)
+    assert real_ticks(root_or_skip) == [True]

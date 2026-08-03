@@ -7,7 +7,16 @@
 from collections.abc import Iterator
 import tkinter
 import pytest
-from .helpers import FakeVar, FakeWidget
+from .helpers import FakeFlag, FakeVar, FakeWidget
+
+STUBBED_WIDGETS = ('Frame', 'Label', 'Button', 'Checkbutton', 'Entry',
+                   'Canvas', 'Scrollbar')
+"""Every Tkinter widget class that the stubbed tests replace.
+
+One stub stands in for all of them, because what those tests are about is
+which widgets the editor creates, what they show and what they are told to do,
+and none of that differs between the classes.
+"""
 
 
 @pytest.fixture(name='stub_tk')
@@ -20,12 +29,15 @@ def fixture_stub_tk(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """
     FakeWidget.created.clear()
     FakeVar.created.clear()
-    for widget_name in ('Frame', 'Label', 'Button', 'Entry'):
+    FakeFlag.created.clear()
+    for widget_name in STUBBED_WIDGETS:
         monkeypatch.setattr(tkinter, widget_name, FakeWidget)
     monkeypatch.setattr(tkinter, 'StringVar', FakeVar)
+    monkeypatch.setattr(tkinter, 'BooleanVar', FakeFlag)
     yield
     FakeWidget.created.clear()
     FakeVar.created.clear()
+    FakeFlag.created.clear()
 
 
 @pytest.fixture(name='root_or_skip')

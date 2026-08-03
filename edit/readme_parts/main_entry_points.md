@@ -5,11 +5,12 @@ Everything a user of this package needs is re-exported from the top-level
 
 ````python
 from {{import_name}} import ActionSettings, ConfigLoadError, Descriptions, \
-    EditModel, EditorBackend, LoadPolicy, LoadReport, LoadedConfig, \
-    MemberRow, SaveOutcome, Settings, SettingsSource, ValidationVerdict, \
+    EXPLANATION, EditModel, EditorBackend, Emphasis, LOAD_REMARK, \
+    LoadPolicy, LoadReport, LoadedConfig, MEMBER_MARK, MemberRow, \
+    SaveOutcome, Settings, SettingsSource, ValidationVerdict, \
     docstring_text, edit, load_config, load_text, model_as_text, \
-    model_title, row_description, row_marks, row_value_text, save_text, \
-    verdict_text
+    model_title, row_description, row_marks, row_value_text, save_emphasis, \
+    save_text, verdict_emphasis, verdict_text
 ````
 
 | Name | What it is |
@@ -19,7 +20,7 @@ from {{import_name}} import ActionSettings, ConfigLoadError, Descriptions, \
 | `MemberRow` | One configuration member of the model: the path that addresses it, the value it holds now, the value it started with, what the application says the member is for, and the flags that say what has happened to it. |
 | `Descriptions` | What the application says about the members it declares: a mapping from the absolute `config_as_json.ConfigPath` of a member to the text that explains it. It is the one type alias this library declares. |
 | `ValidationVerdict` | What one validation pass found: whether the application itself would accept the buffer, and the diagnostics it would produce. `EditModel.verdict` is the verdict of the last pass, or `None` while the buffer has not been validated since it last changed. |
-| `SaveOutcome` | What one attempt to save did: whether the output file was written, and what to tell the user about it. `EditModel.save_message` is the message of the last attempt. |
+| `SaveOutcome` | What one attempt to save did: whether the output file was written, and what to tell the user about it. `EditModel.save_message` is the message of the last attempt and `EditModel.save_outcome` is the attempt itself, which is how a backend knows whether it succeeded. |
 | `load_config` | Reads the configuration to edit from one input file, or hands back the caller's own object when there is no file. It constructs the configuration class itself, because a load policy and the reporting of automatic changes are given to a constructor and to nothing else. |
 | `LoadPolicy` | What to do about a declared value the input file does not hold: `STRICT`, `DEFAULTS`, or `STRICT_THEN_DEFAULTS`, which is the default. |
 | `LoadedConfig` | What `load_config` returns: the object to edit, and the report of its load. |
@@ -36,6 +37,9 @@ from {{import_name}} import ActionSettings, ConfigLoadError, Descriptions, \
 | `row_description` | What the application says one member is for, as it is being shown: the description while the explanations are shown, and nothing while they are hidden. |
 | `row_marks` | The marks of one member: that the input file did not hold it, that the user changed it, and that a validation pass then rewrote what the user wrote. All of them can apply at once. |
 | `row_value_text` | The value of one member as the text a field shows. A string is shown as the string itself, without the quotation marks that the file format puts around it. Both backends use it, so neither of them formats values itself. |
+| `Emphasis` | Why a part of the editor stands out from the values: `MUTED` for text about them and for a state nothing has reached, `ATTENTION` for something that has happened to a member, `WARNING` for a remark about the input file, and `GOOD` and `BAD` for what the application accepted and refused. There is no member for ordinary text, because the values and their names are left alone. |
+| `EXPLANATION`, `MEMBER_MARK`, `LOAD_REMARK` | Which of those the explanatory text, the marks of a member and the message of the load are. They are named here rather than in each backend, so that the two of them cannot colour one thing two ways. |
+| `verdict_emphasis`, `save_emphasis` | Which of those the validation state and the saving are, as things stand now. These two depend on the state of the model, which is why they are functions and why they are here: they are the two a backend could otherwise get differently. |
 | `verdict_text` | The validation state of a model as text, with the diagnostics below it. Both backends show it, so the two of them cannot describe one verdict differently. |
 | `save_text` | What saving did, or where it would write if it were asked, or that no file has been chosen at all. Those are three different states, and a user who cannot tell them apart cannot tell whether Save will ask them something. |
 
@@ -132,6 +136,25 @@ paragraph of the class docstring, because one line for the whole configuration
 is worth keeping. That state belongs to the model rather than to a backend, so
 that an application cannot end up with two user interfaces that disagree about
 whether they are explaining themselves.
+
+### Telling the kinds of text apart
+
+Once the explanations are on the screen, most of what is on it is not the
+values, and a user who has to read all of it to find the one line that matters
+is reading too much. `Emphasis` is what the core says about that, and each
+backend maps it to what its own toolkit understands: Textual to the colours of
+the terminal's theme, which follow it into a dark mode, and Tkinter to colour
+values.
+
+| Shown | Emphasis | Why |
+| --- | --- | --- |
+| a value, a member name | none | what the user came to change, and the most legible thing there because nothing was done to it |
+| the class docstring, a description | `MUTED` | text about the values rather than the values |
+| the marks of a member | `ATTENTION` | the file did not hold it, the user changed it, or a validator changed what the user wrote |
+| what reading the input file did | `WARNING` | a load that says anything is saying the file was not quite what was asked for |
+| a validation or a save that has not been asked for | `MUTED` | a state nothing has reached is not a state to read first |
+| an accepted buffer, a written file | `GOOD` | |
+| a refused buffer, a refused save | `BAD` | |
 
 ## Writing the output file
 

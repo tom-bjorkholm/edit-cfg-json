@@ -44,7 +44,7 @@ chose nothing they are the defaults of `edit_cfg_json.ActionSettings`:
 | `ctrl+s` | Save |
 | `ctrl+shift+s` or `f12` | Save as |
 | `ctrl+q` | Quit |
-| `f1`, or `ctrl+g` | Explain |
+| `f1`, or `ctrl+g` | Explain, or Hide explanation |
 
 Every change of a field goes straight into the model, and the title is marked
 while the model holds a change worth saving.
@@ -80,8 +80,30 @@ nothing about gets none, rather than an empty one. Which of the two states the
 editor is in belongs to the model, so this backend and the Tk one cannot
 disagree about it.
 
+The action is named for what the next press of it will do: it is "Explain"
+while the explanations are hidden and "Hide explanation" while they are shown,
+in the footer and in the command palette alike. "Explain" beside explanations
+that are already there would be offering something that has been done. The Tk
+backend answers the same question with a tick-box, which a footer cannot be.
+
 Quitting writes nothing of its own. It is the "cancel" of the editor; saving
 leaves the editor open, and what has been saved has been saved.
+
+## Scrolling, and the colours
+
+The docstring, the load message and the member rows are in the part of the
+screen that scrolls, and the verdict, the saving line and the footer are below
+it and stay where they are: they are what a user reaches for after editing
+rather than something to scroll to. A configuration of any size therefore fits
+a terminal of any size.
+
+Each kind of text has a colour, so that the explanations do not read as loudly
+as the values and a refused validation does not read like an accepted one.
+Which kind each piece of text is comes from `edit_cfg_json.Emphasis` and is
+therefore the same here as in the Tkinter backend; what the colours are is
+this package's own, and they are the colours of the terminal's theme rather
+than colours named here, so the editor follows the terminal into its light or
+its dark mode.
 
 ## About the keys
 

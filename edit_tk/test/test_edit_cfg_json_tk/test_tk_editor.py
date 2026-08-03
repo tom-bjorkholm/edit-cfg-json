@@ -50,22 +50,26 @@ def test_real_field_values(root_or_skip: tkinter.Tk) -> None:
 
 
 def below_root(widget: object, root: FakeWidget) -> bool:
-    """Return whether one stub widget is inside the frames below one parent.
+    """Return whether one stub widget is somewhere below one parent.
 
-    A member owns two frames: one for the member, which holds the line that
-    is edited and the description below it, and one for that line.
+    There are several frames between the two: the area that scrolls, the
+    canvas that scrolls it, the body on that canvas, the frame of the member,
+    and the frame of the line that is edited. What matters to the tests below
+    is that a field belongs to the editor of this parent and not to another
+    one, so the way down is walked rather than counted.
 
     Args:
         widget: Stub widget to look for.
         root: Parent that the editor was built below.
 
     Returns:
-        Whether that widget is inside the frames of a member of that parent.
+        Whether that widget is below that parent.
     """
-    assert isinstance(widget, FakeWidget)
-    member = widget.parent
-    assert isinstance(member, FakeWidget)
-    return member.parent is root
+    while isinstance(widget, FakeWidget):
+        if widget is root:
+            return True
+        widget = widget.parent
+    return False
 
 
 def test_stub_row_frames(stub_tk: None) -> None:

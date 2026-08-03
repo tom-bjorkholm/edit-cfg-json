@@ -15,6 +15,20 @@ from example.e01_flat_config import FlatConfig
 from .helpers import FakeVar, FakeWidget, real_press, stub_editor, \
     stub_press, stub_texts, stub_window, written
 
+WHEEL_SEQUENCES = ('<MouseWheel>', '<Button-4>', '<Button-5>')
+"""The sequences that the editor binds so that the wheel scrolls the body.
+
+They are on the window beside the keys of the actions, because a wheel event
+goes to the widget under the pointer and the pointer is usually over a field.
+"""
+
+REAL_WHEEL_SEQUENCES = ('<MouseWheel>', '<Button-4>', '<Button-5>')
+"""What real Tk calls those same three sequences.
+
+They are the same, unlike the keys of the actions, which real Tk reports with
+a `Key` in them.
+"""
+
 
 def key_settings(actions: ActionSettings) -> Settings:
     """Return the settings of an application that chose these keys."""
@@ -28,7 +42,8 @@ def test_stub_default_keys(stub_tk: None) -> None:
     assert set(stub_window().bindings) == {'<Control-q>', '<Control-r>',
                                            '<F5>', '<Control-s>',
                                            '<Control-Shift-S>', '<F12>',
-                                           '<F1>', '<Control-g>'}
+                                           '<F1>', '<Control-g>',
+                                           *WHEEL_SEQUENCES}
 
 
 def test_real_default_keys(root_or_skip: tkinter.Tk) -> None:
@@ -37,7 +52,8 @@ def test_real_default_keys(root_or_skip: tkinter.Tk) -> None:
     assert set(root_or_skip.bind()) == {'<Control-Key-q>', '<Control-Key-r>',
                                         '<Key-F5>', '<Control-Key-s>',
                                         '<Control-Shift-Key-S>', '<Key-F12>',
-                                        '<Key-F1>', '<Control-Key-g>'}
+                                        '<Key-F1>', '<Control-Key-g>',
+                                        *REAL_WHEEL_SEQUENCES}
 
 
 def test_stub_key_saves(stub_tk: None, tmp_path: Path) -> None:
@@ -83,7 +99,7 @@ def test_stub_unknown_key(stub_tk: None) -> None:
     stub_editor(EditModel(FlatConfig(),
                           settings=key_settings(
                               ActionSettings(save=('super+x',)))))
-    assert not [key for key in stub_window().bindings if 'w' in key.lower()]
+    assert '<Control-x>' not in stub_window().bindings
     assert SAVE_TEXT in stub_texts()
 
 

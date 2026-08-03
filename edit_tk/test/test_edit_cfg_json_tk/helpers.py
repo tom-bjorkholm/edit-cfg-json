@@ -120,6 +120,23 @@ NoDocConfig.__doc__ = None
 REWRITTEN_MARK = ' (edited) (changed by validator)'
 """Mark of a member that the user changed and a validator then rewrote."""
 
+STUB_BODY_HEIGHT = 1000
+"""Height that the stub reports for the scrolling part of the editor.
+
+It is taller than the height that part is allowed to have, so that the stubbed
+tests see what the editor does with a configuration too tall for a window.
+"""
+
+STUB_BODY_WIDTH = 900
+"""Width that the stub reports for the scrolling part of the editor.
+
+It is wider than the width that part asks for at most, so that the stubbed
+tests see what the editor does with a configuration wider than a window.
+"""
+
+STUB_CANVAS_ITEM = 7
+"""Identifier that the stub gives the one item it is asked to create."""
+
 
 class FakeWidget:
     """Recording stand-in for a Tkinter widget in the stubbed tests."""
@@ -133,6 +150,7 @@ class FakeWidget:
         self.options = options
         self.bindings: dict[str, Callable[..., object]] = {}
         self.packed = False
+        self.scrolled = 0
         FakeWidget.created.append(self)
 
     def bind(self, sequence: str, callback: Callable[..., object]) -> str:
@@ -162,9 +180,48 @@ class FakeWidget:
         """Return one option of this widget, as a real Tk widget does."""
         return self.options[name]
 
+    def configure(self, **options: object) -> None:
+        """Change options of this widget, as a real Tk widget does."""
+        self.options.update(options)
+
     def winfo_toplevel(self) -> 'FakeWidget':
         """Return this widget, standing in for the enclosing window."""
         return self
+
+    def winfo_reqheight(self) -> int:
+        """Return a height, standing in for one that Tk would have laid out."""
+        return STUB_BODY_HEIGHT
+
+    def winfo_reqwidth(self) -> int:
+        """Return a width, standing in for one that Tk would have laid out."""
+        return STUB_BODY_WIDTH
+
+    def create_window(self, *place: int, **options: object) -> int:
+        """Put a widget on this canvas, as a real Tk canvas does."""
+        _ = (place, options)
+        return STUB_CANVAS_ITEM
+
+    def itemconfigure(self, item: int, **options: object) -> None:
+        """Change options of one item of this canvas."""
+        _ = (item, options)
+
+    def bbox(self, *what: str) -> tuple[int, int, int, int]:
+        """Return the area the contents of this canvas take up."""
+        _ = what
+        return (0, 0, 0, STUB_BODY_HEIGHT)
+
+    def yview(self, *arguments: str) -> None:
+        """Scroll this canvas, as its scrollbar asks it to."""
+        _ = arguments
+
+    def yview_scroll(self, number: int, what: str) -> None:
+        """Record how far the wheel scrolled this canvas."""
+        assert what == 'units'
+        self.scrolled += number
+
+    def set(self, *fractions: str) -> None:
+        """Show how much of the contents is visible, as a scrollbar does."""
+        _ = fractions
 
     def destroy(self) -> None:
         """Ignore window destruction, which the stubbed tests do not need."""
@@ -174,6 +231,33 @@ class FakeWidget:
         command = self.options['command']
         assert callable(command)
         command()
+
+
+class FakeFlag:
+    """Recording stand-in for a `tkinter.BooleanVar` in the stubbed tests.
+
+    A tick-box shows its state through one of these, and Tk flips it itself
+    when the box is pressed. This stub does neither of those things: it holds
+    what it is told, which is what shows that the editor keeps the tick and
+    the window saying the same thing.
+    """
+
+    created: ClassVar[list['FakeFlag']] = []
+    """Every stub flag created since the list was last cleared."""
+
+    def __init__(self, master: object = None, value: bool = False) -> None:
+        """Record this flag, its master and the state it starts in."""
+        self.master = master
+        self.value = value
+        FakeFlag.created.append(self)
+
+    def get(self) -> bool:
+        """Return the state this flag holds."""
+        return self.value
+
+    def set(self, value: bool) -> None:
+        """Change the state this flag holds."""
+        self.value = value
 
 
 class FakeVar:
@@ -256,6 +340,11 @@ def _shows_text(widget: tkinter.Misc, packed_only: bool) -> bool:
 def real_texts(widget: tkinter.Misc, packed_only: bool = False) -> list[str]:
     """Return the text of every real Tk widget below one widget.
 
+    The order is the order the widgets were created in, which the editor keeps
+    the same as the order they are read in: the part that does not scroll is
+    *packed* before the part that does, so that a window too short for
+    everything still has room for it, and it is created afterwards.
+
     Args:
         widget: Widget whose descendants are read.
         packed_only: Whether to leave out the widgets that are not in the
@@ -282,11 +371,16 @@ def real_fields(widget: tkinter.Misc) -> list[tkinter.Entry]:
     return fields
 
 
-def real_buttons(widget: tkinter.Misc) -> list[tkinter.Button]:
-    """Return every real Tk button below one widget, in the order created."""
-    buttons: list[tkinter.Button] = []
+def real_buttons(widget: tkinter.Misc
+                 ) -> list[tkinter.Button | tkinter.Checkbutton]:
+    """Return everything below one widget that can be pressed.
+
+    A tick-box counts as one: it is what this backend offers for the action
+    that is a toggle, and pressing it is what a user does to it.
+    """
+    buttons: list[tkinter.Button | tkinter.Checkbutton] = []
     for child in widget.winfo_children():
-        if isinstance(child, tkinter.Button):
+        if isinstance(child, (tkinter.Button, tkinter.Checkbutton)):
             buttons.append(child)
         buttons.extend(real_buttons(child))
     return buttons
@@ -319,3 +413,33 @@ def written(out_file: Path) -> object:
 def stub_window() -> FakeWidget:
     """Return the stub widget that the bindings of the editor are made on."""
     return FakeWidget.created[0]
+
+
+def real_ticks(widget: tkinter.Misc) -> list[bool]:
+    """Return the state of every real Tk tick-box below one widget.
+
+    Tk keeps the state in a variable of its own rather than in the widget, so
+    it is read the way a user reads it: a tick-box whose value equals its
+    `onvalue` is ticked.
+
+    Args:
+        widget: Widget whose descendants are read.
+
+    Returns:
+        Whether each tick-box below that widget is ticked, in creation order.
+    """
+    return [_is_ticked(box) for box in real_buttons(widget)
+            if isinstance(box, tkinter.Checkbutton)]
+
+
+def _is_ticked(box: tkinter.Checkbutton) -> bool:
+    """Return whether one real Tk tick-box is ticked.
+
+    Args:
+        box: Tick-box to read.
+
+    Returns:
+        Whether its variable holds the value it holds when it is ticked.
+    """
+    held = box.getvar(str(box.cget('variable')))
+    return str(held) == str(box.cget('onvalue'))

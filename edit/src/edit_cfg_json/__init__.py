@@ -14,6 +14,8 @@ from edit_cfg_json.descriptions import Descriptions
 from edit_cfg_json.editing import edit
 from edit_cfg_json.loading import ConfigLoadError, LoadPolicy, LoadReport, \
     LoadedConfig, load_config
+from edit_cfg_json.emphasis import EXPLANATION, Emphasis, LOAD_REMARK, \
+    MEMBER_MARK, save_emphasis, verdict_emphasis
 from edit_cfg_json.saving import SaveOutcome
 from edit_cfg_json.settings import ActionSettings, Settings, SettingsSource
 from edit_cfg_json.validation import ValidationVerdict
@@ -24,6 +26,8 @@ from edit_cfg_json.model_text import docstring_text, load_text, \
 __all__ = ['EditModel', 'MemberRow', 'EditorBackend', 'Descriptions', 'edit',
            'ConfigLoadError', 'LoadPolicy', 'LoadReport', 'LoadedConfig',
            'load_config', 'SaveOutcome', 'ActionSettings', 'Settings',
-           'SettingsSource', 'ValidationVerdict', 'docstring_text',
-           'load_text', 'model_as_text', 'model_title', 'row_description',
-           'row_marks', 'row_value_text', 'save_text', 'verdict_text']
+           'SettingsSource', 'ValidationVerdict', 'Emphasis', 'EXPLANATION',
+           'LOAD_REMARK', 'MEMBER_MARK', 'save_emphasis', 'verdict_emphasis',
+           'docstring_text', 'load_text', 'model_as_text', 'model_title',
+           'row_description', 'row_marks', 'row_value_text', 'save_text',
+           'verdict_text']
