@@ -1,20 +1,23 @@
 #! /usr/bin/env python3
 """Tests for the explanatory text about a configuration and its members.
 
-The two sources are tested separately here, because they are independent: a
-class has a docstring or has not, and an application describes a member or
-does not, and neither of those says anything about the other.
+The three sources are tested separately here, because they are independent: a
+class has a docstring or has not, an application describes a member or does
+not, and a member has a type that says something or has not, and none of
+those says anything about the others.
 """
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from config_as_json import ConfigPath
+from config_as_json import ConfigPath, ParseConverter
 import pytest
 from edit_cfg_json import Descriptions
+from edit_cfg_json.converting import member_converters
 from edit_cfg_json.descriptions import class_docstring, class_summary, \
-    path_description
-from .sample_cfg import DocumentedCfg, FlatCfg, NoDocCfg, WrappedDocCfg
+    enum_text, member_description, path_description
+from .sample_cfg import DocumentedCfg, EnumCfg, FlatCfg, HexCfg, IntEnumCfg, \
+    NoDocCfg, PlainEnumCfg, SampleCfg, WrappedDocCfg
 
 SUMMARY = 'One line that says what this configuration is for.'
 """The summary paragraph of the docstring of `DocumentedCfg`."""
@@ -41,6 +44,15 @@ ABOUT_LOW = 'What the low limit is for.'
 
 ABOUT_ANY = 'What any one of these limits is for.'
 """Description of every member of a dict at once."""
+
+ABOUT_COLOUR = 'What this colour is used for.'
+"""Description that an application writes about an enum member."""
+
+COLOUR_SUMMARY = 'The values that the enum member of `EnumCfg` can hold.'
+"""The whole docstring of `Colour`, which is a summary and nothing else."""
+
+LEVEL_SUMMARY = 'The values that the int enum member of `IntEnumCfg` can hold.'
+"""The summary of the docstring of `Level`, which has a detail as well."""
 
 
 def test_exact_selector() -> None:
@@ -140,3 +152,74 @@ def test_no_inherited_doc() -> None:
     """
     assert class_docstring(NoDocCfg) == ''
     assert class_summary(NoDocCfg) == ''
+
+
+def _converter(config: SampleCfg, name: str) -> ParseConverter:
+    """Return the parse converter of one member of one configuration."""
+    return member_converters(config)[name]
+
+
+def test_enum_names_listed() -> None:
+    """Test the names an enum accepts are read from the enum class.
+
+    They are a fact about the type of the member and not a constraint read
+    out of a validator, which this library never reads, so the editor can
+    say them and an application does not have to write them twice.
+    """
+    assert enum_text(_converter(EnumCfg(), 'colour')) == \
+        f'{COLOUR_SUMMARY}\nOne of: RED, GREEN.'
+
+
+def test_enum_summary_only() -> None:
+    """Test the detail of an enum docstring is left out.
+
+    The rest of an enum docstring is usually notes for whoever writes the
+    application, about how the members are numbered or how they reach the
+    file, which is not what somebody choosing between them needs.
+    """
+    text = enum_text(_converter(IntEnumCfg(), 'level'))
+    assert text == f'{LEVEL_SUMMARY}\nOne of: LOWEST, LOW, HIGH.'
+    assert 'begin with the same' not in text
+
+
+def test_enum_without_doc() -> None:
+    """Test an enum with no docstring of its own still lists its names."""
+    assert enum_text(_converter(PlainEnumCfg(), 'level')) == \
+        'One of: QUIET, LOUD.'
+
+
+@pytest.mark.parametrize('config, name',
+                         [(FlatCfg(), 'name'), (HexCfg(), 'mask')])
+def test_no_enum_text(config: SampleCfg, name: str) -> None:
+    """Test a member that holds no enum has nothing said about its type.
+
+    The second of the two has a converter and it is about no enum, which is
+    what says that the text comes from the type and not from having one.
+    """
+    assert enum_text(member_converters(config).get(name)) == ''
+
+
+def test_description_appended() -> None:
+    """Test what the type says is appended to what the application says.
+
+    Appended and not used instead: the names an enum accepts are true
+    whatever the application wrote about the member, and an application that
+    explains what its members mean should not have to list the names too.
+    """
+    descriptions: Descriptions = {('colour',): ABOUT_COLOUR}
+    assert member_description(descriptions=descriptions, path=('colour',),
+                              converter=_converter(EnumCfg(), 'colour')) == \
+        f'{ABOUT_COLOUR}\n{COLOUR_SUMMARY}\nOne of: RED, GREEN.'
+
+
+def test_type_describes_alone() -> None:
+    """Test a member the application says nothing about is still explained."""
+    assert member_description(descriptions={}, path=('colour',),
+                              converter=_converter(EnumCfg(), 'colour')) == \
+        f'{COLOUR_SUMMARY}\nOne of: RED, GREEN.'
+
+
+def test_nothing_to_describe() -> None:
+    """Test a member nothing is known about is described by nothing."""
+    assert member_description(descriptions={}, path=('name',),
+                              converter=None) == ''

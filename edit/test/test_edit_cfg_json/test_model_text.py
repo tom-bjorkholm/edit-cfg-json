@@ -9,9 +9,10 @@ import pytest
 from config_as_json import JsonType
 from edit_cfg_json import Descriptions, EditModel, LoadReport, MemberRow, \
     docstring_text, load_text, model_as_text, model_title, row_description, \
-    row_marks, row_value_text, save_text, verdict_text
-from .sample_cfg import DocumentedCfg, FlatCfg, ListCfg, NoDocCfg, NoneCfg, \
-    RangeCfg, RewriteCfg
+    row_diagnostic, row_marks, row_value_text, save_text, verdict_text
+from .sample_cfg import HIGHEST, TOO_LARGE_MESSAGE, DocumentedCfg, FlatCfg, \
+    IntEnumCfg, ListCfg, NoDocCfg, NoneCfg, RangeCfg, RewriteCfg, RulesCfg
+
 
 FLAT_DOC = 'A configuration with one text member and one number member.'
 """The docstring of `FlatCfg`, which is a summary and nothing else."""
@@ -50,6 +51,11 @@ FILLED_REPORT = LoadReport(message=LOAD_LINE, filled=frozenset({'answer'}))
 
 NO_FILE_LINE = 'save to: no file chosen yet'
 """Line that a rendering of a model with no destination ends with."""
+
+
+def _row(model: EditModel, name: str) -> MemberRow:
+    """Return the row of one member of a model."""
+    return {row.name: row for row in model.rows}[name]
 
 
 def test_flat_text() -> None:
@@ -128,13 +134,29 @@ def test_valid_verdict_text() -> None:
 
 
 def test_invalid_verdict_text() -> None:
-    """Test a refused buffer is reported with the diagnostics below it."""
+    """Test a refused member is named here and reported beside itself.
+
+    The sentence that says what is wrong with one member belongs at that
+    member, and this line says which members to look at, because a
+    configuration of any size does not fit a window.
+    """
     model = EditModel(RangeCfg())
     model.set_text(path=('answer',), text='500')
     model.validate()
+    assert verdict_text(model) == 'validation: invalid, see answer'
+    assert 'greater than maximum 100' in \
+        row_diagnostic(model=model, row=_row(model, 'answer'))
+
+
+def test_unattributed_verdict() -> None:
+    """Test what is about no single member stays below the state line."""
+    model = EditModel(RulesCfg())
+    model.set_text(path=('first',), text=str(HIGHEST))
+    model.set_text(path=('second',), text=str(HIGHEST))
+    model.validate()
     assert verdict_text(model) == (
-        'validation: invalid\nInvalid configuration: '
-        'Value 500 for answer is greater than maximum 100.')
+        'validation: invalid\n'
+        + TOO_LARGE_MESSAGE.format(total=2 * HIGHEST))
 
 
 def test_edited_verdict_text() -> None:
@@ -352,3 +374,74 @@ def test_saved_title(tmp_path: Path) -> None:
     assert model_title(model) == 'FlatCfg *'
     model.save()
     assert model_title(model) == 'FlatCfg'
+
+
+def test_diagnostic_below() -> None:
+    """Test what is wrong with a member is written below that member.
+
+    The description comes first and the refusal after it, because the
+    description is part of the member and the refusal comes and goes: a line
+    that appears at the bottom moves nothing that is above it.
+    """
+    model = EditModel(IntEnumCfg())
+    model.set_text(path=('level',), text='MIDDLE')
+    model.validate()
+    assert model_as_text(model).splitlines()[-6:] == [
+        'level = MIDDLE (edited)',
+        '    The values that the int enum member of `IntEnumCfg` can hold.',
+        '    One of: LOWEST, LOW, HIGH.',
+        '    MIDDLE is not one of: LOWEST, LOW, HIGH',
+        'validation: invalid, see level', NO_FILE_LINE]
+
+
+def test_diagnostic_stays() -> None:
+    """Test hiding the explanations leaves what is wrong on the screen.
+
+    A description says what a member is for and is what a user who knows the
+    configuration wants out of the way. A refusal is something to act on, and
+    an editor that hid it would be hiding the one thing that has to be read.
+    """
+    model = EditModel(IntEnumCfg())
+    model.set_text(path=('level',), text='MIDDLE')
+    model.validate()
+    model.toggle_explanations()
+    lines = model_as_text(model).splitlines()
+    assert '    MIDDLE is not one of: LOWEST, LOW, HIGH' in lines
+    assert '    One of: LOWEST, LOW, HIGH.' not in lines
+
+
+def test_leaving_field_shown() -> None:
+    """Test a field that was left says so without any validation pass.
+
+    The verdict is still that nothing has been validated, because leaving one
+    field is not a question about the whole configuration.
+    """
+    model = EditModel(IntEnumCfg())
+    model.set_text(path=('level',), text='MIDDLE')
+    model.check_field(('level',))
+    assert row_diagnostic(model=model, row=_row(model, 'level')) == \
+        'MIDDLE is not one of: LOWEST, LOW, HIGH'
+    assert verdict_text(model) == UNKNOWN_LINE
+
+
+def test_no_diagnostic() -> None:
+    """Test a member nothing is known to be wrong with says nothing."""
+    model = EditModel(FlatCfg())
+    assert row_diagnostic(model=model, row=_row(model, 'name')) == ''
+    model.validate()
+    assert row_diagnostic(model=model, row=_row(model, 'name')) == ''
+
+
+def test_edit_drops_it() -> None:
+    """Test an edit anywhere drops what a validation pass said about a member.
+
+    What a validator refused is answered by the whole configuration, and a
+    validator may look at any member of it, so a verdict that was reached
+    from an earlier buffer says nothing true about the one there now.
+    """
+    model = EditModel(RulesCfg())
+    model.set_text(path=('first',), text='500')
+    model.validate()
+    assert row_diagnostic(model=model, row=_row(model, 'first')) != ''
+    model.set_text(path=('second',), text='3')
+    assert row_diagnostic(model=model, row=_row(model, 'first')) == ''

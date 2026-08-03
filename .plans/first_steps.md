@@ -609,39 +609,108 @@ mapping; `--ui dump` includes the descriptions, and both UIs toggle them.
 Risk: the toggle is state that both backends will want to own; it belongs
 to the model.
 
-**Step 7 — Field-level diagnostics.** Attribute failures to individual
-fields by running `MemberValidationStep.validator.validate_member()` for
-one member of a complete candidate config, per design section 6.3. A
-complete candidate must be built first, because `validate_member` receives
-the whole config and may inspect other members. A new example
+**Step 7 — Field-level diagnostics.**
+
+Status: **Implemented and committed.**
+
+**Decided while building it.**
+
+- **The candidate that attribution needs cannot be built the ordinary way.**
+  `Config.__init__` ends in `parse_json()`, which ends in `validate()`, which
+  raises at the first refusal, so the object that could say which member was
+  refused is the one a refusal keeps the editor from holding. A throwaway
+  subclass whose `get_validation_plan` returns nothing is that object, and the
+  plan is then asked of the real class and applied step by step. Recorded in
+  `doc/design.md` section 6.3.
+- **It is a subclass rather than a default instance with the buffer assigned
+  onto it**, because the subclass gets the whole parse chain for nothing: key
+  matching, the dict shape checks, the parse converters, and the nested
+  configuration objects that step 11 brings. Assigning would put a copy of
+  `_json_parse_obj_hook`'s rule in the editor and a plain dict where a nested
+  `Config` belongs. Reviewed at step 7 after a first justification that
+  claimed it also rescued a configuration whose declared defaults are invalid;
+  that claim was wrong, and it is worth recording why. Such a class cannot
+  reach the editor at all — `load_config` constructs it with no JSON source
+  and `edit()` is handed an object the caller already constructed, so both
+  doors validate the defaults first. `RefuseCfg` in the core tests is exactly
+  that class, and it is a test fixture and not a configuration any application
+  could use.
+- **The walk does not stop at the first refusal**, so every member the user
+  has to correct is named at once; and a step that is about no single member
+  is applied only while no member has been refused, because that is the only
+  case in which `Config.validate()` would have reached it.
+- **Where a refusal is shown** is settled in a new section 6.5: at the member
+  when it is about one, in the block below the members when it is about none,
+  and the verdict line names the members so that a configuration too tall for
+  a window does not leave the user hunting. What was attributed is taken out
+  of the block, so the same sentence is not on the screen twice.
+- **The focus-loss question of design section 4.2 is answered by building
+  it.** `EditModel.check_field` is what a backend calls when a field loses the
+  focus, from `<FocusOut>` in Tk and `Input.Blurred` in Textual. It is a
+  different question from validation and its answer lives for a different
+  length of time: per member, cleared by the next edit of that member, while
+  what a validator refused is dropped as soon as anything in the buffer
+  changes.
+- **The converter is run and not read.** `parse_converters()` gives a
+  `ParseConverter` whose `func` is what `config_as_json` itself calls, so the
+  enum pre-check is that call and nothing about enums is hard coded. An
+  application that declared a converter of its own is answered by its own
+  converter, which the `HexCfg` of the core tests is there to show.
+- **Part C was built, appending rather than replacing.** The enum class of a
+  member says the summary of its own docstring and the names it accepts, below
+  whatever the application said. Recorded in section 4.3, with the reason it
+  is not the validator reading that section 11 rules out permanently. The
+  description of `priority` in `e03` was reworded, because it listed the three
+  names by hand and that is now the editor's job.
+- New public names: `row_diagnostic` and `MEMBER_DIAGNOSTIC`, plus
+  `EditModel.check_field`, `MemberRow.converter`, `MemberRow.conversion` and
+  `ValidationVerdict.refused`. New internal modules `converting.py` in the
+  core and `scrolling.py` in the Tk package. No type alias was needed.
+- **The load path is deliberately unchanged.** A file with a bad enum name is
+  still refused with the message `config_as_json` prints, because a refusal
+  the user cannot act on inside the editor is not a field being edited.
+
+**Found while building it, and the lessons they carry.**
+
+- **`tk_editor.py` went over the 1000 line limit**, so the scrolling body — the
+  canvas, the scrollbar, the frame on it, the wheel and the two resize
+  callbacks — moved into `scrolling.py`. It is a clean split rather than a cut
+  to fit a number: none of it is about an edit model.
+- **Two texts under one member cannot both be packed and unpacked freely.** Tk
+  packs a widget after the ones that are already there, so a description that
+  came back while a refusal was showing landed below it. Both are now taken
+  out and put back together, and only when either of them has really changed,
+  so typing into a field does not lay the window out again on every key.
+- **A withdrawn Tk window swallows a generated focus event.** `event_generate`
+  does not stand in for one, so the real companion to the stubbed focus test
+  is the second `focus_sensitive` test of the repository. Textual costs
+  nothing here: focus is the application's own, so the headless driver moves
+  it and the editor is really told.
+
+**Observable outcome.** A new example `e04_validated_config.py` carries a
+validator the application wrote and a `ProjectedWholeConfigValidator` over two
+members. `--set job_name='a b' --set retries=9` names both members on the
+verdict line and puts a sentence under each of them, with nothing left in the
+block; `--set retries=5 --set timeout_seconds=400` refuses neither member and
+says so in the block alone. `e02_enum_config.py --set needed=ELECT` now shows
+`ELECT is not one of: MECHANICAL, ELECTRICAL, ELECTRONIC` under that member
+instead of the wrapper about JSON that could not be loaded, and its two
+members explain themselves although that example passes no descriptions at
+all. Both graphical backends show the same, and say the same as soon as a
+field loses the focus.
+
+**What it was planned to be.** Attribute failures to individual fields by
+running `MemberValidationStep.validator.validate_member()` for one member of a
+complete candidate config, per design section 6.3. A new example
 `e04_validated_config.py` carries a custom validator and a projected
 validator; the failure now appears on the offending row in both UIs rather
 than in one block. Risk: this must work for an application's own
 `MemberValidator` subclass, so no test may rely on a validator class that
-ships with `config_as_json` being recognised by type.
-
-Step 7 also makes the enum validation error message nicer.
-The message "Config.parse_json failed to load JSON from string/file.
-Probably incorrectly edited configuration, or using wrong file
-(not config file) as configuration.
-'ELEC is not one of: MECHANICAL, ELECTRICAL, ELECTRONIC' " is correct
-when reading it from a file, but for the user of the editor this is
-confusing as the user of the editor should not care about how the editor
-is implemented. We can and should avoid most occurences of this message
-by looking at `parse_converters()` that tells us what enum class this
-field should hold and then in editor code use
-`config_as_json.string_to_enum_best_match()` to pre-check if the value
-is bad. If the value is bad according to `config_as_json.string_to_enum_best_match()`
-we report that, only once that step has passed do we do the complete
-validation.
-
-Evaluate if parse_converters() would allow us to find the correct
-Enum type for an enum field and if possible and how much effort it would
-be to use introspection on the Enum type to add a description for the
-enum field based on the enum class docstring and possible enum values.
-Make a decision if this shall be implemented as part of step 7,
-if it shall be recorded as a later development stage, or if it
-should not be done at all.
+ships with `config_as_json` being recognised by type. Also: make the enum
+validation error message nicer by pre-checking the value against what
+`parse_converters()` says the member holds; and evaluate whether the same
+introspection can describe an enum member from its class, deciding whether to
+build that now, later, or not at all.
 
 **Step 8 — Automatic-change visibility.** Load the file, re-serialize the
 resulting config and diff that against the raw file text; any difference
@@ -763,7 +832,7 @@ step that needs it. They are listed here so they are not forgotten.
 
 | Question | Answer needed by |
 | --- | --- |
-| When does a field report that its text means no value at all, and is that on focus loss? See `doc/design.md` section 4.2. | raised at step 3, settled no later than step 7 |
+| ~~When does a field report that its text means no value at all, and is that on focus loss?~~ Answered at step 7: it does, on focus loss, through `EditModel.check_field`. See `doc/design.md` sections 4.2 and 6.5. | done |
 | Does `Config.write()` validate, making the editor's gate belt and braces? | step 5 |
 | Is `ConfigNestingKind.OPTIONAL_MEMBER` in v1 scope? | step 11 |
 | Does the Textual headless driver in the pinned 8.2.8 behave as the design assumes? | step 1 |

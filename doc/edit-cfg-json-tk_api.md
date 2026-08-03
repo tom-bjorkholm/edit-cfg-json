@@ -5,9 +5,7 @@
   * [LEAST\_FIELD\_WIDTH](#edit_cfg_json_tk.tk_editor.LEAST_FIELD_WIDTH)
   * [PADDING](#edit_cfg_json_tk.tk_editor.PADDING)
   * [DESCRIPTION\_INDENT](#edit_cfg_json_tk.tk_editor.DESCRIPTION_INDENT)
-  * [BODY\_HEIGHT](#edit_cfg_json_tk.tk_editor.BODY_HEIGHT)
   * [LEAST\_WRAP\_WIDTH](#edit_cfg_json_tk.tk_editor.LEAST_WRAP_WIDTH)
-  * [BODY\_WIDTH](#edit_cfg_json_tk.tk_editor.BODY_WIDTH)
   * [EMPHASIS\_COLOURS](#edit_cfg_json_tk.tk_editor.EMPHASIS_COLOURS)
   * [FIELD\_BACKGROUND](#edit_cfg_json_tk.tk_editor.FIELD_BACKGROUND)
   * [FIELD\_FOREGROUND](#edit_cfg_json_tk.tk_editor.FIELD_FOREGROUND)
@@ -20,9 +18,6 @@
   * [SAVE\_AS\_TITLE](#edit_cfg_json_tk.tk_editor.SAVE_AS_TITLE)
   * [CONFIG\_FILES](#edit_cfg_json_tk.tk_editor.CONFIG_FILES)
   * [ALL\_FILES](#edit_cfg_json_tk.tk_editor.ALL_FILES)
-  * [ScrollingArea](#edit_cfg_json_tk.tk_editor.ScrollingArea)
-    * [area](#edit_cfg_json_tk.tk_editor.ScrollingArea.area)
-    * [body](#edit_cfg_json_tk.tk_editor.ScrollingArea.body)
   * [StateWidgets](#edit_cfg_json_tk.tk_editor.StateWidgets)
     * [title](#edit_cfg_json_tk.tk_editor.StateWidgets.title)
     * [docstring](#edit_cfg_json_tk.tk_editor.StateWidgets.docstring)
@@ -33,11 +28,13 @@
     * [field](#edit_cfg_json_tk.tk_editor.RowWidgets.field)
     * [mark](#edit_cfg_json_tk.tk_editor.RowWidgets.mark)
     * [description](#edit_cfg_json_tk.tk_editor.RowWidgets.description)
+    * [diagnostic](#edit_cfg_json_tk.tk_editor.RowWidgets.diagnostic)
   * [EditorWidgets](#edit_cfg_json_tk.tk_editor.EditorWidgets)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.EditorWidgets.__init__)
     * [label\_text](#edit_cfg_json_tk.tk_editor.EditorWidgets.label_text)
     * [verdict\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.verdict_text_shown)
     * [save\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.save_text_shown)
+    * [wrong\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.wrong_shown)
     * [docstring\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.docstring_shown)
   * [TkEditor](#edit_cfg_json_tk.tk_editor.TkEditor)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.TkEditor.__init__)
@@ -47,6 +44,13 @@
   * [MODIFIERS](#edit_cfg_json_tk.key_names.MODIFIERS)
   * [KEY\_NAMES](#edit_cfg_json_tk.key_names.KEY_NAMES)
   * [tk\_sequence](#edit_cfg_json_tk.key_names.tk_sequence)
+* [edit\_cfg\_json\_tk.scrolling](#edit_cfg_json_tk.scrolling)
+  * [BODY\_HEIGHT](#edit_cfg_json_tk.scrolling.BODY_HEIGHT)
+  * [BODY\_WIDTH](#edit_cfg_json_tk.scrolling.BODY_WIDTH)
+  * [ScrollingArea](#edit_cfg_json_tk.scrolling.ScrollingArea)
+    * [area](#edit_cfg_json_tk.scrolling.ScrollingArea.area)
+    * [body](#edit_cfg_json_tk.scrolling.ScrollingArea.body)
+  * [scrolling\_body](#edit_cfg_json_tk.scrolling.scrolling_body)
 
 <a id="edit_cfg_json_tk.tk_editor"></a>
 
@@ -90,21 +94,10 @@ Padding in pixels around the widgets of the editor.
 
 #### DESCRIPTION\_INDENT
 
-Indentation in pixels of the description of one member.
+Indentation in pixels of what is written below one member.
 
 The indentation is what says that the line belongs to the member above it
 rather than being a member of its own.
-
-<a id="edit_cfg_json_tk.tk_editor.BODY_HEIGHT"></a>
-
-#### BODY\_HEIGHT
-
-Largest height in pixels that the scrolling part of the editor is given.
-
-A configuration of any size therefore opens a window that fits a screen, and
-what does not fit is scrolled to rather than lost. A configuration smaller
-than this gets a window that is smaller than this, because the height is what
-the body asks for up to this limit and not this limit.
 
 <a id="edit_cfg_json_tk.tk_editor.LEAST_WRAP_WIDTH"></a>
 
@@ -115,17 +108,6 @@ Narrowest line in pixels that a paragraph of the editor is wrapped to.
 A window can be made narrower than any text is readable in, and wrapping to
 what is left of it would leave one word per line. Below this the text is cut
 off by the window instead, which is the lesser of the two.
-
-<a id="edit_cfg_json_tk.tk_editor.BODY_WIDTH"></a>
-
-#### BODY\_WIDTH
-
-Largest width in pixels that the scrolling part of the editor asks for.
-
-A canvas asks for a width of its own that has nothing to do with what is on
-it, so the width the editor opens at has to be said here: what the body asks
-for, up to this. Wider than this is left to the user, who can make the window
-any size, and every text that is a paragraph wraps to whatever width there is.
 
 <a id="edit_cfg_json_tk.tk_editor.EMPHASIS_COLOURS"></a>
 
@@ -229,28 +211,6 @@ What the dialog calls the files of the extension the application uses.
 
 What the dialog calls every other file.
 
-<a id="edit_cfg_json_tk.tk_editor.ScrollingArea"></a>
-
-## ScrollingArea Objects
-
-```python
-class ScrollingArea(NamedTuple)
-```
-
-The part of the editor that scrolls, before it has been placed.
-
-<a id="edit_cfg_json_tk.tk_editor.ScrollingArea.area"></a>
-
-#### area
-
-The frame to pack where the scrolling part of the editor belongs.
-
-<a id="edit_cfg_json_tk.tk_editor.ScrollingArea.body"></a>
-
-#### body
-
-The frame to build the scrolling part of the editor in.
-
 <a id="edit_cfg_json_tk.tk_editor.StateWidgets"></a>
 
 ## StateWidgets Objects
@@ -329,8 +289,17 @@ The widget that says what has happened to this member.
 
 The widget that says what this member is for.
 
-It is None for a member the application said nothing about, because there
-is then nothing that could ever appear in it.
+It is None for a member that nothing is said about, because there is then
+nothing that could ever appear in it.
+
+<a id="edit_cfg_json_tk.tk_editor.RowWidgets.diagnostic"></a>
+
+#### diagnostic
+
+The widget that says what is wrong with this member.
+
+Every member has one, unlike the description above it: any member can be
+refused, so there is no member for which this could never say anything.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets"></a>
 
@@ -413,6 +382,20 @@ def save_text_shown() -> str
 ```
 
 Return the text that the saving part of the editor shows.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets.wrong_shown"></a>
+
+#### wrong\_shown
+
+```python
+@property
+def wrong_shown() -> list[str]
+```
+
+Return what the editor says about each member, in row order.
+
+A member that nothing is known to be wrong with says nothing, so most
+of these are empty most of the time.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets.docstring_shown"></a>
 
@@ -570,4 +553,89 @@ Return one key combination as the event sequence that Tk binds by.
   modifier or a key that this module does not know. None is not an
 - `error` - the action it belongs to keeps its button and loses only
   this way of reaching it.
+
+<a id="edit_cfg_json_tk.scrolling"></a>
+
+# edit\_cfg\_json\_tk.scrolling
+
+The part of a Tkinter editor that scrolls.
+
+A configuration of any interesting size does not fit a window, and with the
+explanations shown it fits one even less. Tk has no scrolling frame, so this
+is the one it has: a canvas with a scrollbar beside it and a frame on the
+canvas. What goes in the frame scrolls, and everything the editor keeps in
+view is packed outside it.
+
+It is a module of its own because none of it is about an edit model: it is
+what Tk needs in order to have a scrolling area at all, and the editor uses
+it the way it uses the toolkit.
+
+<a id="edit_cfg_json_tk.scrolling.BODY_HEIGHT"></a>
+
+#### BODY\_HEIGHT
+
+Largest height in pixels that the scrolling part of the editor is given.
+
+A configuration of any size therefore opens a window that fits a screen, and
+what does not fit is scrolled to rather than lost. A configuration smaller
+than this gets a window that is smaller than this, because the height is what
+the body asks for up to this limit and not this limit.
+
+<a id="edit_cfg_json_tk.scrolling.BODY_WIDTH"></a>
+
+#### BODY\_WIDTH
+
+Largest width in pixels that the scrolling part of the editor asks for.
+
+A canvas asks for a width of its own that has nothing to do with what is on
+it, so the width the editor opens at has to be said here: what the body asks
+for, up to this. Wider than this is left to the user, who can make the window
+any size, and every text that is a paragraph wraps to whatever width there is.
+
+<a id="edit_cfg_json_tk.scrolling.ScrollingArea"></a>
+
+## ScrollingArea Objects
+
+```python
+class ScrollingArea(NamedTuple)
+```
+
+The part of the editor that scrolls, before it has been placed.
+
+<a id="edit_cfg_json_tk.scrolling.ScrollingArea.area"></a>
+
+#### area
+
+The frame to pack where the scrolling part of the editor belongs.
+
+<a id="edit_cfg_json_tk.scrolling.ScrollingArea.body"></a>
+
+#### body
+
+The frame to build the scrolling part of the editor in.
+
+<a id="edit_cfg_json_tk.scrolling.scrolling_body"></a>
+
+#### scrolling\_body
+
+```python
+def scrolling_body(parent: tkinter.Misc) -> ScrollingArea
+```
+
+Return the frame that the scrolling part of the editor is built in.
+
+The area is not packed here. Tk gives each child the space it asks for in
+the order they were packed, so the part that does not scroll has to be
+packed before this one to be sure of its space, while this one is created
+first so that the widgets of the editor are created in the order they are
+read in.
+
+**Arguments**:
+
+- `parent` - Widget that becomes the parent of the created widgets.
+  
+
+**Returns**:
+
+  The frame to pack, and the frame to build in.
 

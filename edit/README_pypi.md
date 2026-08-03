@@ -59,20 +59,21 @@ Everything a user of this package needs is re-exported from the top-level
 ````python
 from edit_cfg_json import ActionSettings, ConfigLoadError, Descriptions, \
     EXPLANATION, EditModel, EditorBackend, Emphasis, LOAD_REMARK, \
-    LoadPolicy, LoadReport, LoadedConfig, MEMBER_MARK, MemberRow, \
-    SaveOutcome, Settings, SettingsSource, ValidationVerdict, \
+    LoadPolicy, LoadReport, LoadedConfig, MEMBER_DIAGNOSTIC, MEMBER_MARK, \
+    MemberRow, SaveOutcome, Settings, SettingsSource, ValidationVerdict, \
     docstring_text, edit, load_config, load_text, model_as_text, \
-    model_title, row_description, row_marks, row_value_text, save_emphasis, \
-    save_text, verdict_emphasis, verdict_text
+    model_title, row_description, row_diagnostic, row_marks, \
+    row_value_text, save_emphasis, save_text, verdict_emphasis, \
+    verdict_text
 ````
 
 | Name | What it is |
 | --- | --- |
 | `edit` | The whole of an editing session in one call: read the input file, build the model, run a backend to completion, and give back the configuration object that was saved, or `None` when nothing was. The backend is a parameter because this package never imports a user interface library; each backend package also exports an `edit` of its own that supplies itself. |
-| `EditModel` | The editable state of one `config_as_json.Config` object, discovered by looking at that object. Its members keep the order the configuration class declares them in, their values are held in JSON space, `set_text` writes the text of one edit field into one of them, `validate` runs the application's own validation over the whole buffer, and `save` writes it to `out_file` if the application would accept it. |
-| `MemberRow` | One configuration member of the model: the path that addresses it, the value it holds now, the value it started with, what the application says the member is for, and the flags that say what has happened to it. |
+| `EditModel` | The editable state of one `config_as_json.Config` object, discovered by looking at that object. Its members keep the order the configuration class declares them in, their values are held in JSON space, `set_text` writes the text of one edit field into one of them, `check_field` says whether the text of one member means a value of it at all, `validate` runs the application's own validation over the whole buffer, and `save` writes it to `out_file` if the application would accept it. |
+| `MemberRow` | One configuration member of the model: the path that addresses it, the value it holds now, the value it started with, what is said about the member, how its text becomes a value, and the flags that say what has happened to it. |
 | `Descriptions` | What the application says about the members it declares: a mapping from the absolute `config_as_json.ConfigPath` of a member to the text that explains it. It is the one type alias this library declares. |
-| `ValidationVerdict` | What one validation pass found: whether the application itself would accept the buffer, and the diagnostics it would produce. `EditModel.verdict` is the verdict of the last pass, or `None` while the buffer has not been validated since it last changed. |
+| `ValidationVerdict` | What one validation pass found: whether the application itself would accept the buffer, what it said about each member it refused, and what it said that is about no single member. `EditModel.verdict` is the verdict of the last pass, or `None` while the buffer has not been validated since it last changed. |
 | `SaveOutcome` | What one attempt to save did: whether the output file was written, and what to tell the user about it. `EditModel.save_message` is the message of the last attempt and `EditModel.save_outcome` is the attempt itself, which is how a backend knows whether it succeeded. |
 | `load_config` | Reads the configuration to edit from one input file, or hands back the caller's own object when there is no file. It constructs the configuration class itself, because a load policy and the reporting of automatic changes are given to a constructor and to nothing else. |
 | `LoadPolicy` | What to do about a declared value the input file does not hold: `STRICT`, `DEFAULTS`, or `STRICT_THEN_DEFAULTS`, which is the default. |
@@ -87,13 +88,14 @@ from edit_cfg_json import ActionSettings, ConfigLoadError, Descriptions, \
 | `model_title` | The label of a whole model, marked while the buffer holds a change worth saving. Both backends show it, so neither of them decides on its own how an unsaved change looks. |
 | `load_text` | What reading the input file did, as text, and nothing at all when it did nothing worth saying. Both backends show it, so the two of them cannot tell the user two different things about one file. |
 | `docstring_text` | What the configuration class says about itself, as much of it as is being shown: the whole docstring while the explanations are shown, and its first paragraph while they are hidden. Both backends show it, so neither of them decides on its own how much of a docstring the user is offered. |
-| `row_description` | What the application says one member is for, as it is being shown: the description while the explanations are shown, and nothing while they are hidden. |
+| `row_description` | What one member is for, as it is being shown: the description while the explanations are shown, and nothing while they are hidden. |
+| `row_diagnostic` | What is wrong with one member, and nothing when nothing is known to be. Its text may mean no value of that member at all, which stays true until the member is edited again, or the application may have refused the value, which is only known for as long as the rest of the buffer stands still. |
 | `row_marks` | The marks of one member: that the input file did not hold it, that the user changed it, and that a validation pass then rewrote what the user wrote. All of them can apply at once. |
 | `row_value_text` | The value of one member as the text a field shows. A string is shown as the string itself, without the quotation marks that the file format puts around it. Both backends use it, so neither of them formats values itself. |
 | `Emphasis` | Why a part of the editor stands out from the values: `MUTED` for text about them and for a state nothing has reached, `ATTENTION` for something that has happened to a member, `WARNING` for a remark about the input file, and `GOOD` and `BAD` for what the application accepted and refused. There is no member for ordinary text, because the values and their names are left alone. |
-| `EXPLANATION`, `MEMBER_MARK`, `LOAD_REMARK` | Which of those the explanatory text, the marks of a member and the message of the load are. They are named here rather than in each backend, so that the two of them cannot colour one thing two ways. |
+| `EXPLANATION`, `MEMBER_MARK`, `LOAD_REMARK`, `MEMBER_DIAGNOSTIC` | Which of those the explanatory text, the marks of a member, the message of the load and what is wrong with a member are. They are named here rather than in each backend, so that the two of them cannot colour one thing two ways. |
 | `verdict_emphasis`, `save_emphasis` | Which of those the validation state and the saving are, as things stand now. These two depend on the state of the model, which is why they are functions and why they are here: they are the two a backend could otherwise get differently. |
-| `verdict_text` | The validation state of a model as text, with the diagnostics below it. Both backends show it, so the two of them cannot describe one verdict differently. |
+| `verdict_text` | The validation state of a model as text: it names the members that were refused, because what was said about each of them is shown beside that member, and it carries below it whatever was said that is about no single member. |
 | `save_text` | What saving did, or where it would write if it were asked, or that no file has been chosen at all. Those are three different states, and a user who cannot tell them apart cannot tell whether Save will ask them something. |
 
 The package is under construction. This version reads a flat configuration
@@ -143,6 +145,56 @@ the case of a string rewrites what the user typed. The buffer is refreshed
 from the configuration object that was accepted, and every value the pass
 rewrote is marked, because changing what the user just typed without showing
 it would be the worst of the available behaviours.
+
+## Saying which member is wrong
+
+`Config.validate()` applies the validation plan in order and stops at the
+first step that refuses, so the pass that decides the verdict can report one
+failure and cannot say which member it was about. What it can say is enough,
+because a validation plan is public: a `MemberValidationStep` names the
+members it is about and holds the validator, and `validate_member` takes one
+member and one value. So the plan is walked a second time, each member's own
+validators are run, and what each of them said is put beside the member it is
+about, which is what `row_diagnostic` gives a backend.
+
+Two things follow, and both of them matter more than the attribution itself:
+
+- **Every refused member is named at once**, because the second walk does not
+  stop at the first refusal. The user corrects one round of mistakes rather
+  than one mistake per round.
+- **No validator class is recognised by type.** A `MemberValidator` subclass
+  that an application wrote is attributed exactly as the ones `config_as_json`
+  ships are, which is the same permanent decision that keeps this library from
+  reading constraints out of validators at all.
+
+A rule that is about no single member — a `WholeConfigValidator`, or a key
+that does not match, or text that is not JSON — has no member to be put
+beside, so it stays in `verdict_text` below the members. A rule of that kind
+is also not applied while a member is refused, because `Config.validate()`
+would have stopped at the member before it and an editor that reported it
+anyway would be reporting something the application never did.
+
+### What the text of a field means, before any of that
+
+A member whose class declares a `parse_converters()` entry does not hold a
+JSON space value at all once the configuration has it, an enum being the case
+that arises in practice. That conversion is run for the member before any
+candidate configuration is built, because a name that is no member of an enum
+cannot be converted and `config_as_json` reports a failed conversion inside
+the message it prints for JSON it could not load — which is right for a
+program reading a file and wrong for a person editing a field.
+
+The converter the class declared is *run* rather than looked at, so an
+application that wrote a converter of its own gets the same treatment.
+
+`EditModel.check_field` asks that question about one member, and it is what
+both backends call when a field loses the focus. That is deliberately not
+every change: the name of an enum member is no name of one for most of the
+time it takes to type it, and a field that reported that would be reporting a
+failure that is not one yet. It is a different question from the validation
+of the whole configuration and it is kept apart from it — it needs no
+candidate configuration, and its answer stays true until that one member is
+edited again, whatever happens to the rest of the buffer.
 
 ## Explaining the values to the user
 
@@ -204,6 +256,7 @@ values.
 | a value, a member name | none | what the user came to change, and the most legible thing there because nothing was done to it |
 | the class docstring, a description | `MUTED` | text about the values rather than the values |
 | the marks of a member | `ATTENTION` | the file did not hold it, the user changed it, or a validator changed what the user wrote |
+| what is wrong with a member | `BAD` | it sits below the description of the same member, and it is the one of the two that has to be acted on |
 | what reading the input file did | `WARNING` | a load that says anything is saying the file was not quite what was asked for |
 | a validation or a save that has not been asked for | `MUTED` | a state nothing has reached is not a state to read first |
 | an accepted buffer, a written file | `GOOD` | |
@@ -331,7 +384,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 782 passed, 1 deselected in 16s
+- Test result: 865 passed, 2 deselected in 18s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

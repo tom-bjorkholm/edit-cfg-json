@@ -12,7 +12,7 @@ tested there.
 
 from pathlib import Path
 from edit_cfg_json import EXPLANATION, EditModel, Emphasis, LOAD_REMARK, \
-    MEMBER_MARK, save_emphasis, verdict_emphasis
+    MEMBER_DIAGNOSTIC, MEMBER_MARK, save_emphasis, verdict_emphasis
 from .sample_cfg import FlatCfg, RangeCfg
 
 
@@ -20,12 +20,24 @@ def test_kinds_of_text() -> None:
     """Test each kind of text has a reason to stand out, and its own one.
 
     The explanations are secondary text, a mark is something that happened to
-    a member, and a remark about the input file is a warning about a file that
-    was not what was asked for. Three different things, so three answers.
+    a member, a remark about the input file is a warning about a file that
+    was not what was asked for, and what is wrong with a member is a refusal.
+    Four different things, so four answers.
     """
     assert EXPLANATION is Emphasis.MUTED
     assert MEMBER_MARK is Emphasis.ATTENTION
     assert LOAD_REMARK is Emphasis.WARNING
+    assert MEMBER_DIAGNOSTIC is Emphasis.BAD
+
+
+def test_wrong_is_not_muted() -> None:
+    """Test what is wrong with a member does not look like text about it.
+
+    A description and a refusal are shown one below the other under the same
+    member, so the one that has to be acted on has to be told from the one
+    that only explains.
+    """
+    assert MEMBER_DIAGNOSTIC is not EXPLANATION
 
 
 def test_verdict_unknown() -> None:

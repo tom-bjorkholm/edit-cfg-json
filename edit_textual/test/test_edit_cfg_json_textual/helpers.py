@@ -25,8 +25,8 @@ from config_as_json import JsonType
 from textual.widgets import Input, Static
 from edit_cfg_json import ActionSettings, Descriptions, EditModel, LoadReport
 from edit_cfg_json_textual.textual_editor import DESCRIPTION_ID_PREFIX, \
-    DOCSTRING_ID, EditorApp, MARK_ID_PREFIX, SAVE_AS_ID, SAVE_ID, \
-    VALUE_ID_PREFIX, VERDICT_ID
+    DIAGNOSTIC_ID_PREFIX, DOCSTRING_ID, EditorApp, MARK_ID_PREFIX, \
+    SAVE_AS_ID, SAVE_ID, VALUE_ID_PREFIX, VERDICT_ID
 from example.e01_flat_config import FlatConfig
 
 DEFAULT_ACTIONS = ActionSettings()
@@ -82,6 +82,14 @@ UNKNOWN_VERDICT = 'validation: not validated'
 
 VALID_VERDICT = 'validation: valid'
 """Text the editor shows for a buffer the application would accept."""
+
+REFUSED_VERDICT = 'validation: invalid, see answer'
+"""Text the editor shows when the number member of the example is refused.
+
+What was refused is said beside that member, so this line only names it: a
+configuration too tall for a terminal would otherwise leave the user hunting
+for the field that the refusal is about.
+"""
 
 REWRITTEN_MARK = ' (edited) (changed by validator)'
 """Mark of a member that the user changed and a validator then rewrote."""
@@ -154,6 +162,21 @@ def docstring_of(app: EditorApp) -> str:
 def description_of(app: EditorApp, member_name: str) -> Static:
     """Return the widget that the application shows about one member."""
     return app.query_one(f'#{DESCRIPTION_ID_PREFIX}{member_name}', Static)
+
+
+def wrong_widget(app: EditorApp, member_name: str) -> Static:
+    """Return the widget that says what is wrong with one member."""
+    return app.query_one(f'#{DIAGNOSTIC_ID_PREFIX}{member_name}', Static)
+
+
+def wrong_of(app: EditorApp, member_name: str) -> str:
+    """Return what the application says is wrong with one member.
+
+    A widget that is not being shown says nothing, whatever it holds, so this
+    answers what is on the screen and not what a widget remembers.
+    """
+    widget = wrong_widget(app, member_name)
+    return str(widget.content) if widget.display else ''
 
 
 def described_app() -> EditorApp:

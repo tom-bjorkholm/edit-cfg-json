@@ -66,6 +66,15 @@ Every mark says that something has happened to that member: the file did not
 hold it, the user changed it, or a validator changed what the user wrote.
 """
 
+MEMBER_DIAGNOSTIC = Emphasis.BAD
+"""How what is wrong with one member is shown.
+
+It is what the application refused, so it is shown as a refusal and not as
+text about the member: it is the one thing on the row that has to be acted on,
+and it is deliberately not the muted colour that the description beside it
+has.
+"""
+
 LOAD_REMARK = Emphasis.WARNING
 """How what reading the input file did is shown.
 

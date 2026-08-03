@@ -91,7 +91,7 @@ def test_stub_save_refused(stub_tk: None, tmp_path: Path) -> None:
     FakeVar.created[1].set('500')
     stub_press(SAVE_TEXT)
     assert 'cannot be saved' in widgets.save_text_shown
-    assert 'greater than maximum 100' in widgets.verdict_text_shown
+    assert 'greater than maximum 100' in widgets.wrong_shown[1]
     assert not out_file.exists()
 
 
@@ -103,7 +103,7 @@ def test_real_save_refused(root_or_skip: tkinter.Tk, tmp_path: Path) -> None:
     retype(real_fields(root_or_skip)[1], '500')
     real_press(root_or_skip, SAVE_TEXT)
     assert 'cannot be saved' in widgets.save_text_shown
-    assert 'greater than maximum 100' in widgets.verdict_text_shown
+    assert 'greater than maximum 100' in widgets.wrong_shown[1]
     assert not out_file.exists()
 
 

@@ -5,9 +5,7 @@
   * [LEAST\_FIELD\_WIDTH](#edit_cfg_json_tk.tk_editor.LEAST_FIELD_WIDTH)
   * [PADDING](#edit_cfg_json_tk.tk_editor.PADDING)
   * [DESCRIPTION\_INDENT](#edit_cfg_json_tk.tk_editor.DESCRIPTION_INDENT)
-  * [BODY\_HEIGHT](#edit_cfg_json_tk.tk_editor.BODY_HEIGHT)
   * [LEAST\_WRAP\_WIDTH](#edit_cfg_json_tk.tk_editor.LEAST_WRAP_WIDTH)
-  * [BODY\_WIDTH](#edit_cfg_json_tk.tk_editor.BODY_WIDTH)
   * [EMPHASIS\_COLOURS](#edit_cfg_json_tk.tk_editor.EMPHASIS_COLOURS)
   * [FIELD\_BACKGROUND](#edit_cfg_json_tk.tk_editor.FIELD_BACKGROUND)
   * [FIELD\_FOREGROUND](#edit_cfg_json_tk.tk_editor.FIELD_FOREGROUND)
@@ -26,17 +24,9 @@
   * [\_shown\_text](#edit_cfg_json_tk.tk_editor._shown_text)
   * [\_told](#edit_cfg_json_tk.tk_editor._told)
   * [\_show\_emphasis](#edit_cfg_json_tk.tk_editor._show_emphasis)
-  * [\_scroll\_by](#edit_cfg_json_tk.tk_editor._scroll_by)
-  * [\_wheel\_step](#edit_cfg_json_tk.tk_editor._wheel_step)
-  * [\_bind\_wheel](#edit_cfg_json_tk.tk_editor._bind_wheel)
-  * [\_fit\_body](#edit_cfg_json_tk.tk_editor._fit_body)
-  * [\_fit\_width](#edit_cfg_json_tk.tk_editor._fit_width)
   * [\_wrap\_to\_width](#edit_cfg_json_tk.tk_editor._wrap_to_width)
-  * [ScrollingArea](#edit_cfg_json_tk.tk_editor.ScrollingArea)
-    * [area](#edit_cfg_json_tk.tk_editor.ScrollingArea.area)
-    * [body](#edit_cfg_json_tk.tk_editor.ScrollingArea.body)
-  * [\_scrolling\_body](#edit_cfg_json_tk.tk_editor._scrolling_body)
-  * [\_show\_description](#edit_cfg_json_tk.tk_editor._show_description)
+  * [\_label\_text](#edit_cfg_json_tk.tk_editor._label_text)
+  * [\_place\_text](#edit_cfg_json_tk.tk_editor._place_text)
   * [StateWidgets](#edit_cfg_json_tk.tk_editor.StateWidgets)
     * [title](#edit_cfg_json_tk.tk_editor.StateWidgets.title)
     * [docstring](#edit_cfg_json_tk.tk_editor.StateWidgets.docstring)
@@ -47,11 +37,14 @@
     * [field](#edit_cfg_json_tk.tk_editor.RowWidgets.field)
     * [mark](#edit_cfg_json_tk.tk_editor.RowWidgets.mark)
     * [description](#edit_cfg_json_tk.tk_editor.RowWidgets.description)
+    * [diagnostic](#edit_cfg_json_tk.tk_editor.RowWidgets.diagnostic)
+  * [\_show\_below](#edit_cfg_json_tk.tk_editor._show_below)
   * [EditorWidgets](#edit_cfg_json_tk.tk_editor.EditorWidgets)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.EditorWidgets.__init__)
     * [label\_text](#edit_cfg_json_tk.tk_editor.EditorWidgets.label_text)
     * [verdict\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.verdict_text_shown)
     * [save\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.save_text_shown)
+    * [wrong\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.wrong_shown)
     * [docstring\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.docstring_shown)
     * [\_add\_docstring](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_docstring)
     * [\_add\_load\_message](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_load_message)
@@ -60,14 +53,17 @@
     * [\_add\_buttons](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_buttons)
     * [\_bind\_keys](#edit_cfg_json_tk.tk_editor.EditorWidgets._bind_keys)
     * [\_add\_row](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_row)
+    * [\_show\_row\_texts](#edit_cfg_json_tk.tk_editor.EditorWidgets._show_row_texts)
     * [\_add\_description](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_description)
     * [\_add\_value](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_value)
     * [\_writer](#edit_cfg_json_tk.tk_editor.EditorWidgets._writer)
+    * [\_leaver](#edit_cfg_json_tk.tk_editor.EditorWidgets._leaver)
     * [\_validate](#edit_cfg_json_tk.tk_editor.EditorWidgets._validate)
     * [\_save](#edit_cfg_json_tk.tk_editor.EditorWidgets._save)
     * [\_save\_as](#edit_cfg_json_tk.tk_editor.EditorWidgets._save_as)
     * [\_explain](#edit_cfg_json_tk.tk_editor.EditorWidgets._explain)
     * [\_show\_explanations](#edit_cfg_json_tk.tk_editor.EditorWidgets._show_explanations)
+    * [\_show\_member\_texts](#edit_cfg_json_tk.tk_editor.EditorWidgets._show_member_texts)
     * [\_refresh](#edit_cfg_json_tk.tk_editor.EditorWidgets._refresh)
     * [\_show\_state](#edit_cfg_json_tk.tk_editor.EditorWidgets._show_state)
   * [TkEditor](#edit_cfg_json_tk.tk_editor.TkEditor)
@@ -79,6 +75,18 @@
   * [KEY\_NAMES](#edit_cfg_json_tk.key_names.KEY_NAMES)
   * [\_tk\_key](#edit_cfg_json_tk.key_names._tk_key)
   * [tk\_sequence](#edit_cfg_json_tk.key_names.tk_sequence)
+* [edit\_cfg\_json\_tk.scrolling](#edit_cfg_json_tk.scrolling)
+  * [BODY\_HEIGHT](#edit_cfg_json_tk.scrolling.BODY_HEIGHT)
+  * [BODY\_WIDTH](#edit_cfg_json_tk.scrolling.BODY_WIDTH)
+  * [\_wheel\_step](#edit_cfg_json_tk.scrolling._wheel_step)
+  * [\_scroll\_by](#edit_cfg_json_tk.scrolling._scroll_by)
+  * [\_bind\_wheel](#edit_cfg_json_tk.scrolling._bind_wheel)
+  * [\_fit\_body](#edit_cfg_json_tk.scrolling._fit_body)
+  * [\_fit\_width](#edit_cfg_json_tk.scrolling._fit_width)
+  * [ScrollingArea](#edit_cfg_json_tk.scrolling.ScrollingArea)
+    * [area](#edit_cfg_json_tk.scrolling.ScrollingArea.area)
+    * [body](#edit_cfg_json_tk.scrolling.ScrollingArea.body)
+  * [scrolling\_body](#edit_cfg_json_tk.scrolling.scrolling_body)
 
 <a id="edit_cfg_json_tk.tk_editor"></a>
 
@@ -122,21 +130,10 @@ Padding in pixels around the widgets of the editor.
 
 #### DESCRIPTION\_INDENT
 
-Indentation in pixels of the description of one member.
+Indentation in pixels of what is written below one member.
 
 The indentation is what says that the line belongs to the member above it
 rather than being a member of its own.
-
-<a id="edit_cfg_json_tk.tk_editor.BODY_HEIGHT"></a>
-
-#### BODY\_HEIGHT
-
-Largest height in pixels that the scrolling part of the editor is given.
-
-A configuration of any size therefore opens a window that fits a screen, and
-what does not fit is scrolled to rather than lost. A configuration smaller
-than this gets a window that is smaller than this, because the height is what
-the body asks for up to this limit and not this limit.
 
 <a id="edit_cfg_json_tk.tk_editor.LEAST_WRAP_WIDTH"></a>
 
@@ -147,17 +144,6 @@ Narrowest line in pixels that a paragraph of the editor is wrapped to.
 A window can be made narrower than any text is readable in, and wrapping to
 what is left of it would leave one word per line. Below this the text is cut
 off by the window instead, which is the lesser of the two.
-
-<a id="edit_cfg_json_tk.tk_editor.BODY_WIDTH"></a>
-
-#### BODY\_WIDTH
-
-Largest width in pixels that the scrolling part of the editor asks for.
-
-A canvas asks for a width of its own that has nothing to do with what is on
-it, so the width the editor opens at has to be said here: what the body asks
-for, up to this. Wider than this is left to the user, who can make the window
-any size, and every text that is a paragraph wraps to whatever width there is.
 
 <a id="edit_cfg_json_tk.tk_editor.EMPHASIS_COLOURS"></a>
 
@@ -395,129 +381,6 @@ nothing has been done to them.
 - `emphasis` - Why the text of that label stands out, or None for the
   ordinary text colour.
 
-<a id="edit_cfg_json_tk.tk_editor._scroll_by"></a>
-
-#### \_scroll\_by
-
-```python
-def _scroll_by(canvas: tkinter.Canvas,
-               step: Optional[int]) -> Callable[..., str]
-```
-
-Return the callback that one turn of the mouse wheel runs.
-
-**Arguments**:
-
-- `canvas` - Canvas that holds the scrolling part of the editor.
-- `step` - How far to scroll, or None to read it from the event. X11
-  reports a wheel as two buttons and says nothing about how far,
-  while every other platform reports a delta whose sign is the
-  direction.
-  
-
-**Returns**:
-
-  A callback that Tk can bind, which stops the event from being handled
-  a second time by whatever else the window is bound to.
-
-<a id="edit_cfg_json_tk.tk_editor._wheel_step"></a>
-
-#### \_wheel\_step
-
-```python
-def _wheel_step(event: 'tkinter.Event[tkinter.Misc]') -> int
-```
-
-Return which way one reported turn of the mouse wheel goes.
-
-The type of the event is written as text here and in the three callbacks
-around it, because `tkinter.Event` is a generic class to a type checker and
-a plain one at runtime: Python 3.12 and 3.13 evaluate an annotation where
-it is written, and subscripting it there is an error.
-
-Only the sign of the delta is used. Its size means different things on
-different platforms, and one line per turn is a scroll everyone can
-follow.
-
-**Arguments**:
-
-- `event` - The wheel event that Tk reported.
-  
-
-**Returns**:
-
-  How far to scroll the body, in lines.
-
-<a id="edit_cfg_json_tk.tk_editor._bind_wheel"></a>
-
-#### \_bind\_wheel
-
-```python
-def _bind_wheel(window: tkinter.Misc, canvas: tkinter.Canvas) -> None
-```
-
-Let the mouse wheel scroll the body, however it is reported.
-
-The bindings are made on the window rather than on the canvas, because a
-wheel event goes to the widget under the pointer and the pointer is
-usually over a field or a label inside the body. That is the same window
-the keys are bound on, and it is the same open question for the same
-reason: an editor mounted in a window it shares would be claiming the
-wheel of a whole application. See section 8.2.7 of `doc/design.md`.
-
-**Arguments**:
-
-- `window` - Window that the bindings are made on.
-- `canvas` - Canvas that holds the scrolling part of the editor.
-
-<a id="edit_cfg_json_tk.tk_editor._fit_body"></a>
-
-#### \_fit\_body
-
-```python
-def _fit_body(canvas: tkinter.Canvas,
-              body: tkinter.Frame) -> Callable[..., None]
-```
-
-Return the callback that follows the height of the body.
-
-It is what makes the canvas scroll: a canvas shows the part of its
-contents that its scroll region says is there, and the contents of this
-one grow and shrink as the explanations are shown and hidden.
-
-**Arguments**:
-
-- `canvas` - Canvas that holds the body.
-- `body` - Frame that holds everything that scrolls.
-  
-
-**Returns**:
-
-  A callback for the event that says the body has been laid out.
-
-<a id="edit_cfg_json_tk.tk_editor._fit_width"></a>
-
-#### \_fit\_width
-
-```python
-def _fit_width(canvas: tkinter.Canvas, item: int) -> Callable[..., None]
-```
-
-Return the callback that gives the body the width of the canvas.
-
-An item on a canvas is as wide as it asks to be, so without this the
-fields would keep the width they wanted rather than the width there is.
-
-**Arguments**:
-
-- `canvas` - Canvas that holds the body.
-- `item` - The canvas item that the body was put on.
-  
-
-**Returns**:
-
-  A callback for the event that says the canvas has been resized.
-
 <a id="edit_cfg_json_tk.tk_editor._wrap_to_width"></a>
 
 #### \_wrap\_to\_width
@@ -538,82 +401,48 @@ changes whenever the user resizes it, so it is followed rather than set.
 
 - `label` - Label that holds text which may be longer than a line.
 
-<a id="edit_cfg_json_tk.tk_editor.ScrollingArea"></a>
+<a id="edit_cfg_json_tk.tk_editor._label_text"></a>
 
-## ScrollingArea Objects
-
-```python
-class ScrollingArea(NamedTuple)
-```
-
-The part of the editor that scrolls, before it has been placed.
-
-<a id="edit_cfg_json_tk.tk_editor.ScrollingArea.area"></a>
-
-#### area
-
-The frame to pack where the scrolling part of the editor belongs.
-
-<a id="edit_cfg_json_tk.tk_editor.ScrollingArea.body"></a>
-
-#### body
-
-The frame to build the scrolling part of the editor in.
-
-<a id="edit_cfg_json_tk.tk_editor._scrolling_body"></a>
-
-#### \_scrolling\_body
+#### \_label\_text
 
 ```python
-def _scrolling_body(parent: tkinter.Misc) -> ScrollingArea
+def _label_text(label: Optional[tkinter.Label]) -> str
 ```
 
-Return the frame that the scrolling part of the editor is built in.
+Return the text one label is showing, empty when it is showing none.
 
-Tk has no scrolling frame, so this is the one it has: a canvas with a
-scrollbar beside it and a frame on the canvas. What goes in the frame
-scrolls.
-
-The area is not packed here. Tk gives each child the space it asks for in
-the order they were packed, so the part that does not scroll has to be
-packed before this one to be sure of its space, while this one is created
-first so that the widgets of the editor are created in the order they are
-read in.
+A label that is out of the layout holds no text, because that is how this
+backend hides one, so this answers what is on the window and not what a
+widget happens to remember.
 
 **Arguments**:
 
-- `parent` - Widget that becomes the parent of the created widgets.
+- `label` - Widget to read, or None for a widget that was never created.
   
 
 **Returns**:
 
-  The frame to pack, and the frame to build in.
+  The text that widget shows.
 
-<a id="edit_cfg_json_tk.tk_editor._show_description"></a>
+<a id="edit_cfg_json_tk.tk_editor._place_text"></a>
 
-#### \_show\_description
+#### \_place\_text
 
 ```python
-def _show_description(label: Optional[tkinter.Label], text: str) -> None
+def _place_text(label: Optional[tkinter.Label], text: str) -> None
 ```
 
-Show the description of one member, or hide it when there is none.
+Put one text below a member into the layout, or take it out again.
 
-The text is what the core says to show for this member, which is nothing
-while the explanations are hidden, so this backend does not decide for
-itself what hiding them means.
-
-Hiding is taking the widget out of the layout and not emptying its text,
-because a label with no text still takes the height of a line, and a
-window with a blank line under every member would have hidden nothing.
-The widget is the last one inside the frame of its member, so packing it
-again puts it back where it was.
+Hiding is taking the widget out of the layout and emptying it, because a
+label with text still takes the height of a line and a window with a
+blank line under every member would have hidden nothing.
 
 **Arguments**:
 
-- `label` - Widget that shows the description of one member, or None for a
-  member the application said nothing about.
-- `text` - Description to show, empty when it is not being shown.
+- `label` - Widget that shows one text below a member, or None for a text
+  that this member can never have.
+- `text` - Text to show, empty when there is nothing to show.
 
 <a id="edit_cfg_json_tk.tk_editor.StateWidgets"></a>
 
@@ -693,8 +522,41 @@ The widget that says what has happened to this member.
 
 The widget that says what this member is for.
 
-It is None for a member the application said nothing about, because there
-is then nothing that could ever appear in it.
+It is None for a member that nothing is said about, because there is then
+nothing that could ever appear in it.
+
+<a id="edit_cfg_json_tk.tk_editor.RowWidgets.diagnostic"></a>
+
+#### diagnostic
+
+The widget that says what is wrong with this member.
+
+Every member has one, unlike the description above it: any member can be
+refused, so there is no member for which this could never say anything.
+
+<a id="edit_cfg_json_tk.tk_editor._show_below"></a>
+
+#### \_show\_below
+
+```python
+def _show_below(widgets: RowWidgets, description: str,
+                diagnostic: str) -> None
+```
+
+Show what belongs below one member, in the order it belongs in.
+
+Both texts are taken out of the layout and put back rather than only the
+one that changed, because Tk packs a widget after the ones that are
+already there: a description that came back while a diagnostic was
+showing would otherwise land below it. Nothing is touched while both
+texts are already what they should be, so the ordinary case of typing
+into a field does not lay the window out again on every key.
+
+**Arguments**:
+
+- `widgets` - Widgets of the member.
+- `description` - What the member is for, empty while that is hidden.
+- `diagnostic` - What is wrong with the member, empty when nothing is.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets"></a>
 
@@ -777,6 +639,20 @@ def save_text_shown() -> str
 ```
 
 Return the text that the saving part of the editor shows.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets.wrong_shown"></a>
+
+#### wrong\_shown
+
+```python
+@property
+def wrong_shown() -> list[str]
+```
+
+Return what the editor says about each member, in row order.
+
+A member that nothing is known to be wrong with says nothing, so most
+of these are empty most of the time.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets.docstring_shown"></a>
 
@@ -904,8 +780,18 @@ def _add_row(parent: tkinter.Misc, row: core.MemberRow) -> RowWidgets
 Create the widgets of one member, and its description below them.
 
 The member gets a frame of its own, holding the line that is edited
-and the description under it, so that hiding the description and
-showing it again cannot move it away from the member it belongs to.
+and the texts under it, so that hiding one of those and showing it
+again cannot move it away from the member it belongs to.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._show_row_texts"></a>
+
+#### \_show\_row\_texts
+
+```python
+def _show_row_texts(row: core.MemberRow, widgets: RowWidgets) -> None
+```
+
+Show what the model says belongs below one member.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_description"></a>
 
@@ -918,8 +804,8 @@ def _add_description(parent: tkinter.Misc,
 
 Create the widget that says what one member is for, if anything.
 
-A member the application said nothing about gets no widget, because
-there is nothing that could ever appear in it.
+A member that nothing is said about gets no widget, because there is
+nothing that could ever appear in it.
 
 **Arguments**:
 
@@ -929,8 +815,8 @@ there is nothing that could ever appear in it.
 
 **Returns**:
 
-  The widget that shows the description, or None when the
-  application said nothing about this member.
+  The widget that shows the description, or None when nothing is
+  said about this member.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_value"></a>
 
@@ -967,6 +853,22 @@ Return the callback that writes one field into the model.
 Tk reports a change of the variable and not of the widget, so the
 callback reads the field itself. Every change is written through,
 including the ones that no key press caused, such as a paste.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._leaver"></a>
+
+#### \_leaver
+
+```python
+def _leaver(row: core.MemberRow) -> Callable[..., None]
+```
+
+Return the callback that one field runs when it loses the focus.
+
+Leaving a field is when the user has moved on from it, and it is
+therefore when the editor says whether what they typed means a value
+of that member at all. Nothing is validated here: the whole
+configuration is what a validation pass is about, and this is one
+field answering for itself.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._validate"></a>
 
@@ -1045,6 +947,16 @@ It is not part of `_show_state`, which runs on every key the user
 types: nothing the user types into a field can change what this
 configuration is for or what one of its members means.
 
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._show_member_texts"></a>
+
+#### \_show\_member\_texts
+
+```python
+def _show_member_texts() -> None
+```
+
+Show what belongs below every member, as the model says it now.
+
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._refresh"></a>
 
 #### \_refresh
@@ -1069,12 +981,17 @@ undo the marks that the pass has just set.
 def _show_state() -> None
 ```
 
-Show the label, the verdict, the saving and every member mark.
+Show the label, the verdict, the saving and every member.
 
 The verdict and the saving change colour as well as text, because what
 they say is either what the application accepted, what it refused, or
 what has not been asked of it yet, and a user who has to read three
 lines to tell those apart is reading too much.
+
+What is wrong with a member is shown here too, and not with the
+explanations: a description says what a member is for and stays until
+the user asks for it to go, while a refusal is answered afresh by
+every pass and by every field that is left.
 
 <a id="edit_cfg_json_tk.tk_editor.TkEditor"></a>
 
@@ -1245,4 +1162,212 @@ Return one key combination as the event sequence that Tk binds by.
   modifier or a key that this module does not know. None is not an
 - `error` - the action it belongs to keeps its button and loses only
   this way of reaching it.
+
+<a id="edit_cfg_json_tk.scrolling"></a>
+
+# edit\_cfg\_json\_tk.scrolling
+
+The part of a Tkinter editor that scrolls.
+
+A configuration of any interesting size does not fit a window, and with the
+explanations shown it fits one even less. Tk has no scrolling frame, so this
+is the one it has: a canvas with a scrollbar beside it and a frame on the
+canvas. What goes in the frame scrolls, and everything the editor keeps in
+view is packed outside it.
+
+It is a module of its own because none of it is about an edit model: it is
+what Tk needs in order to have a scrolling area at all, and the editor uses
+it the way it uses the toolkit.
+
+<a id="edit_cfg_json_tk.scrolling.BODY_HEIGHT"></a>
+
+#### BODY\_HEIGHT
+
+Largest height in pixels that the scrolling part of the editor is given.
+
+A configuration of any size therefore opens a window that fits a screen, and
+what does not fit is scrolled to rather than lost. A configuration smaller
+than this gets a window that is smaller than this, because the height is what
+the body asks for up to this limit and not this limit.
+
+<a id="edit_cfg_json_tk.scrolling.BODY_WIDTH"></a>
+
+#### BODY\_WIDTH
+
+Largest width in pixels that the scrolling part of the editor asks for.
+
+A canvas asks for a width of its own that has nothing to do with what is on
+it, so the width the editor opens at has to be said here: what the body asks
+for, up to this. Wider than this is left to the user, who can make the window
+any size, and every text that is a paragraph wraps to whatever width there is.
+
+<a id="edit_cfg_json_tk.scrolling._wheel_step"></a>
+
+#### \_wheel\_step
+
+```python
+def _wheel_step(event: 'tkinter.Event[tkinter.Misc]') -> int
+```
+
+Return which way one reported turn of the mouse wheel goes.
+
+The type of the event is written as text here and in the three callbacks
+around it, because `tkinter.Event` is a generic class to a type checker and
+a plain one at runtime: Python 3.12 and 3.13 evaluate an annotation where
+it is written, and subscripting it there is an error.
+
+Only the sign of the delta is used. Its size means different things on
+different platforms, and one line per turn is a scroll everyone can
+follow.
+
+**Arguments**:
+
+- `event` - The wheel event that Tk reported.
+  
+
+**Returns**:
+
+  How far to scroll the body, in lines.
+
+<a id="edit_cfg_json_tk.scrolling._scroll_by"></a>
+
+#### \_scroll\_by
+
+```python
+def _scroll_by(canvas: tkinter.Canvas,
+               step: Optional[int]) -> Callable[..., str]
+```
+
+Return the callback that one turn of the mouse wheel runs.
+
+**Arguments**:
+
+- `canvas` - Canvas that holds the scrolling part of the editor.
+- `step` - How far to scroll, or None to read it from the event. X11
+  reports a wheel as two buttons and says nothing about how far,
+  while every other platform reports a delta whose sign is the
+  direction.
+  
+
+**Returns**:
+
+  A callback that Tk can bind, which stops the event from being handled
+  a second time by whatever else the window is bound to.
+
+<a id="edit_cfg_json_tk.scrolling._bind_wheel"></a>
+
+#### \_bind\_wheel
+
+```python
+def _bind_wheel(window: tkinter.Misc, canvas: tkinter.Canvas) -> None
+```
+
+Let the mouse wheel scroll the body, however it is reported.
+
+The bindings are made on the window rather than on the canvas, because a
+wheel event goes to the widget under the pointer and the pointer is
+usually over a field or a label inside the body. That is the same window
+the keys are bound on, and it is the same open question for the same
+reason: an editor mounted in a window it shares would be claiming the
+wheel of a whole application. See section 8.2.7 of `doc/design.md`.
+
+**Arguments**:
+
+- `window` - Window that the bindings are made on.
+- `canvas` - Canvas that holds the scrolling part of the editor.
+
+<a id="edit_cfg_json_tk.scrolling._fit_body"></a>
+
+#### \_fit\_body
+
+```python
+def _fit_body(canvas: tkinter.Canvas,
+              body: tkinter.Frame) -> Callable[..., None]
+```
+
+Return the callback that follows the height of the body.
+
+It is what makes the canvas scroll: a canvas shows the part of its
+contents that its scroll region says is there, and the contents of this
+one grow and shrink as the explanations are shown and hidden.
+
+**Arguments**:
+
+- `canvas` - Canvas that holds the body.
+- `body` - Frame that holds everything that scrolls.
+  
+
+**Returns**:
+
+  A callback for the event that says the body has been laid out.
+
+<a id="edit_cfg_json_tk.scrolling._fit_width"></a>
+
+#### \_fit\_width
+
+```python
+def _fit_width(canvas: tkinter.Canvas, item: int) -> Callable[..., None]
+```
+
+Return the callback that gives the body the width of the canvas.
+
+An item on a canvas is as wide as it asks to be, so without this the
+fields would keep the width they wanted rather than the width there is.
+
+**Arguments**:
+
+- `canvas` - Canvas that holds the body.
+- `item` - The canvas item that the body was put on.
+  
+
+**Returns**:
+
+  A callback for the event that says the canvas has been resized.
+
+<a id="edit_cfg_json_tk.scrolling.ScrollingArea"></a>
+
+## ScrollingArea Objects
+
+```python
+class ScrollingArea(NamedTuple)
+```
+
+The part of the editor that scrolls, before it has been placed.
+
+<a id="edit_cfg_json_tk.scrolling.ScrollingArea.area"></a>
+
+#### area
+
+The frame to pack where the scrolling part of the editor belongs.
+
+<a id="edit_cfg_json_tk.scrolling.ScrollingArea.body"></a>
+
+#### body
+
+The frame to build the scrolling part of the editor in.
+
+<a id="edit_cfg_json_tk.scrolling.scrolling_body"></a>
+
+#### scrolling\_body
+
+```python
+def scrolling_body(parent: tkinter.Misc) -> ScrollingArea
+```
+
+Return the frame that the scrolling part of the editor is built in.
+
+The area is not packed here. Tk gives each child the space it asks for in
+the order they were packed, so the part that does not scroll has to be
+packed before this one to be sure of its space, while this one is created
+first so that the widgets of the editor are created in the order they are
+read in.
+
+**Arguments**:
+
+- `parent` - Widget that becomes the parent of the created widgets.
+  
+
+**Returns**:
+
+  The frame to pack, and the frame to build in.
 

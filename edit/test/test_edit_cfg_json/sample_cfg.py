@@ -7,19 +7,31 @@
 from enum import Enum, IntEnum
 from typing import Optional, TextIO
 import sys
-from config_as_json import Config, ConfigAutoChangeHook, IntFloatValidator, \
-    MemberValidationStep, MemberValidator, ParseConverter, PathOrStr, \
-    StrCaseChangeValidator, StrCaseSpec, StrPositionSpec, StrValidator, \
-    ValidationPlan, ValueTypeValidator
+from config_as_json import Config, ConfigAutoChangeHook, \
+    InvalidConfiguration, IntFloatValidator, MemberValidationStep, \
+    MemberValidator, ParseConverter, PathOrStr, StrCaseChangeValidator, \
+    StrCaseSpec, StrPositionSpec, StrValidator, ValidationPlan, \
+    ValueTypeValidator, WholeConfigValidationStep, WholeConfigValidator
 
 REFUSAL_MESSAGE = 'The application refuses {name}.'
 """Message of the validator that refuses without saying anything else."""
+
+TOO_LARGE_MESSAGE = 'The two numbers add up to {total}, which is too much.'
+"""Message of the rule that is about two members and therefore neither."""
 
 LOWEST = 0
 """Smallest number that `RangeCfg` accepts."""
 
 HIGHEST = 100
 """Largest number that `RangeCfg` accepts."""
+
+SUM_LIMIT = 120
+"""Largest sum of the two numbers of `RulesCfg`.
+
+It is above the largest that either of them may be on its own, so that the
+rule about both of them can only be reached by a configuration whose members
+are each of them allowed.
+"""
 
 
 class SampleCfg(Config):
@@ -258,6 +270,95 @@ class IntEnumCfg(SampleCfg):
         return {'level': Config.get_converter_dict(Level)}
 
 
+def _from_hex(value: object) -> int:
+    """Return the number that one piece of hexadecimal text stands for."""
+    return int(str(value), 16)
+
+
+class HexCfg(SampleCfg):
+    """A configuration whose number is written as hexadecimal text.
+
+    Its converter is not an enum converter and `config_as_json` does not
+    ship it, which is what this class is for: the editor runs whatever
+    converter a member declares and knows nothing about enums in particular.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the one number member that the converter is about."""
+        self.mask: int = 255
+
+    def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
+        """Return the converter that reads that number from hexadecimal."""
+        return {'mask': ParseConverter(result_type=int, func=_from_hex,
+                                       args={})}
+
+
+class PlainLevel(Enum):
+    """This docstring is taken away below, so that this enum has none."""
+
+    QUIET = 1
+    LOUD = 2
+
+
+# An enum class written without a docstring is one the editor has to handle,
+# and it cannot be written here, because every class in this repository has to
+# have one. Taking it away afterwards is the same thing.
+PlainLevel.__doc__ = None
+
+
+class PlainEnumCfg(SampleCfg):
+    """A configuration whose enum member has no docstring of its own."""
+
+    def declare_members(self) -> None:
+        """Assign the one enum member."""
+        self.level: PlainLevel = PlainLevel.QUIET
+
+    def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
+        """Return the converter that turns a member name into a member."""
+        return {'level': Config.get_converter_dict(PlainLevel)}
+
+
+class TooLarge(WholeConfigValidator):  # pylint: disable=too-few-public-methods
+    """A rule about two members together and therefore about neither.
+
+    It is what shows the difference the editor has to make: a member
+    validator says which member it is about, and this does not, because the
+    sum of two members is not one of them.
+    """
+
+    def validate(self, config: Config,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Refuse a configuration whose two numbers add up to too much."""
+        total = getattr(config, 'first', 0) + getattr(config, 'second', 0)
+        if total > SUM_LIMIT:
+            message = TOO_LARGE_MESSAGE.format(total=total)
+            print(message, file=stderr_file)
+            raise InvalidConfiguration(message)
+
+
+class RulesCfg(SampleCfg):
+    """A configuration with a rule per member and one about both of them.
+
+    Every case the attribution of a refusal has to tell apart is reachable
+    from this one class: one member refused, both of them refused, and a rule
+    that is about neither of them.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the two numbers that the rules are about."""
+        self.first: int = 1
+        self.second: int = 2
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return one step per member and then the step about both."""
+        _ = stderr_file
+        in_range = IntFloatValidator[int](min_value=LOWEST, max_value=HIGHEST,
+                                          allowed_values=None)
+        return [MemberValidationStep(member_names=['first', 'second'],
+                                     validator=in_range),
+                WholeConfigValidationStep(validator=TooLarge())]
+
+
 class SilentRefusal(MemberValidator):  # pylint: disable=too-few-public-methods
     """A member validator of the kind an application writes for itself.
 
@@ -276,7 +377,14 @@ class SilentRefusal(MemberValidator):  # pylint: disable=too-few-public-methods
 
 
 class RefuseCfg(SampleCfg):
-    """A configuration whose own validator refuses every value."""
+    """A configuration whose own validator refuses every value.
+
+    No application could use this class, because its own declared defaults
+    are refused and every way into the editor constructs it first. It is here
+    to make one thing reachable that is otherwise hard to reach: a validator
+    that refuses without writing a word, which an application's own validator
+    is free to do and which the editor still has to explain.
+    """
 
     def declare_members(self) -> None:
         """Assign the one member that the validator refuses."""

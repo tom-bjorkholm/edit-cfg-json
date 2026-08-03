@@ -1,0 +1,5 @@
+{
+    "job_name": "weekly-archive",
+    "retries": 1,
+    "timeout_seconds": 300
+}

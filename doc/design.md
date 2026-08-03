@@ -236,23 +236,52 @@ saving is reached without leaving the field — from the keyboard, or through
 a button that does not take the focus.
 
 Losing the focus is however the moment at which the **conversion of one
-field** should report itself, because that is when the user has moved on
-from that field. It does not arise yet: the conversions this version has
-cannot fail, since text that is not JSON is kept as a string and the wrong
-type is something section 6.1 reports later. It arises with the leaves that
-`parse_converters()` turns into rich Python types, an enum being the
-obvious one: its member name is not a member of the enum for most of the
-time it takes to type it, so converting on every change would report a
-failure that is not one yet.
+field** reports itself, because that is when the user has moved on from that
+field. It arises with the leaves that `parse_converters()` turns into rich
+Python types, an enum being the obvious one: its member name is not a member
+of the enum for most of the time it takes to type it, so converting on every
+change would report a failure that is not one yet. **Built at step 7**, as
+`EditModel.check_field`, which each backend calls from the event its own
+toolkit has for a field losing the focus — `<FocusOut>` in Tk and
+`Input.Blurred` in Textual.
 
 Per-field conversion feedback on focus loss is **not** the validation of
 section 6. It is local, it needs no candidate configuration, and it answers
 a different question — whether this text means a value at all, rather than
 whether the configuration is one the application would accept. Both are
-needed, and the value conversion is to be revisited with that in mind.
+needed, and both reach the user through the same line below the member; which
+of the two is shown when both have something to say is settled in section 6.5.
+
+The answer of the conversion is **kept per member and cleared by the next edit
+of that member**, which is what makes it a different thing from what a
+validation pass says. Whether this text means a value of this member is
+answered by the member alone, so it stays true however the rest of the buffer
+changes, while what a validator refused is only known for as long as the rest
+of the buffer stands still, because a member validator receives the whole
+configuration and may look at any of it.
+
+**The converter is run rather than read.** Whether a name is a member of an
+enum is decided by calling the `ParseConverter` the class declared, which is
+what `config_as_json` calls while it parses, so an application that declared a
+converter of its own is answered by its own converter. That is principle 1 of
+section 3 applied to conversion, and it is also why nothing here knows what an
+enum is.
 
 Rewriting the text a field shows is a third, separate matter, and belongs
 where validation rewrites values (section 6.4).
+
+**A conversion that fails is reported for the member and not as JSON.**
+`config_as_json` reports a failed conversion inside the message it prints for
+JSON it could not load, because the conversion runs inside `json.loads()`.
+That message is right for a program reading a file and wrong for a person
+editing a field, who did not ask about JSON and is not looking at a file. So
+the conversion of every member is run *before* the candidate configuration of
+section 6.1 is built, and a member whose text means nothing is reported as
+that one member, with what its own converter said and nothing else. The
+candidate is not built at all in that case: it could only report the same
+thing as text it could not read. The load path of section 5.2 is deliberately
+left as it was, because a refusal the user cannot act on inside the editor is
+not a field being edited.
 
 Each leaf is addressed by a `config_as_json.ConfigPath`, so that a member
 inside a list, a dict or a nested config needs no second way of naming it.
@@ -297,6 +326,31 @@ Two complementary, independently optional sources of explanatory text:
   per-attribute docstrings do not exist at runtime: a string literal
   after an assignment is discarded, and PEP 526 annotations are not
   recorded.
+
+- **The type of a member** says the rest, where the member has a type that
+  says anything, which today means an enum. `parse_converters()` is what says
+  that a member holds one, because it is what turns the name in the file back
+  into a member of it, and the enum class then says the rest itself: the
+  summary of its own docstring and the names it accepts. Settled at step 7.
+
+  This is **not** the reading of a validator that section 11 permanently rules
+  out. The names an enum has are its type, as true as the name of the member
+  itself, and reading them is the same kind of reading as the docstring of the
+  configuration class above. A range, by contrast, lives inside a validator
+  and is therefore explained by the application in words or not at all.
+
+  It is **appended** to what the application said rather than used where the
+  application said nothing: the names are true whatever the application wrote,
+  and an application that explains what its members mean should not have to
+  list the names as well. Writing them in two places is how one of the two
+  comes to be wrong.
+
+  The **summary** of the enum docstring and not the whole of it, which is the
+  one place where a class is treated differently from the class of the
+  configuration. The reason is what the rest of an enum docstring usually is:
+  notes for whoever writes the application, about how the members are numbered
+  or how they reach the file, which is not what somebody choosing between them
+  needs.
 
 The description mapping is `Descriptions` (section 2.6), that is
 `Mapping[ConfigPath, str]`. `ConfigPath` is a tuple of `str` and is
@@ -381,6 +435,11 @@ something that has happened to a member, `WARNING` for a remark about the input
 file, and `GOOD` and `BAD` for what the application accepted and refused. There
 is deliberately no member for ordinary text: the values and their names are left
 alone, which is what makes them the most legible thing on the screen.
+
+What is wrong with one member is `BAD` and not `MUTED`, and that pair is the
+one that earns the vocabulary: a description and a refusal sit one below the
+other under the same member, and the one that has to be acted on has to be
+told from the one that only explains. Section 6.5.
 
 The two decisions that depend on the state of the model — what the validation
 and the saving are shown as — are functions of the core rather than of a
@@ -541,7 +600,10 @@ The outcomes, each with a message of its own:
   values cannot be converted, an enum name that names no member being the
   case that arises in practice, since `parse_converters()` runs inside
   `json.loads()`. The message says that much and the diagnostics say which
-  of the two it was; step 7 of the delivery plan improves the enum case.
+  of the two it was. Step 7 improved the enum case for a field being *edited*
+  and deliberately left this one alone: a file that cannot be opened is not a
+  field the user can correct, and reading the diagnostics of the load is
+  exactly what they have to do. See section 4.2.
 - **values a validator refuses** → the file cannot be opened. `parse_json()`
   ends with `validate()`, so there is no valid object to build a model from.
   Settled at step 4, and the reason it is a refusal rather than an editor
@@ -653,6 +715,67 @@ specific validator class is required.
 Note that `validate_member` receives the whole `config` object and may
 inspect other members, so a complete candidate must be built first;
 individual fields cannot be validated in isolation.
+
+**The candidate this needs cannot be built the ordinary way**, and that is
+what step 7 had to solve. `Config.__init__` ends in `parse_json()`, which ends
+in `validate()`, which raises at the first step that refuses — so the object
+that could say which member was refused is exactly the object that a refusal
+keeps the editor from ever holding. A throwaway subclass whose
+`get_validation_plan` returns nothing is that object: everything else the
+construction does still happens, and only the plan is left out, which is what
+the walk then applies itself. The plan is asked of the real class, so what is
+applied is the application's own plan and not the empty one.
+
+**The reason it is a subclass and not a default instance** is that the whole
+parse chain runs on the way in: the keys are matched, the dict shapes are
+checked against the defaults, the parse converters run, and from section 4.1's
+step onwards the nested configuration objects are built. The alternative —
+construct the declared defaults and assign the buffer onto them — would mean
+the editor applying the converters itself, which is a second implementation of
+something `config_as_json` already does, and it would put a plain `dict` where
+a nested `Config` object belongs. The subtraction of one method is the whole of
+what this borrows; everything else is the library's.
+
+**The walk differs from `Config.validate()` in two deliberate ways.** A member
+that is refused is recorded and the walk goes on, so that every member the
+user has to correct is named at once rather than one per pass; and a step that
+is about no single member is applied only while no member has been refused,
+because that is the only case in which the real pass would have reached it. An
+editor that reported a rule the application never applied would be inventing.
+
+A member that is already refused is left alone by a later step that names it,
+so what is reported about it is the first thing that was wrong with it, which
+is also what the real pass would have reported.
+
+### 6.5 Where a refusal is shown
+
+What is refused about one member is shown **at that member**, and what is
+refused about no single member stays in the block below them. The verdict line
+names the members it was about, because a configuration of any size does not
+fit a window (section 4.6) and a user who has just asked what is wrong should
+be told where to look rather than have to go looking. Settled at step 7.
+
+The same sentence is therefore not on the screen twice: what the attribution
+explained is taken out of the block, and the block keeps what it could not
+explain — a whole-configuration validator, a key that does not match, text
+that is not JSON, a class the editor cannot construct.
+
+One member can have two things wrong with it, and they are not the same thing:
+its text may mean no value of it at all (section 4.2), or the application may
+have refused the value it holds. **The first is preferred when both are
+there**, because a value that does not exist yet is what has to be corrected
+first. The two also live for different lengths of time, which is the reason
+they are kept apart rather than merged: the first stays true until that member
+is edited again, and the second is dropped as soon as anything in the buffer
+changes.
+
+A refusal is **not** covered by the explanations toggle of section 4.4. A
+description says what a member is for and is what a user who knows the
+configuration wants out of the way; a refusal is the one thing on the row that
+has to be read. It is shown *below* the description of the same member, so
+that a line which comes and goes moves nothing that is above it, and it is
+`Emphasis.BAD` where the description is `Emphasis.MUTED`, so that the two
+cannot be mistaken for each other.
 
 ### 6.4 Validation mutates
 

@@ -46,6 +46,16 @@ member, and the mapping of that example describes three of the four.
 | --- | --- |
 | [e03_complete.json](e03_complete.json) | Opens with every value from the file. The descriptions are text about the members and not part of them, so a file holds exactly what the other examples' files hold. |
 
+## Files for `e04_validated_config.py`
+
+`ValidatedConfig` declares one text member and two number members, with a
+rule about each of them and one further rule about how long the whole job can
+take.
+
+| File | What happens |
+| --- | --- |
+| [e04_complete.json](e04_complete.json) | Opens with every value from the file, and every rule is satisfied: two attempts of 300 seconds is 600, which is under the 900 that all the attempts together may take. |
+
 ## Why a file with a bad value cannot be opened
 
 An editor that refused to open the very file that has to be repaired would

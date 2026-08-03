@@ -96,10 +96,26 @@ Every change of a field goes straight into the model, and the title is marked
 while the model holds a change worth saving.
 
 Validating runs the validation of the application's own configuration class
-and shows below the fields what that class would say about the values that
-are in them. A pass is not read only: a validator returns the value that is
-stored back into the member, so the fields are written back from the model
-afterwards, and a member that a validator rewrote says so beside its field.
+and shows what that class would say about the values that are in the fields.
+What it said about one member is shown **below that member**, and the line
+below the fields names the members it was about, so a configuration too tall
+for the terminal does not leave the user hunting for the field. What the class
+said that is about no single member — a whole-configuration rule, a key that
+does not match — stays in that line, because there is no field it belongs to.
+Every refused member is marked at once, and not only the first one, because
+the editor walks the validation plan itself rather than stopping where
+`Config.validate()` stops.
+
+A pass is not read only: a validator returns the value that is stored back
+into the member, so the fields are written back from the model afterwards, and
+a member that a validator rewrote says so beside its field.
+
+**Leaving a field** asks a smaller question of that one member: whether what
+was typed into it means a value of that member at all. It is the question a
+`parse_converters()` entry answers, an enum being the case that arises in
+practice, and it is asked when the field loses the focus rather than on every
+key, because a name that is being typed is no name of a member for most of
+the time it takes to type it.
 
 Saving writes the output file, and refuses to write values the application
 would not accept: the diagnostics then say what is wrong with them and the
@@ -231,7 +247,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 782 passed, 1 deselected in 16s
+- Test result: 865 passed, 2 deselected in 18s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

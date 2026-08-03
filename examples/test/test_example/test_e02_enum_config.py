@@ -34,24 +34,47 @@ HEAD = head(EnumConfig())
 EDITED_HEAD = head(EnumConfig(), edited=True)
 """The same lines while the buffer holds something worth saving."""
 
-EXPECTED_DUMP = (f'{HEAD}\nneeded = ELECTRICAL\navailable = MECHANICAL\n'
+NAMES_LINE = '    One of: MECHANICAL, ELECTRICAL, ELECTRONIC.'
+"""The names of the enum, which the editor reads from the enum class.
+
+Both enums of this example have the same three names, so one line does for
+either of them. It is indented, because it belongs to the member above it.
+"""
+
+NEEDED_ABOUT = ('    The competence that a task needs, as an ordinary enum.\n'
+                f'{NAMES_LINE}')
+"""What the editor says about the first member, from its enum class alone.
+
+This example passes no description mapping at all, so every line below a
+member is read from the type of that member.
+"""
+
+AVAILABLE_ABOUT = ('    The competence that is available, as an int enum.\n'
+                   f'{NAMES_LINE}')
+"""What the editor says about the second member, from its enum class."""
+
+NEEDED_LINES = f'needed = {{value}}\n{NEEDED_ABOUT}'
+"""How the first member of this example is shown, with its value filled in."""
+
+AVAILABLE_LINES = f'available = {{value}}\n{AVAILABLE_ABOUT}'
+"""How the second member is shown, with its value filled in."""
+
+EXPECTED_DUMP = (f'{HEAD}\n{NEEDED_LINES.format(value="ELECTRICAL")}\n'
+                 f'{AVAILABLE_LINES.format(value="MECHANICAL")}\n'
                  f'{VALID_END}')
 """Text that `--ui dump` is expected to print for the default values."""
 
-REFUSAL_FORM = ('validation: invalid\n'
-                'Config.parse_json failed to load JSON from string/file.\n'
-                'Probably incorrectly edited configuration,\n'
-                'or using wrong file (not config file) as configuration.\n'
-                "'{text} is not one of: "
-                "MECHANICAL, ELECTRICAL, ELECTRONIC'\n"
-                f"{DUMP_TAIL}")
-"""What the example says about text that names no member of the enum.
+REFUSAL_FORM = '    {text} is not one of: MECHANICAL, ELECTRICAL, ELECTRONIC'
+"""What the editor says about text that names no member of the enum.
 
-The first three lines are the ones that `config_as_json` writes for JSON it
-could not use, and they are here because that is what the user really sees:
-a name that no enum member matches is reported as a file that could not be
-loaded, even though the JSON itself was perfectly well formed.
+It is the sentence the conversion of that one member raised, below that one
+member, and nothing else. What `config_as_json` prints around it is about
+JSON that could not be loaded, which is right for a program reading a file
+and wrong for a person editing a field.
 """
+
+REFUSED_VERDICT = 'validation: invalid, see {member}'
+"""What the verdict says when one member was refused and named."""
 
 WRITTEN_TEXT = '{"needed": "ELECTRONIC", "available": "ELECTRICAL"}'
 """A configuration file of this example, as its two names."""
@@ -87,8 +110,8 @@ def test_dump(capsys: pytest.CaptureFixture[str]) -> None:
 def test_set_enum(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a full member name is accepted and leaves nothing to explain."""
     assert _dump(capsys, '--set', 'needed=ELECTRONIC') == (
-        f'{EDITED_HEAD}\nneeded = ELECTRONIC (edited)\n'
-        f'available = MECHANICAL\n{VALID_END}')
+        f'{EDITED_HEAD}\n{NEEDED_LINES.format(value="ELECTRONIC (edited)")}\n'
+        f'{AVAILABLE_LINES.format(value="MECHANICAL")}\n{VALID_END}')
 
 
 @pytest.mark.parametrize('typed, whole',
@@ -102,17 +125,18 @@ def test_completed(typed: str, whole: str,
     The completed name is marked as changed by a validator, because the
     buffer no longer holds what was typed into it.
     """
+    shown = f'{whole} (edited) (changed by validator)'
     assert _dump(capsys, '--set', f'needed={typed}') == \
-        (f'{EDITED_HEAD}\nneeded = {whole} (edited) (changed by validator)\n'
-         f'available = MECHANICAL\n{VALID_END}')
+        (f'{EDITED_HEAD}\n{NEEDED_LINES.format(value=shown)}\n'
+         f'{AVAILABLE_LINES.format(value="MECHANICAL")}\n{VALID_END}')
 
 
 def test_set_int_enum(capsys: pytest.CaptureFixture[str]) -> None:
     """Test an int enum member is edited exactly like an ordinary enum."""
+    shown = 'ELECTRONIC (edited) (changed by validator)'
     assert _dump(capsys, '--set', 'available=electronic') == \
-        (f'{EDITED_HEAD}\nneeded = ELECTRICAL\n'
-         'available = ELECTRONIC (edited) (changed by validator)\n'
-         f'{VALID_END}')
+        (f'{EDITED_HEAD}\n{NEEDED_LINES.format(value="ELECTRICAL")}\n'
+         f'{AVAILABLE_LINES.format(value=shown)}\n{VALID_END}')
 
 
 @pytest.mark.parametrize('case, setting', REFUSED_SETTINGS)
@@ -123,6 +147,8 @@ def test_refused_name(case: str, setting: str,
     member, _, text = setting.partition('=')
     assert f'{member} = {text} (edited)' in printed, case
     assert REFUSAL_FORM.format(text=text) in printed, case
+    assert REFUSED_VERDICT.format(member=member) in printed, case
+    assert 'failed to load JSON' not in printed, case
 
 
 def test_int_enum_written() -> None:
@@ -151,16 +177,17 @@ def test_parse_gives_enum() -> None:
 def test_read_enum_names(capsys: pytest.CaptureFixture[str]) -> None:
     """Test both enum members are read from a file as their names."""
     assert _dump(capsys, '-i', data_file('e02_complete.json')) == (
-        f'{HEAD}\nneeded = MECHANICAL\navailable = ELECTRONIC\n'
-        f'{VALID_LINE}\n'
+        f'{HEAD}\n{NEEDED_LINES.format(value="MECHANICAL")}\n'
+        f'{AVAILABLE_LINES.format(value="ELECTRONIC")}\n{VALID_LINE}\n'
         f'{input_tail("e02_complete.json")}')
 
 
 def test_enum_filled_in(capsys: pytest.CaptureFixture[str]) -> None:
     """Test an enum member the file leaves out gets its declared default."""
+    filled = 'MECHANICAL (filled from default)'
     assert _dump(capsys, '-i', data_file('e02_incomplete.json')) == (
-        f'{HEAD}\n{FILLED_LINE}\nneeded = ELECTRONIC\n'
-        f'available = MECHANICAL (filled from default)\n{VALID_LINE}\n'
+        f'{HEAD}\n{FILLED_LINE}\n{NEEDED_LINES.format(value="ELECTRONIC")}\n'
+        f'{AVAILABLE_LINES.format(value=filled)}\n{VALID_LINE}\n'
         f'{input_tail("e02_incomplete.json")}')
 
 

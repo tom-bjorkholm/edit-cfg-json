@@ -398,12 +398,16 @@ def test_verdict_kept() -> None:
 
 
 def test_validate_refuses() -> None:
-    """Test a value the application refuses is reported as it refused it."""
+    """Test a value the application refuses is reported as it refused it.
+
+    It is reported for the member it is about, because the rule that refused
+    it is about that one member and nothing else.
+    """
     model = EditModel(RangeCfg())
     model.set_text(path=('answer',), text='500')
     verdict = model.validate()
     assert not verdict.valid
-    assert 'greater than maximum 100' in verdict.diagnostics
+    assert 'greater than maximum 100' in verdict.refused['answer']
 
 
 def test_refused_keeps_typed() -> None:
@@ -495,7 +499,7 @@ def test_no_stderr_output(capsys: pytest.CaptureFixture[str]) -> None:
     model = EditModel(RangeCfg())
     model.set_text(path=('answer',), text='500')
     verdict = model.validate()
-    assert 'greater than maximum 100' in verdict.diagnostics
+    assert 'greater than maximum 100' in verdict.refused['answer']
     assert capsys.readouterr().err == ''
 
 
@@ -572,7 +576,7 @@ def test_save_refuses_invalid(tmp_path: Path) -> None:
     assert model.saved_config is None
     verdict = model.verdict
     assert verdict is not None
-    assert 'greater than maximum 100' in verdict.diagnostics
+    assert 'greater than maximum 100' in verdict.refused['answer']
 
 
 def test_save_keeps_old_file(tmp_path: Path) -> None:
@@ -768,3 +772,86 @@ def test_save_containers(tmp_path: Path) -> None:
     assert model.save().saved
     assert _written(out_file) == {'tags': ['first', 'second'], 'answer': 3,
                                   'limits': {'low': 1, 'high': 9}}
+
+
+def test_leaving_field() -> None:
+    """Test leaving a field says whether its text means a value at all.
+
+    It is the moment the user has moved on from that field, and it is
+    deliberately not every change: the name of an enum member is no name of
+    one for most of the time it takes to type it.
+    """
+    model = EditModel(IntEnumCfg())
+    model.set_text(path=('level',), text='MIDDLE')
+    assert _row(model, 'level').conversion == ''
+    model.check_field(('level',))
+    assert 'MIDDLE is not one of' in _row(model, 'level').conversion
+
+
+def test_leaving_good_field() -> None:
+    """Test leaving a field whose text means a value says nothing."""
+    model = EditModel(IntEnumCfg())
+    model.set_text(path=('level',), text='HI')
+    model.check_field(('level',))
+    assert _row(model, 'level').conversion == ''
+
+
+def test_edit_clears_report() -> None:
+    """Test the next edit of that member takes the report away again.
+
+    A name that is being typed passes through text that names no member, and
+    the report of the name before it says nothing true about the one now.
+    """
+    model = EditModel(IntEnumCfg())
+    model.set_text(path=('level',), text='MIDDLE')
+    model.check_field(('level',))
+    model.set_text(path=('level',), text='MIDDL')
+    assert _row(model, 'level').conversion == ''
+
+
+def test_other_edit_keeps_it() -> None:
+    """Test an edit of another member leaves the report alone.
+
+    Whether this text means a value of this member is answered by the member
+    alone, so it stays true until this member is edited again.
+    """
+    model = EditModel(FlatCfg())
+    model.set_text(path=('name',), text='typed')
+    model.check_field(('name',))
+    model.set_text(path=('answer',), text='7')
+    assert _row(model, 'name').conversion == ''
+
+
+def test_pass_checks_fields() -> None:
+    """Test a validation pass answers for every member at once.
+
+    A member the user never visited is then reported exactly as one they
+    typed into and left, which is what makes the two ways of asking agree.
+    """
+    model = EditModel(IntEnumCfg())
+    model.set_text(path=('level',), text='MIDDLE')
+    model.validate()
+    assert 'MIDDLE is not one of' in _row(model, 'level').conversion
+
+
+def test_unknown_field() -> None:
+    """Test checking a member that does not exist is an error, not a shrug."""
+    model = EditModel(FlatCfg())
+    with pytest.raises(KeyError):
+        model.check_field(('ghost',))
+
+
+def test_enum_described() -> None:
+    """Test the type of a member is part of what is said about it.
+
+    No description mapping is passed here at all, so everything below the
+    member comes from its own enum class.
+    """
+    assert _row(EditModel(IntEnumCfg()), 'level').description.endswith(
+        'One of: LOWEST, LOW, HIGH.')
+
+
+def test_converter_on_row() -> None:
+    """Test a member that holds no enum carries no converter."""
+    assert _row(EditModel(FlatCfg()), 'name').converter is None
+    assert _row(EditModel(IntEnumCfg()), 'level').converter is not None

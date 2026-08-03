@@ -17,9 +17,9 @@ from edit_cfg_json_textual.textual_editor import EditorApp, SAVE_AS_BOX_ID, \
     SAVE_AS_ID
 from example.e01_flat_config import FlatConfig
 from .helpers import ESCAPE_KEY, EXPLAIN_KEY, NARROW_SIZE, \
-    NO_FILE_TEXT, QUIT_KEY, ROOMY_SIZE, SAVE_AS_KEY, SAVE_KEY, \
-    VALIDATE_KEY, VALID_VERDICT, described_app, docstring_of, field_of, \
-    save_as, saving_of, verdict_of, written
+    NO_FILE_TEXT, QUIT_KEY, REFUSED_VERDICT, ROOMY_SIZE, SAVE_AS_KEY, \
+    SAVE_KEY, VALIDATE_KEY, VALID_VERDICT, described_app, docstring_of, \
+    field_of, save_as, saving_of, verdict_of, written
 
 
 async def _save_with(model: EditModel, member_name: str = 'answer',
@@ -60,7 +60,7 @@ def test_save_refused(tmp_path: Path) -> None:
     model = EditModel(FlatConfig(), out_file=out_file)
     saving, verdict, title = asyncio.run(_save_with(model, text='500'))
     assert 'cannot be saved' in saving
-    assert 'greater than maximum 100' in verdict
+    assert verdict == REFUSED_VERDICT
     assert title == 'FlatConfig *'
     assert not out_file.exists()
 

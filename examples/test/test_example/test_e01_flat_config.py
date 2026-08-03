@@ -14,6 +14,14 @@ from .helpers import DUMP_TAIL, data_file, dump, head, input_tail, \
 VALID_LINE = 'validation: valid'
 """Line that `--ui dump` ends with for a buffer the example accepts."""
 
+REFUSED_LINE = 'validation: invalid, see answer'
+"""Line that `--ui dump` ends with when the number member is refused.
+
+What the application said about that member is shown beside it, so this line
+only names it: a configuration too tall for a window would otherwise leave
+the user hunting for the field the refusal is about.
+"""
+
 VALID_END = f'{VALID_LINE}\n{DUMP_TAIL}'
 """How a dump of an accepted buffer with no output file ends."""
 
@@ -110,9 +118,8 @@ def test_set_not_a_number(capsys: pytest.CaptureFixture[str]) -> None:
     assert _dump(capsys, '--set', 'answer=not-a-number') == \
         (f'{EDITED_HEAD}\nname = Flat example\n'
          'answer = not-a-number (edited)\n'
-         'validation: invalid\n'
-         'Invalid configuration: Value for answer is not of type int.\n'
-         f'{DUMP_TAIL}')
+         '    Invalid configuration: Value for answer is not of type int.\n'
+         f'{REFUSED_LINE}\n{DUMP_TAIL}')
 
 
 def test_dump_refused_bool(capsys: pytest.CaptureFixture[str]) -> None:
@@ -124,18 +131,18 @@ def test_dump_refused_bool(capsys: pytest.CaptureFixture[str]) -> None:
     """
     assert _dump(capsys, '--set', 'answer=true') == \
         (f'{EDITED_HEAD}\nname = Flat example\nanswer = true (edited)\n'
-         'validation: invalid\n'
-         'Invalid configuration: Value for answer must not be of type bool.\n'
-         f'{DUMP_TAIL}')
+         '    Invalid configuration: Value for answer must not be of type '
+         'bool.\n'
+         f'{REFUSED_LINE}\n{DUMP_TAIL}')
 
 
 def test_dump_refused_value(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a value outside the allowed range is refused, and why."""
     assert _dump(capsys, '--set', 'answer=500') == \
         (f'{EDITED_HEAD}\nname = Flat example\nanswer = 500 (edited)\n'
-         'validation: invalid\nInvalid configuration: '
+         '    Invalid configuration: '
          'Value 500 for answer is greater than maximum 100.\n'
-         f'{DUMP_TAIL}')
+         f'{REFUSED_LINE}\n{DUMP_TAIL}')
 
 
 def test_dump_rewritten_value(capsys: pytest.CaptureFixture[str]) -> None:

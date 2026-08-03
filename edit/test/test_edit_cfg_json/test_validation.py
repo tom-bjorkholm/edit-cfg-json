@@ -14,47 +14,130 @@ itself would test nothing about the editor.
 from config_as_json import Config, JsonType
 import pytest
 from edit_cfg_json.validation import validate_buffer
-from .sample_cfg import REFUSAL_MESSAGE, AllowedCfg, EnumCfg, ExtraArgCfg, \
-    FlatCfg, IntEnumCfg, ListCfg, OmitCfg, RangeCfg, RefuseCfg, RewriteCfg, \
+from .sample_cfg import HIGHEST, REFUSAL_MESSAGE, SUM_LIMIT, \
+    TOO_LARGE_MESSAGE, AllowedCfg, EnumCfg, ExtraArgCfg, FlatCfg, HexCfg, \
+    IntEnumCfg, ListCfg, OmitCfg, RangeCfg, RefuseCfg, RewriteCfg, RulesCfg, \
     TypedCfg
 
 ENUM_NAMES = 'is not one of: LOWEST, LOW, HIGH'
 """What the diagnostics say about text that names no member of `Level`."""
 
-REFUSED_BUFFERS: list[tuple[str, type[Config],
-                            dict[str, JsonType], str]] = [
-    ('missing key', FlatCfg, {'name': 'text'}, 'No value for answer'),
-    ('unknown key', FlatCfg, {'name': 'text', 'answer': 1, 'more': 2},
+REFUSED_BUFFERS: list[tuple[str, type[Config], dict[str, JsonType],
+                            str, str]] = [
+    ('missing key', FlatCfg, {'name': 'text'}, '', 'No value for answer'),
+    ('unknown key', FlatCfg, {'name': 'text', 'answer': 1, 'more': 2}, '',
      'Unexpected parameter more'),
-    ('no enum member', EnumCfg, {'colour': 'PURPLE'},
+    ('no enum member', EnumCfg, {'colour': 'PURPLE'}, 'colour',
      'PURPLE is not one of: RED, GREEN'),
-    ('no int enum member', IntEnumCfg, {'level': 'MIDDLE'}, ENUM_NAMES),
-    ('ambiguous name', IntEnumCfg, {'level': 'LO'}, ENUM_NAMES),
-    ('enum as a number', IntEnumCfg, {'level': 2}, 'not str as expected'),
-    ('outside range', RangeCfg, {'answer': 500},
+    ('no int enum member', IntEnumCfg, {'level': 'MIDDLE'}, 'level',
+     ENUM_NAMES),
+    ('ambiguous name', IntEnumCfg, {'level': 'LO'}, 'level', ENUM_NAMES),
+    ('enum as a number', IntEnumCfg, {'level': 2}, 'level',
+     'not str as expected'),
+    ('own converter', HexCfg, {'mask': 'zz'}, 'mask', 'base 16'),
+    ('outside range', RangeCfg, {'answer': 500}, 'answer',
      'is greater than maximum 100'),
-    ('not allowed', AllowedCfg, {'colour': 'blue'}, 'colour'),
-    ('wrong type', TypedCfg, {'count': 'text'}, 'is not of type int'),
-    ('own validator', RefuseCfg, {'name': 'text'},
+    ('not allowed', AllowedCfg, {'colour': 'blue'}, 'colour', 'colour'),
+    ('wrong type', TypedCfg, {'count': 'text'}, 'count', 'is not of type int'),
+    ('own validator', RefuseCfg, {'name': 'text'}, 'name',
      REFUSAL_MESSAGE.format(name='name')),
-    ('cannot construct', ExtraArgCfg, {'home': 'here'},
+    ('rule about both', RulesCfg, {'first': HIGHEST, 'second': HIGHEST}, '',
+     TOO_LARGE_MESSAGE.format(total=2 * HIGHEST)),
+    ('cannot construct', ExtraArgCfg, {'home': 'here'}, '',
      "missing 1 required positional argument: 'home'")]
 """One buffer per way in which a configuration class refuses a buffer.
 
-The first item of each is the name of the case, which pytest uses to
-identify it, and the last is text the diagnostics have to contain.
+The first item of each is the name of the case, which pytest uses to identify
+it. The fourth is the member the refusal is about, empty for a refusal that
+is about no single member, and the last is text that has to appear where the
+fourth one says it does.
 """
 
 
-@pytest.mark.parametrize('name, config_type, members, expected',
+def _refusal_text(outcome_refused: dict[str, str], diagnostics: str,
+                  member: str) -> str:
+    """Return the text of one refusal, from wherever it belongs.
+
+    Args:
+        outcome_refused: What the pass said about each member.
+        diagnostics: What it said that is about no single member.
+        member: Member the refusal is about, empty when it is about none.
+
+    Returns:
+        What was said about that member, or what was said about no member.
+    """
+    if not member:
+        assert not outcome_refused
+        return diagnostics
+    assert set(outcome_refused) == {member}
+    return outcome_refused[member]
+
+
+@pytest.mark.parametrize('name, config_type, members, member, expected',
                          REFUSED_BUFFERS)
 def test_refused_buffer(name: str, config_type: type[Config],
-                        members: dict[str, JsonType], expected: str) -> None:
-    """Test every way of refusing a buffer becomes a verdict, not a crash."""
+                        members: dict[str, JsonType], member: str,
+                        expected: str) -> None:
+    """Test every way of refusing a buffer becomes a verdict, not a crash.
+
+    Where the text of the refusal appears is part of what is tested, because
+    a refusal that is about one member belongs beside that member and one
+    that is about no member has nowhere else to go than the block.
+    """
     outcome = validate_buffer(config_type=config_type, members=members)
     assert not outcome.verdict.valid, name
-    assert expected in outcome.verdict.diagnostics
+    told = _refusal_text(outcome_refused=dict(outcome.verdict.refused),
+                         diagnostics=outcome.verdict.diagnostics,
+                         member=member)
+    assert expected in told, name
     assert not outcome.members
+
+
+def test_every_bad_member() -> None:
+    """Test every member that is refused is named, and not only the first.
+
+    `Config.validate()` stops at the first step that refuses, so a user who
+    was told only what that step said would correct one member per pass. The
+    walk that attributes the refusals does not stop, which is the whole gain.
+    """
+    outcome = validate_buffer(config_type=RulesCfg,
+                              members={'first': 500, 'second': 700})
+    assert set(outcome.verdict.refused) == {'first', 'second'}
+    assert '500' in outcome.verdict.refused['first']
+    assert '700' in outcome.verdict.refused['second']
+
+
+def test_good_member_silent() -> None:
+    """Test a member the application accepted is not named."""
+    outcome = validate_buffer(config_type=RulesCfg,
+                              members={'first': 500, 'second': 2})
+    assert set(outcome.verdict.refused) == {'first'}
+
+
+def test_whole_rule_skipped() -> None:
+    """Test a rule about no single member is left alone while one is refused.
+
+    `Config.validate()` would have stopped at the member before it, so an
+    editor that reported that rule anyway would be reporting something the
+    application never did.
+    """
+    outcome = validate_buffer(config_type=RulesCfg,
+                              members={'first': 500, 'second': 500})
+    assert outcome.verdict.diagnostics == ''
+
+
+def test_rule_about_both() -> None:
+    """Test a rule about two members is reported for neither of them.
+
+    Both members are values their own validators accept, so there is no
+    member this refusal could honestly be put beside.
+    """
+    outcome = validate_buffer(config_type=RulesCfg,
+                              members={'first': HIGHEST, 'second': HIGHEST})
+    assert not outcome.verdict.refused
+    assert TOO_LARGE_MESSAGE.format(total=2 * HIGHEST) in \
+        outcome.verdict.diagnostics
+    assert 2 * HIGHEST > SUM_LIMIT
 
 
 def test_silent_refusal_told() -> None:
@@ -62,10 +145,12 @@ def test_silent_refusal_told() -> None:
 
     An application's own validator is free to raise without writing
     anything, and the user would otherwise be shown that the buffer is
-    invalid and nothing at all about why.
+    invalid and nothing at all about why. What is asserted is the exception
+    reaching the member, and not anything about `RefuseCfg` itself, which is
+    a class no application could use.
     """
     outcome = validate_buffer(config_type=RefuseCfg, members={'name': 'x'})
-    assert outcome.verdict.diagnostics.startswith('ValueError: ')
+    assert outcome.verdict.refused['name'].startswith('ValueError: ')
 
 
 @pytest.mark.parametrize('config_type, members',
@@ -76,13 +161,16 @@ def test_silent_refusal_told() -> None:
                           (OmitCfg, {'first': 1, 'last': 2}),
                           (EnumCfg, {'colour': 'GREEN'}),
                           (IntEnumCfg, {'level': 'HIGH'}),
-                          (RangeCfg, {'answer': 100})])
+                          (RangeCfg, {'answer': 100}),
+                          (HexCfg, {'mask': 16}),
+                          (RulesCfg, {'first': 1, 'second': 2})])
 def test_accepted_buffer(config_type: type[Config],
                          members: dict[str, JsonType]) -> None:
     """Test an accepted buffer is reported as valid and says nothing more."""
     outcome = validate_buffer(config_type=config_type, members=members)
     assert outcome.verdict.valid
     assert outcome.verdict.diagnostics == ''
+    assert not outcome.verdict.refused
 
 
 def test_members_read_back() -> None:

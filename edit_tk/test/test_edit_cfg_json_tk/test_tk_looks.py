@@ -14,9 +14,9 @@ and drive the scrolling.
 import tkinter
 import pytest
 from edit_cfg_json import Emphasis, EditModel
-from edit_cfg_json_tk.tk_editor import BODY_HEIGHT, BODY_WIDTH, \
-    EMPHASIS_COLOURS, EditorWidgets, EXPLAIN_TEXT, FIELD_BACKGROUND, \
-    FIELD_FOREGROUND, LEAST_WRAP_WIDTH
+from edit_cfg_json_tk.scrolling import BODY_HEIGHT, BODY_WIDTH
+from edit_cfg_json_tk.tk_editor import EMPHASIS_COLOURS, EditorWidgets, \
+    EXPLAIN_TEXT, FIELD_BACKGROUND, FIELD_FOREGROUND, LEAST_WRAP_WIDTH
 from example.e01_flat_config import FlatConfig
 from .helpers import ABOUT_NAME, DESCRIPTIONS, FakeWidget, FILLED_REPORT, \
     FLAT_DOCSTRING, FLAT_SUMMARY, stub_editor, stub_press, STUB_BODY_HEIGHT

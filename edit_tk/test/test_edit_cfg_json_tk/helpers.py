@@ -59,6 +59,14 @@ FILLED_MARK = ' (filled from default)'
 VALID_VERDICT = 'validation: valid'
 """Text the editor shows for a buffer the application would accept."""
 
+REFUSED_VERDICT = 'validation: invalid, see answer'
+"""Text the editor shows when the number member of the example is refused.
+
+What was refused is said beside that member, so this line only names it: a
+configuration too tall for a window would otherwise leave the user hunting
+for the field that the refusal is about.
+"""
+
 NO_FILE_TEXT = 'save to: no file chosen yet'
 """Text the editor shows while no output file has been chosen."""
 

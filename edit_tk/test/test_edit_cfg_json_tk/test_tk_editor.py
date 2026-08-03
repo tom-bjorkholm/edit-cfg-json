@@ -16,22 +16,22 @@ from edit_cfg_json_tk.tk_editor import EditorWidgets, VALIDATE_TEXT
 from example.e01_flat_config import FlatConfig
 from .helpers import EXPECTED_FIELDS, EXPECTED_LABELS, EXPECTED_LOADED, \
     FakeVar, FakeWidget, FILLED_REPORT, model_value, real_fields, \
-    real_press, real_texts, retype, REWRITTEN_MARK, stub_editor, stub_press, \
-    stub_texts, UNKNOWN_VERDICT, VALID_VERDICT
+    real_press, real_texts, REFUSED_VERDICT, retype, REWRITTEN_MARK, \
+    stub_editor, stub_press, stub_texts, UNKNOWN_VERDICT, VALID_VERDICT
 
 
 def test_stub_widget_texts(stub_tk: None) -> None:
     """Test the stubbed widgets show the class name, the names and buttons."""
     _ = stub_tk
     stub_editor(EditModel(FlatConfig()))
-    assert stub_texts() == EXPECTED_LABELS
+    assert stub_texts(packed_only=True) == EXPECTED_LABELS
 
 
 def test_real_widget_texts(root_or_skip: tkinter.Tk) -> None:
     """Test real Tk widgets show exactly what the stubbed test expects."""
     widgets = EditorWidgets(parent=root_or_skip, model=EditModel(FlatConfig()))
     assert widgets.label_text == EXPECTED_LABELS[0]
-    assert real_texts(root_or_skip) == EXPECTED_LABELS
+    assert real_texts(root_or_skip, packed_only=True) == EXPECTED_LABELS
 
 
 def test_stub_field_values(stub_tk: None) -> None:
@@ -168,22 +168,29 @@ def test_real_accepts(root_or_skip: tkinter.Tk) -> None:
 
 
 def test_stub_refuses(stub_tk: None) -> None:
-    """Test the stubbed editor shows why the application refused a value."""
+    """Test the refusal appears at the member it is about.
+
+    The verdict names that member and says nothing else, because what was
+    said about it is said beside it, and a configuration too tall for a
+    window would otherwise leave the user looking for the field.
+    """
     _ = stub_tk
     widgets = stub_editor(EditModel(FlatConfig()))
     FakeVar.created[1].set('500')
     stub_press(VALIDATE_TEXT)
-    assert 'validation: invalid' in widgets.verdict_text_shown
-    assert 'greater than maximum 100' in widgets.verdict_text_shown
+    assert widgets.verdict_text_shown == REFUSED_VERDICT
+    assert 'greater than maximum 100' in widgets.wrong_shown[1]
+    assert widgets.wrong_shown[0] == ''
 
 
 def test_real_refuses(root_or_skip: tkinter.Tk) -> None:
-    """Test the real editor shows the same refusal."""
+    """Test the real editor shows the same refusal in the same place."""
     widgets = EditorWidgets(parent=root_or_skip, model=EditModel(FlatConfig()))
     retype(real_fields(root_or_skip)[1], '500')
     real_press(root_or_skip, VALIDATE_TEXT)
-    assert 'validation: invalid' in widgets.verdict_text_shown
-    assert 'greater than maximum 100' in widgets.verdict_text_shown
+    assert widgets.verdict_text_shown == REFUSED_VERDICT
+    assert 'greater than maximum 100' in widgets.wrong_shown[1]
+    assert widgets.wrong_shown[0] == ''
 
 
 def test_stub_rewrites(stub_tk: None) -> None:
@@ -237,14 +244,15 @@ def test_stub_load_message(stub_tk: None) -> None:
     """
     _ = stub_tk
     stub_editor(EditModel(FlatConfig(), FILLED_REPORT))
-    assert stub_texts() == EXPECTED_LOADED
+    assert stub_texts(packed_only=True) == EXPECTED_LOADED
 
 
 def test_real_load_message(root_or_skip: tkinter.Tk) -> None:
     """Test the real Tk editor shows exactly the same about the load."""
     EditorWidgets(parent=root_or_skip,
                   model=EditModel(FlatConfig(), FILLED_REPORT))
-    assert real_texts(root_or_skip) == EXPECTED_LOADED
+    shown = real_texts(root_or_skip, packed_only=True)
+    assert shown == EXPECTED_LOADED
 
 
 def test_is_editor_backend() -> None:

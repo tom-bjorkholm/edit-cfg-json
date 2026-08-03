@@ -4,6 +4,7 @@
   * [VALUE\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.VALUE_ID_PREFIX)
   * [MARK\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.MARK_ID_PREFIX)
   * [DESCRIPTION\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.DESCRIPTION_ID_PREFIX)
+  * [DIAGNOSTIC\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.DIAGNOSTIC_ID_PREFIX)
   * [DOCSTRING\_ID](#edit_cfg_json_textual.textual_editor.DOCSTRING_ID)
   * [VERDICT\_ID](#edit_cfg_json_textual.textual_editor.VERDICT_ID)
   * [SAVE\_ID](#edit_cfg_json_textual.textual_editor.SAVE_ID)
@@ -17,6 +18,7 @@
   * [ROW\_CLASS](#edit_cfg_json_textual.textual_editor.ROW_CLASS)
   * [MEMBER\_CLASS](#edit_cfg_json_textual.textual_editor.MEMBER_CLASS)
   * [DESCRIPTION\_CLASS](#edit_cfg_json_textual.textual_editor.DESCRIPTION_CLASS)
+  * [DIAGNOSTIC\_CLASS](#edit_cfg_json_textual.textual_editor.DIAGNOSTIC_CLASS)
   * [NAME\_WIDTH](#edit_cfg_json_textual.textual_editor.NAME_WIDTH)
   * [DESCRIPTION\_INDENT](#edit_cfg_json_textual.textual_editor.DESCRIPTION_INDENT)
   * [LEAST\_VALUE\_WIDTH](#edit_cfg_json_textual.textual_editor.LEAST_VALUE_WIDTH)
@@ -40,6 +42,7 @@
   * [\_value\_id](#edit_cfg_json_textual.textual_editor._value_id)
   * [\_mark\_id](#edit_cfg_json_textual.textual_editor._mark_id)
   * [\_description\_id](#edit_cfg_json_textual.textual_editor._description_id)
+  * [\_diagnostic\_id](#edit_cfg_json_textual.textual_editor._diagnostic_id)
   * [plain\_widget](#edit_cfg_json_textual.textual_editor.plain_widget)
   * [show\_emphasis](#edit_cfg_json_textual.textual_editor.show_emphasis)
   * [bind\_action](#edit_cfg_json_textual.textual_editor.bind_action)
@@ -48,6 +51,7 @@
     * [compose](#edit_cfg_json_textual.textual_editor.SaveAsScreen.compose)
     * [\_prompt](#edit_cfg_json_textual.textual_editor.SaveAsScreen._prompt)
     * [on\_input\_changed](#edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_changed)
+    * [on\_input\_blurred](#edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_blurred)
     * [on\_input\_submitted](#edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_submitted)
     * [action\_leave](#edit_cfg_json_textual.textual_editor.SaveAsScreen.action_leave)
   * [EditorApp](#edit_cfg_json_textual.textual_editor.EditorApp)
@@ -61,8 +65,10 @@
     * [\_load\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._load_widgets)
     * [\_docstring\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._docstring_widgets)
     * [\_description\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._description_widgets)
+    * [\_diagnostic\_widget](#edit_cfg_json_textual.textual_editor.EditorApp._diagnostic_widget)
     * [\_value\_widget](#edit_cfg_json_textual.textual_editor.EditorApp._value_widget)
     * [on\_input\_changed](#edit_cfg_json_textual.textual_editor.EditorApp.on_input_changed)
+    * [on\_input\_blurred](#edit_cfg_json_textual.textual_editor.EditorApp.on_input_blurred)
     * [action\_validate](#edit_cfg_json_textual.textual_editor.EditorApp.action_validate)
     * [action\_save](#edit_cfg_json_textual.textual_editor.EditorApp.action_save)
     * [action\_explain](#edit_cfg_json_textual.textual_editor.EditorApp.action_explain)
@@ -74,6 +80,7 @@
     * [\_refresh](#edit_cfg_json_textual.textual_editor.EditorApp._refresh)
     * [\_field](#edit_cfg_json_textual.textual_editor.EditorApp._field)
     * [\_show\_state](#edit_cfg_json_textual.textual_editor.EditorApp._show_state)
+    * [\_show\_diagnostic](#edit_cfg_json_textual.textual_editor.EditorApp._show_diagnostic)
     * [\_told](#edit_cfg_json_textual.textual_editor.EditorApp._told)
   * [TextualEditor](#edit_cfg_json_textual.textual_editor.TextualEditor)
     * [run\_editor](#edit_cfg_json_textual.textual_editor.TextualEditor.run_editor)
@@ -109,6 +116,12 @@ Prefix of the identifier of the widget that marks one member.
 #### DESCRIPTION\_ID\_PREFIX
 
 Prefix of the identifier of the widget that describes one member.
+
+<a id="edit_cfg_json_textual.textual_editor.DIAGNOSTIC_ID_PREFIX"></a>
+
+#### DIAGNOSTIC\_ID\_PREFIX
+
+Prefix of the identifier of the widget that refuses one member.
 
 <a id="edit_cfg_json_textual.textual_editor.DOCSTRING_ID"></a>
 
@@ -187,6 +200,12 @@ Style class of the container that holds one member and its description.
 #### DESCRIPTION\_CLASS
 
 Style class of the widget that says what one member is for.
+
+<a id="edit_cfg_json_textual.textual_editor.DIAGNOSTIC_CLASS"></a>
+
+#### DIAGNOSTIC\_CLASS
+
+Style class of the widget that says what is wrong with one member.
 
 <a id="edit_cfg_json_textual.textual_editor.NAME_WIDTH"></a>
 
@@ -401,6 +420,16 @@ def _description_id(row: core.MemberRow) -> str
 
 Return the identifier of the widget that describes one member.
 
+<a id="edit_cfg_json_textual.textual_editor._diagnostic_id"></a>
+
+#### \_diagnostic\_id
+
+```python
+def _diagnostic_id(row: core.MemberRow) -> str
+```
+
+Return the identifier of the widget that refuses one member.
+
 <a id="edit_cfg_json_textual.textual_editor.plain_widget"></a>
 
 #### plain\_widget
@@ -556,6 +585,19 @@ The editor underneath writes every field change into the model, and
 this field is not a member of the configuration: it is the name of a
 file. A message that reached the editor would be looked for among the
 members and found nowhere.
+
+<a id="edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_blurred"></a>
+
+#### on\_input\_blurred
+
+```python
+def on_input_blurred(event: Input.Blurred) -> None
+```
+
+Keep leaving this field to this screen, for the same reason.
+
+The editor underneath asks the model about the member whose field was
+left, and the name of a file is no member of the configuration.
 
 <a id="edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_submitted"></a>
 
@@ -742,6 +784,22 @@ created starts out shown or hidden as the model says, which is not the
 same as shown: a model can have been told to hide the explanations
 before the editor was started.
 
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._diagnostic_widget"></a>
+
+#### \_diagnostic\_widget
+
+```python
+def _diagnostic_widget(row: core.MemberRow) -> Static
+```
+
+Create the widget that says what is wrong with one member.
+
+Every member gets one, unlike the description above it: any member
+can be refused, so there is no member for which this could never say
+anything. It starts out hidden unless the model already has something
+to say about that member, which it has when a model that has been
+validated already reaches this backend.
+
 <a id="edit_cfg_json_textual.textual_editor.EditorApp._value_widget"></a>
 
 #### \_value\_widget
@@ -768,6 +826,22 @@ Write one field into the model and show what the model says.
 A field posts this message when it is given its initial value as
 well, which the model handles by treating a set that changes no text
 as no edit at all.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp.on_input_blurred"></a>
+
+#### on\_input\_blurred
+
+```python
+def on_input_blurred(event: Input.Blurred) -> None
+```
+
+Ask the model about the member whose field the user has just left.
+
+Leaving a field is when the user has moved on from it, and it is
+therefore when the editor says whether what they typed means a value
+of that member at all. Nothing is validated here: the whole
+configuration is what a validation pass is about, and this is one
+field answering for itself.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.action_validate"></a>
 
@@ -926,12 +1000,27 @@ Return the field that this application shows for one member.
 def _show_state() -> None
 ```
 
-Show the title, the verdict, the saving and every member mark.
+Show the title, the verdict, the saving and every member.
 
 The verdict and the saving change colour as well as text, because what
 they say is either what the application accepted, what it refused, or
 what has not been asked of it yet, and a user who has to read three
 lines to tell those apart is reading too much.
+
+What is wrong with a member is shown here too, and not with the
+explanations: a description says what a member is for and stays until
+the user asks for it to go, while a refusal is answered afresh by
+every pass and by every field that is left.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._show_diagnostic"></a>
+
+#### \_show\_diagnostic
+
+```python
+def _show_diagnostic(row: core.MemberRow) -> None
+```
+
+Show what is wrong with one member, or nothing when nothing is.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp._told"></a>
 

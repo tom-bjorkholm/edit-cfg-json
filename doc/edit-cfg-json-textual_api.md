@@ -4,6 +4,7 @@
   * [VALUE\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.VALUE_ID_PREFIX)
   * [MARK\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.MARK_ID_PREFIX)
   * [DESCRIPTION\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.DESCRIPTION_ID_PREFIX)
+  * [DIAGNOSTIC\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.DIAGNOSTIC_ID_PREFIX)
   * [DOCSTRING\_ID](#edit_cfg_json_textual.textual_editor.DOCSTRING_ID)
   * [VERDICT\_ID](#edit_cfg_json_textual.textual_editor.VERDICT_ID)
   * [SAVE\_ID](#edit_cfg_json_textual.textual_editor.SAVE_ID)
@@ -17,6 +18,7 @@
   * [ROW\_CLASS](#edit_cfg_json_textual.textual_editor.ROW_CLASS)
   * [MEMBER\_CLASS](#edit_cfg_json_textual.textual_editor.MEMBER_CLASS)
   * [DESCRIPTION\_CLASS](#edit_cfg_json_textual.textual_editor.DESCRIPTION_CLASS)
+  * [DIAGNOSTIC\_CLASS](#edit_cfg_json_textual.textual_editor.DIAGNOSTIC_CLASS)
   * [NAME\_WIDTH](#edit_cfg_json_textual.textual_editor.NAME_WIDTH)
   * [DESCRIPTION\_INDENT](#edit_cfg_json_textual.textual_editor.DESCRIPTION_INDENT)
   * [LEAST\_VALUE\_WIDTH](#edit_cfg_json_textual.textual_editor.LEAST_VALUE_WIDTH)
@@ -44,6 +46,7 @@
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_editor.SaveAsScreen.__init__)
     * [compose](#edit_cfg_json_textual.textual_editor.SaveAsScreen.compose)
     * [on\_input\_changed](#edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_changed)
+    * [on\_input\_blurred](#edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_blurred)
     * [on\_input\_submitted](#edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_submitted)
     * [action\_leave](#edit_cfg_json_textual.textual_editor.SaveAsScreen.action_leave)
   * [EditorApp](#edit_cfg_json_textual.textual_editor.EditorApp)
@@ -52,6 +55,7 @@
     * [compose](#edit_cfg_json_textual.textual_editor.EditorApp.compose)
     * [get\_system\_commands](#edit_cfg_json_textual.textual_editor.EditorApp.get_system_commands)
     * [on\_input\_changed](#edit_cfg_json_textual.textual_editor.EditorApp.on_input_changed)
+    * [on\_input\_blurred](#edit_cfg_json_textual.textual_editor.EditorApp.on_input_blurred)
     * [action\_validate](#edit_cfg_json_textual.textual_editor.EditorApp.action_validate)
     * [action\_save](#edit_cfg_json_textual.textual_editor.EditorApp.action_save)
     * [action\_explain](#edit_cfg_json_textual.textual_editor.EditorApp.action_explain)
@@ -91,6 +95,12 @@ Prefix of the identifier of the widget that marks one member.
 #### DESCRIPTION\_ID\_PREFIX
 
 Prefix of the identifier of the widget that describes one member.
+
+<a id="edit_cfg_json_textual.textual_editor.DIAGNOSTIC_ID_PREFIX"></a>
+
+#### DIAGNOSTIC\_ID\_PREFIX
+
+Prefix of the identifier of the widget that refuses one member.
 
 <a id="edit_cfg_json_textual.textual_editor.DOCSTRING_ID"></a>
 
@@ -169,6 +179,12 @@ Style class of the container that holds one member and its description.
 #### DESCRIPTION\_CLASS
 
 Style class of the widget that says what one member is for.
+
+<a id="edit_cfg_json_textual.textual_editor.DIAGNOSTIC_CLASS"></a>
+
+#### DIAGNOSTIC\_CLASS
+
+Style class of the widget that says what is wrong with one member.
 
 <a id="edit_cfg_json_textual.textual_editor.NAME_WIDTH"></a>
 
@@ -499,6 +515,19 @@ this field is not a member of the configuration: it is the name of a
 file. A message that reached the editor would be looked for among the
 members and found nowhere.
 
+<a id="edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_blurred"></a>
+
+#### on\_input\_blurred
+
+```python
+def on_input_blurred(event: Input.Blurred) -> None
+```
+
+Keep leaving this field to this screen, for the same reason.
+
+The editor underneath asks the model about the member whose field was
+left, and the name of a file is no member of the configuration.
+
 <a id="edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_submitted"></a>
 
 #### on\_input\_submitted
@@ -615,6 +644,22 @@ Write one field into the model and show what the model says.
 A field posts this message when it is given its initial value as
 well, which the model handles by treating a set that changes no text
 as no edit at all.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp.on_input_blurred"></a>
+
+#### on\_input\_blurred
+
+```python
+def on_input_blurred(event: Input.Blurred) -> None
+```
+
+Ask the model about the member whose field the user has just left.
+
+Leaving a field is when the user has moved on from it, and it is
+therefore when the editor says whether what they typed means a value
+of that member at all. Nothing is validated here: the whole
+configuration is what a validation pass is about, and this is one
+field answering for itself.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.action_validate"></a>
 

@@ -113,10 +113,11 @@ python3 e03_described_config.py --ui dump --set max_items=500
 python3 e03_described_config.py --ui dump --set priority=HI
 ````
 
-The last of those is worth trying: `HI` is a unique prefix of `HIGH`, so it
-is completed and the member is marked as changed by a validator, exactly as
-in example 2. The description of that member lists the three names, because
-that is the sort of thing only the application knows.
+The last of those is worth trying: `HI` is no prefix of any of the three
+names of `Priority`, so it is refused, and the refusal appears below that one
+member rather than in the block at the bottom. Example 4 is about why the
+editor can say which member a refusal is about, and about the one kind of
+rule for which it cannot.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -212,8 +213,8 @@ DESCRIPTIONS: Descriptions = {
     ('project_name',): 'Name that the reports of this project are headed by.',
     ('max_items',): ('How many items one report may hold. A whole number '
                      f'from {FEWEST_ITEMS} to {MOST_ITEMS}.'),
-    ('priority',): ('How urgent this work is: LOW, ROUTINE or URGENT. A '
-                    'unique beginning of one of those names will do.')}
+    ('priority',): ('How urgent this work is. A unique beginning of one of '
+                    'the names below will do.')}
 """What this application says about the members it declares.
 
 `report_file` is deliberately absent. A member the mapping says nothing about
@@ -223,6 +224,13 @@ costs.
 The text of `max_items` names the same range that the validation plan
 enforces, and it is written here in words because the editor never reads a
 range out of a validator.
+
+The text of `priority` deliberately does *not* name the three values, and the
+difference between those two members is the point. A range lives inside a
+validator, which the editor never reads; the names of an enum are the type of
+the member, which the editor does read, from `parse_converters()`. So the
+editor lists them below this sentence, and an application that listed them
+here as well would be writing them twice and getting them wrong once.
 """
 
 

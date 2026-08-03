@@ -45,16 +45,27 @@ ABOUT_ITEMS = DESCRIPTIONS[('max_items',)]
 ABOUT_PRIORITY = DESCRIPTIONS[('priority',)]
 """What this example says about its enum member."""
 
+PRIORITY_TYPE = ['    How urgent the work described by a configuration is.',
+                 '    One of: LOW, ROUTINE, URGENT.']
+"""What the *type* of the enum member says about it, below what the
+application says.
+
+The names come from the enum class, which is a fact about the type of that
+member and not a constraint read out of a validator. That is the difference
+between this member and `max_items`, whose range lives inside a validator and
+is therefore explained by the application in words.
+"""
+
 VALUE_LINES = ['project_name = Example project', f'    {ABOUT_NAME}',
                'report_file = report.md', 'max_items = 20',
                f'    {ABOUT_ITEMS}', 'priority = ROUTINE',
-               f'    {ABOUT_PRIORITY}']
+               f'    {ABOUT_PRIORITY}', *PRIORITY_TYPE]
 """Every line that the default values of this example are shown as.
 
 `report_file` has no line below it, because the mapping of the example says
-nothing about that member. An application that describes half of its
-configuration gets half of it explained, and not an empty line under the
-other half.
+nothing about that member and its type says nothing either. An application
+that describes half of its configuration gets half of it explained, and not
+an empty line under the other half.
 """
 
 HIDDEN_LINES = ['project_name = Example project', 'report_file = report.md',
@@ -114,11 +125,41 @@ def test_refused_value(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the range that the description explains is really enforced.
 
     The description says the range in words and the validation plan enforces
-    it, and the editor turns neither of them into the other.
+    it, and the editor turns neither of them into the other. What the
+    application refused is below both of them, because the description says
+    what the member is for and the refusal is the thing to act on.
     """
     printed = _dump(capsys, '--set', 'max_items=500')
-    assert 'greater than maximum 100' in printed
-    assert f'    {ABOUT_ITEMS}' in printed
+    assert (f'max_items = 500 (edited)\n    {ABOUT_ITEMS}\n'
+            '    Invalid configuration: Value 500 for max_items is greater '
+            'than maximum 100.') in printed
+    assert 'validation: invalid, see max_items' in printed
+
+
+def test_names_from_the_type(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the names of the enum are listed under what the application says.
+
+    The application deliberately does not list them: they are the type of
+    that member, so the editor reads them from the enum class, and writing
+    them in two places is how one of the two comes to be wrong.
+    """
+    lines = '\n'.join(['priority = ROUTINE', f'    {ABOUT_PRIORITY}',
+                       *PRIORITY_TYPE])
+    assert lines in _dump(capsys)
+    assert 'LOW, ROUTINE, URGENT' not in ABOUT_PRIORITY
+
+
+def test_refused_enum(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a name that no member of the enum has is refused at that member.
+
+    `HI` begins none of the three names, so it means nothing at all, and the
+    conversion of that one member is what says so. The message is the one the
+    conversion raised and not the one about JSON that could not be loaded.
+    """
+    printed = _dump(capsys, '--set', 'priority=HI')
+    assert '    HI is not one of: LOW, ROUTINE, URGENT' in printed
+    assert 'validation: invalid, see priority' in printed
+    assert 'failed to load JSON' not in printed
 
 
 def test_completed_enum(capsys: pytest.CaptureFixture[str]) -> None:

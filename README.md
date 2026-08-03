@@ -145,7 +145,7 @@ browsed through `reports/index.html`.
 
 ## Test summary
 
-- Test result: 782 passed, 1 deselected in 16s
+- Test result: 865 passed, 2 deselected in 18s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

@@ -20,6 +20,7 @@ from tkinter import filedialog
 from config_as_json import Config, PathOrStr
 import edit_cfg_json as core
 from edit_cfg_json_tk.key_names import tk_sequence
+from edit_cfg_json_tk.scrolling import scrolling_body
 
 NAME_COLUMN_WIDTH = 24
 """Width in characters of the column that holds the member names."""
@@ -39,19 +40,10 @@ PADDING = 4
 """Padding in pixels around the widgets of the editor."""
 
 DESCRIPTION_INDENT = 24
-"""Indentation in pixels of the description of one member.
+"""Indentation in pixels of what is written below one member.
 
 The indentation is what says that the line belongs to the member above it
 rather than being a member of its own.
-"""
-
-BODY_HEIGHT = 480
-"""Largest height in pixels that the scrolling part of the editor is given.
-
-A configuration of any size therefore opens a window that fits a screen, and
-what does not fit is scrolled to rather than lost. A configuration smaller
-than this gets a window that is smaller than this, because the height is what
-the body asks for up to this limit and not this limit.
 """
 
 LEAST_WRAP_WIDTH = 200
@@ -60,15 +52,6 @@ LEAST_WRAP_WIDTH = 200
 A window can be made narrower than any text is readable in, and wrapping to
 what is left of it would leave one word per line. Below this the text is cut
 off by the window instead, which is the lesser of the two.
-"""
-
-BODY_WIDTH = 720
-"""Largest width in pixels that the scrolling part of the editor asks for.
-
-A canvas asks for a width of its own that has nothing to do with what is on
-it, so the width the editor opens at has to be said here: what the body asks
-for, up to this. Wider than this is left to the user, who can make the window
-any size, and every text that is a paragraph wraps to whatever width there is.
 """
 
 EMPHASIS_COLOURS = {core.Emphasis.MUTED: '#4b5563',
@@ -269,118 +252,6 @@ def _show_emphasis(label: tkinter.Label,
         label.config(foreground=EMPHASIS_COLOURS[emphasis])
 
 
-def _scroll_by(canvas: tkinter.Canvas, step: Optional[int]
-               ) -> Callable[..., str]:
-    """Return the callback that one turn of the mouse wheel runs.
-
-    Args:
-        canvas: Canvas that holds the scrolling part of the editor.
-        step: How far to scroll, or None to read it from the event. X11
-            reports a wheel as two buttons and says nothing about how far,
-            while every other platform reports a delta whose sign is the
-            direction.
-
-    Returns:
-        A callback that Tk can bind, which stops the event from being handled
-        a second time by whatever else the window is bound to.
-    """
-    def scroll(*event: 'tkinter.Event[tkinter.Misc]') -> str:
-        """Scroll the body by one line, in the direction of the wheel."""
-        moved = step if step is not None else _wheel_step(event[0])
-        canvas.yview_scroll(moved, 'units')
-        return 'break'
-    return scroll
-
-
-def _wheel_step(event: 'tkinter.Event[tkinter.Misc]') -> int:
-    """Return which way one reported turn of the mouse wheel goes.
-
-    The type of the event is written as text here and in the three callbacks
-    around it, because `tkinter.Event` is a generic class to a type checker and
-    a plain one at runtime: Python 3.12 and 3.13 evaluate an annotation where
-    it is written, and subscripting it there is an error.
-
-    Only the sign of the delta is used. Its size means different things on
-    different platforms, and one line per turn is a scroll everyone can
-    follow.
-
-    Args:
-        event: The wheel event that Tk reported.
-
-    Returns:
-        How far to scroll the body, in lines.
-    """
-    return -1 if event.delta > 0 else 1
-
-
-def _bind_wheel(window: tkinter.Misc, canvas: tkinter.Canvas) -> None:
-    """Let the mouse wheel scroll the body, however it is reported.
-
-    The bindings are made on the window rather than on the canvas, because a
-    wheel event goes to the widget under the pointer and the pointer is
-    usually over a field or a label inside the body. That is the same window
-    the keys are bound on, and it is the same open question for the same
-    reason: an editor mounted in a window it shares would be claiming the
-    wheel of a whole application. See section 8.2.7 of `doc/design.md`.
-
-    Args:
-        window: Window that the bindings are made on.
-        canvas: Canvas that holds the scrolling part of the editor.
-    """
-    for sequence, step in (('<MouseWheel>', None), ('<Button-4>', -1),
-                           ('<Button-5>', 1)):
-        try:
-            window.bind(sequence, _scroll_by(canvas=canvas, step=step))
-        except tkinter.TclError:
-            # A platform whose Tk does not know one of these sequences leaves
-            # the wheel out and keeps the scrollbar, which is not worth an
-            # editor that does not open.
-            pass
-
-
-def _fit_body(canvas: tkinter.Canvas,
-              body: tkinter.Frame) -> Callable[..., None]:
-    """Return the callback that follows the height of the body.
-
-    It is what makes the canvas scroll: a canvas shows the part of its
-    contents that its scroll region says is there, and the contents of this
-    one grow and shrink as the explanations are shown and hidden.
-
-    Args:
-        canvas: Canvas that holds the body.
-        body: Frame that holds everything that scrolls.
-
-    Returns:
-        A callback for the event that says the body has been laid out.
-    """
-    def fitted(*event: 'tkinter.Event[tkinter.Misc]') -> None:
-        """Follow the size of the body, up to the size of a window."""
-        _ = event
-        canvas.configure(scrollregion=canvas.bbox('all'),
-                         width=min(body.winfo_reqwidth(), BODY_WIDTH),
-                         height=min(body.winfo_reqheight(), BODY_HEIGHT))
-    return fitted
-
-
-def _fit_width(canvas: tkinter.Canvas, item: int) -> Callable[..., None]:
-    """Return the callback that gives the body the width of the canvas.
-
-    An item on a canvas is as wide as it asks to be, so without this the
-    fields would keep the width they wanted rather than the width there is.
-
-    Args:
-        canvas: Canvas that holds the body.
-        item: The canvas item that the body was put on.
-
-    Returns:
-        A callback for the event that says the canvas has been resized.
-    """
-    def fitted(event: 'tkinter.Event[tkinter.Misc]') -> None:
-        """Make the body as wide as the canvas now is."""
-        canvas.itemconfigure(item, width=event.width)
-    return fitted
-
-
 def _wrap_to_width(label: tkinter.Label) -> None:
     """Make one label wrap its text to the width it is given.
 
@@ -399,73 +270,40 @@ def _wrap_to_width(label: tkinter.Label) -> None:
     label.bind('<Configure>', wrapped)
 
 
-class ScrollingArea(NamedTuple):
-    """The part of the editor that scrolls, before it has been placed."""
+def _label_text(label: Optional[tkinter.Label]) -> str:
+    """Return the text one label is showing, empty when it is showing none.
 
-    area: tkinter.Frame
-    """The frame to pack where the scrolling part of the editor belongs."""
-
-    body: tkinter.Frame
-    """The frame to build the scrolling part of the editor in."""
-
-
-def _scrolling_body(parent: tkinter.Misc) -> ScrollingArea:
-    """Return the frame that the scrolling part of the editor is built in.
-
-    Tk has no scrolling frame, so this is the one it has: a canvas with a
-    scrollbar beside it and a frame on the canvas. What goes in the frame
-    scrolls.
-
-    The area is not packed here. Tk gives each child the space it asks for in
-    the order they were packed, so the part that does not scroll has to be
-    packed before this one to be sure of its space, while this one is created
-    first so that the widgets of the editor are created in the order they are
-    read in.
+    A label that is out of the layout holds no text, because that is how this
+    backend hides one, so this answers what is on the window and not what a
+    widget happens to remember.
 
     Args:
-        parent: Widget that becomes the parent of the created widgets.
+        label: Widget to read, or None for a widget that was never created.
 
     Returns:
-        The frame to pack, and the frame to build in.
+        The text that widget shows.
     """
-    area = tkinter.Frame(parent)
-    canvas = tkinter.Canvas(area, highlightthickness=0)
-    slider = tkinter.Scrollbar(area, orient='vertical', command=canvas.yview)
-    canvas.configure(yscrollcommand=slider.set, height=BODY_HEIGHT)
-    slider.pack(side='right', fill='y')
-    canvas.pack(side='left', fill='both', expand=True)
-    body = tkinter.Frame(canvas)
-    item = canvas.create_window(0, 0, window=body, anchor='nw')
-    body.bind('<Configure>', _fit_body(canvas=canvas, body=body))
-    canvas.bind('<Configure>', _fit_width(canvas=canvas, item=item))
-    _bind_wheel(window=parent.winfo_toplevel(), canvas=canvas)
-    return ScrollingArea(area=area, body=body)
+    return '' if label is None else str(label.cget('text'))
 
 
-def _show_description(label: Optional[tkinter.Label], text: str) -> None:
-    """Show the description of one member, or hide it when there is none.
+def _place_text(label: Optional[tkinter.Label], text: str) -> None:
+    """Put one text below a member into the layout, or take it out again.
 
-    The text is what the core says to show for this member, which is nothing
-    while the explanations are hidden, so this backend does not decide for
-    itself what hiding them means.
-
-    Hiding is taking the widget out of the layout and not emptying its text,
-    because a label with no text still takes the height of a line, and a
-    window with a blank line under every member would have hidden nothing.
-    The widget is the last one inside the frame of its member, so packing it
-    again puts it back where it was.
+    Hiding is taking the widget out of the layout and emptying it, because a
+    label with text still takes the height of a line and a window with a
+    blank line under every member would have hidden nothing.
 
     Args:
-        label: Widget that shows the description of one member, or None for a
-            member the application said nothing about.
-        text: Description to show, empty when it is not being shown.
+        label: Widget that shows one text below a member, or None for a text
+            that this member can never have.
+        text: Text to show, empty when there is nothing to show.
     """
     if label is None:
         return
+    label.config(text=text)
     if not text:
         label.pack_forget()
         return
-    label.config(text=text)
     label.pack(fill='x', padx=(DESCRIPTION_INDENT, PADDING))
 
 
@@ -513,9 +351,41 @@ class RowWidgets(NamedTuple):
     description: Optional[tkinter.Label]
     """The widget that says what this member is for.
 
-    It is None for a member the application said nothing about, because there
-    is then nothing that could ever appear in it.
+    It is None for a member that nothing is said about, because there is then
+    nothing that could ever appear in it.
     """
+
+    diagnostic: tkinter.Label
+    """The widget that says what is wrong with this member.
+
+    Every member has one, unlike the description above it: any member can be
+    refused, so there is no member for which this could never say anything.
+    """
+
+
+def _show_below(widgets: RowWidgets, description: str,
+                diagnostic: str) -> None:
+    """Show what belongs below one member, in the order it belongs in.
+
+    Both texts are taken out of the layout and put back rather than only the
+    one that changed, because Tk packs a widget after the ones that are
+    already there: a description that came back while a diagnostic was
+    showing would otherwise land below it. Nothing is touched while both
+    texts are already what they should be, so the ordinary case of typing
+    into a field does not lay the window out again on every key.
+
+    Args:
+        widgets: Widgets of the member.
+        description: What the member is for, empty while that is hidden.
+        diagnostic: What is wrong with the member, empty when nothing is.
+    """
+    if _label_text(widgets.description) == description and \
+            _label_text(widgets.diagnostic) == diagnostic:
+        return
+    for label in (widgets.description, widgets.diagnostic):
+        _place_text(label, '')
+    _place_text(widgets.description, description)
+    _place_text(widgets.diagnostic, diagnostic)
 
 
 class EditorWidgets:  # pylint: disable=too-few-public-methods
@@ -553,7 +423,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         """
         self._model = model
         self._close = on_close or parent.winfo_toplevel().destroy
-        scrolling = _scrolling_body(parent)
+        scrolling = scrolling_body(parent)
         # The part that does not scroll is packed first, because Tk gives each
         # child the space it asks for in the order they were packed: a window
         # too short for everything would otherwise leave nothing at all for
@@ -593,6 +463,15 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
     def save_text_shown(self) -> str:
         """Return the text that the saving part of the editor shows."""
         return str(self._state.saving.cget('text'))
+
+    @property
+    def wrong_shown(self) -> list[str]:
+        """Return what the editor says about each member, in row order.
+
+        A member that nothing is known to be wrong with says nothing, so most
+        of these are empty most of the time.
+        """
+        return [_label_text(row.diagnostic) for row in self._rows]
 
     @property
     def docstring_shown(self) -> str:
@@ -707,8 +586,8 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         """Create the widgets of one member, and its description below them.
 
         The member gets a frame of its own, holding the line that is edited
-        and the description under it, so that hiding the description and
-        showing it again cannot move it away from the member it belongs to.
+        and the texts under it, so that hiding one of those and showing it
+        again cannot move it away from the member it belongs to.
         """
         frame = tkinter.Frame(parent)
         frame.pack(fill='x', padx=PADDING)
@@ -720,32 +599,39 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         mark = _shown_text(line, core.row_marks(row), core.MEMBER_MARK,
                            wrapping=False)
         mark.pack(side='left')
-        return RowWidgets(field=field, mark=mark,
-                          description=self._add_description(parent=frame,
-                                                            row=row))
+        widgets = RowWidgets(
+            field=field, mark=mark,
+            description=self._add_description(parent=frame, row=row),
+            diagnostic=_shown_text(frame, '', core.MEMBER_DIAGNOSTIC))
+        self._show_row_texts(row=row, widgets=widgets)
+        return widgets
+
+    def _show_row_texts(self, row: core.MemberRow,
+                        widgets: RowWidgets) -> None:
+        """Show what the model says belongs below one member."""
+        _show_below(widgets,
+                    description=core.row_description(model=self._model,
+                                                     row=row),
+                    diagnostic=core.row_diagnostic(model=self._model, row=row))
 
     def _add_description(self, parent: tkinter.Misc,
                          row: core.MemberRow) -> Optional[tkinter.Label]:
         """Create the widget that says what one member is for, if anything.
 
-        A member the application said nothing about gets no widget, because
-        there is nothing that could ever appear in it.
+        A member that nothing is said about gets no widget, because there is
+        nothing that could ever appear in it.
 
         Args:
             parent: Frame of the member that is being described.
             row: Member to describe.
 
         Returns:
-            The widget that shows the description, or None when the
-            application said nothing about this member.
+            The widget that shows the description, or None when nothing is
+            said about this member.
         """
         if not row.description:
             return None
-        label = _shown_text(parent, '', core.EXPLANATION)
-        _show_description(label,
-                          text=core.row_description(model=self._model,
-                                                    row=row))
-        return label
+        return _shown_text(parent, '', core.EXPLANATION)
 
     def _add_value(self, parent: tkinter.Misc,
                    row: core.MemberRow) -> Optional[tkinter.StringVar]:
@@ -778,6 +664,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
                               highlightbackground=FIELD_BORDER,
                               highlightthickness=1)
         entry.pack(side='left', fill='x', expand=True)
+        entry.bind('<FocusOut>', self._leaver(row))
         field.trace_add('write', self._writer(row=row, field=field))
         return field
 
@@ -795,6 +682,22 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
             self._model.set_text(path=row.path, text=field.get())
             self._show_state()
         return write_field
+
+    def _leaver(self, row: core.MemberRow) -> Callable[..., None]:
+        """Return the callback that one field runs when it loses the focus.
+
+        Leaving a field is when the user has moved on from it, and it is
+        therefore when the editor says whether what they typed means a value
+        of that member at all. Nothing is validated here: the whole
+        configuration is what a validation pass is about, and this is one
+        field answering for itself.
+        """
+        def left_field(*event: 'tkinter.Event[tkinter.Misc]') -> None:
+            """Check the member that was left and show what the model says."""
+            _ = event
+            self._model.check_field(row.path)
+            self._show_state()
+        return left_field
 
     def _validate(self) -> None:
         """Validate the buffer and show what the application would say."""
@@ -859,10 +762,12 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._state.explained.set(self._model.explanations_shown)
         if self._state.docstring is not None:
             self._state.docstring.config(text=core.docstring_text(self._model))
+        self._show_member_texts()
+
+    def _show_member_texts(self) -> None:
+        """Show what belongs below every member, as the model says it now."""
         for row, widgets in zip(self._model.rows, self._rows, strict=True):
-            _show_description(widgets.description,
-                              text=core.row_description(model=self._model,
-                                                        row=row))
+            self._show_row_texts(row=row, widgets=widgets)
 
     def _refresh(self) -> None:
         """Write the buffer back into the fields and show the new state.
@@ -879,12 +784,17 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._show_state()
 
     def _show_state(self) -> None:
-        """Show the label, the verdict, the saving and every member mark.
+        """Show the label, the verdict, the saving and every member.
 
         The verdict and the saving change colour as well as text, because what
         they say is either what the application accepted, what it refused, or
         what has not been asked of it yet, and a user who has to read three
         lines to tell those apart is reading too much.
+
+        What is wrong with a member is shown here too, and not with the
+        explanations: a description says what a member is for and stays until
+        the user asks for it to go, while a refusal is answered afresh by
+        every pass and by every field that is left.
         """
         self._state.title.config(text=core.model_title(self._model))
         _told(self._state.verdict, text=core.verdict_text(self._model),
@@ -893,6 +803,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
               emphasis=core.save_emphasis(self._model))
         for row, widgets in zip(self._model.rows, self._rows, strict=True):
             widgets.mark.config(text=core.row_marks(row))
+        self._show_member_texts()
 
 
 class TkEditor:  # pylint: disable=too-few-public-methods

@@ -6,6 +6,7 @@
 
 from edit_cfg_json.edit_model import EditModel, MemberRow
 from edit_cfg_json.leaf_value import value_as_text
+from edit_cfg_json.validation import ValidationVerdict
 
 NOT_EDITABLE_FORM = '<not editable yet: {kind}>'
 """Form of the value text of a member this version cannot edit."""
@@ -34,6 +35,15 @@ INVALID_STATE = 'invalid'
 UNKNOWN_STATE = 'not validated'
 """State of a buffer that has not been validated since it last changed."""
 
+REFUSED_FORM = 'validation: invalid, see {names}'
+"""Form of the line that names the members the application refused.
+
+They are named here as well as marked below, because a configuration of any
+size does not fit a window: a user who has just asked what the application
+makes of these values should be told where to look rather than have to go
+looking.
+"""
+
 SAVE_TO_FORM = 'save to: {name}'
 """Form of the line that says where saving would write."""
 
@@ -48,10 +58,11 @@ one line for the whole configuration and hiding it would save nothing.
 """
 
 DESCRIPTION_INDENT = '    '
-"""What the description of a member is indented by, below that member.
+"""What is written below a member is indented by this much.
 
 The indentation is what says that the line belongs to the member above it
-rather than being a member of its own.
+rather than being a member of its own. Every line of it gets one, because
+what the type of a member says about it runs to more than one line.
 """
 
 
@@ -135,23 +146,82 @@ def row_description(model: EditModel, row: MemberRow) -> str:
     return row.description if model.explanations_shown else ''
 
 
+def row_diagnostic(model: EditModel, row: MemberRow) -> str:
+    """Return what is wrong with one member, and nothing when nothing is.
+
+    Two things can be wrong with a member and they are not the same thing.
+    Its text may mean no value of that member at all, which is answered by
+    the member alone and stays true until the member is edited again; or the
+    application may have refused the value it holds, which is answered by the
+    whole configuration and is only known for as long as the rest of the
+    buffer stands still. The first is preferred when both are there, because
+    a value that does not exist yet is what has to be corrected first.
+
+    Both backends read this from here, so that neither of them decides on its
+    own what a refused member is told.
+
+    Args:
+        model: Model that the member belongs to.
+        row: Member to report.
+
+    Returns:
+        What is wrong with that member, empty when nothing is known to be.
+    """
+    if row.conversion:
+        return row.conversion
+    verdict = model.verdict
+    return '' if verdict is None else verdict.refused.get(row.name, '')
+
+
+def _indented(text: str) -> str:
+    """Return one text that belongs to a member, with every line indented.
+
+    A line with nothing on it is left alone, because indenting it would put
+    blank space where there is nothing to line up.
+    """
+    return '\n'.join(DESCRIPTION_INDENT + line if line else line
+                     for line in text.split('\n'))
+
+
 def _row_as_text(model: EditModel, row: MemberRow) -> str:
-    """Return the line that shows one member, and its description below it."""
-    line = f'{row.name} = {row_value_text(row)}{row_marks(row)}'
-    description = row_description(model=model, row=row)
-    if not description:
-        return line
-    return f'{line}\n{DESCRIPTION_INDENT}{description}'
+    """Return the line that shows one member, and what is said below it.
+
+    The description comes before what is wrong with the member, because the
+    description is part of the member and what is wrong comes and goes: a
+    line that appears below everything moves nothing that is above it.
+    """
+    below = [row_description(model=model, row=row),
+             row_diagnostic(model=model, row=row)]
+    lines = [f'{row.name} = {row_value_text(row)}{row_marks(row)}']
+    lines += [_indented(text) for text in below if text]
+    return '\n'.join(lines)
+
+
+def _state_line(verdict: ValidationVerdict) -> str:
+    """Return the one line that says what the application made of a buffer.
+
+    Args:
+        verdict: What the last validation pass found.
+
+    Returns:
+        The state of the buffer, naming the members that were refused.
+    """
+    if verdict.refused:
+        return REFUSED_FORM.format(names=', '.join(verdict.refused))
+    state = VALID_STATE if verdict.valid else INVALID_STATE
+    return VERDICT_FORM.format(state=state)
 
 
 def verdict_text(model: EditModel) -> str:
     """Return what the last validation pass found, as text.
 
     A buffer that has not been validated since it last changed says so,
-    because that is a third state and not a kind of success. The
-    diagnostics follow on the lines below, and they can be present for an
-    accepted buffer too, since a validator may remark on a value without
-    refusing it.
+    because that is a third state and not a kind of success. What was refused
+    about one member is shown beside that member instead of here, and this
+    line names those members so that they can be found. What follows on the
+    lines below is what the application said that is about no single member,
+    and it can be there for an accepted buffer too, since a validator may
+    remark on a value without refusing it.
 
     Args:
         model: Model whose validation state is reported.
@@ -162,8 +232,7 @@ def verdict_text(model: EditModel) -> str:
     verdict = model.verdict
     if verdict is None:
         return VERDICT_FORM.format(state=UNKNOWN_STATE)
-    state = VALID_STATE if verdict.valid else INVALID_STATE
-    lines = [VERDICT_FORM.format(state=state), verdict.diagnostics.strip()]
+    lines = [_state_line(verdict), verdict.diagnostics.strip()]
     return '\n'.join(line for line in lines if line)
 
 
@@ -250,9 +319,9 @@ def model_as_text(model: EditModel) -> str:
 
     Returns:
         The label of the configuration and what its class says about itself,
-        what the load did, one line per member with its description below it,
-        and then the validation state and the saving, without a trailing line
-        break.
+        what the load did, one line per member with its description and
+        anything wrong with it below it, and then the validation state and
+        the saving, without a trailing line break.
     """
     rows = [_row_as_text(model=model, row=row) for row in model.rows]
     lines = [_head_text(model), load_text(model)] + rows + \

@@ -36,13 +36,29 @@ is how the name reaches the file anyway.
 
 ## What that means in the editor
 
-The editor has no idea that either of these members is an enum, and needs
-none. What it sees is the value as the file holds it, which is the text of
-a member name, so an enum is edited in an ordinary text field like any
-other piece of text. What makes that field more than free text is the
-validation pass: it hands the buffer to `EnumConfig` exactly as a file
-would be handed to it, so the user is told precisely what the application
-itself would say.
+An enum is edited in an ordinary text field, because what the file holds is
+the text of a member name and that is what the buffer holds too. The editor
+does not need a field of its own for it, and it does not need to be told that
+the member is an enum either: `parse_converters()` above already says so, and
+the editor reads it there.
+
+Two things follow from reading it, and both are visible below.
+
+- **The member explains itself**, with no description mapping anywhere in
+  this example. The enum class is a type, so it says what it is in its own
+  docstring and it says which names it accepts by having them. That is the
+  same kind of reading as the docstring of the configuration class, and it is
+  not the reading of a validator, which this library never does.
+- **A name that is no name of a member is refused as this member**, and not
+  as JSON. Turning the text into an enum member is the very conversion that
+  `parse_converters()` declares, so the editor runs it and shows what it says:
+  `ELECT is not one of: MECHANICAL, ELECTRICAL, ELECTRONIC`, beside the field
+  that holds `ELECT`. Nothing is invented and nothing is reworded — that
+  sentence is the one `config_as_json` raises.
+
+What makes the field more than free text after that is still the validation
+pass: it hands the buffer to `EnumConfig` exactly as a file would be handed
+to it, so the user is told precisely what the application itself would say.
 
 ## Matching is forgiving, and the editor shows that too
 
@@ -56,6 +72,13 @@ these enums are chosen so that both sides of that are easy to try:
   typed without saying so.
 - `ELECT` means nothing at all, because `ELECTRICAL` and `ELECTRONIC` both
   begin with it. It is refused, and the diagnostic lists all three names.
+
+The forgiving half of that is why the editor waits before it says anything.
+`ELECT` is refused, `ELECTR` is refused, and `ELECTRO` is a member — so a
+name that is being typed is no name of a member for most of the time it takes
+to type it. The editor therefore asks the question when the user **leaves the
+field**, and not on every key, because a field that complained about every
+half typed name would be complaining about nothing.
 
 Run this example with one of:
 
@@ -81,13 +104,14 @@ python3 e02_enum_config.py --ui dump --set needed=ELECT
 python3 e02_enum_config.py --ui dump --set available=2
 ````
 
-One thing to be ready for in the diagnostics: `config_as_json` reports a
-name it cannot turn into an enum member as JSON that it failed to load, so
-the useful line arrives after a sentence about the file possibly being the
-wrong file. The editor shows what the application says, word for word, and
-does not rewrite it into something friendlier. Inventing a better message
-would mean guessing at what went wrong, and a guess that is wrong is worse
-than a sentence too many.
+The third of those is where reading `parse_converters()` earns its keep. A
+name that no member has is refused by the conversion and not by a validator,
+and `config_as_json` reports a failed conversion as JSON that it could not
+load — a sentence about the file possibly being the wrong file, with the
+useful line underneath it. That is exactly right for a program reading a
+file, and it is wrong for a person editing a field, who did not ask about
+JSON and is not looking at a file. So the editor runs the conversion of that
+one member first, and shows what it said and nothing else.
 
 ## Enum members read from a file
 
@@ -103,10 +127,14 @@ python3 e02_enum_config.py --ui dump -i ../../data/e02_bad_enum.json
 
 The last of the three is the interesting one, and it is where a load differs
 from an edit. `ELECT` typed into a *field* is kept, because a name is not a
-name of an enum member for most of the time it takes to type it, and the
-validation pass is what says so. The same `ELECT` in a *file* means the file
-cannot be read as configuration at all, so the file is refused and the editor
-does not open. Nothing is half typed in a file.
+name of an enum member for most of the time it takes to type it, and leaving
+the field is what says so. The same `ELECT` in a *file* means the file cannot
+be read as configuration at all, so the file is refused and the editor does
+not open. Nothing is half typed in a file, which is also why the message
+there is the one `config_as_json` prints and not the one a field gets: a
+refusal that the user cannot act on inside the editor is not a field being
+edited, and reading the diagnostics of the load is exactly what they have to
+do.
 """
 
 # Copyright (c) 2026 Tom Björkholm

@@ -45,10 +45,26 @@ are stated rather than inherited: the window is white, so a field that kept the
 background it was given could not be seen at all.
 
 Validate runs the validation of the application's own configuration class
-and shows below the fields what that class would say about the values that
-are in them. A pass is not read only: a validator returns the value that is
-stored back into the member, so the fields are written back from the model
-afterwards, and a member that a validator rewrote says so beside its field.
+and shows what that class would say about the values that are in the fields.
+What it said about one member is shown **below that member**, and the line
+below the fields names the members it was about, so a configuration too tall
+for the window does not leave the user hunting for the field. What the class
+said that is about no single member — a whole-configuration rule, a key that
+does not match — stays in that line, because there is no field it belongs to.
+Every refused member is marked at once, and not only the first one, because
+the editor walks the validation plan itself rather than stopping where
+`Config.validate()` stops.
+
+A pass is not read only: a validator returns the value that is stored back
+into the member, so the fields are written back from the model afterwards, and
+a member that a validator rewrote says so beside its field.
+
+**Leaving a field** asks a smaller question of that one member: whether what
+was typed into it means a value of that member at all. It is the question a
+`parse_converters()` entry answers, an enum being the case that arises in
+practice, and it is asked when the field loses the focus rather than on every
+key, because a name that is being typed is no name of a member for most of
+the time it takes to type it.
 
 Save writes the output file, and refuses to write values the application
 would not accept: the diagnostics then say what is wrong with them and the
@@ -104,9 +120,10 @@ scrolls it however the platform reports one.
 The window opens at the size the configuration asks for, up to the size of a
 window, so a small configuration gets a small window and a large one is
 scrolled through rather than cut off. Every text that is a paragraph — the
-docstring, a description, a message, a diagnostic — wraps to the width there
-is, whatever the user resizes the window to. The mark of a member is the one
-text that does not wrap, because it belongs beside its field on one line: a
+docstring, a description, a message, what is wrong with a member — wraps to
+the width there is, whatever the user resizes the window to. The mark of a
+member is the one text that does not wrap, because it belongs beside its
+field on one line: a
 window too narrow for the name, the field and the mark squeezes the field,
 which the user can scroll within, rather than cutting off a mark, which they
 could not read at all.

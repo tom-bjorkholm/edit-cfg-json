@@ -33,6 +33,9 @@ MARK_ID_PREFIX = 'mark_'
 DESCRIPTION_ID_PREFIX = 'about_'
 """Prefix of the identifier of the widget that describes one member."""
 
+DIAGNOSTIC_ID_PREFIX = 'wrong_'
+"""Prefix of the identifier of the widget that refuses one member."""
+
 DOCSTRING_ID = 'docstring'
 """Identifier of the widget that shows what the configuration class says."""
 
@@ -71,6 +74,9 @@ MEMBER_CLASS = 'member'
 
 DESCRIPTION_CLASS = 'member_about'
 """Style class of the widget that says what one member is for."""
+
+DIAGNOSTIC_CLASS = 'member_wrong'
+"""Style class of the widget that says what is wrong with one member."""
 
 NAME_WIDTH = 24
 """Width in cells of the column that holds the member names."""
@@ -189,7 +195,7 @@ CSS_RULES = COLOUR_RULES + (
     f'.{NAME_CLASS} {{ width: {NAME_WIDTH}; }}',
     f'.{VALUE_CLASS} {{ width: 1fr; min-width: {LEAST_VALUE_WIDTH}; }}',
     f'.{MARK_CLASS} {{ width: auto; }}',
-    f'.{DESCRIPTION_CLASS} {{ width: 1fr; height: auto;'
+    f'.{DESCRIPTION_CLASS}, .{DIAGNOSTIC_CLASS} {{ width: 1fr; height: auto;'
     f' padding-left: {DESCRIPTION_INDENT}; }}',
     f'#{DOCSTRING_ID} {{ width: 1fr; height: auto; }}',
     f'.{ROW_CLASS} Input {{ height: 1; border: none; padding: 0; }}',
@@ -240,6 +246,11 @@ def _mark_id(row: core.MemberRow) -> str:
 def _description_id(row: core.MemberRow) -> str:
     """Return the identifier of the widget that describes one member."""
     return f'{DESCRIPTION_ID_PREFIX}{row.name}'
+
+
+def _diagnostic_id(row: core.MemberRow) -> str:
+    """Return the identifier of the widget that refuses one member."""
+    return f'{DIAGNOSTIC_ID_PREFIX}{row.name}'
 
 
 def plain_widget(text: str, widget_id: str, classes: Optional[str] = None,
@@ -364,6 +375,14 @@ class SaveAsScreen(ModalScreen[Optional[str]]):
         """
         event.stop()
 
+    def on_input_blurred(self, event: Input.Blurred) -> None:
+        """Keep leaving this field to this screen, for the same reason.
+
+        The editor underneath asks the model about the member whose field was
+        left, and the name of a file is no member of the configuration.
+        """
+        event.stop()
+
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Give back the file that was named, and leave the screen."""
         event.stop()
@@ -470,6 +489,7 @@ class EditorApp(App[None]):
                         yield plain_widget(core.row_marks(row), _mark_id(row),
                                            MARK_CLASS, core.MEMBER_MARK)
                     yield from self._description_widgets(row)
+                    yield self._diagnostic_widget(row)
         yield plain_widget(core.verdict_text(self._model), VERDICT_ID,
                            emphasis=core.verdict_emphasis(self._model))
         yield plain_widget(core.save_text(self._model), SAVE_ID,
@@ -529,6 +549,21 @@ class EditorApp(App[None]):
             widget.display = bool(shown)
             yield widget
 
+    def _diagnostic_widget(self, row: core.MemberRow) -> Static:
+        """Create the widget that says what is wrong with one member.
+
+        Every member gets one, unlike the description above it: any member
+        can be refused, so there is no member for which this could never say
+        anything. It starts out hidden unless the model already has something
+        to say about that member, which it has when a model that has been
+        validated already reaches this backend.
+        """
+        wrong = core.row_diagnostic(model=self._model, row=row)
+        widget = plain_widget(wrong, _diagnostic_id(row), DIAGNOSTIC_CLASS,
+                              core.MEMBER_DIAGNOSTIC)
+        widget.display = bool(wrong)
+        return widget
+
     def _value_widget(self, row: core.MemberRow) -> Widget:
         """Return the widget that shows the value of one member.
 
@@ -559,6 +594,20 @@ class EditorApp(App[None]):
         assert widget_id is not None
         self._model.set_text(path=self._member_rows[widget_id].path,
                              text=event.value)
+        self._show_state()
+
+    def on_input_blurred(self, event: Input.Blurred) -> None:
+        """Ask the model about the member whose field the user has just left.
+
+        Leaving a field is when the user has moved on from it, and it is
+        therefore when the editor says whether what they typed means a value
+        of that member at all. Nothing is validated here: the whole
+        configuration is what a validation pass is about, and this is one
+        field answering for itself.
+        """
+        widget_id = event.input.id
+        assert widget_id is not None
+        self._model.check_field(self._member_rows[widget_id].path)
         self._show_state()
 
     def action_validate(self) -> None:
@@ -679,12 +728,17 @@ class EditorApp(App[None]):
         return self.query_one(f'#{_value_id(row)}', Input)
 
     def _show_state(self) -> None:
-        """Show the title, the verdict, the saving and every member mark.
+        """Show the title, the verdict, the saving and every member.
 
         The verdict and the saving change colour as well as text, because what
         they say is either what the application accepted, what it refused, or
         what has not been asked of it yet, and a user who has to read three
         lines to tell those apart is reading too much.
+
+        What is wrong with a member is shown here too, and not with the
+        explanations: a description says what a member is for and stays until
+        the user asks for it to go, while a refusal is answered afresh by
+        every pass and by every field that is left.
         """
         self.title = core.model_title(self._model)
         self._told(VERDICT_ID, text=core.verdict_text(self._model),
@@ -694,6 +748,14 @@ class EditorApp(App[None]):
         for row in self._model.rows:
             self.query_one(f'#{_mark_id(row)}',
                            Static).update(core.row_marks(row))
+            self._show_diagnostic(row)
+
+    def _show_diagnostic(self, row: core.MemberRow) -> None:
+        """Show what is wrong with one member, or nothing when nothing is."""
+        wrong = core.row_diagnostic(model=self._model, row=row)
+        widget = self.query_one(f'#{_diagnostic_id(row)}', Static)
+        widget.update(wrong)
+        widget.display = bool(wrong)
 
     def _told(self, widget_id: str, text: str,
               emphasis: core.Emphasis) -> None:

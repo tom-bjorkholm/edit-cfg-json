@@ -9,9 +9,11 @@ from copy import deepcopy
 from typing import NamedTuple, Optional, TextIO
 import json
 import sys
-from config_as_json import Config, ConfigPath, JsonType, PathOrStr
+from config_as_json import Config, ConfigPath, JsonType, ParseConverter, \
+    PathOrStr
+from edit_cfg_json.converting import convert_member, member_converters
 from edit_cfg_json.descriptions import Descriptions, class_docstring, \
-    class_summary, path_description
+    class_summary, member_description
 from edit_cfg_json.leaf_value import text_as_value, value_as_text, \
     values_differ
 from edit_cfg_json.loading import LoadReport
@@ -78,12 +80,33 @@ class MemberRow(NamedTuple):
     """
 
     description: str = ''
-    """What the application says about this member, empty when nothing.
+    """What is said about this member, empty when nothing is.
 
-    It is read once, when the model is built, because it says what the member
-    is for and that does not change while it is edited. A member the
-    application said nothing about keeps an empty description and is shown
+    The application says most of it, in the description mapping, and the type
+    of the member says the rest where it has a type that says anything, which
+    today means an enum. It is read once, when the model is built, because it
+    says what the member is for and that does not change while it is edited. A
+    member that nothing is said about keeps an empty description and is shown
     without one, which is all that an unexplained member costs.
+    """
+
+    converter: Optional[ParseConverter] = None
+    """How the text of this member becomes the value that is stored in it.
+
+    It is None for a member that holds what the file holds, which is most of
+    them. It is what says that a member holds an enum, and that answers two
+    questions: which names the description of the member lists, and whether
+    the text the field holds means a value of this member at all.
+    """
+
+    conversion: str = ''
+    """Why the text of this member means no value of it, empty when it does.
+
+    It is answered by this member alone, which is what makes it a different
+    thing from what a validation pass says about it: it stays true until this
+    member is edited again, whatever happens to the rest of the buffer. It is
+    set when the user leaves the field and again by every validation pass, and
+    the next edit of this member clears it.
     """
 
     @property
@@ -145,7 +168,8 @@ def _ordered_names(config: Config, members: dict[str, JsonType]) -> list[str]:
 
 
 def _row_of(name: str, value: JsonType, filled: frozenset[str],
-            descriptions: Descriptions) -> MemberRow:
+            descriptions: Descriptions,
+            converter: Optional[ParseConverter]) -> MemberRow:
     """Return the row of one serialized member of a configuration.
 
     Args:
@@ -154,19 +178,22 @@ def _row_of(name: str, value: JsonType, filled: frozenset[str],
         value: JSON space value that the member holds.
         filled: Names of the members the declared defaults supplied.
         descriptions: What the application says about its members.
+        converter: How the text of this member becomes a value, or None.
 
     Returns:
         The row of that member, as the model starts out holding it.
     """
     path = (name,)
+    about = member_description(descriptions=descriptions, path=path,
+                               converter=converter)
     return MemberRow(path=path, value=value, original=value,
-                     filled_from_default=name in filled,
-                     description=path_description(descriptions=descriptions,
-                                                  path=path))
+                     filled_from_default=name in filled, description=about,
+                     converter=converter)
 
 
 def _rows_from_config(config: Config, filled: frozenset[str],
                       descriptions: Descriptions,
+                      converters: Mapping[str, ParseConverter],
                       stderr_file: TextIO) -> dict[ConfigPath, MemberRow]:
     """Return one row per serialized member, by path, in declaration order.
 
@@ -178,7 +205,8 @@ def _rows_from_config(config: Config, filled: frozenset[str],
     members = json.loads(config.as_json_string(stderr_file=stderr_file))
     assert isinstance(members, dict)
     return {(name,): _row_of(name=name, value=members[name], filled=filled,
-                             descriptions=descriptions)
+                             descriptions=descriptions,
+                             converter=converters.get(name))
             for name in _ordered_names(config=config, members=members)}
 
 
@@ -281,9 +309,10 @@ class EditModel:
         """
         self._config_type = type(config)
         self._report = report
-        self._rows = _rows_from_config(config=deepcopy(config),
-                                       filled=report.filled,
+        own = deepcopy(config)
+        self._rows = _rows_from_config(config=own, filled=report.filled,
                                        descriptions=descriptions or {},
+                                       converters=member_converters(own),
                                        stderr_file=stderr_file)
         self._verdict: Optional[ValidationVerdict] = None
         self._settings = settings
@@ -465,10 +494,37 @@ class EditModel:
         if value_as_text(row.value) == text:
             return
         value = text_as_value(text=text, is_text_member=row.is_text)
-        self._rows[path] = row._replace(value=value,
+        self._rows[path] = row._replace(value=value, conversion='',
                                         changed_by_validator=False)
         self._verdict = None
         self._saving.outcome = None
+
+    def check_field(self, path: ConfigPath) -> None:
+        """Report whether the text of one member means a value of it at all.
+
+        This is what a backend calls when a field loses the focus, which is
+        the moment at which the user has moved on from that field. It is
+        deliberately not done on every change: the name of an enum member is
+        no name of one for most of the time it takes to type it, and a field
+        that reported that would be reporting a failure that is not one yet.
+
+        Nor is it the validation of the whole configuration. It needs no
+        candidate configuration and it answers a different question, which is
+        whether this text means a value at all rather than whether the
+        configuration is one the application would accept. Both are needed: a
+        member this refuses is one the whole configuration would refuse too,
+        but with a message about JSON that a person editing a field never
+        asked about.
+
+        Args:
+            path: Path of the member to check.
+
+        Raises:
+            KeyError: The path is not a member of this configuration.
+        """
+        row = self._rows[path]
+        converted = convert_member(converter=row.converter, value=row.value)
+        self._rows[path] = row._replace(conversion=converted.message)
 
     def set_out_file(self, out_file: PathOrStr) -> None:
         """Choose the file that saving writes from now on.
@@ -552,12 +608,24 @@ class EditModel:
 
     def _validation_pass(self) -> ValidationPass:
         """Validate the buffer, refresh it, and keep what the pass found."""
+        self._check_fields()
         outcome = validate_buffer(config_type=self._config_type,
                                   members=self._buffer())
         if outcome.verdict.valid:
             self._take_validated(outcome.members)
         self._verdict = outcome.verdict
         return outcome
+
+    def _check_fields(self) -> None:
+        """Report every member whose text means no value of that member.
+
+        A validation pass answers this for the whole buffer at once, so the
+        answer that one field gives when it is left is refreshed for all of
+        them here. A member the user never visited is then reported exactly
+        as one they typed into and left.
+        """
+        for path in tuple(self._rows):
+            self.check_field(path)
 
     def _record(self, outcome: SaveOutcome) -> SaveOutcome:
         """Keep what one attempt to save did, and hand it back."""

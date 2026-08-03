@@ -18,8 +18,9 @@ from edit_cfg_json_textual.textual_editor import BODY_ID, EditorApp, \
 from example.e01_flat_config import FlatConfig
 from .helpers import DESCRIPTIONS, EXPECTED_VALUES, FILLED_MARK, \
     FILLED_REPORT, LOAD_MESSAGE, NARROW_SIZE, QUIT_KEY, REWRITTEN_MARK, \
-    ROOMY_SIZE, SHORT_SIZE, UNKNOWN_VERDICT, VALIDATE_ALT_KEY, VALIDATE_KEY, \
-    VALID_VERDICT, field_of, mark_of, model_value, verdict_of
+    REFUSED_VERDICT, ROOMY_SIZE, SHORT_SIZE, UNKNOWN_VERDICT, \
+    VALIDATE_ALT_KEY, VALIDATE_KEY, VALID_VERDICT, field_of, mark_of, \
+    model_value, verdict_of
 
 MARKUP_TEXT = 'value [red on blue]here[/] is refused'
 """Text of a configuration that happens to look like console markup."""
@@ -160,8 +161,7 @@ def test_key_not_typed(key: str) -> None:
 def test_validate_refuses() -> None:
     """Test the validate key shows why the application refused a value."""
     verdict, shown, mark = asyncio.run(_validate_with('answer', '500'))
-    assert 'validation: invalid' in verdict
-    assert 'greater than maximum 100' in verdict
+    assert verdict == REFUSED_VERDICT
     assert shown == '500'
     assert mark == ' (edited)'
 

@@ -44,6 +44,14 @@
     * [outcome](#edit_cfg_json.saving.SaveState.outcome)
     * [written](#edit_cfg_json.saving.SaveState.written)
   * [write\_config](#edit_cfg_json.saving.write_config)
+* [edit\_cfg\_json.converting](#edit_cfg_json.converting)
+  * [CONVERSION\_ERRORS](#edit_cfg_json.converting.CONVERSION_ERRORS)
+  * [Converted](#edit_cfg_json.converting.Converted)
+    * [value](#edit_cfg_json.converting.Converted.value)
+    * [message](#edit_cfg_json.converting.Converted.message)
+  * [member\_converters](#edit_cfg_json.converting.member_converters)
+  * [convert\_member](#edit_cfg_json.converting.convert_member)
+  * [refusal\_text](#edit_cfg_json.converting.refusal_text)
 * [edit\_cfg\_json.leaf\_value](#edit_cfg_json.leaf_value)
   * [value\_as\_text](#edit_cfg_json.leaf_value.value_as_text)
   * [text\_as\_value](#edit_cfg_json.leaf_value.text_as_value)
@@ -79,6 +87,7 @@
   * [VALID\_STATE](#edit_cfg_json.model_text.VALID_STATE)
   * [INVALID\_STATE](#edit_cfg_json.model_text.INVALID_STATE)
   * [UNKNOWN\_STATE](#edit_cfg_json.model_text.UNKNOWN_STATE)
+  * [REFUSED\_FORM](#edit_cfg_json.model_text.REFUSED_FORM)
   * [SAVE\_TO\_FORM](#edit_cfg_json.model_text.SAVE_TO_FORM)
   * [NO\_DESTINATION\_TEXT](#edit_cfg_json.model_text.NO_DESTINATION_TEXT)
   * [SUMMARY\_SEPARATOR](#edit_cfg_json.model_text.SUMMARY_SEPARATOR)
@@ -87,6 +96,7 @@
   * [row\_marks](#edit_cfg_json.model_text.row_marks)
   * [docstring\_text](#edit_cfg_json.model_text.docstring_text)
   * [row\_description](#edit_cfg_json.model_text.row_description)
+  * [row\_diagnostic](#edit_cfg_json.model_text.row_diagnostic)
   * [verdict\_text](#edit_cfg_json.model_text.verdict_text)
   * [load\_text](#edit_cfg_json.model_text.load_text)
   * [save\_text](#edit_cfg_json.model_text.save_text)
@@ -101,6 +111,7 @@
     * [BAD](#edit_cfg_json.emphasis.Emphasis.BAD)
   * [EXPLANATION](#edit_cfg_json.emphasis.EXPLANATION)
   * [MEMBER\_MARK](#edit_cfg_json.emphasis.MEMBER_MARK)
+  * [MEMBER\_DIAGNOSTIC](#edit_cfg_json.emphasis.MEMBER_DIAGNOSTIC)
   * [LOAD\_REMARK](#edit_cfg_json.emphasis.LOAD_REMARK)
   * [verdict\_emphasis](#edit_cfg_json.emphasis.verdict_emphasis)
   * [save\_emphasis](#edit_cfg_json.emphasis.save_emphasis)
@@ -113,6 +124,8 @@
     * [changed\_by\_validator](#edit_cfg_json.edit_model.MemberRow.changed_by_validator)
     * [filled\_from\_default](#edit_cfg_json.edit_model.MemberRow.filled_from_default)
     * [description](#edit_cfg_json.edit_model.MemberRow.description)
+    * [converter](#edit_cfg_json.edit_model.MemberRow.converter)
+    * [conversion](#edit_cfg_json.edit_model.MemberRow.conversion)
     * [name](#edit_cfg_json.edit_model.MemberRow.name)
     * [editable](#edit_cfg_json.edit_model.MemberRow.editable)
     * [is\_text](#edit_cfg_json.edit_model.MemberRow.is_text)
@@ -134,23 +147,33 @@
     * [saved\_config](#edit_cfg_json.edit_model.EditModel.saved_config)
     * [verdict](#edit_cfg_json.edit_model.EditModel.verdict)
     * [set\_text](#edit_cfg_json.edit_model.EditModel.set_text)
+    * [check\_field](#edit_cfg_json.edit_model.EditModel.check_field)
     * [set\_out\_file](#edit_cfg_json.edit_model.EditModel.set_out_file)
     * [validate](#edit_cfg_json.edit_model.EditModel.validate)
     * [save](#edit_cfg_json.edit_model.EditModel.save)
 * [edit\_cfg\_json.descriptions](#edit_cfg_json.descriptions)
   * [EVERY\_ELEMENT](#edit_cfg_json.descriptions.EVERY_ELEMENT)
+  * [CHOICES\_FORM](#edit_cfg_json.descriptions.CHOICES_FORM)
   * [path\_description](#edit_cfg_json.descriptions.path_description)
   * [class\_docstring](#edit_cfg_json.descriptions.class_docstring)
   * [class\_summary](#edit_cfg_json.descriptions.class_summary)
+  * [enum\_text](#edit_cfg_json.descriptions.enum_text)
+  * [member\_description](#edit_cfg_json.descriptions.member_description)
 * [edit\_cfg\_json.validation](#edit_cfg_json.validation)
   * [BUFFER\_ERRORS](#edit_cfg_json.validation.BUFFER_ERRORS)
+  * [NOTHING\_REFUSED](#edit_cfg_json.validation.NOTHING_REFUSED)
   * [ValidationVerdict](#edit_cfg_json.validation.ValidationVerdict)
     * [valid](#edit_cfg_json.validation.ValidationVerdict.valid)
     * [diagnostics](#edit_cfg_json.validation.ValidationVerdict.diagnostics)
+    * [refused](#edit_cfg_json.validation.ValidationVerdict.refused)
   * [ValidationPass](#edit_cfg_json.validation.ValidationPass)
     * [verdict](#edit_cfg_json.validation.ValidationPass.verdict)
     * [members](#edit_cfg_json.validation.ValidationPass.members)
     * [candidate](#edit_cfg_json.validation.ValidationPass.candidate)
+  * [Attribution](#edit_cfg_json.validation.Attribution)
+    * [refused](#edit_cfg_json.validation.Attribution.refused)
+    * [remaining](#edit_cfg_json.validation.Attribution.remaining)
+  * [PROBE\_NAME](#edit_cfg_json.validation.PROBE_NAME)
   * [validate\_buffer](#edit_cfg_json.validation.validate_buffer)
 
 <a id="edit_cfg_json.loading"></a>
@@ -685,6 +708,145 @@ verdict is already showing them and this copy is dropped.
 
   Whether the file was written, and what to tell the user about it.
 
+<a id="edit_cfg_json.converting"></a>
+
+# edit\_cfg\_json.converting
+
+What the configuration makes of the text of one leaf of the buffer.
+
+The buffer holds JSON space values, and some members do not hold a JSON space
+value at all once the configuration class has them: `parse_converters()` says
+which of them become a richer Python type and how. An enum is the case that
+arises in practice, and it is what makes this worth having. A name that is no
+member of an enum cannot be turned into one, and `config_as_json` reports that
+inside the message it prints for JSON it could not load — which is right for a
+program reading a file and wrong for a person editing a field, who was not
+asking about JSON at all.
+
+The converter that the class declared is *run* rather than looked at, exactly
+as `config_as_json` runs it while it parses. That is the same rule that
+validation follows and for the same reason: an application may declare any
+converter it likes, and running the real one is right for every converter that
+exists or ever will.
+
+<a id="edit_cfg_json.converting.CONVERSION_ERRORS"></a>
+
+#### CONVERSION\_ERRORS
+
+Every way in which a parse converter can refuse one value.
+
+`config_as_json` catches every exception around the parsing it does, so a
+converter is not promised to fail in any particular way, and these are the
+ways in which the converters it ships do fail: a name that is no member of an
+enum raises `KeyError`, and a value that is not text at all trips the
+assertion that the enum converter begins with.
+
+`NotImplementedError` is deliberately not one of them, exactly as it is not
+one of the failures a validation pass catches: it says that the configuration
+class is incomplete, which is a defect of the application that no edit of the
+buffer can put right.
+
+<a id="edit_cfg_json.converting.Converted"></a>
+
+## Converted Objects
+
+```python
+class Converted(NamedTuple)
+```
+
+One leaf value as the configuration class would hold it.
+
+<a id="edit_cfg_json.converting.Converted.value"></a>
+
+#### value
+
+What the converter of that member made of the value, or the value.
+
+It is the value itself for a member that has no converter, and also for
+one whose converter refused it, so that there is always something to go
+on. The type is genuinely unknown here: a converter may return anything.
+
+<a id="edit_cfg_json.converting.Converted.message"></a>
+
+#### message
+
+Why the converter refused the value, empty when nothing refused it.
+
+<a id="edit_cfg_json.converting.member_converters"></a>
+
+#### member\_converters
+
+```python
+def member_converters(config: Config) -> dict[str, ParseConverter]
+```
+
+Return the parse converters of the members that one class declares.
+
+A class that declares none inherits a placeholder converter under a key of
+the base class's own, so the answer is restricted to the members the
+object really has. A converter named after something that is no member of
+the configuration could never be applied to anything in any case.
+
+**Arguments**:
+
+- `config` - Configuration object to ask. It is not modified.
+  
+
+**Returns**:
+
+  One converter per member that has one.
+
+<a id="edit_cfg_json.converting.convert_member"></a>
+
+#### convert\_member
+
+```python
+def convert_member(converter: Optional[ParseConverter],
+                   value: JsonType) -> Converted
+```
+
+Return one leaf value as its member holds it, or why it cannot.
+
+A value that already has the type the converter produces is left alone,
+and so is a value that is `None`: a member that its class leaves out of
+JSON while it is None has nothing to convert, and a `None` that is wrong
+is refused by the validation of the whole configuration, which has a
+message of its own for it.
+
+**Arguments**:
+
+- `converter` - How the text of this member becomes a value, or None for a
+  member that holds what the file holds.
+- `value` - JSON space value that the buffer holds for that member.
+  
+
+**Returns**:
+
+  The value the configuration would hold, or the reason it would not.
+
+<a id="edit_cfg_json.converting.refusal_text"></a>
+
+#### refusal\_text
+
+```python
+def refusal_text(error: Exception) -> str
+```
+
+Return what one refusal says, as the user should read it.
+
+A `KeyError` writes the representation of its argument rather than the
+argument itself, so the message about a name that is no member of an enum
+would otherwise arrive wrapped in quotation marks that nobody wrote.
+
+**Arguments**:
+
+- `error` - The failure that was reported.
+  
+
+**Returns**:
+
+  What that failure says.
+
 <a id="edit_cfg_json.leaf_value"></a>
 
 # edit\_cfg\_json.leaf\_value
@@ -1119,6 +1281,17 @@ State of a buffer that the application itself would refuse.
 
 State of a buffer that has not been validated since it last changed.
 
+<a id="edit_cfg_json.model_text.REFUSED_FORM"></a>
+
+#### REFUSED\_FORM
+
+Form of the line that names the members the application refused.
+
+They are named here as well as marked below, because a configuration of any
+size does not fit a window: a user who has just asked what the application
+makes of these values should be told where to look rather than have to go
+looking.
+
 <a id="edit_cfg_json.model_text.SAVE_TO_FORM"></a>
 
 #### SAVE\_TO\_FORM
@@ -1144,10 +1317,11 @@ one line for the whole configuration and hiding it would save nothing.
 
 #### DESCRIPTION\_INDENT
 
-What the description of a member is indented by, below that member.
+What is written below a member is indented by this much.
 
 The indentation is what says that the line belongs to the member above it
-rather than being a member of its own.
+rather than being a member of its own. Every line of it gets one, because
+what the type of a member says about it runs to more than one line.
 
 <a id="edit_cfg_json.model_text.row_value_text"></a>
 
@@ -1252,6 +1426,37 @@ model, so that the two backends cannot hide different things.
   The description of one member, empty while it is not being shown or
   when the application said nothing about that member.
 
+<a id="edit_cfg_json.model_text.row_diagnostic"></a>
+
+#### row\_diagnostic
+
+```python
+def row_diagnostic(model: EditModel, row: MemberRow) -> str
+```
+
+Return what is wrong with one member, and nothing when nothing is.
+
+Two things can be wrong with a member and they are not the same thing.
+Its text may mean no value of that member at all, which is answered by
+the member alone and stays true until the member is edited again; or the
+application may have refused the value it holds, which is answered by the
+whole configuration and is only known for as long as the rest of the
+buffer stands still. The first is preferred when both are there, because
+a value that does not exist yet is what has to be corrected first.
+
+Both backends read this from here, so that neither of them decides on its
+own what a refused member is told.
+
+**Arguments**:
+
+- `model` - Model that the member belongs to.
+- `row` - Member to report.
+  
+
+**Returns**:
+
+  What is wrong with that member, empty when nothing is known to be.
+
 <a id="edit_cfg_json.model_text.verdict_text"></a>
 
 #### verdict\_text
@@ -1263,10 +1468,12 @@ def verdict_text(model: EditModel) -> str
 Return what the last validation pass found, as text.
 
 A buffer that has not been validated since it last changed says so,
-because that is a third state and not a kind of success. The
-diagnostics follow on the lines below, and they can be present for an
-accepted buffer too, since a validator may remark on a value without
-refusing it.
+because that is a third state and not a kind of success. What was refused
+about one member is shown beside that member instead of here, and this
+line names those members so that they can be found. What follows on the
+lines below is what the application said that is about no single member,
+and it can be there for an accepted buffer too, since a validator may
+remark on a value without refusing it.
 
 **Arguments**:
 
@@ -1357,9 +1564,9 @@ agnostic.
 **Returns**:
 
   The label of the configuration and what its class says about itself,
-  what the load did, one line per member with its description below it,
-  and then the validation state and the saving, without a trailing line
-  break.
+  what the load did, one line per member with its description and
+  anything wrong with it below it, and then the validation state and
+  the saving, without a trailing line break.
 
 <a id="edit_cfg_json.model_text.model_title"></a>
 
@@ -1469,6 +1676,17 @@ How the marks of one member are shown.
 
 Every mark says that something has happened to that member: the file did not
 hold it, the user changed it, or a validator changed what the user wrote.
+
+<a id="edit_cfg_json.emphasis.MEMBER_DIAGNOSTIC"></a>
+
+#### MEMBER\_DIAGNOSTIC
+
+How what is wrong with one member is shown.
+
+It is what the application refused, so it is shown as a refusal and not as
+text about the member: it is the one thing on the row that has to be acted on,
+and it is deliberately not the muted colour that the description beside it
+has.
 
 <a id="edit_cfg_json.emphasis.LOAD_REMARK"></a>
 
@@ -1610,12 +1828,37 @@ the flag above, so that two backends cannot show it differently.
 
 #### description
 
-What the application says about this member, empty when nothing.
+What is said about this member, empty when nothing is.
 
-It is read once, when the model is built, because it says what the member
-is for and that does not change while it is edited. A member the
-application said nothing about keeps an empty description and is shown
+The application says most of it, in the description mapping, and the type
+of the member says the rest where it has a type that says anything, which
+today means an enum. It is read once, when the model is built, because it
+says what the member is for and that does not change while it is edited. A
+member that nothing is said about keeps an empty description and is shown
 without one, which is all that an unexplained member costs.
+
+<a id="edit_cfg_json.edit_model.MemberRow.converter"></a>
+
+#### converter
+
+How the text of this member becomes the value that is stored in it.
+
+It is None for a member that holds what the file holds, which is most of
+them. It is what says that a member holds an enum, and that answers two
+questions: which names the description of the member lists, and whether
+the text the field holds means a value of this member at all.
+
+<a id="edit_cfg_json.edit_model.MemberRow.conversion"></a>
+
+#### conversion
+
+Why the text of this member means no value of it, empty when it does.
+
+It is answered by this member alone, which is what makes it a different
+thing from what a validation pass says about it: it stays true until this
+member is edited again, whatever happens to the rest of the buffer. It is
+set when the user leaves the field and again by every validation pass, and
+the next edit of this member clears it.
 
 <a id="edit_cfg_json.edit_model.MemberRow.name"></a>
 
@@ -2017,6 +2260,39 @@ after a validation pass without that counting as an edit.
 - `KeyError` - The path is not a member of this configuration.
 - `ValueError` - The member is not one that this version can edit.
 
+<a id="edit_cfg_json.edit_model.EditModel.check_field"></a>
+
+#### check\_field
+
+```python
+def check_field(path: ConfigPath) -> None
+```
+
+Report whether the text of one member means a value of it at all.
+
+This is what a backend calls when a field loses the focus, which is
+the moment at which the user has moved on from that field. It is
+deliberately not done on every change: the name of an enum member is
+no name of one for most of the time it takes to type it, and a field
+that reported that would be reporting a failure that is not one yet.
+
+Nor is it the validation of the whole configuration. It needs no
+candidate configuration and it answers a different question, which is
+whether this text means a value at all rather than whether the
+configuration is one the application would accept. Both are needed: a
+member this refuses is one the whole configuration would refuse too,
+but with a message about JSON that a person editing a field never
+asked about.
+
+**Arguments**:
+
+- `path` - Path of the member to check.
+  
+
+**Raises**:
+
+- `KeyError` - The path is not a member of this configuration.
+
 <a id="edit_cfg_json.edit_model.EditModel.set_out_file"></a>
 
 #### set\_out\_file
@@ -2105,17 +2381,20 @@ and the model stops reporting itself as dirty.
 
 The explanatory text that the editor shows about a configuration.
 
-There are two sources of it, they are independent, and both of them are
+There are three sources of it, they are independent, and all of them are
 optional. The docstring of the configuration class labels the configuration
-object, and a mapping supplied by the application labels the individual
-members.
+object, a mapping supplied by the application labels the individual members,
+and the type of a member says the rest where the member has a type that says
+anything, which today means an enum.
 
-It takes two sources because only one of them exists. A class has a
-docstring and every reader of the code can see it, while a member has
-nothing of the kind at runtime: a string literal written after an assignment
-is discarded by the compiler, and a PEP 526 annotation on an instance
-attribute is recorded nowhere at all. So the members are described by the
-application in a mapping, and the editor invents nothing.
+It takes a mapping for the members because a member has no docstring at
+runtime. A class has one and every reader of the code can see it, while a
+string literal written after an assignment is discarded by the compiler and a
+PEP 526 annotation on an instance attribute is recorded nowhere at all. So the
+members are described by the application in a mapping, and the editor invents
+nothing: what it adds to that mapping is read from the enum class of the
+member, which is a fact about the type and not a constraint read out of a
+validator.
 
 <a id="edit_cfg_json.descriptions.EVERY_ELEMENT"></a>
 
@@ -2126,6 +2405,12 @@ The path step that means every list element or dictionary value here.
 It is the step that `config_as_json` gives this meaning to, and it keeps it
 here, which is what stops an application from having to repeat one
 description once per list index or once per dictionary key.
+
+<a id="edit_cfg_json.descriptions.CHOICES_FORM"></a>
+
+#### CHOICES\_FORM
+
+What the editor says about the names one enum member accepts.
 
 <a id="edit_cfg_json.descriptions.path_description"></a>
 
@@ -2157,20 +2442,22 @@ refusing to open the editor over one would be a much larger one.
 #### class\_docstring
 
 ```python
-def class_docstring(config_type: type[Config]) -> str
+def class_docstring(described: type[object]) -> str
 ```
 
-Return the whole docstring of one configuration class, or nothing.
+Return the whole docstring of one class, or nothing.
 
-`config_type.__doc__` and deliberately not `inspect.getdoc()`, which
+`described.__doc__` and deliberately not `inspect.getdoc()`, which
 inherits from the base classes: a configuration class without a docstring
 of its own would then be labelled with the docstring of `Config`, and a
 label that describes the library rather than the configuration is worse
-than no label at all.
+than no label at all. The same holds for the enum class of a member,
+which would otherwise be described as an enumeration.
 
 **Arguments**:
 
-- `config_type` - Class of the configuration that is being described.
+- `described` - Class that is being described, which is the class of the
+  configuration or the enum class of one of its members.
   
 
 **Returns**:
@@ -2183,7 +2470,7 @@ than no label at all.
 #### class\_summary
 
 ```python
-def class_summary(config_type: type[Config]) -> str
+def class_summary(described: type[object]) -> str
 ```
 
 Return the first paragraph of the docstring, as a single line.
@@ -2195,18 +2482,97 @@ so they are not kept.
 
 **Arguments**:
 
-- `config_type` - Class of the configuration that is being described.
+- `described` - Class that is being described.
   
 
 **Returns**:
 
   The summary of that class, and an empty text when it has no docstring.
 
+<a id="edit_cfg_json.descriptions.enum_text"></a>
+
+#### enum\_text
+
+```python
+def enum_text(converter: Optional[ParseConverter]) -> str
+```
+
+Return what the type of one member says about it, or nothing.
+
+`parse_converters()` is what says that a member holds an enum, because it
+is what turns the name in the file back into a member of that enum. The
+enum class then says the rest itself: the summary of its own docstring,
+when it has one, and the names it accepts.
+
+Reading the names an enum has is not the reading of a validator that this
+library has decided never to do. It is the type of the member, it is as
+true as the name of the member itself, and it is the same kind of reading
+as the docstring of the configuration class.
+
+The summary of that docstring and not the whole of it, which is the one
+place where a class here is treated differently from the class of the
+configuration. The reason is what the rest of an enum docstring usually
+is: notes for whoever writes the application, about how the members are
+numbered or how they reach the file, which is not what somebody choosing
+between them needs. What they need is the first line and the names.
+
+**Arguments**:
+
+- `converter` - How the text of this member becomes a value, or None for a
+  member that holds what the file holds.
+  
+
+**Returns**:
+
+  What that enum class says about itself and which names it accepts,
+  and an empty text for a member that holds no enum.
+
+<a id="edit_cfg_json.descriptions.member_description"></a>
+
+#### member\_description
+
+```python
+def member_description(descriptions: Descriptions, path: ConfigPath,
+                       converter: Optional[ParseConverter]) -> str
+```
+
+Return everything the editor has to say about one member.
+
+What the application says comes first, because it is what this member is
+for in this application, and what the type of the member says comes after
+it. The second is appended rather than used only where the first is
+missing: the names an enum accepts are true whatever the application
+wrote, and an application that explains what its members mean should not
+have to list the names as well.
+
+**Arguments**:
+
+- `descriptions` - What the application says about its members.
+- `path` - Path of the member that is being described.
+- `converter` - How the text of this member becomes a value, or None.
+  
+
+**Returns**:
+
+  The description of that member, and an empty text when neither the
+  application nor the type of the member says anything about it.
+
 <a id="edit_cfg_json.validation"></a>
 
 # edit\_cfg\_json.validation
 
 Running the application's own validation over one edit buffer.
+
+There are three passes here and they answer three different questions. What
+the text of each member means is answered first, by the parse converter the
+class declared for that member, because a value that does not exist cannot be
+validated and the message the configuration class prints for one is about
+JSON rather than about the member. What the application makes of the whole
+buffer is answered next, by constructing a candidate configuration, which is
+the pass that decides whether the buffer is valid at all. And when that pass
+refuses, the plan is walked a third time to say which members it was about,
+because `Config.validate()` stops at the first step that refuses and can
+therefore report one failure and never say whose it was.
 
 <a id="edit_cfg_json.validation.BUFFER_ERRORS"></a>
 
@@ -2224,6 +2590,16 @@ these three classes are exactly those failures and nothing besides them.
 configuration class is incomplete, which is a defect of the application that
 no edit of the buffer can put right, and hiding it in a verdict would send
 the user looking for a mistake that is not theirs.
+
+<a id="edit_cfg_json.validation.NOTHING_REFUSED"></a>
+
+#### NOTHING\_REFUSED
+
+What a pass that refused no individual member reports.
+
+It cannot be written to, because every verdict that names no member shares
+this one mapping and a default that could be changed would be a defect
+waiting to happen.
 
 <a id="edit_cfg_json.validation.ValidationVerdict"></a>
 
@@ -2245,10 +2621,26 @@ Whether the application itself would accept this buffer.
 
 #### diagnostics
 
-What the application itself would tell the user about the buffer.
+What the application says that is about no single member.
+
+A whole-configuration validator that refused, a key that does not match,
+text that is not JSON, or a class the editor cannot construct at all.
+What the application said about one member is under `refused` instead, so
+that the same sentence is not shown twice.
 
 An accepted buffer can have diagnostics too, because a validator may
 remark on a value without refusing it.
+
+<a id="edit_cfg_json.validation.ValidationVerdict.refused"></a>
+
+#### refused
+
+What the application refused about each member, by member name.
+
+Empty for a buffer that was accepted, and empty for one that was refused
+for a reason that is about no single member. A member is named here when
+its own text means no value of it at all, or when its own validators
+refused the value it holds.
 
 <a id="edit_cfg_json.validation.ValidationPass"></a>
 
@@ -2288,6 +2680,34 @@ the same text, so that what reaches the file is what the verdict was
 reached about. It is also what `edit()` gives back to the application,
 which then needs no load of its own to see what was saved.
 
+<a id="edit_cfg_json.validation.Attribution"></a>
+
+## Attribution Objects
+
+```python
+class Attribution(NamedTuple)
+```
+
+What the individual validators of one configuration refused.
+
+<a id="edit_cfg_json.validation.Attribution.refused"></a>
+
+#### refused
+
+What each member's own validators said, by member name.
+
+<a id="edit_cfg_json.validation.Attribution.remaining"></a>
+
+#### remaining
+
+What a step that is about no single member said, empty when none.
+
+<a id="edit_cfg_json.validation.PROBE_NAME"></a>
+
+#### PROBE\_NAME
+
+Name of the throwaway class that parses a buffer without validating it.
+
 <a id="edit_cfg_json.validation.validate_buffer"></a>
 
 #### validate\_buffer
@@ -2306,6 +2726,12 @@ nested configuration objects and then the validation plan. So the user
 sees exactly the diagnostics that the application would produce, there
 is no second implementation of validation anywhere, and there is no way
 for the editor to accept something the application would then refuse.
+
+What each value means is settled before that, by running the parse
+converter of its member. A value that means nothing is reported as the
+one member it is about, and the candidate is not built at all: it would
+only report the same thing as text it could not read as JSON, which is
+an answer to a question the user did not ask.
 
 The stream the candidate writes to is captured rather than passed on,
 because these diagnostics are the answer to a question the user asked
