@@ -144,7 +144,8 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
     one and the pairing is checked rather than assumed.
     """
 
-    def __init__(self, parent: tkinter.Misc, model: EditModel) -> None:
+    def __init__(self, parent: tkinter.Misc, model: EditModel, *,
+                 on_close: Optional[Callable[[], None]] = None) -> None:
         """Create the label, one row per member, the verdict and the buttons.
 
         The parent is a widget and not a window, so that the same rows can
@@ -153,8 +154,15 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         Args:
             parent: Widget that becomes the parent of the created widgets.
             model: Model to show and to edit.
+            on_close: What closing the editor does, or None to destroy the
+                window these widgets are in. None is for a caller that owns
+                that window, which is what `TkEditor` does. A caller that
+                mounts these widgets in a window of an application says what
+                closing does, because the editor must never destroy a window
+                it did not create.
         """
         self._model = model
+        self._close = on_close or parent.winfo_toplevel().destroy
         self._label = tkinter.Label(parent, text=model_title(model))
         self._label.pack(pady=PADDING)
         self._add_load_message(parent)
@@ -203,13 +211,12 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         They share one row, because four buttons stacked above each other
         would push the values of a real configuration off the window.
         """
-        window = parent.winfo_toplevel()
         line = tkinter.Frame(parent)
         line.pack(pady=PADDING)
         for text, command in ((VALIDATE_TEXT, self._validate),
                               (SAVE_TEXT, self._save),
                               (SAVE_AS_TEXT, self._save_as),
-                              (CLOSE_TEXT, window.destroy)):
+                              (CLOSE_TEXT, self._close)):
             tkinter.Button(line, text=text, command=command).pack(side='left',
                                                                   padx=PADDING)
 
@@ -229,7 +236,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
             window: Window that the bindings are made on.
         """
         actions = self._model.settings.actions
-        for keys, command in ((actions.quit, window.destroy),
+        for keys, command in ((actions.quit, self._close),
                               (actions.validate, self._validate),
                               (actions.save, self._save),
                               (actions.save_as, self._save_as)):
@@ -253,12 +260,19 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
 
         A member that the model cannot edit yet gets a widget that only
         shows text, because there is nothing the user could do to it.
+
+        The variable is given the parent as its master, so that it is
+        created in the same Tcl interpreter as the field that reads it. A
+        variable constructed without one is created in the first interpreter
+        of the process instead, which is the wrong one as soon as the editor
+        is not the only Tk in the application: the field would then show
+        nothing and the callback below would never run.
         """
         if not row.editable:
             tkinter.Label(parent, text=row_value_text(row),
                           anchor='w').pack(side='left')
             return None
-        field = tkinter.StringVar(value=row_value_text(row))
+        field = tkinter.StringVar(master=parent, value=row_value_text(row))
         tkinter.Entry(parent, textvariable=field).pack(side='left', fill='x',
                                                        expand=True)
         field.trace_add('write', self._writer(row=row, field=field))
@@ -361,7 +375,14 @@ class TkEditor:  # pylint: disable=too-few-public-methods
         """Show the model in a Tk window until the user closes it.
 
         The widgets are held for as long as the window lives, because they
-        own the fields that the Tcl variables belong to.
+        own the fields that the Tcl variables belong to. The window is this
+        backend's own, which is why closing the editor destroys it.
+
+        This is for an application that has no Tk of its own yet, because a
+        second `tkinter.Tk` is a second Tcl interpreter and nothing can be
+        shared between the two. An application that already runs Tk gets the
+        entry point of section 8.2 of `doc/design.md` instead, which mounts
+        the editor in a widget that application owns.
 
         Args:
             model: Model to show and to edit.

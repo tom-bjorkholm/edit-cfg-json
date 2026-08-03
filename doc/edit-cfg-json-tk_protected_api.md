@@ -224,7 +224,10 @@ one and the pairing is checked rather than assumed.
 #### \_\_init\_\_
 
 ```python
-def __init__(parent: tkinter.Misc, model: EditModel) -> None
+def __init__(parent: tkinter.Misc,
+             model: EditModel,
+             *,
+             on_close: Optional[Callable[[], None]] = None) -> None
 ```
 
 Create the label, one row per member, the verdict and the buttons.
@@ -236,6 +239,12 @@ later be mounted inside a window that an application owns itself.
 
 - `parent` - Widget that becomes the parent of the created widgets.
 - `model` - Model to show and to edit.
+- `on_close` - What closing the editor does, or None to destroy the
+  window these widgets are in. None is for a caller that owns
+  that window, which is what `TkEditor` does. A caller that
+  mounts these widgets in a window of an application says what
+  closing does, because the editor must never destroy a window
+  it did not create.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets.label_text"></a>
 
@@ -344,6 +353,13 @@ Create the value widget of one member and wire it to the model.
 
 A member that the model cannot edit yet gets a widget that only
 shows text, because there is nothing the user could do to it.
+
+The variable is given the parent as its master, so that it is
+created in the same Tcl interpreter as the field that reads it. A
+variable constructed without one is created in the first interpreter
+of the process instead, which is the wrong one as soon as the editor
+is not the only Tk in the application: the field would then show
+nothing and the callback below would never run.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._writer"></a>
 
@@ -468,7 +484,14 @@ def run_editor(model: EditModel) -> None
 Show the model in a Tk window until the user closes it.
 
 The widgets are held for as long as the window lives, because they
-own the fields that the Tcl variables belong to.
+own the fields that the Tcl variables belong to. The window is this
+backend's own, which is why closing the editor destroys it.
+
+This is for an application that has no Tk of its own yet, because a
+second `tkinter.Tk` is a second Tcl interpreter and nothing can be
+shared between the two. An application that already runs Tk gets the
+entry point of section 8.2 of `doc/design.md` instead, which mounts
+the editor in a widget that application owns.
 
 **Arguments**:
 

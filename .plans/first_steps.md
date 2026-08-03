@@ -253,12 +253,13 @@ be changed in editor.
 
 **Examples.** A new `e02_enum_config.py` holds the 2 enum attributes in a
 Config class of its own:
+
 - `needed: NeededCompetence = NeededCompetence.ELECTRICAL`
 - `available: AvailableCompetence = AvailableCompetence.MECHANICAL`
 
 There are no explicit validators defined for these 2 attributes,
 the teaching story is that there is a validation of enums built into
-`config_as_json.Config` and that works in the editor as well, 
+`config_as_json.Config` and that works in the editor as well,
 provided that the `parse_converters()` are set up.
 
 Only `parse_converters()` turns out to need declaring: the write side of
@@ -593,6 +594,26 @@ against the install step rather than by assumption; check that
 `pyproject.toml` files; and run the three-version sweep one final time
 before release.
 
+### After v1
+
+**Step 18 — Embedding in an application's own window.** Designed in full
+in `doc/design.md` section 8.2. The design was recorded before the code
+because two of its questions were cheaper to answer while the backends
+had no users, not because the code is wanted early. Add `TkEditorPanel`
+to the Tk package; split `EditorApp` into `EditorPanel(Widget)`,
+`EditorScreen` and `EditorApp` in the Textual package, moving the CSS to
+`DEFAULT_CSS`, the bindings to the panel instance, the model title into a
+label and the palette entries to the screen; export the new names from
+both packages; and answer the three questions left open in section 8.2.7,
+of which the Tk key binding target is the one with real design content. A
+new example shows one editor inside an application's own window per
+backend, which is also what makes the step observable.
+
+`edit()` gains nothing in either package and no existing name changes
+meaning. That is the property section 8.2.5 was written to protect, so
+the step is not done until an application written against today's
+packages still builds and behaves exactly as it did.
+
 ## 5. Open questions recorded, not answered
 
 These do not block step 1, and each is scheduled to be answered at the
@@ -605,3 +626,6 @@ step that needs it. They are listed here so they are not forgotten.
 | Is `ConfigNestingKind.OPTIONAL_MEMBER` in v1 scope? | step 11 |
 | Does the Textual headless driver in the pinned 8.2.8 behave as the design assumes? | step 1 |
 | Will the README test summary stop updating on a headless machine, per design section 10.2? | step 1, as a known consequence |
+| Which widget does the Tk backend bind its keys on when it shares a window? See `doc/design.md` section 8.2.7. | step 18 |
+| Does the core name the mounting contract with a `Protocol` of its own? | step 18, or the first third-party backend that mounts |
+| Does `Settings` say whether an embedded editor's bindings are priority bindings? | step 18 |

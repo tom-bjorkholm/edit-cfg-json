@@ -621,6 +621,166 @@ themselves for discovery (`--ui=auto`). It is additive and breaks
 nothing, and is only worth building once there is a generic launcher or
 a third-party backend in the wild.
 
+### 8.2 Embedding in an application that already runs a UI
+
+Embedding is out of v1 scope (section 11) and is **designed here before it
+is built**, because two of its questions have answers that are cheaper to
+give now than to retrofit: which toolkit instance the editor attaches to,
+and where in an existing window it is placed. What that costs today is
+recorded in section 8.2.5; everything else is additive.
+
+The two questions are the same in both toolkits, and so are the answers.
+
+#### 8.2.1 Which instance does the editor attach to?
+
+**It is told, and it never guesses.** Neither toolkit offers a supported
+way to ask.
+
+- **Tk.** `TkEditor.run_editor` creates a `tkinter.Tk`, which is a Tcl
+  interpreter. A second one in the same process is a second interpreter,
+  and widgets, variables, fonts and images cannot cross between them. The
+  toolkit's own rule is one `Tk` per process and `Toplevel` for every
+  further window. Detecting an existing one means reading
+  `tkinter._default_root`, a private name, and then guessing what the
+  application meant by not saying.
+- **Textual.** There is one `App` per event loop. `App.run()` calls
+  `asyncio.run()` or `loop.run_until_complete()`, so calling it from
+  inside a running app raises or deadlocks. `textual._context.active_app`
+  would answer the question and is private.
+
+So `run_editor` stays what it is — the editor that owns a window and a
+loop — and it is documented as being for an application that runs neither
+yet. An application that runs one already uses the entry point of
+section 8.2.3, and hands over the parent it wants.
+
+#### 8.2.2 Where in an existing window is it placed?
+
+**Inside the widget the application names, and the editor destroys only
+what it created.** One rule, one argument, both toolkits.
+
+An application that wants the editor in a window of its own creates that
+window itself — `tkinter.Toplevel(root)`, or a Textual `Screen` — and
+passes it. This is one line in the application, and it buys three things:
+the library never has to guess whether a given widget was meant as a
+container or as a master; the window title, geometry, `WM_DELETE_WINDOW`,
+`transient` and `grab_set` stay with the application, which is where they
+belong; and the editor can state one rule about closing instead of two.
+
+The rejected alternatives are in section 12.
+
+#### 8.2.3 It cannot be `run_editor`, so it is a second entry point
+
+`EditorBackend.run_editor` promises to run until the user is done. An
+embedded editor cannot keep that promise. Tk could fake it with a nested
+`wait_window`, but Textual has no way to nest a second loop at all, and an
+editor mounted in a panel of the application's window should not suspend
+the application's call stack in either toolkit.
+
+Embedding is therefore a **separate, non-blocking entry point per backend
+package**, additive to the protocol rather than a change to it:
+
+```python
+# edit_cfg_json_tk
+class TkEditorPanel:
+    def __init__(self, parent: tkinter.Misc, model: EditModel, *,
+                 on_close: Optional[Callable[[], None]] = None) -> None: ...
+    def close(self) -> None: ...
+
+# edit_cfg_json_textual
+class EditorPanel(Widget): ...    # mounted into an area
+class EditorScreen(Screen): ...   # pushed as a screen of its own
+```
+
+`on_close` is how the application learns the session ended; the outcome is
+`model.saved_config`, which is where `run_editor` already leaves it
+(section 8). Neither `edit()` gains an argument: an embedded editor has no
+moment at which it can return what was saved, so the wrapper that exists to
+return it has nothing to offer here.
+
+#### 8.2.4 What Textual has to be split into
+
+The Tk backend already builds below an arbitrary parent widget, so its
+panel is a wrapper. The Textual backend is an `App`, and five things live
+at App level that an embedded editor cannot have:
+
+| On `EditorApp` today | Why it cannot stay there |
+| --- | --- |
+| `CSS` | Textual ignores `CSS` on a widget and says so; a widget uses `DEFAULT_CSS`. |
+| priority bindings on `self._bindings` | App-level priority bindings fire wherever the focus is. Verified against `App._check_bindings` in 8.2.8: the priority pass walks the whole binding chain, so a priority binding on a **widget** still beats the focused `Input`, and only while the focus is inside the editor. That is what embedding wants. |
+| `self.title` | It is the application's window title. |
+| `get_system_commands` | `COMMANDS` exists on `App` and `Screen`, not on `Widget`. An embedded widget cannot offer palette entries; an embedded screen can. |
+| `action_quit` | It ends the application. |
+
+So `EditorApp` splits three ways: `EditorPanel(Widget)` holds the whole
+body with its `DEFAULT_CSS` and its instance bindings, `EditorScreen`
+adds the header, the footer and the palette entries, and `EditorApp`
+composes the screen. One body, so the two backends cannot drift and the
+CSS and the bindings exist once. The model title moves from `App.title`
+into a label of the panel, which is what the Tk backend already does.
+
+#### 8.2.5 What this costs today, and why
+
+Only what would otherwise become a change to a published promise:
+
+- **`EditorBackend`'s docstring** said an application could "mount the
+  backend as a widget". It cannot, and that sentence is published in
+  `doc/edit-cfg-json_api.md`. It now says what section 8.2.3 settles.
+- **`EditorWidgets` is told what closing does** rather than deriving it
+  from `parent.winfo_toplevel()`. The default is unchanged and is what
+  `TkEditor` needs, but the rule of section 8.2.2 is now stated where the
+  editor acts on it, so the panel is an addition rather than a rewrite.
+
+Everything else is genuinely additive: the public surface of both backend
+packages is `TkEditor`, `TextualEditor` and `edit`, none of them changes
+meaning, and every name section 8.2.3 introduces is new. That is what
+section 8's decision to phrase the protocol against the model already
+bought.
+
+#### 8.2.6 A defect this uncovered, fixed now
+
+`tkinter.StringVar` built without a `master` is created in the **first**
+Tcl interpreter of the process, not in the one its field belongs to —
+`tkinter.Variable.__init__` falls back to `_get_default_root`. With an
+application's root already present, every field's variable would be
+created in the application's interpreter while its `Entry` lived in the
+editor's, so the field would show nothing and the callback that writes it
+into the model would never run. The fields now name their parent. This is
+a defect today and not only under embedding, which is why it is not
+waiting for the step.
+
+#### 8.2.7 Left open for the step that builds it
+
+- **Which widget the Tk key bindings are made on.** They are made on the
+  toplevel, which is right for a window the editor owns and wrong for one
+  it shares: the editor would claim keys across the whole application
+  window. A Tk `Frame` does not take the focus, so the answer is one of
+  binding on each field, giving the panel a `bindtag` of its own, or
+  making it focusable. Textual has no equivalent question, because a
+  widget's bindings already dispatch only from the focused widget upwards.
+- **Whether the core names the mounting contract.** A `Protocol` for it
+  would let a third-party backend implement the same shape, as
+  `EditorBackend` does for the modal one. It is additive whenever it is
+  added, so it waits until there is a second implementation to check it
+  against — a protocol with one implementation is a guess.
+- **Whether `Settings` gains anything.** An embedded editor may want its
+  bindings not to be priority bindings. That is an application decision of
+  exactly the kind section 9 is for, and it is an added attribute, which
+  breaks no application.
+
+#### 8.2.8 Facts checked against the pinned versions
+
+Checked against `textual` 8.2.8 and the Python 3.14 `tkinter` in `./venv`,
+because each of them decides a paragraph above: `App.run` calls
+`asyncio.run`/`run_until_complete`; `App._check_bindings` walks
+`reversed(screen._binding_chain)` on the priority pass, so widget priority
+bindings are honoured; `active_app` is in `textual._context` and private;
+`COMMANDS` is declared on `Screen` and `App` and not on `Widget`;
+`DOMNode.__init__` gives every widget its own `_bindings`, so the
+per-instance binding the App does today works on a widget too; `Widget`
+warns that a `CSS` class variable is ignored; and
+`tkinter.Variable.__init__` calls `_get_default_root('create variable')`
+when it is given no master.
+
 ## 9. Settings the application owns
 
 The editor does not run on its own. It runs inside an application that has
@@ -866,8 +1026,8 @@ Deliberately out of scope for v1:
   but not extended. The UI must say so rather than guess.
 - **`DICT_VALUE_BY_KEY` members and dicts listed in
   `_unchecked_dicts`.** These have per-key rather than uniform policy.
-- **Embedding.** The model is designed for it; only the modal wrapper
-  ships first.
+- **Embedding.** The model is designed for it and section 8.2 designs the
+  rest of it; only the modal wrapper ships first.
 - **The draft file** of section 7.1.
 
 Not a limitation but a permanent decision: no introspection of validator
@@ -891,3 +1051,20 @@ validators.
   subclasses, so this would work for known classes and silently fail for
   the rest. Running validators is correct for all of them.
 - **Editing a live `Config` object.** See section 4.2.
+- **A `parent` argument on the backend classes.** `TkEditor(parent=...)`
+  reads well until `run_editor` has to mean "run to completion" with no
+  parent and "mount and return" with one. One method with two meanings
+  makes `edit()` return `None` before the user has done anything, and the
+  protocol's one sentence stops being true. Section 8.2.3 instead.
+- **A backend that detects the toolkit instance for itself.** Shortest for
+  the application, and it rests on `tkinter._default_root` and
+  `textual._context.active_app`, both private, to guess something the
+  application could simply have said. Section 8.2.1.
+- **A `master` argument beside the parent, with the backend creating the
+  `Toplevel`.** Two arguments where one does, mutually exclusive, and it
+  gives the editor window decisions — title, geometry, the close protocol,
+  grab — that belong to the application. Section 8.2.2.
+- **Blocking while embedded, with Tk's nested `wait_window`.** It would
+  keep `run_editor` honest in one backend and is impossible in the other,
+  which is the worst place for a difference between them to be. Section
+  8.2.3.

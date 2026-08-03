@@ -124,8 +124,9 @@ class FakeVar:
     created: ClassVar[list['FakeVar']] = []
     """Every stub variable created since the list was last cleared."""
 
-    def __init__(self, value: str = '') -> None:
-        """Record this variable and the text it starts with."""
+    def __init__(self, master: object = None, value: str = '') -> None:
+        """Record this variable, its master and the text it starts with."""
+        self.master = master
         self.value = value
         self.callbacks: list[Callable[..., None]] = []
         FakeVar.created.append(self)
@@ -270,6 +271,44 @@ def test_stub_row_frames(stub_tk: None) -> None:
         frame = field.parent
         assert isinstance(frame, FakeWidget)
         assert frame.parent is root
+
+
+def test_stub_field_master(stub_tk: None) -> None:
+    """Test each field variable is created in the interpreter of its row.
+
+    A variable built without a master is created in the first Tcl
+    interpreter of the process, which is the wrong one as soon as the editor
+    is not the only Tk in the application.
+    """
+    _ = stub_tk
+    root = FakeWidget()
+    model = EditModel(FlatConfig())
+    EditorWidgets(parent=cast(tkinter.Misc, root), model=model)
+    for variable in FakeVar.created:
+        assert isinstance(variable.master, FakeWidget)
+        assert variable.master.parent is root
+
+
+def test_real_second_root(root_or_skip: tkinter.Tk) -> None:
+    """Test the fields work in a root that is not the first one made.
+
+    This is what the stubbed test above stands for, seen in real Tk: with
+    its variable in the wrong interpreter a field shows nothing, and typing
+    into it never reaches the model. The fixture is what makes the root
+    below the second one, and it is what skips this without a display.
+    """
+    _ = root_or_skip
+    second = tkinter.Tk()
+    second.withdraw()
+    try:
+        model = EditModel(FlatConfig())
+        EditorWidgets(parent=second, model=model)
+        assert [field.get()
+                for field in _real_fields(second)] == EXPECTED_FIELDS
+        _retype(_real_fields(second)[1], '7')
+        assert _model_value(model, 'answer') == 7
+    finally:
+        second.destroy()
 
 
 def test_stub_typing(stub_tk: None) -> None:
@@ -723,6 +762,40 @@ def test_real_unknown_key(root_or_skip: tkinter.Tk) -> None:
                             model=EditModel(FlatConfig(), settings=settings))
     assert widgets.label_text == 'FlatConfig'
     assert '<Control-Key-s>' not in set(root_or_skip.bind())
+
+
+def _close_by_button() -> None:
+    """Close the stubbed editor with its button."""
+    _stub_press(CLOSE_TEXT)
+
+
+def _close_by_key() -> None:
+    """Close the stubbed editor with the key of the quit action."""
+    _stub_window().bindings['<Control-q>']()
+
+
+@pytest.mark.parametrize('close', [_close_by_button, _close_by_key])
+def test_stub_close_told(stub_tk: None, close: Callable[[], None]) -> None:
+    """Test both ways of closing run what the caller said closing does."""
+    _ = stub_tk
+    closed: list[str] = []
+    EditorWidgets(parent=cast(tkinter.Misc, FakeWidget()),
+                  model=EditModel(FlatConfig()),
+                  on_close=lambda: closed.append('closed'))
+    close()
+    assert closed == ['closed']
+
+
+def test_real_close_window(root_or_skip: tkinter.Tk) -> None:
+    """Test closing destroys the window when the caller said nothing.
+
+    That is what a backend which owns the window needs, and it is why a
+    caller that does not own one has to say what closing does instead.
+    """
+    window = tkinter.Toplevel(root_or_skip)
+    EditorWidgets(parent=window, model=EditModel(FlatConfig()))
+    _real_press(window, CLOSE_TEXT)
+    assert not window.winfo_exists()
 
 
 def _dialog_options(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
