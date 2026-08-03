@@ -635,6 +635,14 @@ is bad. If the value is bad according to `config_as_json.string_to_enum_best_mat
 we report that, only once that step has passed do we do the complete
 validation.
 
+Evaluate if parse_converters() would allow us to find the correct
+Enum type for an enum field and if possible and how much effort it would
+be to use introspection on the Enum type to add a description for the
+enum field based on the enum class docstring and possible enum values.
+Make a decision if this shall be implemented as part of step 7,
+if it shall be recorded as a later development stage, or if it
+should not be done at all.
+
 **Step 8 — Automatic-change visibility.** Load the file, re-serialize the
 resulting config and diff that against the raw file text; any difference
 means the load changed something. Use the structured
