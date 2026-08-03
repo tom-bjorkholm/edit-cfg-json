@@ -21,9 +21,14 @@ import asyncio
 import tkinter
 import pytest
 from textual.app import App
+from edit_cfg_json import ActionSettings
 
-QUIT_KEY = 'ctrl+q'
-"""Key that ends the Textual editor. A letter belongs to a field."""
+QUIT_KEY = ActionSettings().quit[0]
+"""Key that ends the Textual editor for an application with no opinion.
+
+It is read from the settings rather than written here, so that a default
+that moves moves these tests with it.
+"""
 
 NO_DISPLAY = 'No display available for Tk.'
 """Why a test is skipped on a machine that cannot open a window."""
@@ -147,17 +152,19 @@ def open_tk_ui(main: Callable[[list[str]], None],
         pytest.skip(NO_DISPLAY)
 
 
-async def _quit_at_once(app: App[None]) -> None:
+async def _quit_at_once(app: App[None], quit_key: str) -> None:
     """Start one Textual application headlessly and press its quit key."""
     async with app.run_test() as pilot:
-        await pilot.press(QUIT_KEY)
+        await pilot.press(quit_key)
 
 
-def _headless_run(titles: list[str]) -> Callable[[App[None]], None]:
+def _headless_run(titles: list[str],
+                  quit_key: str) -> Callable[[App[None]], None]:
     """Return a replacement for App.run that runs it headlessly.
 
     Args:
         titles: List that receives the title of every started application.
+        quit_key: Key that the stand-in user presses to end the editor.
 
     Returns:
         A function that can replace `App.run` for the duration of a test.
@@ -165,13 +172,13 @@ def _headless_run(titles: list[str]) -> Callable[[App[None]], None]:
     def run_headless(app: App[None]) -> None:
         """Record the title, start the application and quit it at once."""
         titles.append(app.title)
-        asyncio.run(_quit_at_once(app))
+        asyncio.run(_quit_at_once(app, quit_key))
     return run_headless
 
 
 def textual_titles(main: Callable[[list[str]], None],
-                   monkeypatch: pytest.MonkeyPatch,
-                   *settings: str) -> list[str]:
+                   monkeypatch: pytest.MonkeyPatch, *settings: str,
+                   quit_key: str = QUIT_KEY) -> list[str]:
     """Run one example with `--ui textual` headlessly and report its title.
 
     The title is what the editor shows for the whole model, so it also says
@@ -183,11 +190,12 @@ def textual_titles(main: Callable[[list[str]], None],
         main: The `main` function of the example to run.
         monkeypatch: The pytest fixture that replaces `App.run`.
         settings: Further command line arguments, usually `--set` pairs.
+        quit_key: Key that ends the editor, for a run that moved it.
 
     Returns:
         The title of every application that was started.
     """
     titles: list[str] = []
-    monkeypatch.setattr(App, 'run', _headless_run(titles))
+    monkeypatch.setattr(App, 'run', _headless_run(titles, quit_key))
     main(['--ui', 'textual', *settings])
     return titles

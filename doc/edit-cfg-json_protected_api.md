@@ -50,12 +50,41 @@
   * [SaveOutcome](#edit_cfg_json.saving.SaveOutcome)
     * [saved](#edit_cfg_json.saving.SaveOutcome.saved)
     * [message](#edit_cfg_json.saving.SaveOutcome.message)
+  * [SaveState](#edit_cfg_json.saving.SaveState)
+    * [out\_file](#edit_cfg_json.saving.SaveState.out_file)
+    * [outcome](#edit_cfg_json.saving.SaveState.outcome)
+    * [written](#edit_cfg_json.saving.SaveState.written)
   * [\_failed](#edit_cfg_json.saving._failed)
   * [write\_config](#edit_cfg_json.saving.write_config)
 * [edit\_cfg\_json.leaf\_value](#edit_cfg_json.leaf_value)
   * [value\_as\_text](#edit_cfg_json.leaf_value.value_as_text)
   * [text\_as\_value](#edit_cfg_json.leaf_value.text_as_value)
   * [values\_differ](#edit_cfg_json.leaf_value.values_differ)
+* [edit\_cfg\_json.settings](#edit_cfg_json.settings)
+  * [DUPLICATE\_KEY](#edit_cfg_json.settings.DUPLICATE_KEY)
+  * [NOT\_AN\_EXTENSION](#edit_cfg_json.settings.NOT_AN_EXTENSION)
+  * [WRONG\_EXTENSION](#edit_cfg_json.settings.WRONG_EXTENSION)
+  * [\_duplicate](#edit_cfg_json.settings._duplicate)
+  * [ActionSettings](#edit_cfg_json.settings.ActionSettings)
+    * [quit](#edit_cfg_json.settings.ActionSettings.quit)
+    * [validate](#edit_cfg_json.settings.ActionSettings.validate)
+    * [save](#edit_cfg_json.settings.ActionSettings.save)
+    * [save\_as](#edit_cfg_json.settings.ActionSettings.save_as)
+    * [cancel](#edit_cfg_json.settings.ActionSettings.cancel)
+    * [\_\_post\_init\_\_](#edit_cfg_json.settings.ActionSettings.__post_init__)
+  * [Settings](#edit_cfg_json.settings.Settings)
+    * [actions](#edit_cfg_json.settings.Settings.actions)
+    * [file\_extension](#edit_cfg_json.settings.Settings.file_extension)
+    * [extension\_enforced](#edit_cfg_json.settings.Settings.extension_enforced)
+    * [\_\_post\_init\_\_](#edit_cfg_json.settings.Settings.__post_init__)
+  * [current\_settings](#edit_cfg_json.settings.current_settings)
+  * [CheckedFile](#edit_cfg_json.settings.CheckedFile)
+    * [name](#edit_cfg_json.settings.CheckedFile.name)
+    * [message](#edit_cfg_json.settings.CheckedFile.message)
+  * [\_matches](#edit_cfg_json.settings._matches)
+  * [\_refused](#edit_cfg_json.settings._refused)
+  * [checked\_file](#edit_cfg_json.settings.checked_file)
+  * [chosen\_file](#edit_cfg_json.settings.chosen_file)
 * [edit\_cfg\_json.model\_text](#edit_cfg_json.model_text)
   * [NOT\_EDITABLE\_FORM](#edit_cfg_json.model_text.NOT_EDITABLE_FORM)
   * [EDITED\_MARK](#edit_cfg_json.model_text.EDITED_MARK)
@@ -94,6 +123,7 @@
   * [EditModel](#edit_cfg_json.edit_model.EditModel)
     * [\_\_init\_\_](#edit_cfg_json.edit_model.EditModel.__init__)
     * [config\_type\_name](#edit_cfg_json.edit_model.EditModel.config_type_name)
+    * [settings](#edit_cfg_json.edit_model.EditModel.settings)
     * [load\_message](#edit_cfg_json.edit_model.EditModel.load_message)
     * [rows](#edit_cfg_json.edit_model.EditModel.rows)
     * [dirty](#edit_cfg_json.edit_model.EditModel.dirty)
@@ -639,9 +669,12 @@ stay alive.
 #### load\_config
 
 ```python
-def load_config(config: Config,
-                in_file: Optional[PathOrStr] = None,
-                policy: LoadPolicy = DEFAULT_POLICY) -> LoadedConfig
+def load_config(
+    config: Config,
+    in_file: Optional[PathOrStr] = None,
+    policy: LoadPolicy = DEFAULT_POLICY,
+    settings: SettingsSource = Settings()
+) -> LoadedConfig
 ```
 
 Read the configuration to edit from one file, or use the defaults.
@@ -659,8 +692,15 @@ is the report or the refusal.
 
 - `config` - Configuration object saying which class to load and what its
   declared defaults are. It is not modified.
-- `in_file` - File to read, or None to edit the declared defaults.
+- `in_file` - File to read, or None to edit the declared defaults. It is
+  refused when the application enforces an extension that this
+  name does not have; it is never completed with one, because it
+  names a file that already exists and completing it would open a
+  different file from the one that was asked for.
 - `policy` - What to do about declared keys the file does not hold.
+- `settings` - What the application around the editor has already
+  decided, or a callable that answers with it. The default is an
+  application with no opinion.
   
 
 **Returns**:
@@ -732,6 +772,7 @@ def edit(config: Config,
          in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = DEFAULT_POLICY,
+         settings: SettingsSource = Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]
 ```
 
@@ -754,8 +795,14 @@ and the backend asks the user for a destination before it can save.
   this one.
 - `backend` - User interface to run this session in.
 - `in_file` - File to read, or None to start from the declared defaults.
-- `out_file` - File to write, or None to write the input file.
+- `out_file` - File to write, or None to write the input file. A name
+  that has no extension gets the one the application uses for its
+  configuration; the input file never does.
 - `policy` - What to do about declared keys the input file does not hold.
+- `settings` - What the application around the editor has already
+  decided, or a callable that answers with it. The default is an
+  application with no opinion, which is what this library had of
+  its own before there were settings at all.
 - `stderr_file` - Stream used for user-facing diagnostics.
   
 
@@ -846,6 +893,47 @@ What the user has to be told about this attempt.
 
 There is always something to say, because a save is something the user
 asked for and an answer is the least it owes them.
+
+<a id="edit_cfg_json.saving.SaveState"></a>
+
+## SaveState Objects
+
+```python
+@dataclass
+class SaveState()
+```
+
+Where the editor writes, and what has come of writing there.
+
+The three belong together because each of them moves when the others do:
+choosing a destination drops what an earlier attempt said, and an
+attempt that wrote the file is the only thing there is a written object
+to hand back from.
+
+<a id="edit_cfg_json.saving.SaveState.out_file"></a>
+
+#### out\_file
+
+File that saving writes, None while no destination has been chosen.
+
+There is none when the editor was started neither on an input file nor
+on an output file, which is what happens when an application offers to
+write its very first configuration file.
+
+<a id="edit_cfg_json.saving.SaveState.outcome"></a>
+
+#### outcome
+
+What the last attempt to save did, None when there has been none.
+
+<a id="edit_cfg_json.saving.SaveState.written"></a>
+
+#### written
+
+The configuration object that reached the file, None when none has.
+
+It is never the caller's own object, which the editor does not modify
+and which would otherwise be stale.
 
 <a id="edit_cfg_json.saving._failed"></a>
 
@@ -986,6 +1074,381 @@ the editor has to say so.
 **Returns**:
 
   Whether the two values are different values.
+
+<a id="edit_cfg_json.settings"></a>
+
+# edit\_cfg\_json.settings
+
+What the application around the editor has already decided.
+
+The editor does not run on its own. It runs inside an application that made
+decisions before the editor was ever called: which key combinations its own
+user interface has taken, and what a configuration file of that application
+is called. This module is how the application says so, and it is what the
+editor consults instead of deciding those things for itself.
+
+Every attribute has a default, so an application with no opinion passes
+nothing at all and gets what the editor would have chosen anyway.
+
+<a id="edit_cfg_json.settings.DUPLICATE_KEY"></a>
+
+#### DUPLICATE\_KEY
+
+Message of the refusal of one key combination given to two actions.
+
+<a id="edit_cfg_json.settings.NOT_AN_EXTENSION"></a>
+
+#### NOT\_AN\_EXTENSION
+
+Message of the refusal of an extension setting that names none.
+
+<a id="edit_cfg_json.settings.WRONG_EXTENSION"></a>
+
+#### WRONG\_EXTENSION
+
+Message of the refusal of a file name an enforced extension forbids.
+
+<a id="edit_cfg_json.settings._duplicate"></a>
+
+#### \_duplicate
+
+```python
+def _duplicate(key: str, first: str, second: str) -> ValueError
+```
+
+Return the refusal of one key combination given to two actions.
+
+**Arguments**:
+
+- `key` - The combination that both of them hold.
+- `first` - Name of the action that was seen holding it first.
+- `second` - Name of the other action that holds it.
+  
+
+**Returns**:
+
+  The failure to raise where the settings were built.
+
+<a id="edit_cfg_json.settings.ActionSettings"></a>
+
+## ActionSettings Objects
+
+```python
+@dataclass(frozen=True)
+class ActionSettings()
+```
+
+The key combinations of every action of the editor.
+
+One attribute per action, so that an action the application says nothing
+about keeps the default of its own attribute and there is no merge rule
+to explain, and so that a misspelled action name is refused where the
+mistake was made rather than becoming a setting nobody reads.
+
+Each attribute holds every combination that runs its action. The first
+of them is the one a footer or a menu names, and the rest work without
+being named, because naming one action twice would suggest that they
+were two actions. An empty tuple takes the key away and not the action:
+a button and a command palette entry reach it whatever the keys say.
+
+Combinations are written the way Textual names keys, in lower case: the
+modifiers `ctrl`, `shift`, `alt` and `meta` joined with `+`, and then a
+single character, `f1` to `f12`, or a name such as `escape`, `enter`,
+`tab`, `space`, `backspace`, `delete`, `insert`, `home`, `end`,
+`pageup`, `pagedown`, `up`, `down`, `left` or `right`. The Tk backend
+translates them into the notation of its own toolkit, and leaves an
+action it cannot translate without that key rather than without a
+button.
+
+<a id="edit_cfg_json.settings.ActionSettings.quit"></a>
+
+#### quit
+
+Keys that end the editor.
+
+Quitting writes nothing of its own. It is the "cancel" of this design;
+saving leaves the editor open, and what has been saved has been saved.
+
+A single unmodified letter cannot be used for this or for any other
+action here, now that the value of a member is edited in a field: an
+unmodified letter belongs to whichever field has the focus, and a user
+who typed it would expect to see it appear.
+
+<a id="edit_cfg_json.settings.ActionSettings.validate"></a>
+
+#### validate
+
+Keys that ask the application what it makes of these values.
+
+`ctrl+r` because a field claims most of the other control letters:
+Textual's `Input` already reads `ctrl+a`, `ctrl+c`, `ctrl+d`, `ctrl+e`,
+`ctrl+k`, `ctrl+u`, `ctrl+v`, `ctrl+w` and `ctrl+x`, and the terminal
+itself claims `ctrl+c` and the four that are Backspace, Tab, Return and
+Escape. Of what is left, `r` is the one that means something: re-check.
+
+`f5` because a function key is what other editors use to ask a tool to
+check what has been written. It is the second of the two, so it works
+without being named, which is what it deserves: a function key is the
+one of the two that a keyboard or a terminal is most likely not to
+deliver.
+
+<a id="edit_cfg_json.settings.ActionSettings.save"></a>
+
+#### save
+
+Keys that write the output file.
+
+The key every application uses for this, and it does reach a terminal
+application: Textual's driver clears `IXON` and `IXOFF` when it puts the
+terminal into raw mode, so neither `ctrl+s` nor `ctrl+q` is taken for
+flow control any more.
+
+<a id="edit_cfg_json.settings.ActionSettings.save_as"></a>
+
+#### save\_as
+
+Keys that choose an output file and then write it.
+
+The key every application uses for this as well, but unlike the one
+above it is not delivered everywhere. A legacy terminal encodes a
+control letter as a single byte with nowhere to put the shift, so this
+combination arrives as the save key and the wrong action runs. That is
+why the action is offered without a key as well.
+
+`f12` because a function key is what other editors use to ask a tool to
+write the output file. It is the second of the two, so it works without
+being named, which is what it deserves: a function key is the one of the
+two that a keyboard or a terminal is most likely not to deliver.
+
+<a id="edit_cfg_json.settings.ActionSettings.cancel"></a>
+
+#### cancel
+
+Keys that leave a question of the editor unanswered.
+
+The question about the output file is the only one so far. The Tk
+backend binds nothing for this, because the only question it asks is the
+toolkit's own file dialog, which answers this key itself.
+
+<a id="edit_cfg_json.settings.ActionSettings.__post_init__"></a>
+
+#### \_\_post\_init\_\_
+
+```python
+def __post_init__() -> None
+```
+
+Refuse one key combination that two actions would both run.
+
+Only one of the two can ever run, which one it is depends on the
+toolkit, and the symptom is an action that mysteriously does
+nothing. The case of a combination is ignored here, because it is
+ignored where the combination is used.
+
+**Raises**:
+
+- `ValueError` - Two actions hold the same key combination.
+
+<a id="edit_cfg_json.settings.Settings"></a>
+
+## Settings Objects
+
+```python
+@dataclass(frozen=True)
+class Settings()
+```
+
+What the application around the editor has already decided.
+
+Both this class and `ActionSettings` are frozen: the editor is given
+what an application decided and has no business changing it.
+
+<a id="edit_cfg_json.settings.Settings.actions"></a>
+
+#### actions
+
+The key combinations of every action of the editor.
+
+<a id="edit_cfg_json.settings.Settings.file_extension"></a>
+
+#### file\_extension
+
+What a configuration file of this application is called, or None.
+
+None is no opinion, and it is the default: some applications use `.cfg`,
+some use `.json`, and others use something else again. A value is
+normalized to begin with a dot, so `cfg` and `.cfg` mean the same thing.
+
+<a id="edit_cfg_json.settings.Settings.extension_enforced"></a>
+
+#### extension\_enforced
+
+Whether a file name with another extension is refused.
+
+It says nothing at all while `file_extension` is None, because there is
+then no extension to enforce.
+
+<a id="edit_cfg_json.settings.Settings.__post_init__"></a>
+
+#### \_\_post\_init\_\_
+
+```python
+def __post_init__() -> None
+```
+
+Normalize the extension, and refuse text that is not one.
+
+The dot is added here rather than everywhere the extension is read,
+so that every user of a `Settings` sees one form of it. Writing to a
+frozen instance is what normalizing in place costs, and it is done
+the one way a frozen dataclass allows.
+
+**Raises**:
+
+- `ValueError` - The extension is text that names no extension.
+
+<a id="edit_cfg_json.settings.current_settings"></a>
+
+#### current\_settings
+
+```python
+def current_settings(source: SettingsSource) -> Settings
+```
+
+Return the settings of the application as they are now.
+
+**Arguments**:
+
+- `source` - The settings, or a callable that answers with them.
+  
+
+**Returns**:
+
+  The settings to use for what is about to be done.
+
+<a id="edit_cfg_json.settings.CheckedFile"></a>
+
+## CheckedFile Objects
+
+```python
+class CheckedFile(NamedTuple)
+```
+
+One file name as the settings of the application leave it.
+
+<a id="edit_cfg_json.settings.CheckedFile.name"></a>
+
+#### name
+
+The file to use, which is the given name unless an extension was
+added to it.
+
+<a id="edit_cfg_json.settings.CheckedFile.message"></a>
+
+#### message
+
+Why this file cannot be used, empty when it can be.
+
+<a id="edit_cfg_json.settings._matches"></a>
+
+#### \_matches
+
+```python
+def _matches(name: PathOrStr, extension: str) -> bool
+```
+
+Return whether one file name already has one extension.
+
+The comparison ignores the case of both, because the file systems of
+Windows and of macOS do not distinguish it either, and refusing `.CFG`
+while accepting `.cfg` would be a difference that the file the name
+stands for does not make.
+
+**Arguments**:
+
+- `name` - File name to look at.
+- `extension` - Extension of the application, beginning with its dot.
+  
+
+**Returns**:
+
+  Whether the name ends with that extension.
+
+<a id="edit_cfg_json.settings._refused"></a>
+
+#### \_refused
+
+```python
+def _refused(name: PathOrStr, extension: str) -> CheckedFile
+```
+
+Return the refusal of one file name an extension forbids.
+
+**Arguments**:
+
+- `name` - File name that the application cannot use.
+- `extension` - Extension that this application enforces.
+  
+
+**Returns**:
+
+  That name, and why it cannot be used.
+
+<a id="edit_cfg_json.settings.checked_file"></a>
+
+#### checked\_file
+
+```python
+def checked_file(name: PathOrStr, settings: Settings) -> CheckedFile
+```
+
+Return one file name, or say why this application cannot use it.
+
+The name is never changed here. An extension that is a default says
+nothing about a name that already exists, and an extension that is
+enforced can only refuse one: opening or overwriting a different file
+because two names differ by an extension would be a surprise, and a
+surprise about which file was written is the expensive kind.
+
+**Arguments**:
+
+- `name` - File the editor was asked to read or to write.
+- `settings` - What the application has decided about file names.
+  
+
+**Returns**:
+
+  That name, and why it cannot be used when it cannot.
+
+<a id="edit_cfg_json.settings.chosen_file"></a>
+
+#### chosen\_file
+
+```python
+def chosen_file(name: PathOrStr, settings: Settings) -> CheckedFile
+```
+
+Return one newly chosen destination, with the extension it needs.
+
+A name that has no extension at all gets the one the application uses,
+because a destination that is being chosen does not name a file that
+exists yet and completing it is a service rather than a substitution.
+Everything else is what `checked_file` makes of it.
+
+This is for a destination the user or the application chooses while the
+editor runs. A destination that was inherited, which is the input file
+when the caller named no output file, is only checked and never
+completed.
+
+**Arguments**:
+
+- `name` - File the user or the application has just chosen to write.
+- `settings` - What the application has decided about file names.
+  
+
+**Returns**:
+
+  The name to write, and why it cannot be used when it cannot.
 
 <a id="edit_cfg_json.model_text"></a>
 
@@ -1487,6 +1950,7 @@ value is a list or a dict is reported as a row that is not editable.
 def __init__(config: Config,
              report: LoadReport = LoadReport(),
              out_file: Optional[PathOrStr] = None,
+             settings: SettingsSource = Settings(),
              stderr_file: TextIO = sys.stderr) -> None
 ```
 
@@ -1509,6 +1973,14 @@ before this and what reading it did arrives as the report.
   values. The default says there was no file to read.
 - `out_file` - File that saving writes, or None when the user has not
   chosen one yet and the editor has to ask before it can save.
+  It is taken exactly as it is, because a destination that was
+  named in this call may be the input file and reading one
+  file while writing another would be a surprise. A
+  destination chosen later, with `set_out_file`, gets the
+  extension of the application when it has none of its own.
+- `settings` - What the application around the editor has already
+  decided, or a callable that answers with it. The default is
+  an application with no opinion.
 - `stderr_file` - Stream used for user-facing diagnostics.
   
 
@@ -1528,6 +2000,27 @@ def config_type_name() -> str
 ```
 
 Return the class name of the edited configuration object.
+
+<a id="edit_cfg_json.edit_model.EditModel.settings"></a>
+
+#### settings
+
+```python
+@property
+def settings() -> Settings
+```
+
+Return what the application has decided, as it is now.
+
+A caller that handed over a callable is asked again here, which is
+what handing one over is for. What a later answer can change is
+worth knowing exactly: the key combinations are read once, when a
+backend builds its bindings, while the file name settings are read
+at every save and at every choice of a destination.
+
+Both backends read the settings from here rather than being given
+them, so that the two of them cannot bind different keys or offer
+the user different file names.
 
 <a id="edit_cfg_json.edit_model.EditModel.load_message"></a>
 
@@ -1683,11 +2176,18 @@ saves, so that choosing a destination and writing to it stay two
 things and an application that mounts the model in a user interface
 of its own can offer them separately.
 
+A name that has no extension at all gets the one the application
+uses for its configuration, because a destination that is being
+chosen does not name a file that exists yet. A name that has the
+wrong extension is kept as it is and refused by the save that
+follows, so that the refusal is reported where every other refused
+save is reported and not through a second channel of its own.
+
 **Arguments**:
 
 - `out_file` - File to write, with whatever name and extension the
-  application and its user want. The editor has no opinion
-  about either.
+  application and its user want. The editor has an opinion
+  about the extension only where the application gave it one.
 
 <a id="edit_cfg_json.edit_model.EditModel.validate"></a>
 
@@ -1729,7 +2229,10 @@ the file is therefore always what the editor is showing.
 A configuration the application would refuse is not written, because
 an editor that produced a file its own application cannot read would
 have failed at the one thing it is for. Nor is anything written when
-no destination has been chosen; the editor asks for one instead.
+no destination has been chosen; the editor asks for one instead. Nor
+when the destination is a file name that the application does not
+use for its configuration, whether it was chosen here or named in
+the call that built this model.
 
 A save that wrote the file leaves nothing to save, so the values
 that were written become the ones the buffer is compared against

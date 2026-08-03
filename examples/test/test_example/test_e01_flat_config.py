@@ -300,6 +300,80 @@ def test_save_only_for_dump(ui_name: str,
     assert 'only means something together with --ui dump' in error
 
 
+def test_chosen_out_completed(tmp_path: Path,
+                              capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a named output file gets the extension the application uses."""
+    out_file = tmp_path / 'chosen'
+    printed = _dump(capsys, '--extension', '.cfg', '-o', str(out_file),
+                    '--save')
+    assert f'Saved to {out_file}.cfg.' in printed
+    assert _written(tmp_path / 'chosen.cfg') == {'name': 'Flat example',
+                                                 'answer': 42}
+
+
+def test_extension_dot_added(tmp_path: Path,
+                             capsys: pytest.CaptureFixture[str]) -> None:
+    """Test an extension written without its dot means the same thing."""
+    out_file = tmp_path / 'chosen'
+    assert f'Saved to {out_file}.cfg.' in _dump(capsys, '--extension', 'cfg',
+                                                '-o', str(out_file), '--save')
+
+
+def test_other_extension_kept(tmp_path: Path,
+                              capsys: pytest.CaptureFixture[str]) -> None:
+    """Test an extension that is only a default refuses nothing."""
+    out_file = tmp_path / 'chosen.json'
+    assert f'Saved to {out_file}.' in _dump(capsys, '--extension', '.cfg',
+                                            '-o', str(out_file), '--save')
+    assert out_file.exists()
+
+
+def test_enforced_out_refused(tmp_path: Path,
+                              capsys: pytest.CaptureFixture[str]) -> None:
+    """Test an enforced extension refuses to write any other file."""
+    out_file = tmp_path / 'chosen.json'
+    printed = _dump(capsys, '--extension', '.cfg', '--enforce-extension', '-o',
+                    str(out_file), '--save')
+    assert '.cfg extension' in printed
+    assert not out_file.exists()
+
+
+def test_enforced_in_refused(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test an enforced extension refuses to open any other file."""
+    error = _refused(capsys, '--ui', 'dump', '--extension', '.cfg',
+                     '--enforce-extension', '-i',
+                     data_file('e01_complete.json'))
+    assert '.cfg extension' in error
+
+
+def test_no_extension(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test text that names no extension is refused where it is given."""
+    assert 'not a file name extension' in _refused(capsys, '--ui', 'dump',
+                                                   '--extension', '.')
+
+
+def test_shared_key_refused(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test one key combination given to two actions is refused."""
+    assert 'is set for both' in _refused(capsys, '--ui', 'dump', '--key',
+                                         'save=ctrl+q')
+
+
+def test_unknown_action(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a --key that names no action of the editor is refused."""
+    assert 'save_as' in _refused(capsys, '--ui', 'dump', '--key',
+                                 'fold=ctrl+f')
+
+
+def test_textual_key_chosen(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test the Textual editor opens with the keys the run chose.
+
+    The run quits on the key it was told to quit on, so an editor that had
+    kept the default would never return.
+    """
+    assert textual_titles(e01_flat_config.main, monkeypatch, '--key',
+                          'quit=ctrl+e', quit_key='ctrl+e') == ['FlatConfig']
+
+
 def test_tk_ui_opens(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test --ui tk builds the window and returns when it is closed."""
     open_tk_ui(e01_flat_config.main, monkeypatch)

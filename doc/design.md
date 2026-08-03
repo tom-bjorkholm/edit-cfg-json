@@ -79,7 +79,7 @@ matters under this repository's strict checker configuration).
   in `custom_build_tools/custom_spec.py` should become redundant. Verify
   against the install step rather than assuming.
 - Tk tests are split into three categories with different display
-  requirements. See section 9.
+  requirements. See section 10.
 
 ### 2.4 The public API contract
 
@@ -621,15 +621,178 @@ themselves for discovery (`--ui=auto`). It is additive and breaks
 nothing, and is only worth building once there is a generic launcher or
 a third-party backend in the wild.
 
-## 9. Testing strategy
+## 9. Settings the application owns
 
-### 9.1 Core
+The editor does not run on its own. It runs inside an application that has
+already made decisions the editor has no right to overrule: which key
+combinations that application's own user interface has taken, and what a
+configuration file of that application is called. The first steps of this
+library made both of those decisions inside the editor. That was the right
+size of decision for a walking skeleton and the wrong one for a library.
+
+`Settings` is what the application says about them. Every attribute has a
+default, so an application with no opinion passes nothing at all and gets
+what the editor would have chosen anyway.
+
+### 9.1 The shape
+
+```python
+@dataclass(frozen=True)
+class ActionSettings:
+    quit: tuple[str, ...] = ('ctrl+q',)
+    validate: tuple[str, ...] = ('ctrl+r', 'f5')
+    save: tuple[str, ...] = ('ctrl+s',)
+    save_as: tuple[str, ...] = ('ctrl+shift+s',)
+    cancel: tuple[str, ...] = ('escape',)
+
+
+@dataclass(frozen=True)
+class Settings:
+    actions: ActionSettings = ActionSettings()
+    file_extension: Optional[str] = None
+    extension_enforced: bool = False
+```
+
+One attribute per action rather than a mapping keyed by an action enum. The
+attribute *is* the default, so an action the application says nothing about
+needs no merge rule to be written down and no merge rule to be explained; a
+misspelled action name is a `TypeError` where the mistake was made rather
+than a key nobody ever reads; and the reason for a default lives in the
+docstring of the attribute that holds it, which is where the next reader
+will look for it. An action added later is an added attribute, which breaks
+no application.
+
+Both classes are frozen. The editor is given what an application decided and
+has no business changing it, and a frozen dataclass says so in the one place
+where saying it costs nothing.
+
+### 9.2 Key combinations
+
+Each action holds a tuple and not a single key, because an action can have
+more than one: the first is the one a footer or a menu names, and the rest
+work without being named. That is exactly the `('ctrl+r', 'f5')` of the
+Textual backend, expressed without a second attribute for the alternate.
+
+An empty tuple takes the key away and not the action. Tk shows a button and
+Textual offers a command palette entry, and both stay. An application whose
+own `ctrl+s` is spoken for empties that tuple, and its users still save.
+
+Combinations are written in Textual's key names, in lower case: the
+modifiers `ctrl`, `shift`, `alt` and `meta` joined with `+`, and then a
+single character, `f1` to `f12`, or a name such as `escape`, `enter`, `tab`,
+`space`, `backspace`, `delete`, `insert`, `home`, `end`, `pageup`,
+`pagedown`, `up`, `down`, `left` or `right`. The core has to name some
+vocabulary, and this one is published, complete, and used unchanged by one
+of the two backends. Tk needs a translation whatever vocabulary is chosen,
+because `<Control-Shift-S>` is a notation no other toolkit shares; the
+translation lives in the Tk package, since nothing else can use it. A
+combination that the translation does not know leaves that action without
+that key rather than without an editor — the button is still there. This is
+principle 4 of section 3 applied to keys.
+
+One key combination given to two actions raises `ValueError` where the
+`Settings` is constructed. Only one of the two can ever run, which one it is
+depends on the toolkit, and the symptom is an action that mysteriously does
+nothing. A refusal at the point of the mistake is worth a great deal more.
+
+### 9.3 The file name extension
+
+`file_extension` is `None` by default, which is the "no opinion" this
+document has stated since section 1 — with the difference that it is now the
+application's opinion that is absent, rather than the editor's opinion being
+imposed on an application that has one. A value is normalized to begin with
+a dot, so `cfg` and `.cfg` mean the same thing, and text that names no
+extension at all is refused.
+
+`extension_enforced` then decides how hard the extension is:
+
+| | a file to write | a file to read |
+| --- | --- | --- |
+| no extension set | taken as given | taken as given |
+| default extension | added to a name that has none | taken as given |
+| enforced extension | added to a name that has none, refused when the name has another | refused unless the name has it |
+
+**The two directions differ on purpose.** A name to write does not name an
+existing file, so completing it is a service. A name to read does name one,
+so completing it would open a different file from the one that was asked
+for; there the setting can only refuse. And a default extension says nothing
+at all about reading, because a default is about what the editor writes when
+the user did not say.
+
+**Completing applies to a name that is chosen, not to one that is
+inherited.** `out_file` defaults to `in_file` (section 7), and a session that
+read `settings` must not save to `settings.cfg` because the two names differ
+by an extension. A destination is chosen when the user answers Save as, when
+the application calls `EditModel.set_out_file`, and when it names `out_file`
+in the `edit()` call; it is inherited only when it is the input file. So
+`edit()` completes the one it was given and never the one it fell back to,
+and the model completes what `set_out_file` chooses and takes what it is
+constructed with. Both are checked against an enforced extension at every
+save, whatever their origin.
+
+A refusal is a message and never a crash, for the reason section 7 already
+gives: `load_config` raises the `ConfigLoadError` the application already
+handles, and a refused save is a `SaveOutcome` carrying the message that
+says why, exactly like every other refused save.
+
+### 9.4 Settings, or a way to get them
+
+```python
+type SettingsSource = Settings | Callable[[], Settings]
+```
+
+Every entry point takes one of these, and the model resolves it at each
+point of use, so a callable really is asked again.
+
+What that buys, stated plainly, because it is less than it looks:
+
+- **Key combinations are read once**, when the backend builds its bindings.
+  Textual copies a class's bindings into the instance when the instance is
+  constructed, and offers no supported way to change the key of a binding
+  afterwards. Tk binds to the window when the widgets are created.
+- **The file name settings are read at every save** and at every choice of a
+  destination, so a later answer does take effect there immediately.
+- **The gain that matters is neither.** It is that an application need not
+  have its settings ready at the moment it calls. Under embedding
+  (section 8) the model may be built long before the editor is shown, and a
+  callable defers the read to the moment the answer is used.
+
+Resolving a callable once and keeping the answer was rejected: an
+application that can answer at that moment can pass the `Settings` object
+itself, so that variant buys nothing that the plain object does not.
+
+### 9.5 Where the settings enter
+
+`edit()`, `load_config()` and `EditModel()` each take a `settings` keyword
+that defaults to `Settings()`. The backends take none: they read
+`model.settings`, which is the same rule that already holds for the marks,
+the title and the messages. One source per session is what stops the two
+backends from binding different keys or offering different file names.
+
+### 9.6 What `Settings` is not for
+
+- **The load policy.** It is already a parameter of its own, and it is a
+  decision about one file rather than about the application.
+- **Wording.** Button text, footer descriptions and palette entries stay in
+  the backends. An application that wants its own wording is asking for
+  translation, which is a larger thing than this and should be designed as
+  one rather than arrived at through a growing dataclass.
+- **Anything the editor can find out for itself.** `Settings` is for what
+  the application knows and the editor cannot.
+
+Room is deliberately left here for step 16 of the delivery plan, where
+whether an overwritten file keeps a backup, and whether overwriting is
+confirmed, become application decisions of exactly this kind.
+
+## 10. Testing strategy
+
+### 10.1 Core
 
 The core needs no UI and no display, and it is where essentially all the
 logic lives. If a behaviour can only be tested through a backend, that is
 evidence the behaviour is in the wrong package.
 
-### 9.2 Tkinter: three categories
+### 10.2 Tkinter: three categories
 
 Experience with other Tkinter applications says one category is not
 enough. Tk tests fall into three groups with genuinely different
@@ -662,7 +825,7 @@ is not updated. That is defensible — a summary should not be published
 from an incomplete run — but it should be a known consequence rather
 than a surprise.
 
-### 9.3 Test the same code both ways
+### 10.3 Test the same code both ways
 
 Where it is affordable, the same code path gets a stubbed test *and* a
 real-Tk (withdrawn) test. This is deliberate duplication, because the two
@@ -676,15 +839,15 @@ fail in opposite directions:
 A discrepancy between the two runs is itself a finding, and usually a
 more interesting one than either test failing alone.
 
-### 9.4 Textual
+### 10.4 Textual
 
 Textual can be driven headlessly in-process, so it does not need the
 three-way split — the equivalent of the withdrawn root runs everywhere,
-including in CI. The stubbed-versus-real duality of section 9.3 still
+including in CI. The stubbed-versus-real duality of section 10.3 still
 applies where it is cheap. The exact headless driver API should be
 confirmed against the pinned `textual` version rather than assumed.
 
-## 10. Version 1 scope
+## 11. Version 1 scope
 
 In scope:
 
@@ -712,7 +875,7 @@ constraints, so no automatically generated dropdowns or spin ranges.
 Fields are edited as text and correctness comes from running the real
 validators.
 
-## 11. Rejected alternatives
+## 12. Rejected alternatives
 
 - **One distribution with `[tk]` and `[textual]` extras.** Simpler
   releases and no compatibility matrix, but it cannot give a

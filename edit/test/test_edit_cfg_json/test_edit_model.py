@@ -8,7 +8,7 @@ from pathlib import Path
 import json
 import pytest
 from config_as_json import JsonType
-from edit_cfg_json import EditModel, MemberRow
+from edit_cfg_json import EditModel, MemberRow, Settings
 from .sample_cfg import ExtraArgCfg, FlatCfg, IntEnumCfg, ListCfg, NoneCfg, \
     OmitCfg, RangeCfg, RewriteCfg
 
@@ -614,6 +614,93 @@ def test_new_destination_text(tmp_path: Path) -> None:
     assert model.save().saved
     model.set_out_file(tmp_path / 'second.json')
     assert model.save_message == ''
+
+
+def test_settings_default() -> None:
+    """Test a model built without settings has an application with none."""
+    assert EditModel(FlatCfg()).settings == Settings()
+
+
+def test_settings_asked_again() -> None:
+    """Test a callable is asked again every time the settings are read.
+
+    That is the whole of what handing a callable over buys, so a model that
+    remembered the first answer would make the two forms the same thing.
+    """
+    answers = [Settings(file_extension='.one'),
+               Settings(file_extension='.two')]
+    model = EditModel(FlatCfg(), settings=answers.pop)
+    assert model.settings.file_extension == '.two'
+    assert model.settings.file_extension == '.one'
+
+
+def test_chosen_gets_ext(tmp_path: Path) -> None:
+    """Test a chosen destination without an extension gets the one used."""
+    model = EditModel(FlatCfg(), settings=Settings(file_extension='.cfg'))
+    model.set_out_file(tmp_path / 'chosen')
+    assert model.out_file == f'{tmp_path / "chosen"}.cfg'
+    assert model.save().saved
+    assert (tmp_path / 'chosen.cfg').exists()
+
+
+def test_other_extension_kept(tmp_path: Path) -> None:
+    """Test a default extension leaves another extension alone."""
+    out_file = tmp_path / 'chosen.json'
+    model = EditModel(FlatCfg(), settings=Settings(file_extension='.cfg'))
+    model.set_out_file(out_file)
+    assert model.out_file == out_file
+    assert model.save().saved
+
+
+def test_given_out_file_kept(tmp_path: Path) -> None:
+    """Test a destination this model was built with is taken as it is.
+
+    The model cannot know whether it was chosen for this session or
+    inherited from the input file, so it completes only what is chosen
+    through `set_out_file` and takes what it is handed.
+    """
+    out_file = tmp_path / 'given'
+    model = EditModel(FlatCfg(), out_file=out_file,
+                      settings=Settings(file_extension='.cfg'))
+    assert model.out_file == out_file
+    assert model.save().saved
+    assert not (tmp_path / 'given.cfg').exists()
+
+
+@pytest.mark.parametrize('name', ['refused.json', 'refused'])
+def test_enforced_refuses(tmp_path: Path, name: str) -> None:
+    """Test an enforced extension refuses to write any other file."""
+    out_file = tmp_path / name
+    settings = Settings(file_extension='.cfg', extension_enforced=True)
+    model = EditModel(FlatCfg(), out_file=out_file, settings=settings)
+    outcome = model.save()
+    assert not outcome.saved
+    assert '.cfg extension' in outcome.message
+    assert not out_file.exists()
+    assert model.saved_config is None
+
+
+def test_enforced_completes(tmp_path: Path) -> None:
+    """Test an enforced extension still completes a name that has none."""
+    settings = Settings(file_extension='.cfg', extension_enforced=True)
+    model = EditModel(FlatCfg(), settings=settings)
+    model.set_out_file(tmp_path / 'chosen')
+    assert model.save().saved
+    assert (tmp_path / 'chosen.cfg').exists()
+
+
+def test_settings_at_save(tmp_path: Path) -> None:
+    """Test the file name settings are read at the moment of the save.
+
+    They are the ones a later answer from a callable can change, which is
+    the difference between them and the key combinations.
+    """
+    answers = [Settings(), Settings(file_extension='.cfg',
+                                    extension_enforced=True)]
+    out_file = tmp_path / 'out.json'
+    model = EditModel(FlatCfg(), out_file=out_file, settings=answers.pop)
+    assert not model.save().saved
+    assert model.save().saved
 
 
 def test_save_containers(tmp_path: Path) -> None:

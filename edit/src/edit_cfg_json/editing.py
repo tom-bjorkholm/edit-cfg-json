@@ -16,6 +16,7 @@ from config_as_json import Config, PathOrStr
 from edit_cfg_json.backend import EditorBackend
 from edit_cfg_json.edit_model import EditModel
 from edit_cfg_json.loading import DEFAULT_POLICY, LoadPolicy, load_config
+from edit_cfg_json.settings import Settings, SettingsSource
 
 
 # Every argument after the backend is an optional keyword, and each of them
@@ -28,6 +29,7 @@ def edit(config: Config, backend: EditorBackend, *,
          in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = DEFAULT_POLICY,
+         settings: SettingsSource = Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]:
     """Edit one configuration and return the object that was saved.
 
@@ -47,8 +49,14 @@ def edit(config: Config, backend: EditorBackend, *,
             this one.
         backend: User interface to run this session in.
         in_file: File to read, or None to start from the declared defaults.
-        out_file: File to write, or None to write the input file.
+        out_file: File to write, or None to write the input file. A name
+            that has no extension gets the one the application uses for its
+            configuration; the input file never does.
         policy: What to do about declared keys the input file does not hold.
+        settings: What the application around the editor has already
+            decided, or a callable that answers with it. The default is an
+            application with no opinion, which is what this library had of
+            its own before there were settings at all.
         stderr_file: Stream used for user-facing diagnostics.
 
     Returns:
@@ -58,9 +66,17 @@ def edit(config: Config, backend: EditorBackend, *,
     Raises:
         ConfigLoadError: The input file cannot be opened for editing.
     """
-    loaded = load_config(config=config, in_file=in_file, policy=policy)
+    loaded = load_config(config=config, in_file=in_file, policy=policy,
+                         settings=settings)
     model = EditModel(config=loaded.config, report=loaded.report,
-                      out_file=in_file if out_file is None else out_file,
+                      out_file=in_file, settings=settings,
                       stderr_file=stderr_file)
+    # A destination this call names is one that was chosen for this session,
+    # so it gets the extension of the application when it has none of its
+    # own. The input file is inherited rather than chosen, and is taken
+    # exactly as it is: reading one file while writing another because the
+    # two names differ by an extension would be a surprise.
+    if out_file is not None:
+        model.set_out_file(out_file)
     backend.run_editor(model)
     return model.saved_config

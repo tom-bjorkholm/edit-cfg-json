@@ -13,8 +13,9 @@ and others use something else again.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from dataclasses import dataclass
 from io import StringIO
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 from config_as_json import Config, PathOrStr
 
 NO_DESTINATION = 'There is no file to save to yet. Save as chooses one.'
@@ -54,6 +55,35 @@ class SaveOutcome(NamedTuple):
 
     There is always something to say, because a save is something the user
     asked for and an answer is the least it owes them.
+    """
+
+
+@dataclass
+class SaveState:
+    """Where the editor writes, and what has come of writing there.
+
+    The three belong together because each of them moves when the others do:
+    choosing a destination drops what an earlier attempt said, and an
+    attempt that wrote the file is the only thing there is a written object
+    to hand back from.
+    """
+
+    out_file: Optional[PathOrStr] = None
+    """File that saving writes, None while no destination has been chosen.
+
+    There is none when the editor was started neither on an input file nor
+    on an output file, which is what happens when an application offers to
+    write its very first configuration file.
+    """
+
+    outcome: Optional[SaveOutcome] = None
+    """What the last attempt to save did, None when there has been none."""
+
+    written: Optional[Config] = None
+    """The configuration object that reached the file, None when none has.
+
+    It is never the caller's own object, which the editor does not modify
+    and which would otherwise be stale.
     """
 
 

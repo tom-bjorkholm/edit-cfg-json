@@ -14,11 +14,8 @@
   * [ROW\_CLASS](#edit_cfg_json_textual.textual_editor.ROW_CLASS)
   * [NAME\_WIDTH](#edit_cfg_json_textual.textual_editor.NAME_WIDTH)
   * [LEAST\_VALUE\_WIDTH](#edit_cfg_json_textual.textual_editor.LEAST_VALUE_WIDTH)
-  * [QUIT\_KEY](#edit_cfg_json_textual.textual_editor.QUIT_KEY)
-  * [VALIDATE\_KEY](#edit_cfg_json_textual.textual_editor.VALIDATE_KEY)
-  * [VALIDATE\_ALT\_KEY](#edit_cfg_json_textual.textual_editor.VALIDATE_ALT_KEY)
-  * [SAVE\_KEY](#edit_cfg_json_textual.textual_editor.SAVE_KEY)
-  * [SAVE\_AS\_KEY](#edit_cfg_json_textual.textual_editor.SAVE_AS_KEY)
+  * [QUIT\_COMMAND](#edit_cfg_json_textual.textual_editor.QUIT_COMMAND)
+  * [CANCEL\_COMMAND](#edit_cfg_json_textual.textual_editor.CANCEL_COMMAND)
   * [VALIDATE\_COMMAND](#edit_cfg_json_textual.textual_editor.VALIDATE_COMMAND)
   * [SAVE\_COMMAND](#edit_cfg_json_textual.textual_editor.SAVE_COMMAND)
   * [SAVE\_AS\_COMMAND](#edit_cfg_json_textual.textual_editor.SAVE_AS_COMMAND)
@@ -26,23 +23,24 @@
   * [SAVE\_HELP](#edit_cfg_json_textual.textual_editor.SAVE_HELP)
   * [SAVE\_AS\_HELP](#edit_cfg_json_textual.textual_editor.SAVE_AS_HELP)
   * [SAVE\_AS\_PROMPT](#edit_cfg_json_textual.textual_editor.SAVE_AS_PROMPT)
-  * [CANCEL\_KEY](#edit_cfg_json_textual.textual_editor.CANCEL_KEY)
+  * [SAVE\_AS\_LEAVE](#edit_cfg_json_textual.textual_editor.SAVE_AS_LEAVE)
   * [EDITOR\_ACTIONS](#edit_cfg_json_textual.textual_editor.EDITOR_ACTIONS)
   * [CSS\_RULES](#edit_cfg_json_textual.textual_editor.CSS_RULES)
   * [\_value\_id](#edit_cfg_json_textual.textual_editor._value_id)
   * [\_mark\_id](#edit_cfg_json_textual.textual_editor._mark_id)
   * [plain\_widget](#edit_cfg_json_textual.textual_editor.plain_widget)
+  * [bind\_action](#edit_cfg_json_textual.textual_editor.bind_action)
   * [SaveAsScreen](#edit_cfg_json_textual.textual_editor.SaveAsScreen)
-    * [BINDINGS](#edit_cfg_json_textual.textual_editor.SaveAsScreen.BINDINGS)
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_editor.SaveAsScreen.__init__)
     * [compose](#edit_cfg_json_textual.textual_editor.SaveAsScreen.compose)
+    * [\_prompt](#edit_cfg_json_textual.textual_editor.SaveAsScreen._prompt)
     * [on\_input\_changed](#edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_changed)
     * [on\_input\_submitted](#edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_submitted)
     * [action\_leave](#edit_cfg_json_textual.textual_editor.SaveAsScreen.action_leave)
   * [EditorApp](#edit_cfg_json_textual.textual_editor.EditorApp)
-    * [BINDINGS](#edit_cfg_json_textual.textual_editor.EditorApp.BINDINGS)
     * [CSS](#edit_cfg_json_textual.textual_editor.EditorApp.CSS)
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_editor.EditorApp.__init__)
+    * [\_bind\_editor\_keys](#edit_cfg_json_textual.textual_editor.EditorApp._bind_editor_keys)
     * [compose](#edit_cfg_json_textual.textual_editor.EditorApp.compose)
     * [get\_system\_commands](#edit_cfg_json_textual.textual_editor.EditorApp.get_system_commands)
     * [\_load\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._load_widgets)
@@ -149,70 +147,17 @@ A row that does not fit the terminal has to give way somewhere, and it is
 the marks that are cut rather than the field: the field is what the user
 edits, and `model_as_text` shows every mark in full whatever the terminal.
 
-<a id="edit_cfg_json_textual.textual_editor.QUIT_KEY"></a>
+<a id="edit_cfg_json_textual.textual_editor.QUIT_COMMAND"></a>
 
-#### QUIT\_KEY
+#### QUIT\_COMMAND
 
-Key that ends the editor.
+Name of the action that ends the editor.
 
-A single letter cannot be used for this any more, now that the value of a
-member is edited in a field: an unmodified letter belongs to whichever field
-has the focus, and a user who typed it would expect to see it appear.
+<a id="edit_cfg_json_textual.textual_editor.CANCEL_COMMAND"></a>
 
-Quitting writes nothing of its own. It is the "cancel" of the design; saving
-leaves the editor open, and what has been saved has been saved.
+#### CANCEL\_COMMAND
 
-<a id="edit_cfg_json_textual.textual_editor.VALIDATE_KEY"></a>
-
-#### VALIDATE\_KEY
-
-Key that validates the buffer, and the one the footer names.
-
-Not a plain letter, for the same reason as the quit key. This letter in
-particular because a field claims most of the others: `Input` already reads
-`ctrl+a`, `ctrl+c`, `ctrl+d`, `ctrl+e`, `ctrl+k`, `ctrl+u`, `ctrl+v`,
-`ctrl+w` and `ctrl+x`, and the terminal itself claims `ctrl+c` and the four
-that are Backspace, Tab, Return and Escape. Of what is left, `r` is the one
-that means something: re-check.
-
-<a id="edit_cfg_json_textual.textual_editor.VALIDATE_ALT_KEY"></a>
-
-#### VALIDATE\_ALT\_KEY
-
-The other key that validates the buffer.
-
-Function keys are what other editors use to ask a tool to check what has
-been written, so the key is kept. It is not shown in the footer, because a
-footer that named the same action twice would suggest they were two
-actions, and because a function key is the one of the two that a keyboard
-or a terminal is most likely not to deliver.
-
-<a id="edit_cfg_json_textual.textual_editor.SAVE_KEY"></a>
-
-#### SAVE\_KEY
-
-Key that writes the output file.
-
-The key every application uses for this, and it does reach the application:
-Textual's driver clears `IXON` and `IXOFF` when it puts the terminal into raw
-mode, so neither `ctrl+s` nor `ctrl+q` is taken for flow control any more.
-
-<a id="edit_cfg_json_textual.textual_editor.SAVE_AS_KEY"></a>
-
-#### SAVE\_AS\_KEY
-
-Key that chooses an output file and then writes it.
-
-The key every application uses for this as well, but unlike the one above it
-is not delivered everywhere. A legacy terminal encodes a control letter as a
-single byte with nowhere to put the shift, so this key arrives as `SAVE_KEY`
-and the wrong action runs. Textual asks the terminal for the Kitty keyboard
-protocol at startup, and a terminal that speaks it reports the two keys
-apart; one that does not cannot.
-
-That is why the command palette also offers this action. A palette entry is
-delivered by every terminal, because it is a letter typed into a field and
-not a key combination at all.
+Name of the action that leaves the question about the output file.
 
 <a id="edit_cfg_json_textual.textual_editor.VALIDATE_COMMAND"></a>
 
@@ -256,11 +201,15 @@ What the command palette says the save as entry does.
 
 What the screen that asks for the output file says.
 
-<a id="edit_cfg_json_textual.textual_editor.CANCEL_KEY"></a>
+<a id="edit_cfg_json_textual.textual_editor.SAVE_AS_LEAVE"></a>
 
-#### CANCEL\_KEY
+#### SAVE\_AS\_LEAVE
 
-Key that leaves the question about the output file unanswered.
+What that screen says while there is a key that leaves it.
+
+The key is named from the settings and not written into the sentence,
+because an application that took `escape` for itself would otherwise be
+telling its users to press a key that does nothing.
 
 <a id="edit_cfg_json_textual.textual_editor.EDITOR_ACTIONS"></a>
 
@@ -346,6 +295,37 @@ markup.
 
   A widget showing that text.
 
+<a id="edit_cfg_json_textual.textual_editor.bind_action"></a>
+
+#### bind\_action
+
+```python
+def bind_action(bindings: BindingsMap, keys: Sequence[str], action: str,
+                description: str) -> None
+```
+
+Bind every key combination that the application gave one action.
+
+The first combination is the one the footer names and the rest work
+without being named, because a footer that named one action twice would
+suggest that they were two actions. An action the application gave no
+combination at all is bound to nothing and stays reachable through the
+command palette.
+
+Every binding is a priority binding, so that it is acted on before the
+field that has the focus is offered the key. That is also why the
+bindings cannot be made with `App.bind`, which cannot make one and which
+says of itself that it may be removed.
+
+**Arguments**:
+
+- `bindings` - The bindings of the application or of the screen that the
+  action belongs to.
+- `keys` - Key combinations that run the action, in the order that
+  decides which of them is named.
+- `action` - Name of the action, without its `action_` prefix.
+- `description` - What the footer and the key panel call the action.
+
 <a id="edit_cfg_json_textual.textual_editor.SaveAsScreen"></a>
 
 ## SaveAsScreen Objects
@@ -361,30 +341,27 @@ because it is asked, answered and gone: a field that was always there
 would be a fifth thing to read on every row of every session, for a
 question that is asked once or never.
 
-<a id="edit_cfg_json_textual.textual_editor.SaveAsScreen.BINDINGS"></a>
-
-#### BINDINGS
-
-The key that leaves the question unanswered.
-
-A priority binding, so that the field the question is typed into does not
-get the key first.
-
 <a id="edit_cfg_json_textual.textual_editor.SaveAsScreen.__init__"></a>
 
 #### \_\_init\_\_
 
 ```python
-def __init__(out_file: str) -> None
+def __init__(out_file: str, cancel_keys: Sequence[str]) -> None
 ```
 
 Start the field at the file that would be written now.
+
+The keys that leave the question are bound here rather than declared
+as a class variable, because which keys they are is the
+application's decision and not this screen's.
 
 **Arguments**:
 
 - `out_file` - File that saving would write, empty when there is none
   yet. Starting from it is what makes saving a copy beside the
   original a matter of changing a few characters.
+- `cancel_keys` - Key combinations that leave the question
+  unanswered, empty when the application gave it none.
 
 <a id="edit_cfg_json_textual.textual_editor.SaveAsScreen.compose"></a>
 
@@ -395,6 +372,16 @@ def compose() -> ComposeResult
 ```
 
 Create the question and the field that answers it.
+
+<a id="edit_cfg_json_textual.textual_editor.SaveAsScreen._prompt"></a>
+
+#### \_prompt
+
+```python
+def _prompt() -> str
+```
+
+Return what this screen says, naming the key that leaves it.
 
 <a id="edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_changed"></a>
 
@@ -441,21 +428,6 @@ class EditorApp(App[None])
 
 Textual application that edits one edit model.
 
-<a id="edit_cfg_json_textual.textual_editor.EditorApp.BINDINGS"></a>
-
-#### BINDINGS
-
-What the keys of the editor do, and which of them the footer names.
-
-They are priority bindings, so that they are acted on before the field
-that has the focus is offered the key. The two keys that validate are
-two bindings rather than one binding of two keys, because that is what
-lets the footer name one of them and still leave the other working.
-
-A footer too narrow for all of them shows what fits, which costs nothing:
-the key panel of the command palette lists every binding, including the
-ones the footer never shows.
-
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.CSS"></a>
 
 #### CSS
@@ -477,6 +449,27 @@ Remember the model and name the application after it.
 **Arguments**:
 
 - `model` - Model to show and to edit.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._bind_editor_keys"></a>
+
+#### \_bind\_editor\_keys
+
+```python
+def _bind_editor_keys() -> None
+```
+
+Bind the key combinations that the application chose.
+
+The bindings are made on this instance rather than declared as a
+class variable, because which keys the editor takes is not the
+editor's decision any more: the application it runs inside has
+already given some of them to itself. They are read once, here,
+which is the whole of what a later answer from a settings callable
+cannot change.
+
+A footer too narrow for all of them shows what fits, which costs
+nothing: the key panel of the command palette lists every binding,
+including the ones the footer never shows.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.compose"></a>
 
@@ -722,6 +715,7 @@ def edit(config: Config,
          in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
+         settings: SettingsSource = Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]
 ```
 
@@ -737,6 +731,8 @@ documented there.
 - `in_file` - File to read, or None to start from the declared defaults.
 - `out_file` - File to write, or None to write the input file.
 - `policy` - What to do about declared keys the input file does not hold.
+- `settings` - What this application has already decided about key
+  combinations and file names, or a callable that answers with it.
 - `stderr_file` - Stream used for user-facing diagnostics.
   
 

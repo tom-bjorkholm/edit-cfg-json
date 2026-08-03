@@ -14,7 +14,9 @@ from edit_cfg_json.leaf_value import text_as_value, value_as_text, \
     values_differ
 from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.saving import NOT_VALID, NO_DESTINATION, SaveOutcome, \
-    write_config
+    SaveState, write_config
+from edit_cfg_json.settings import Settings, SettingsSource, checked_file, \
+    chosen_file, current_settings
 from edit_cfg_json.validation import ValidationPass, ValidationVerdict, \
     validate_buffer
 
@@ -193,8 +195,13 @@ class EditModel:
     value is a list or a dict is reported as a row that is not editable.
     """
 
+    # Every argument after the configuration object is an optional keyword,
+    # and each of them says one independent thing about this session. See
+    # the same disable on `edit`, which passes them on.
+    # pylint: disable-next=too-many-arguments
     def __init__(self, config: Config, report: LoadReport = LoadReport(),
                  out_file: Optional[PathOrStr] = None,
+                 settings: SettingsSource = Settings(),
                  stderr_file: TextIO = sys.stderr) -> None:
         """Read the JSON space values of one configuration object.
 
@@ -214,6 +221,14 @@ class EditModel:
                 values. The default says there was no file to read.
             out_file: File that saving writes, or None when the user has not
                 chosen one yet and the editor has to ask before it can save.
+                It is taken exactly as it is, because a destination that was
+                named in this call may be the input file and reading one
+                file while writing another would be a surprise. A
+                destination chosen later, with `set_out_file`, gets the
+                extension of the application when it has none of its own.
+            settings: What the application around the editor has already
+                decided, or a callable that answers with it. The default is
+                an application with no opinion.
             stderr_file: Stream used for user-facing diagnostics.
 
         Raises:
@@ -227,14 +242,29 @@ class EditModel:
                                        filled=report.filled,
                                        stderr_file=stderr_file)
         self._verdict: Optional[ValidationVerdict] = None
-        self._out_file = out_file
-        self._outcome: Optional[SaveOutcome] = None
-        self._saved: Optional[Config] = None
+        self._settings = settings
+        self._saving = SaveState(out_file=out_file)
 
     @property
     def config_type_name(self) -> str:
         """Return the class name of the edited configuration object."""
         return self._config_type.__name__
+
+    @property
+    def settings(self) -> Settings:
+        """Return what the application has decided, as it is now.
+
+        A caller that handed over a callable is asked again here, which is
+        what handing one over is for. What a later answer can change is
+        worth knowing exactly: the key combinations are read once, when a
+        backend builds its bindings, while the file name settings are read
+        at every save and at every choice of a destination.
+
+        Both backends read the settings from here rather than being given
+        them, so that the two of them cannot bind different keys or offer
+        the user different file names.
+        """
+        return current_settings(self._settings)
 
     @property
     def load_message(self) -> str:
@@ -278,7 +308,7 @@ class EditModel:
         offers to write its very first configuration file. The editor then
         has to ask for a destination before it can save anything.
         """
-        return self._out_file
+        return self._saving.out_file
 
     @property
     def save_message(self) -> str:
@@ -288,7 +318,8 @@ class EditModel:
         the verdict: what an earlier buffer did when it was saved says
         nothing true about the buffer that is there now.
         """
-        return self._outcome.message if self._outcome is not None else ''
+        outcome = self._saving.outcome
+        return outcome.message if outcome is not None else ''
 
     @property
     def saved_config(self) -> Optional[Config]:
@@ -299,7 +330,7 @@ class EditModel:
         never the caller's own object, which the editor does not modify and
         which would otherwise be stale.
         """
-        return self._saved
+        return self._saving.written
 
     @property
     def verdict(self) -> Optional[ValidationVerdict]:
@@ -339,7 +370,7 @@ class EditModel:
         self._rows[path] = row._replace(value=value,
                                         changed_by_validator=False)
         self._verdict = None
-        self._outcome = None
+        self._saving.outcome = None
 
     def set_out_file(self, out_file: PathOrStr) -> None:
         """Choose the file that saving writes from now on.
@@ -349,13 +380,21 @@ class EditModel:
         things and an application that mounts the model in a user interface
         of its own can offer them separately.
 
+        A name that has no extension at all gets the one the application
+        uses for its configuration, because a destination that is being
+        chosen does not name a file that exists yet. A name that has the
+        wrong extension is kept as it is and refused by the save that
+        follows, so that the refusal is reported where every other refused
+        save is reported and not through a second channel of its own.
+
         Args:
             out_file: File to write, with whatever name and extension the
-                application and its user want. The editor has no opinion
-                about either.
+                application and its user want. The editor has an opinion
+                about the extension only where the application gave it one.
         """
-        self._out_file = out_file
-        self._outcome = None
+        self._saving.out_file = chosen_file(name=out_file,
+                                            settings=self.settings).name
+        self._saving.outcome = None
 
     def validate(self) -> ValidationVerdict:
         """Run the application's own validation over the whole buffer.
@@ -384,7 +423,10 @@ class EditModel:
         A configuration the application would refuse is not written, because
         an editor that produced a file its own application cannot read would
         have failed at the one thing it is for. Nor is anything written when
-        no destination has been chosen; the editor asks for one instead.
+        no destination has been chosen; the editor asks for one instead. Nor
+        when the destination is a file name that the application does not
+        use for its configuration, whether it was chosen here or named in
+        the call that built this model.
 
         A save that wrote the file leaves nothing to save, so the values
         that were written become the ones the buffer is compared against
@@ -394,13 +436,18 @@ class EditModel:
             Whether the file was written, and what to tell the user. It is
             also kept, as `save_message`.
         """
-        if self._out_file is None:
+        out_file = self._saving.out_file
+        if out_file is None:
             return self._record(SaveOutcome(saved=False,
                                             message=NO_DESTINATION))
+        destination = checked_file(name=out_file, settings=self.settings)
+        if destination.message:
+            return self._record(SaveOutcome(saved=False,
+                                            message=destination.message))
         candidate = self._validation_pass().candidate
         if candidate is None:
             return self._record(SaveOutcome(saved=False, message=NOT_VALID))
-        outcome = write_config(config=candidate, out_file=self._out_file)
+        outcome = write_config(config=candidate, out_file=destination.name)
         if outcome.saved:
             self._keep_saved(candidate)
         return self._record(outcome)
@@ -416,7 +463,7 @@ class EditModel:
 
     def _record(self, outcome: SaveOutcome) -> SaveOutcome:
         """Keep what one attempt to save did, and hand it back."""
-        self._outcome = outcome
+        self._saving.outcome = outcome
         return outcome
 
     def _keep_saved(self, candidate: Config) -> None:
@@ -426,7 +473,7 @@ class EditModel:
         That a value is not literally the one the user typed stays true after
         it has been saved, and it is the mark that says so.
         """
-        self._saved = candidate
+        self._saving.written = candidate
         self._rows = {path: row._replace(original=row.value)
                       for path, row in self._rows.items()}
 

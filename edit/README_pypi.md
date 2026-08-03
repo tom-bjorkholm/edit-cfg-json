@@ -57,10 +57,11 @@ Everything a user of this package needs is re-exported from the top-level
 `edit_cfg_json` package, so it can be imported directly:
 
 ````python
-from edit_cfg_json import ConfigLoadError, EditModel, EditorBackend, \
-    LoadPolicy, LoadReport, LoadedConfig, MemberRow, SaveOutcome, \
-    ValidationVerdict, edit, load_config, load_text, model_as_text, \
-    model_title, row_marks, row_value_text, save_text, verdict_text
+from edit_cfg_json import ActionSettings, ConfigLoadError, EditModel, \
+    EditorBackend, LoadPolicy, LoadReport, LoadedConfig, MemberRow, \
+    SaveOutcome, Settings, SettingsSource, ValidationVerdict, edit, \
+    load_config, load_text, model_as_text, model_title, row_marks, \
+    row_value_text, save_text, verdict_text
 ````
 
 | Name | What it is |
@@ -75,6 +76,9 @@ from edit_cfg_json import ConfigLoadError, EditModel, EditorBackend, \
 | `LoadedConfig` | What `load_config` returns: the object to edit, and the report of its load. |
 | `LoadReport` | What one load did beyond reading the values: what the user has to be told, and the names of the members the declared defaults supplied. It is handed to `EditModel`, which marks those members. |
 | `ConfigLoadError` | The refusal of an input file that cannot be opened, holding the message for the user and the diagnostics the configuration class produced. |
+| `Settings` | What the application around the editor has already decided: the key combinations of its actions, and what a configuration file of that application is called. Every attribute has a default, so an application with no opinion passes nothing at all. |
+| `ActionSettings` | The key combinations of every action of the editor, one attribute per action, so that an action the application says nothing about keeps its default. |
+| `SettingsSource` | What every entry point takes: a `Settings`, or a callable that answers with one. |
 | `EditorBackend` | The protocol a user interface implements. It is phrased against `EditModel`, so a backend can also be mounted by an application that runs its own event loop. |
 | `model_as_text` | The plain text rendering of a whole model, used by the examples and by the tests so that the editor can be observed without a display. It begins with what the load did and ends with the validation state and the saving, so a rendering never leaves any of them unsaid. |
 | `model_title` | The label of a whole model, marked while the buffer holds a change worth saving. Both backends show it, so neither of them decides on its own how an unsaved change looks. |
@@ -146,10 +150,9 @@ needs no load of its own to work with what it saved.
 `out_file` defaults to `in_file`, which is what an editor is normally asked to
 do. With neither, there is nowhere to write; the model says so and invents
 nothing, because a file name is not something a library can guess, and both
-backends ask the user for one. The file name is entirely the application's
-business: this library has no opinion about the extension, since some
-applications use `.cfg`, some use `.json`, and others use something else
-again.
+backends ask the user for one. What the file is called is the application's
+business and not this library's: it has no opinion of its own about the
+extension, and follows the one the application states in its `Settings`.
 
 A save that wrote the file leaves nothing to save, so the values that reached
 it become the ones the buffer is compared against and the model stops
@@ -162,6 +165,55 @@ refuses leaves the file on disk exactly as it was. A destination that cannot
 be written at all — a folder that does not exist, a file that may not be
 written to — is a message and not a crash, because falling over would cost
 the user the whole session.
+
+## What the application has already decided
+
+The editor runs inside an application that took some key combinations for
+itself long before the editor was called, and that knows what one of its own
+configuration files is called. `Settings` is where the application says so,
+and `edit`, `load_config` and `EditModel` each take one. Every attribute has
+a default, so an application with no opinion passes nothing at all and gets
+what the editor would have chosen anyway.
+
+````python
+from edit_cfg_json import ActionSettings, Settings, edit
+
+saved = edit(config=config, backend=backend, in_file='my_config.cfg',
+             settings=Settings(actions=ActionSettings(save=('ctrl+w',)),
+                               file_extension='.cfg',
+                               extension_enforced=True))
+````
+
+`ActionSettings` has one attribute per action of the editor — `quit`,
+`validate`, `save`, `save_as` and `cancel` — and each of them holds every
+combination that runs that action. The first is the one a footer or a menu
+names and the rest work without being named. An empty tuple takes the key
+away and not the action, which is still reachable through a button or a
+command palette. Combinations are written in Textual's key names, in lower
+case, and the Tkinter backend translates them into the notation of its own
+toolkit. One combination given to two actions is refused where the `Settings`
+is built, because only one of the two could ever run.
+
+`file_extension` is `None` by default, which is no opinion. With a value, and
+without `extension_enforced`, the extension is added to a destination that is
+being chosen and has none of its own, and nothing is ever refused. With
+`extension_enforced`, a file that has another extension is refused as well:
+`load_config` raises `ConfigLoadError` for an input file, and a save is
+refused with the message that says why.
+
+A destination is completed only when it is *chosen* — the Save as answer,
+`EditModel.set_out_file`, or an `out_file` named in the `edit` call. The
+input file is never completed, whether it is being read or being written back
+to as the destination `out_file` fell back to, because reading one file while
+writing another would be a surprise.
+
+Every one of these entry points also accepts a callable that answers with a
+`Settings`, which is `SettingsSource`. It is asked again at each point where
+the answer is used. What that can change is worth knowing exactly: the key
+combinations are read once, when a backend builds its bindings, and the file
+name settings are read at every save and at every choice of a destination.
+The gain that matters is neither of those, but that an application need not
+have its settings ready at the moment it calls.
 
 ## Installing edit-cfg-json
 
@@ -206,7 +258,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 573 passed in 10s
+- Test result: 679 passed in 12s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

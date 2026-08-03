@@ -17,7 +17,7 @@ import json
 import pytest
 from config_as_json import Config, ConfigAutoChangeHook
 from edit_cfg_json import ConfigLoadError, EditModel, LoadPolicy, LoadReport, \
-    load_config
+    Settings, load_config
 from edit_cfg_json.loading import BAD_VALUES, DEFAULT_POLICY, FILLED_MESSAGE, \
     INCOMPLETE, NOT_CONFIG, NOT_TEXT, NO_DEFAULTS, NO_FILE, UNKNOWN_KEY
 from .sample_cfg import EnumCfg, ExtraArgCfg, FlatCfg, HookCfg, OmitCfg, \
@@ -359,3 +359,61 @@ def test_hook_without_file() -> None:
     """
     config = HookCfg()
     assert _hook_of(load_config(config=config).config) is None
+
+
+def _named(tmp_path: Path, name: str) -> Path:
+    """Write one complete input file under one name and return its path."""
+    path = tmp_path / name
+    path.write_text(json.dumps(COMPLETE), encoding='UTF-8')
+    return path
+
+
+@pytest.mark.parametrize('name', ['config.cfg', 'config.CFG'])
+def test_enforced_opens(tmp_path: Path, name: str) -> None:
+    """Test a file with the enforced extension is opened as any other is."""
+    settings = Settings(file_extension='.cfg', extension_enforced=True)
+    loaded = load_config(config=FlatCfg(), in_file=_named(tmp_path, name),
+                         settings=settings)
+    assert isinstance(loaded.config, FlatCfg)
+    assert loaded.config.answer == 7
+
+
+@pytest.mark.parametrize('name', ['config.json', 'config'])
+def test_enforced_refuses(tmp_path: Path, name: str) -> None:
+    """Test a file without the enforced extension cannot be opened.
+
+    A name to read is never completed with the extension either, because it
+    names a file that already exists and completing it would open a
+    different file from the one that was asked for.
+    """
+    settings = Settings(file_extension='.cfg', extension_enforced=True)
+    with pytest.raises(ConfigLoadError, match='.cfg extension'):
+        load_config(config=FlatCfg(), in_file=_named(tmp_path, name),
+                    settings=settings)
+
+
+@pytest.mark.parametrize('name', ['config.json', 'config'])
+def test_default_ext_opens(tmp_path: Path, name: str) -> None:
+    """Test an extension that is only a default says nothing about reading.
+
+    It is about what the editor writes when the user did not say, and a file
+    that is there to be read has already been named by somebody.
+    """
+    loaded = load_config(config=FlatCfg(), in_file=_named(tmp_path, name),
+                         settings=Settings(file_extension='.cfg'))
+    assert isinstance(loaded.config, FlatCfg)
+    assert loaded.config.answer == 7
+
+
+def test_load_asks_callable(tmp_path: Path) -> None:
+    """Test a callable is asked for the settings of one load."""
+    asked: list[int] = []
+
+    def answer() -> Settings:
+        """Answer with an application that enforces its extension."""
+        asked.append(1)
+        return Settings(file_extension='.cfg', extension_enforced=True)
+    with pytest.raises(ConfigLoadError):
+        load_config(config=FlatCfg(), settings=answer,
+                    in_file=_named(tmp_path, 'config.json'))
+    assert asked

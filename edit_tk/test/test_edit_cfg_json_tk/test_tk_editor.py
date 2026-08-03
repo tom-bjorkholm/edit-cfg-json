@@ -21,11 +21,12 @@ import json
 import tkinter
 from tkinter import filedialog
 import pytest
-from edit_cfg_json import EditModel, EditorBackend, LoadReport
+from edit_cfg_json import ActionSettings, EditModel, EditorBackend, \
+    LoadReport, Settings
 from edit_cfg_json_tk import TkEditor
 from edit_cfg_json_tk import edit as tk_edit
-from edit_cfg_json_tk.tk_editor import CLOSE_TEXT, EditorWidgets, \
-    SAVE_AS_TEXT, SAVE_TEXT, VALIDATE_TEXT
+from edit_cfg_json_tk.tk_editor import ALL_FILES, CLOSE_TEXT, \
+    EditorWidgets, SAVE_AS_TEXT, SAVE_TEXT, VALIDATE_TEXT
 from example.e01_flat_config import FlatConfig
 
 UNKNOWN_VERDICT = 'validation: not validated'
@@ -83,7 +84,13 @@ class FakeWidget:
         """Record this widget together with its parent and its options."""
         self.parent = parent
         self.options = options
+        self.bindings: dict[str, Callable[..., object]] = {}
         FakeWidget.created.append(self)
+
+    def bind(self, sequence: str, callback: Callable[..., object]) -> str:
+        """Record one key binding, as a real Tk widget accepts one."""
+        self.bindings[sequence] = callback
+        return 'stub binding'
 
     def pack(self, **options: object) -> None:
         """Ignore geometry management, which the stubbed tests do not need."""
@@ -629,6 +636,155 @@ def test_edit_returns_none(monkeypatch: pytest.MonkeyPatch,
     except tkinter.TclError:
         pytest.skip('No display available for Tk.')
     assert saved is None
+    assert not out_file.exists()
+
+
+def _stub_window() -> FakeWidget:
+    """Return the stub widget that the bindings of the editor are made on."""
+    return FakeWidget.created[0]
+
+
+def _keys(actions: ActionSettings) -> Settings:
+    """Return the settings of an application that chose these keys."""
+    return Settings(actions=actions)
+
+
+def test_stub_default_keys(stub_tk: None) -> None:
+    """Test the default keys of the editor are bound on the window."""
+    _ = stub_tk
+    _stub_editor(EditModel(FlatConfig()))
+    assert set(_stub_window().bindings) == {'<Control-q>', '<Control-r>',
+                                            '<F5>', '<Control-s>',
+                                            '<Control-Shift-S>', '<F12>'}
+
+
+def test_real_default_keys(root_or_skip: tkinter.Tk) -> None:
+    """Test real Tk accepts every sequence the stubbed test expects."""
+    EditorWidgets(parent=root_or_skip, model=EditModel(FlatConfig()))
+    assert set(root_or_skip.bind()) == {'<Control-Key-q>', '<Control-Key-r>',
+                                        '<Key-F5>', '<Control-Key-s>',
+                                        '<Control-Shift-Key-S>', '<Key-F12>'}
+
+
+def test_stub_key_saves(stub_tk: None, tmp_path: Path) -> None:
+    """Test the key of the save action writes the output file."""
+    _ = stub_tk
+    out_file = tmp_path / 'out.json'
+    widgets = _stub_editor(EditModel(FlatConfig(), out_file=out_file))
+    FakeVar.created[1].set('7')
+    assert _stub_window().bindings['<Control-s>']() == 'break'
+    assert widgets.save_text_shown == f'Saved to {out_file}.'
+    assert _written(out_file) == {'name': 'Flat example', 'answer': 7}
+
+
+def test_stub_chosen_key(stub_tk: None, tmp_path: Path) -> None:
+    """Test a save key the application chose is the one that is bound."""
+    _ = stub_tk
+    out_file = tmp_path / 'out.json'
+    widgets = _stub_editor(EditModel(FlatConfig(), out_file=out_file,
+                                     settings=_keys(ActionSettings(
+                                         save=('ctrl+w',)))))
+    bindings = _stub_window().bindings
+    assert '<Control-s>' not in bindings
+    bindings['<Control-w>']()
+    assert widgets.save_text_shown == f'Saved to {out_file}.'
+
+
+def test_stub_key_taken_away(stub_tk: None) -> None:
+    """Test an action the application gave no key keeps its button."""
+    _ = stub_tk
+    _stub_editor(EditModel(FlatConfig(),
+                           settings=_keys(ActionSettings(save=()))))
+    assert '<Control-s>' not in _stub_window().bindings
+    assert SAVE_TEXT in _stub_texts()
+
+
+def test_stub_unknown_key(stub_tk: None) -> None:
+    """Test a combination this backend cannot translate binds nothing.
+
+    The editor opens either way, which is the whole point: an action that
+    lost a key still has its button.
+    """
+    _ = stub_tk
+    _stub_editor(EditModel(FlatConfig(),
+                           settings=_keys(ActionSettings(save=('super+x',)))))
+    assert not [key for key in _stub_window().bindings if 'w' in key.lower()]
+    assert SAVE_TEXT in _stub_texts()
+
+
+def test_real_unknown_key(root_or_skip: tkinter.Tk) -> None:
+    """Test real Tk refusing a sequence costs the key and not the editor.
+
+    The stub cannot show this, because it accepts every sequence it is
+    given. Only real Tk parses one.
+    """
+    settings = _keys(ActionSettings(save=('ctrl+nonsense',)))
+    widgets = EditorWidgets(parent=root_or_skip,
+                            model=EditModel(FlatConfig(), settings=settings))
+    assert widgets.label_text == 'FlatConfig'
+    assert '<Control-Key-s>' not in set(root_or_skip.bind())
+
+
+def _dialog_options(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
+    """Make the Save as dialog answer nothing, and record what it was given.
+
+    Args:
+        monkeypatch: The pytest fixture that replaces the dialog.
+
+    Returns:
+        A dictionary that gets the options of the dialog when it is opened.
+    """
+    seen: dict[str, object] = {}
+
+    def ask(**options: object) -> str:
+        """Stand in for the system dialog that asks for a file name."""
+        seen.update(options)
+        return ''
+    monkeypatch.setattr(filedialog, 'asksaveasfilename', ask)
+    return seen
+
+
+@pytest.mark.parametrize('settings, extension, types', [
+    (Settings(), '', []),
+    (Settings(file_extension='.cfg'), '.cfg',
+     [('Configuration files (.cfg)', '*.cfg'), (ALL_FILES, '*')]),
+    (Settings(file_extension='.cfg', extension_enforced=True), '.cfg',
+     [('Configuration files (.cfg)', '*.cfg')])])
+def test_dialog_offers(stub_tk: None, monkeypatch: pytest.MonkeyPatch,
+                       settings: Settings, extension: str,
+                       types: list[tuple[str, str]]) -> None:
+    """Test the dialog offers what the application decided about names."""
+    _ = stub_tk
+    seen = _dialog_options(monkeypatch)
+    _stub_editor(EditModel(FlatConfig(), settings=settings))
+    _stub_press(SAVE_AS_TEXT)
+    assert seen['defaultextension'] == extension
+    assert seen['filetypes'] == types
+
+
+def test_stub_dialog_name(stub_tk: None, monkeypatch: pytest.MonkeyPatch,
+                          tmp_path: Path) -> None:
+    """Test the name the dialog gives back is completed by the model."""
+    _ = stub_tk
+    _answer_dialog(monkeypatch, str(tmp_path / 'chosen'))
+    settings = Settings(file_extension='.cfg')
+    widgets = _stub_editor(EditModel(FlatConfig(), settings=settings))
+    _stub_press(SAVE_AS_TEXT)
+    assert widgets.save_text_shown == f'Saved to {tmp_path / "chosen"}.cfg.'
+    assert _written(tmp_path / 'chosen.cfg') == {'name': 'Flat example',
+                                                 'answer': 42}
+
+
+def test_stub_dialog_refused(stub_tk: None, monkeypatch: pytest.MonkeyPatch,
+                             tmp_path: Path) -> None:
+    """Test a name that an enforced extension forbids is not written."""
+    _ = stub_tk
+    out_file = tmp_path / 'chosen.json'
+    _answer_dialog(monkeypatch, str(out_file))
+    settings = Settings(file_extension='.cfg', extension_enforced=True)
+    widgets = _stub_editor(EditModel(FlatConfig(), settings=settings))
+    _stub_press(SAVE_AS_TEXT)
+    assert '.cfg extension' in widgets.save_text_shown
     assert not out_file.exists()
 
 

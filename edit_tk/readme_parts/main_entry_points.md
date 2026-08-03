@@ -34,9 +34,10 @@ saved = model.saved_config
 ````
 
 The package is under construction. This version opens a window with one edit
-field per configuration member and four buttons: Validate, Save, Save as and
-Close. Every change of a field goes straight into the model, and the label
-above the fields is marked while the model holds a change worth saving.
+field per configuration member, four buttons — Validate, Save, Save as and
+Close — and a key for each of them. Every change of a field goes straight
+into the model, and the label above the fields is marked while the model
+holds a change worth saving.
 
 Validate runs the validation of the application's own configuration class
 and shows below the fields what that class would say about the values that
@@ -51,10 +52,14 @@ does, so it can rewrite a value as well, and the fields show what really
 reached the file. What was written is no longer waiting to be written, so the
 mark above the fields goes away and the editor stays open.
 
-Save as asks for the file with the ordinary system dialog, with no default
-extension and no file type filter, because this library has no opinion about
-what a configuration file is called. Save asks the same question when the
-session has no file to write yet, which is what every editor does.
+Save as asks for the file with the ordinary system dialog. What that dialog
+offers is what the application decided in its `edit_cfg_json.Settings`: the
+extension it uses for its configuration is the one the dialog adds to a name
+that has none, and the one it offers to filter by, and an application that
+enforces its extension gets that filter and no other. An application with no
+opinion gets a dialog with none, because this library has none of its own
+about what a configuration file is called. Save asks the same question when
+the session has no file to write yet, which is what every editor does.
 
 Close writes nothing of its own. It is the "cancel" of the editor, and it is
 called Close rather than Cancel because saving leaves the editor open: a
@@ -66,3 +71,32 @@ anything, because it is what explains the marks below it: a member that the
 file did not hold says so beside its field. Both the message and the marks
 are read from the model, so the two backends cannot tell the user two
 different things about one file.
+
+## About the keys
+
+The keys are the ones the application chose in the `actions` of its
+`edit_cfg_json.Settings`, and with an application that chose nothing they
+are the defaults of `edit_cfg_json.ActionSettings`:
+
+| Key | What it does |
+| --- | --- |
+| `ctrl+r`, or `f5` | Validate |
+| `ctrl+s` | Save |
+| `ctrl+shift+s` or `f12` | Save as |
+| `ctrl+q` | Close |
+
+Combinations are written in the notation that `ActionSettings` documents,
+which this package translates into the event sequences of Tk: `ctrl+shift+s`
+becomes `<Control-Shift-S>`, and `f5` becomes `<F5>`. A combination this
+translation does not know, or one that Tk itself refuses, leaves that action
+without that key rather than without an editor — every action here has a
+button as well, which is also what an action the application gave no key at
+all keeps.
+
+The `cancel` action is bound to nothing in this backend. The only question it
+asks is the toolkit's own file dialog, which answers that key itself.
+
+The bindings are made on the window, so a key that a field does not use for
+itself reaches them wherever the focus is. They are read once, when the
+widgets are built, which is the one thing a later answer from a settings
+callable cannot change.

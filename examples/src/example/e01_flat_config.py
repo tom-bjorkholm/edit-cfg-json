@@ -184,9 +184,53 @@ With neither `-i` nor `-o` there is nowhere to write, and a file name is not
 something a library can guess: the text dump says so, and the two graphical
 backends offer their Save as question instead.
 
-The editor has no opinion about what the file is called. `.json`, `.cfg` or
-anything else is the application's business, so the Save as dialog of the
-Tkinter backend sets no default extension and no file type filter.
+## What the application has already decided
+
+The editor does not run on its own. It runs inside an application that took
+some key combinations for itself long before the editor was called, and that
+knows what one of its own configuration files is called. `Settings` is where
+the application says so, and every attribute of it has a default, so an
+application with no opinion passes nothing and gets what the editor would
+have chosen anyway:
+
+````python
+from edit_cfg_json import ActionSettings, Settings
+saved = edit(config=FlatConfig(), backend=TkEditor(),
+             settings=Settings(actions=ActionSettings(save=('ctrl+w',)),
+                               file_extension='.cfg',
+                               extension_enforced=True))
+````
+
+A real application writes that once, from what it knows. This example takes
+the same answers from the command line instead, so that each of them can be
+tried without a program per answer:
+
+````sh
+cd examples/src/example
+python3 e01_flat_config.py --ui dump --key save=ctrl+w --ui textual
+python3 e01_flat_config.py --ui dump --extension .cfg -o /tmp/plain --save
+python3 e01_flat_config.py --ui dump --extension .cfg --enforce-extension \
+    -o /tmp/out.json --save
+````
+
+The second of those writes `/tmp/plain.cfg`: a destination that is being
+chosen and has no extension at all gets the one the application uses,
+because it does not name a file that exists yet. The third writes nothing
+and says why, because an enforced extension is what the application uses and
+`/tmp/out.json` is not it. Without `--enforce-extension` the same file is
+written as asked, which is the whole difference between an extension that is
+a default and one that is enforced.
+
+An extension that is enforced also refuses an input file that does not have
+it. A name to read is never completed, whatever the setting, because it
+names a file that already exists and completing it would open a different
+file from the one that was asked for.
+
+The keys of the editor are the same kind of decision. `--key save=ctrl+w`
+moves Save, and `--key save_as=` takes the key away from Save as while
+leaving the action reachable through the button and the command palette. Two
+actions given the same combination are refused where the settings are built,
+because only one of the two could ever run.
 """
 
 # Copyright (c) 2026 Tom Björkholm

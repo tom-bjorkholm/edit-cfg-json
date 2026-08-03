@@ -14,7 +14,8 @@ who pressed Save.
 from pathlib import Path
 import json
 import pytest
-from edit_cfg_json import ConfigLoadError, EditModel, LoadPolicy, edit
+from edit_cfg_json import ConfigLoadError, EditModel, LoadPolicy, Settings, \
+    edit
 from .sample_cfg import FlatCfg, RangeCfg, RewriteCfg
 
 COMPLETE = '{"name": "From a file", "answer": 7}'
@@ -175,6 +176,69 @@ def test_invalid_not_saved(tmp_path: Path) -> None:
     out_file = tmp_path / 'out.json'
     assert edit(config=RangeCfg(), backend=Saver('answer', '500'),
                 out_file=out_file) is None
+    assert not out_file.exists()
+
+
+def test_settings_reach_model() -> None:
+    """Test the settings of the application reach the model a backend gets."""
+    backend = Closer()
+    settings = Settings(file_extension='.cfg')
+    edit(config=FlatCfg(), backend=backend, settings=settings)
+    assert backend.seen[0].settings is settings
+
+
+def test_callable_reaches() -> None:
+    """Test a callable is handed on rather than resolved on the way."""
+    backend = Closer()
+    edit(config=FlatCfg(), backend=backend,
+         settings=lambda: Settings(file_extension='.cfg'))
+    assert backend.seen[0].settings.file_extension == '.cfg'
+
+
+def test_chosen_out_completed(tmp_path: Path) -> None:
+    """Test an output file this call names gets the extension it lacks.
+
+    A destination the call names is one that was chosen for this session,
+    which is the case the completion is for.
+    """
+    saved = edit(config=FlatCfg(), backend=Saver('answer', '9'),
+                 out_file=tmp_path / 'out',
+                 settings=Settings(file_extension='.cfg'))
+    assert saved is not None
+    assert _written(tmp_path / 'out.cfg') == {'name': 'flat text',
+                                              'answer': 9}
+
+
+def test_input_out_kept(tmp_path: Path) -> None:
+    """Test the input file is written as it is when no output was named.
+
+    Reading one file and writing another because the two names differ by an
+    extension would be a surprise, so a destination that was inherited is
+    never completed.
+    """
+    in_file = tmp_path / 'in'
+    in_file.write_text(COMPLETE, encoding='UTF-8')
+    assert edit(config=FlatCfg(), backend=Saver('answer', '9'),
+                in_file=in_file,
+                settings=Settings(file_extension='.cfg')) is not None
+    assert not (tmp_path / 'in.cfg').exists()
+    assert _written(in_file) == {'name': 'From a file', 'answer': 9}
+
+
+def test_enforced_in_refused(tmp_path: Path) -> None:
+    """Test an input file without the enforced extension cannot be opened."""
+    settings = Settings(file_extension='.cfg', extension_enforced=True)
+    with pytest.raises(ConfigLoadError, match='.cfg extension'):
+        edit(config=FlatCfg(), backend=Closer(), settings=settings,
+             in_file=_input_file(tmp_path, COMPLETE))
+
+
+def test_enforced_out_refused(tmp_path: Path) -> None:
+    """Test an output file without the enforced extension is not written."""
+    out_file = tmp_path / 'out.json'
+    settings = Settings(file_extension='.cfg', extension_enforced=True)
+    assert edit(config=FlatCfg(), backend=Saver('answer', '9'),
+                out_file=out_file, settings=settings) is None
     assert not out_file.exists()
 
 

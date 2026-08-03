@@ -1,6 +1,6 @@
 # Delivering the v1 scope in small steps
 
-This document turns section 10 of [`doc/design.md`](doc/design.md) into an
+This document turns section 11 of [`doc/design.md`](doc/design.md) into an
 ordered list of small, individually reviewable and individually
 committable steps. It is a delivery plan, not a design document: where it
 mentions a design decision, `doc/design.md` remains the authority and this
@@ -159,7 +159,7 @@ the real entry points instead.
   importing `edit_cfg_json` with `tkinter` and `textual` blocked in
   `sys.modules` must succeed; walking the two backends' imports must find
   no import from an internal `edit_cfg_json.*` module.
-- Tk, per design section 9.2: stubbed tests as the default category, and
+- Tk, per design section 10.2: stubbed tests as the default category, and
   a `root_or_skip()` fixture giving a withdrawn root for the companion
   tests. Register a `focus_sensitive` marker now even though no test uses
   it yet, and add `excluded_test_markers=['focus_sensitive']` to
@@ -532,7 +532,7 @@ first-authority source it is in design section 4.1. A nested config is a
 first-class node with its own type, docstring and validity state, and it
 segments the tree. A new example `e08_nested_config.py`, modelled on
 `e33_nested_configs.py`. Open question to settle when this step starts:
-`ConfigNestingKind` also has `OPTIONAL_MEMBER`, which design section 10
+`ConfigNestingKind` also has `OPTIONAL_MEMBER`, which design section 11
 neither includes nor excludes. Decide it explicitly rather than by
 accident.
 
@@ -604,4 +604,4 @@ step that needs it. They are listed here so they are not forgotten.
 | Does `Config.write()` validate, making the editor's gate belt and braces? | step 5 |
 | Is `ConfigNestingKind.OPTIONAL_MEMBER` in v1 scope? | step 11 |
 | Does the Textual headless driver in the pinned 8.2.8 behave as the design assumes? | step 1 |
-| Will the README test summary stop updating on a headless machine, per design section 9.2? | step 1, as a known consequence |
+| Will the README test summary stop updating on a headless machine, per design section 10.2? | step 1, as a known consequence |

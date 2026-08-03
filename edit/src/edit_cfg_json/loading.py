@@ -31,6 +31,8 @@ import inspect
 import json
 from config_as_json import Config, ConfigAutoChangeHook, ConfigBadJson, \
     PathOrStr
+from edit_cfg_json.settings import Settings, SettingsSource, checked_file, \
+    current_settings
 
 HOOK_NAME = 'auto_ch_hook'
 """Name of the constructor keyword that reports automatic changes."""
@@ -417,7 +419,8 @@ def _file_text(in_file: PathOrStr) -> str:
 
 
 def load_config(config: Config, in_file: Optional[PathOrStr] = None,
-                policy: LoadPolicy = DEFAULT_POLICY) -> LoadedConfig:
+                policy: LoadPolicy = DEFAULT_POLICY,
+                settings: SettingsSource = Settings()) -> LoadedConfig:
     """Read the configuration to edit from one file, or use the defaults.
 
     The caller's object is the source of the class and of the declared
@@ -432,8 +435,15 @@ def load_config(config: Config, in_file: Optional[PathOrStr] = None,
     Args:
         config: Configuration object saying which class to load and what its
             declared defaults are. It is not modified.
-        in_file: File to read, or None to edit the declared defaults.
+        in_file: File to read, or None to edit the declared defaults. It is
+            refused when the application enforces an extension that this
+            name does not have; it is never completed with one, because it
+            names a file that already exists and completing it would open a
+            different file from the one that was asked for.
         policy: What to do about declared keys the file does not hold.
+        settings: What the application around the editor has already
+            decided, or a callable that answers with it. The default is an
+            application with no opinion.
 
     Returns:
         The configuration object to edit, and what the load did to its
@@ -444,5 +454,8 @@ def load_config(config: Config, in_file: Optional[PathOrStr] = None,
     """
     if in_file is None:
         return LoadedConfig(config=config, report=LoadReport())
+    checked = checked_file(name=in_file, settings=current_settings(settings))
+    if checked.message:
+        raise ConfigLoadError(checked.message)
     return _load_text(config_type=type(config), policy=policy,
-                      text=_file_text(in_file))
+                      text=_file_text(checked.name))

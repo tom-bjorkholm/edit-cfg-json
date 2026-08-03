@@ -56,6 +56,24 @@ which a user could press Save; without `--save` the dump says where it would
 write, and with it the file is really written. That is what makes the whole
 round trip observable without a display.
 
+`--extension`, `--enforce-extension` and `--key` stand in for the
+application the editor runs inside. A real application does not parse these
+from a command line: it knows its own answers and builds one
+`edit_cfg_json.Settings` from them. They are options here so that every
+answer can be tried without writing a program per answer.
+
+`--key ACTION=COMBINATIONS` names one action of the editor and the key
+combinations that run it, separated by commas. `--key save=ctrl+w` moves
+Save, and `--key save_as=` takes the key away from Save as altogether and
+leaves the action reachable through the button and the command palette. An
+action that no `--key` names keeps its default.
+
+The settings are passed here as a `Settings` object, which is what an
+application that knows its own answers does. `edit()` also accepts a
+callable that answers with a `Settings`, which is worth having when the
+answers are not ready at the moment of the call, and is documented at
+`edit_cfg_json.SettingsSource`.
+
 Every run ends by saying what `edit()` gave back, because "the saved object,
 or `None` when nothing was saved" is the contract of this library and a
 contract is better seen than read.
@@ -65,10 +83,11 @@ contract is better seen than read.
 # MIT License
 
 import argparse
+from dataclasses import fields
 from typing import Optional
 from config_as_json import Config
-from edit_cfg_json import ConfigLoadError, EditModel, EditorBackend, \
-    LoadPolicy, edit, model_as_text
+from edit_cfg_json import ActionSettings, ConfigLoadError, EditModel, \
+    EditorBackend, LoadPolicy, Settings, edit, model_as_text
 
 UI_DUMP = 'dump'
 """Value of `--ui` that prints the model instead of opening a window."""
@@ -113,6 +132,10 @@ NO_MEMBER_MESSAGE = '{name} is not a member of this configuration.'
 NOT_EDITABLE_MESSAGE = '{name} cannot be edited yet.'
 """Message used to refuse a `--set` of a list member or a dict member."""
 
+KEY_FORM_MESSAGE = ('--key needs one of {names} followed by =combinations, '
+                    'and got {value}.')
+"""Message used to refuse a `--key` that names no action of the editor."""
+
 
 def _create_parser(example_name: str) -> argparse.ArgumentParser:
     """Return the argument parser that all example programs share.
@@ -121,15 +144,22 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
         example_name: Name of the example, used in help and error text.
 
     Returns:
-        A parser for `--ui`, `--set`, `--policy`, `--save`, `-i/--input` and
-        `-o/--output`.
+        A parser for `--ui`, `--set`, `--policy`, `--save`, `--extension`,
+        `--enforce-extension`, `--key`, `-i/--input` and `-o/--output`.
     """
     parser = argparse.ArgumentParser(prog=example_name)
     parser.add_argument('--ui', required=True, choices=UI_CHOICES,
                         help='How to show the configuration.')
-    parser.add_argument('--set', action='append', dest='settings',
+    parser.add_argument('--set', action='append', dest='edits',
                         metavar='MEMBER=VALUE',
                         help='Edit one member before showing it. Repeatable.')
+    parser.add_argument('--extension', default=None,
+                        help='File name extension this application uses.')
+    parser.add_argument('--enforce-extension', action='store_true',
+                        help='Refuse a file with another extension.')
+    parser.add_argument('--key', action='append', dest='keys',
+                        metavar='ACTION=COMBINATIONS',
+                        help='Keys of one action of the editor. Repeatable.')
     parser.add_argument('--policy', default=DEFAULT_POLICY_NAME,
                         choices=tuple(POLICIES),
                         help='What to do about values the file leaves out.')
@@ -184,20 +214,79 @@ def _set_member(parser: argparse.ArgumentParser, model: EditModel, name: str,
         parser.error(NOT_EDITABLE_MESSAGE.format(name=name))
 
 
-def _apply_settings(parser: argparse.ArgumentParser, model: EditModel,
-                    settings: Optional[list[str]]) -> None:
+def _apply_edits(parser: argparse.ArgumentParser, model: EditModel,
+                 edits: Optional[list[str]]) -> None:
     """Apply every `--set member=value` of one command line to the buffer.
 
     Args:
         parser: Parser used to report the error and exit.
         model: Model whose buffer is edited.
-        settings: The `--set` values, or None when the option was not used.
+        edits: The `--set` values, or None when the option was not used.
     """
-    for setting in settings or []:
+    for setting in edits or []:
         name, separator, text = setting.partition('=')
         if not separator:
             parser.error(SET_FORM_MESSAGE.format(setting=setting))
         _set_member(parser=parser, model=model, name=name, text=text)
+
+
+def _action_keys(parser: argparse.ArgumentParser,
+                 values: Optional[list[str]]) -> ActionSettings:
+    """Return the key combinations that every `--key` of one run asks for.
+
+    The names that are accepted are the attributes of `ActionSettings`
+    itself, so this cannot fall behind the actions the editor has.
+
+    Args:
+        parser: Parser used to report the error and exit.
+        values: The `--key` values, or None when the option was not used.
+
+    Returns:
+        The keys of every action, with the default of each action the
+        command line said nothing about.
+    """
+    names = {field.name for field in fields(ActionSettings)}
+    chosen: dict[str, tuple[str, ...]] = {}
+    for value in values or []:
+        name, separator, keys = value.partition('=')
+        if not separator or name not in names:
+            parser.error(KEY_FORM_MESSAGE.format(
+                value=value, names=', '.join(sorted(names))))
+        chosen[name] = tuple(key for key in keys.split(',') if key)
+    try:
+        actions = ActionSettings(**chosen)
+    except ValueError as error:
+        # `parser.error` writes the message and ends the process, so nothing
+        # below this runs when two actions were given the same key.
+        parser.error(str(error))
+    return actions
+
+
+def _settings(parser: argparse.ArgumentParser,
+              parsed: argparse.Namespace) -> Settings:
+    """Return what this run says the application has already decided.
+
+    A real application does not build this from a command line. It knows
+    its own answers, and either passes one object like this one or a
+    callable that answers with one.
+
+    Args:
+        parser: Parser used to report the error and exit.
+        parsed: Parsed command line of one example run.
+
+    Returns:
+        The settings that this run hands to the editor.
+    """
+    try:
+        settings = Settings(actions=_action_keys(parser=parser,
+                                                 values=parsed.keys),
+                            file_extension=parsed.extension,
+                            extension_enforced=parsed.enforce_extension)
+    except ValueError as error:
+        # `parser.error` writes the message and ends the process, so nothing
+        # below this runs when the extension is text that names none.
+        parser.error(str(error))
+    return settings
 
 
 class DumpEditor:  # pylint: disable=too-few-public-methods
@@ -235,7 +324,7 @@ class DumpEditor:  # pylint: disable=too-few-public-methods
         print(model_as_text(model))
 
 
-class SettingEditor:  # pylint: disable=too-few-public-methods
+class SetEditor:  # pylint: disable=too-few-public-methods
     """A backend that types the `--set` edits in and then runs another one.
 
     The edits belong on this side of `edit()` rather than before it, because
@@ -246,17 +335,17 @@ class SettingEditor:  # pylint: disable=too-few-public-methods
     """
 
     def __init__(self, inner: EditorBackend, parser: argparse.ArgumentParser,
-                 settings: Optional[list[str]]) -> None:
+                 edits: Optional[list[str]]) -> None:
         """Remember the edits to make and the backend to run afterwards.
 
         Args:
             inner: Backend that shows the model once it has been edited.
             parser: Parser used to report a bad `--set` and exit.
-            settings: The `--set` values, or None when there were none.
+            edits: The `--set` values, or None when there were none.
         """
         self._inner = inner
         self._parser = parser
-        self._settings = settings
+        self._edits = edits
 
     def run_editor(self, model: EditModel) -> None:
         """Apply every `--set` and then hand the model to the real backend.
@@ -264,8 +353,7 @@ class SettingEditor:  # pylint: disable=too-few-public-methods
         Args:
             model: Model to edit and then to show.
         """
-        _apply_settings(parser=self._parser, model=model,
-                        settings=self._settings)
+        _apply_edits(parser=self._parser, model=model, edits=self._edits)
         self._inner.run_editor(model)
 
 
@@ -331,8 +419,9 @@ def _run_editor(parser: argparse.ArgumentParser, config: Config,
 
     This is the whole of what an application does: it hands over its own
     configuration object, the files it wants read and written, the policy it
-    wants applied and the user interface to use. The editor does the rest,
-    and gives back what it wrote.
+    wants applied, what it has already decided about keys and file names,
+    and the user interface to use. The editor does the rest, and gives back
+    what it wrote.
 
     Args:
         parser: Parser used to report the error and exit.
@@ -346,7 +435,8 @@ def _run_editor(parser: argparse.ArgumentParser, config: Config,
     """
     try:
         saved = edit(config=config, backend=backend, in_file=parsed.input,
-                     out_file=parsed.output, policy=POLICIES[parsed.policy])
+                     out_file=parsed.output, policy=POLICIES[parsed.policy],
+                     settings=_settings(parser=parser, parsed=parsed))
     except ConfigLoadError as error:
         # `parser.error` writes the message and ends the process, so nothing
         # below this runs when the input file cannot be opened.
@@ -371,7 +461,7 @@ def run_example(example_name: str, config: Config,
     parser = _create_parser(example_name)
     parsed = parser.parse_args(args)
     _refuse_save(parser=parser, parsed=parsed)
-    backend = SettingEditor(inner=_selected_backend(parsed), parser=parser,
-                            settings=parsed.settings)
+    backend = SetEditor(inner=_selected_backend(parsed), parser=parser,
+                        edits=parsed.edits)
     print(_result_text(_run_editor(parser=parser, config=config,
                                    backend=backend, parsed=parsed)))

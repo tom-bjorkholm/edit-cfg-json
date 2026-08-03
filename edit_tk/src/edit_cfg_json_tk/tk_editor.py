@@ -10,9 +10,11 @@ import sys
 import tkinter
 from tkinter import filedialog
 from config_as_json import Config, PathOrStr
-from edit_cfg_json import EditModel, LoadPolicy, MemberRow, load_text, \
-    model_title, row_marks, row_value_text, save_text, verdict_text
+from edit_cfg_json import EditModel, LoadPolicy, MemberRow, Settings, \
+    SettingsSource, load_text, model_title, row_marks, row_value_text, \
+    save_text, verdict_text
 from edit_cfg_json import edit as core_edit
+from edit_cfg_json_tk.key_names import tk_sequence
 
 NAME_COLUMN_WIDTH = 24
 """Width in characters of the column that holds the member names."""
@@ -40,6 +42,80 @@ the writing, which it is not.
 
 SAVE_AS_TITLE = 'Save the configuration as'
 """Title of the dialog that asks which file to write."""
+
+CONFIG_FILES = 'Configuration files ({extension})'
+"""What the dialog calls the files of the extension the application uses."""
+
+ALL_FILES = 'All files'
+"""What the dialog calls every other file."""
+
+
+def _file_types(settings: Settings) -> list[tuple[str, str]]:
+    """Return what the dialog that asks for a file offers to filter by.
+
+    An application that enforces its extension has that one filter and no
+    other, because a name with another extension cannot be saved and a
+    dialog that offered to look for one would be inviting a refusal. An
+    application whose extension is a default offers it first and everything
+    else after it, because a name with another extension can be saved. An
+    application with no opinion offers nothing, which is what this dialog
+    did before there were settings at all.
+
+    Args:
+        settings: What the application has decided about file names.
+
+    Returns:
+        The file types of the dialog, empty when it has no opinion.
+    """
+    extension = settings.file_extension
+    if extension is None:
+        return []
+    named = (CONFIG_FILES.format(extension=extension), f'*{extension}')
+    if settings.extension_enforced:
+        return [named]
+    return [named, (ALL_FILES, '*')]
+
+
+def _key_handler(command: Callable[[], None]) -> Callable[..., str]:
+    """Return the callback that runs one command for one key event.
+
+    Args:
+        command: What that key does.
+
+    Returns:
+        A callback that Tk can bind, which stops the event from being
+        handled a second time by whatever else the window is bound to.
+    """
+    def run_command(*event: object) -> str:
+        """Run the command, and keep the event from being handled again."""
+        _ = event
+        command()
+        return 'break'
+    return run_command
+
+
+def _bind_key(window: tkinter.Misc, key: str,
+              command: Callable[[], None]) -> None:
+    """Bind one key combination of one action, if Tk can bind it.
+
+    A combination that the translation does not know, or that Tk refuses,
+    leaves that action without that key rather than without an editor: every
+    action of this backend has a button as well.
+
+    Args:
+        window: Window that the binding is made on.
+        key: One key combination, as `ActionSettings` writes them.
+        command: What that key does.
+    """
+    sequence = tk_sequence(key)
+    if sequence is None:
+        return
+    try:
+        window.bind(sequence, _key_handler(command))
+    except tkinter.TclError:
+        # Tk refuses an event sequence it cannot parse, and a key the
+        # application named is not worth an editor that does not open.
+        pass
 
 
 class RowWidgets(NamedTuple):
@@ -91,6 +167,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
                                      justify='left')
         self._saving.pack(fill='x', padx=PADDING)
         self._add_buttons(parent)
+        self._bind_keys(parent.winfo_toplevel())
 
     @property
     def label_text(self) -> str:
@@ -135,6 +212,29 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
                               (CLOSE_TEXT, window.destroy)):
             tkinter.Button(line, text=text, command=command).pack(side='left',
                                                                   padx=PADDING)
+
+    def _bind_keys(self, window: tkinter.Misc) -> None:
+        """Bind the key combinations that the application chose.
+
+        The bindings are made on the window and not on each field, because
+        a key that a field does not use for itself reaches the window that
+        the field is in. Nothing is bound for the cancel action: the only
+        question this backend asks is the toolkit's own file dialog, which
+        answers that key itself.
+
+        The keys are read once, here, which is the whole of what a later
+        answer from a settings callable cannot change.
+
+        Args:
+            window: Window that the bindings are made on.
+        """
+        actions = self._model.settings.actions
+        for keys, command in ((actions.quit, window.destroy),
+                              (actions.validate, self._validate),
+                              (actions.save, self._save),
+                              (actions.save_as, self._save_as)):
+            for key in keys:
+                _bind_key(window=window, key=key, command=command)
 
     def _add_row(self, parent: tkinter.Misc, row: MemberRow) -> RowWidgets:
         """Create the name widget, the value widget and the mark widget."""
@@ -204,12 +304,20 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
     def _save_as(self) -> None:
         """Ask which file to write, and write it when one was named.
 
-        The dialog is given no default extension and no file type filter,
-        because this library has no opinion about what a configuration file
-        is called: some applications use `.cfg`, some use `.json`, and
-        others use something else again.
+        What the dialog offers is what the application decided: the
+        extension it uses for its configuration is the one the dialog adds
+        to a name that has none, and the one it offers to filter by. An
+        application with no opinion gets a dialog with none, which is what
+        this dialog had before there were settings at all.
+
+        The name that comes back is handed to the model, which is what
+        completes it and what refuses it, so that a user of this backend and
+        a user of the other one are told the same thing about one name.
         """
-        chosen = filedialog.asksaveasfilename(title=SAVE_AS_TITLE)
+        settings = self._model.settings
+        chosen = filedialog.asksaveasfilename(
+            title=SAVE_AS_TITLE, filetypes=_file_types(settings),
+            defaultextension=settings.file_extension or '')
         if chosen:
             self._model.set_out_file(chosen)
             self._save()
@@ -270,6 +378,7 @@ class TkEditor:  # pylint: disable=too-few-public-methods
 def edit(config: Config, *, in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
+         settings: SettingsSource = Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]:
     """Edit one configuration in a Tk window, and return what was saved.
 
@@ -282,6 +391,8 @@ def edit(config: Config, *, in_file: Optional[PathOrStr] = None,
         in_file: File to read, or None to start from the declared defaults.
         out_file: File to write, or None to write the input file.
         policy: What to do about declared keys the input file does not hold.
+        settings: What this application has already decided about key
+            combinations and file names, or a callable that answers with it.
         stderr_file: Stream used for user-facing diagnostics.
 
     Returns:
@@ -291,4 +402,5 @@ def edit(config: Config, *, in_file: Optional[PathOrStr] = None,
         ConfigLoadError: The input file cannot be opened for editing.
     """
     return core_edit(config=config, backend=TkEditor(), in_file=in_file,
-                     out_file=out_file, policy=policy, stderr_file=stderr_file)
+                     out_file=out_file, policy=policy, settings=settings,
+                     stderr_file=stderr_file)

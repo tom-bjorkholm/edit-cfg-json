@@ -4,18 +4,19 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import ClassVar, Optional, TextIO
 import sys
 from config_as_json import Config, PathOrStr
 from textual.app import App, ComposeResult, SystemCommand
-from textual.binding import Binding, BindingType
+from textual.binding import BindingsMap
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen, Screen
 from textual.widget import Widget
 from textual.widgets import Footer, Header, Input, Label, Static
-from edit_cfg_json import EditModel, LoadPolicy, MemberRow, load_text, \
-    model_title, row_marks, row_value_text, save_text, verdict_text
+from edit_cfg_json import EditModel, LoadPolicy, MemberRow, Settings, \
+    SettingsSource, load_text, model_title, row_marks, row_value_text, \
+    save_text, verdict_text
 from edit_cfg_json import edit as core_edit
 
 VALUE_ID_PREFIX = 'value_'
@@ -62,60 +63,11 @@ the marks that are cut rather than the field: the field is what the user
 edits, and `model_as_text` shows every mark in full whatever the terminal.
 """
 
-QUIT_KEY = 'ctrl+q'
-"""Key that ends the editor.
+QUIT_COMMAND = 'Quit'
+"""Name of the action that ends the editor."""
 
-A single letter cannot be used for this any more, now that the value of a
-member is edited in a field: an unmodified letter belongs to whichever field
-has the focus, and a user who typed it would expect to see it appear.
-
-Quitting writes nothing of its own. It is the "cancel" of the design; saving
-leaves the editor open, and what has been saved has been saved.
-"""
-
-VALIDATE_KEY = 'ctrl+r'
-"""Key that validates the buffer, and the one the footer names.
-
-Not a plain letter, for the same reason as the quit key. This letter in
-particular because a field claims most of the others: `Input` already reads
-`ctrl+a`, `ctrl+c`, `ctrl+d`, `ctrl+e`, `ctrl+k`, `ctrl+u`, `ctrl+v`,
-`ctrl+w` and `ctrl+x`, and the terminal itself claims `ctrl+c` and the four
-that are Backspace, Tab, Return and Escape. Of what is left, `r` is the one
-that means something: re-check.
-"""
-
-VALIDATE_ALT_KEY = 'f5'
-"""The other key that validates the buffer.
-
-Function keys are what other editors use to ask a tool to check what has
-been written, so the key is kept. It is not shown in the footer, because a
-footer that named the same action twice would suggest they were two
-actions, and because a function key is the one of the two that a keyboard
-or a terminal is most likely not to deliver.
-"""
-
-SAVE_KEY = 'ctrl+s'
-"""Key that writes the output file.
-
-The key every application uses for this, and it does reach the application:
-Textual's driver clears `IXON` and `IXOFF` when it puts the terminal into raw
-mode, so neither `ctrl+s` nor `ctrl+q` is taken for flow control any more.
-"""
-
-SAVE_AS_KEY = 'ctrl+shift+s'
-"""Key that chooses an output file and then writes it.
-
-The key every application uses for this as well, but unlike the one above it
-is not delivered everywhere. A legacy terminal encodes a control letter as a
-single byte with nowhere to put the shift, so this key arrives as `SAVE_KEY`
-and the wrong action runs. Textual asks the terminal for the Kitty keyboard
-protocol at startup, and a terminal that speaks it reports the two keys
-apart; one that does not cannot.
-
-That is why the command palette also offers this action. A palette entry is
-delivered by every terminal, because it is a letter typed into a field and
-not a key combination at all.
-"""
+CANCEL_COMMAND = 'Cancel'
+"""Name of the action that leaves the question about the output file."""
 
 VALIDATE_COMMAND = 'Validate'
 """Name of the command palette entry that validates the buffer."""
@@ -135,11 +87,16 @@ SAVE_HELP = 'Write these values to the output file'
 SAVE_AS_HELP = 'Choose the file to write, and write it'
 """What the command palette says the save as entry does."""
 
-SAVE_AS_PROMPT = 'Save as (Enter writes the file, Escape leaves it):'
+SAVE_AS_PROMPT = 'Save as (Enter writes the file):'
 """What the screen that asks for the output file says."""
 
-CANCEL_KEY = 'escape'
-"""Key that leaves the question about the output file unanswered."""
+SAVE_AS_LEAVE = 'Save as (Enter writes the file, {key} leaves it):'
+"""What that screen says while there is a key that leaves it.
+
+The key is named from the settings and not written into the sentence,
+because an application that took `escape` for itself would otherwise be
+telling its users to press a key that does nothing.
+"""
 
 EDITOR_ACTIONS = ('quit', 'validate', 'save', 'save_as')
 """The actions of the editor, which a question of its own turns off.
@@ -213,6 +170,34 @@ def plain_widget(text: str, widget_id: str,
     return Static(text, id=widget_id, markup=False, classes=classes)
 
 
+def bind_action(bindings: BindingsMap, keys: Sequence[str], action: str,
+                description: str) -> None:
+    """Bind every key combination that the application gave one action.
+
+    The first combination is the one the footer names and the rest work
+    without being named, because a footer that named one action twice would
+    suggest that they were two actions. An action the application gave no
+    combination at all is bound to nothing and stays reachable through the
+    command palette.
+
+    Every binding is a priority binding, so that it is acted on before the
+    field that has the focus is offered the key. That is also why the
+    bindings cannot be made with `App.bind`, which cannot make one and which
+    says of itself that it may be removed.
+
+    Args:
+        bindings: The bindings of the application or of the screen that the
+            action belongs to.
+        keys: Key combinations that run the action, in the order that
+            decides which of them is named.
+        action: Name of the action, without its `action_` prefix.
+        description: What the footer and the key panel call the action.
+    """
+    for index, key in enumerate(keys):
+        shown = index == 0
+        bindings.bind(key, action, description, show=shown, priority=True)
+
+
 class SaveAsScreen(ModalScreen[Optional[str]]):
     """Ask which file to write, and give back None when none was named.
 
@@ -222,31 +207,38 @@ class SaveAsScreen(ModalScreen[Optional[str]]):
     question that is asked once or never.
     """
 
-    BINDINGS: ClassVar[list[BindingType]] = [
-        Binding(CANCEL_KEY, 'leave', 'Cancel', priority=True)]
-    """The key that leaves the question unanswered.
-
-    A priority binding, so that the field the question is typed into does not
-    get the key first.
-    """
-
-    def __init__(self, out_file: str) -> None:
+    def __init__(self, out_file: str, cancel_keys: Sequence[str]) -> None:
         """Start the field at the file that would be written now.
+
+        The keys that leave the question are bound here rather than declared
+        as a class variable, because which keys they are is the
+        application's decision and not this screen's.
 
         Args:
             out_file: File that saving would write, empty when there is none
                 yet. Starting from it is what makes saving a copy beside the
                 original a matter of changing a few characters.
+            cancel_keys: Key combinations that leave the question
+                unanswered, empty when the application gave it none.
         """
         super().__init__()
         self._out_file = out_file
+        self._cancel_keys = tuple(cancel_keys)
+        bind_action(self._bindings, keys=self._cancel_keys, action='leave',
+                    description=CANCEL_COMMAND)
 
     def compose(self) -> ComposeResult:
         """Create the question and the field that answers it."""
         with Vertical(id=SAVE_AS_BOX_ID):
-            yield Label(SAVE_AS_PROMPT)
+            yield Label(self._prompt())
             yield Input(value=self._out_file, id=SAVE_AS_ID,
                         select_on_focus=False)
+
+    def _prompt(self) -> str:
+        """Return what this screen says, naming the key that leaves it."""
+        if not self._cancel_keys:
+            return SAVE_AS_PROMPT
+        return SAVE_AS_LEAVE.format(key=self._cancel_keys[0])
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Keep what happens in this field to this screen.
@@ -271,25 +263,6 @@ class SaveAsScreen(ModalScreen[Optional[str]]):
 class EditorApp(App[None]):
     """Textual application that edits one edit model."""
 
-    BINDINGS: ClassVar[list[BindingType]] = [
-        Binding(QUIT_KEY, 'quit', 'Quit', priority=True),
-        Binding(VALIDATE_KEY, 'validate', VALIDATE_COMMAND, priority=True),
-        Binding(VALIDATE_ALT_KEY, 'validate', VALIDATE_COMMAND, priority=True,
-                show=False),
-        Binding(SAVE_KEY, 'save', SAVE_COMMAND, priority=True),
-        Binding(SAVE_AS_KEY, 'save_as', SAVE_AS_COMMAND, priority=True)]
-    """What the keys of the editor do, and which of them the footer names.
-
-    They are priority bindings, so that they are acted on before the field
-    that has the focus is offered the key. The two keys that validate are
-    two bindings rather than one binding of two keys, because that is what
-    lets the footer name one of them and still leave the other working.
-
-    A footer too narrow for all of them shows what fits, which costs nothing:
-    the key panel of the command palette lists every binding, including the
-    ones the footer never shows.
-    """
-
     CSS: ClassVar[str] = '\n'.join(CSS_RULES)
     """The widths and heights that make one member fit on one line.
 
@@ -306,6 +279,30 @@ class EditorApp(App[None]):
         self._model = model
         self._member_rows: dict[str, MemberRow] = {}
         self.title = model_title(model)
+        self._bind_editor_keys()
+
+    def _bind_editor_keys(self) -> None:
+        """Bind the key combinations that the application chose.
+
+        The bindings are made on this instance rather than declared as a
+        class variable, because which keys the editor takes is not the
+        editor's decision any more: the application it runs inside has
+        already given some of them to itself. They are read once, here,
+        which is the whole of what a later answer from a settings callable
+        cannot change.
+
+        A footer too narrow for all of them shows what fits, which costs
+        nothing: the key panel of the command palette lists every binding,
+        including the ones the footer never shows.
+        """
+        actions = self._model.settings.actions
+        for keys, action, name in (
+                (actions.quit, 'quit', QUIT_COMMAND),
+                (actions.validate, 'validate', VALIDATE_COMMAND),
+                (actions.save, 'save', SAVE_COMMAND),
+                (actions.save_as, 'save_as', SAVE_AS_COMMAND)):
+            bind_action(self._bindings, keys=keys, action=action,
+                        description=name)
 
     def compose(self) -> ComposeResult:
         """Create one row per member, the verdict, a header and a footer.
@@ -412,7 +409,10 @@ class EditorApp(App[None]):
 
     def action_save_as(self) -> None:
         """Ask which file to write, and write it when one was named."""
-        self.push_screen(SaveAsScreen(self._out_file_text()), self._save_to)
+        self.push_screen(
+            SaveAsScreen(out_file=self._out_file_text(),
+                         cancel_keys=self._model.settings.actions.cancel),
+            self._save_to)
 
     def check_action(self, action: str,
                      parameters: tuple[object, ...]) -> Optional[bool]:
@@ -504,6 +504,7 @@ class TextualEditor:  # pylint: disable=too-few-public-methods
 def edit(config: Config, *, in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
+         settings: SettingsSource = Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]:
     """Edit one configuration in the terminal, and return what was saved.
 
@@ -516,6 +517,8 @@ def edit(config: Config, *, in_file: Optional[PathOrStr] = None,
         in_file: File to read, or None to start from the declared defaults.
         out_file: File to write, or None to write the input file.
         policy: What to do about declared keys the input file does not hold.
+        settings: What this application has already decided about key
+            combinations and file names, or a callable that answers with it.
         stderr_file: Stream used for user-facing diagnostics.
 
     Returns:
@@ -525,4 +528,5 @@ def edit(config: Config, *, in_file: Optional[PathOrStr] = None,
         ConfigLoadError: The input file cannot be opened for editing.
     """
     return core_edit(config=config, backend=TextualEditor(), in_file=in_file,
-                     out_file=out_file, policy=policy, stderr_file=stderr_file)
+                     out_file=out_file, policy=policy, settings=settings,
+                     stderr_file=stderr_file)

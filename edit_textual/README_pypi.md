@@ -80,13 +80,15 @@ saved = model.saved_config
 ````
 
 The package is under construction. This version opens a terminal screen with
-one edit field per configuration member and these keys:
+one edit field per configuration member, and the keys the application chose
+in the `actions` of its `edit_cfg_json.Settings`. With an application that
+chose nothing they are the defaults of `edit_cfg_json.ActionSettings`:
 
 | Key | What it does |
 | --- | --- |
 | `ctrl+r`, or `f5` | Validate |
 | `ctrl+s` | Save |
-| `ctrl+shift+s` | Save as |
+| `ctrl+shift+s` or `f12` | Save as |
 | `ctrl+q` | Quit |
 
 Every change of a field goes straight into the model, and the title is marked
@@ -106,19 +108,21 @@ really reached the file. What was written is no longer waiting to be written,
 so the title loses its mark and the editor stays open.
 
 Save as asks for the file in a small screen of its own, where `enter` writes
-it and `escape` leaves the question unanswered. `ctrl+s` asks the same
-question when the session has no file to write yet, which is what every
-editor does. The question starts at the file that would be written now, so
-saving a copy beside the original is a matter of changing a few characters.
+it and the `cancel` key, `escape` unless the application moved it, leaves the
+question unanswered. The screen names that key itself, so it cannot tell the
+user to press one that does nothing. `ctrl+s` asks the same question when the
+session has no file to write yet, which is what every editor does. The
+question starts at the file that would be written now, so saving a copy
+beside the original is a matter of changing a few characters.
 
 Quitting writes nothing of its own. It is the "cancel" of the editor; saving
 leaves the editor open, and what has been saved has been saved.
 
 ## About the keys
 
-No key is a plain letter, because an unmodified letter belongs to whichever
-field has the focus: a user who types it expects to see it appear in the
-field. Neither `ctrl+s` nor `ctrl+q` is taken for terminal flow control,
+None of the defaults is a plain letter, because an unmodified letter belongs
+to whichever field has the focus: a user who types it expects to see it
+appear in the field. Neither `ctrl+s` nor `ctrl+q` is taken for flow control,
 because Textual's driver clears `IXON` and `IXOFF` when it puts the terminal
 into raw mode.
 
@@ -137,6 +141,12 @@ every terminal can reach the palette, because it is a letter typed into a
 field and not a key combination at all. The palette's own **Keys** entry
 lists every binding of the editor, including the ones the footer has no room
 for.
+
+An application that needs one of these combinations for itself moves it, or
+empties it, in its own `ActionSettings`. An action with no key at all keeps
+its command palette entry, so nothing becomes unreachable. The bindings are
+made when the application starts, which is the one thing a later answer from
+a settings callable cannot change.
 
 What reading the input file did is shown above the fields, when it did
 anything, because it is what explains the marks below it: a member that the
@@ -187,7 +197,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 573 passed in 10s
+- Test result: 679 passed in 12s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

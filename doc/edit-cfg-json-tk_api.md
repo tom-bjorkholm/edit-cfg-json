@@ -8,6 +8,8 @@
   * [SAVE\_AS\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_AS_TEXT)
   * [CLOSE\_TEXT](#edit_cfg_json_tk.tk_editor.CLOSE_TEXT)
   * [SAVE\_AS\_TITLE](#edit_cfg_json_tk.tk_editor.SAVE_AS_TITLE)
+  * [CONFIG\_FILES](#edit_cfg_json_tk.tk_editor.CONFIG_FILES)
+  * [ALL\_FILES](#edit_cfg_json_tk.tk_editor.ALL_FILES)
   * [RowWidgets](#edit_cfg_json_tk.tk_editor.RowWidgets)
     * [field](#edit_cfg_json_tk.tk_editor.RowWidgets.field)
     * [mark](#edit_cfg_json_tk.tk_editor.RowWidgets.mark)
@@ -20,6 +22,10 @@
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.TkEditor.__init__)
     * [run\_editor](#edit_cfg_json_tk.tk_editor.TkEditor.run_editor)
   * [edit](#edit_cfg_json_tk.tk_editor.edit)
+* [edit\_cfg\_json\_tk.key\_names](#edit_cfg_json_tk.key_names)
+  * [MODIFIERS](#edit_cfg_json_tk.key_names.MODIFIERS)
+  * [KEY\_NAMES](#edit_cfg_json_tk.key_names.KEY_NAMES)
+  * [tk\_sequence](#edit_cfg_json_tk.key_names.tk_sequence)
 
 <a id="edit_cfg_json_tk.tk_editor"></a>
 
@@ -73,6 +79,18 @@ the writing, which it is not.
 #### SAVE\_AS\_TITLE
 
 Title of the dialog that asks which file to write.
+
+<a id="edit_cfg_json_tk.tk_editor.CONFIG_FILES"></a>
+
+#### CONFIG\_FILES
+
+What the dialog calls the files of the extension the application uses.
+
+<a id="edit_cfg_json_tk.tk_editor.ALL_FILES"></a>
+
+#### ALL\_FILES
+
+What the dialog calls every other file.
 
 <a id="edit_cfg_json_tk.tk_editor.RowWidgets"></a>
 
@@ -220,6 +238,7 @@ def edit(config: Config,
          in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
+         settings: SettingsSource = Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]
 ```
 
@@ -235,6 +254,8 @@ documented there.
 - `in_file` - File to read, or None to start from the declared defaults.
 - `out_file` - File to write, or None to write the input file.
 - `policy` - What to do about declared keys the input file does not hold.
+- `settings` - What this application has already decided about key
+  combinations and file names, or a callable that answers with it.
 - `stderr_file` - Stream used for user-facing diagnostics.
   
 
@@ -246,4 +267,59 @@ documented there.
 **Raises**:
 
 - `ConfigLoadError` - The input file cannot be opened for editing.
+
+<a id="edit_cfg_json_tk.key_names"></a>
+
+# edit\_cfg\_json\_tk.key\_names
+
+Translating a key combination into the notation that Tk binds by.
+
+The application writes its key combinations once, in the notation that
+`edit_cfg_json.ActionSettings` documents, and each backend translates them
+into whatever its own toolkit binds by. Tk needs a translation whatever
+notation is chosen, because `<Control-Shift-S>` is a form that no other
+toolkit shares.
+
+A combination this module does not know leaves that action without that key
+rather than without an editor: every action of this backend has a button as
+well.
+
+<a id="edit_cfg_json_tk.key_names.MODIFIERS"></a>
+
+#### MODIFIERS
+
+What Tk calls each modifier that a combination can name.
+
+<a id="edit_cfg_json_tk.key_names.KEY_NAMES"></a>
+
+#### KEY\_NAMES
+
+What Tk calls each named key, where the two notations differ.
+
+The keys of this mapping are the names that `ActionSettings` documents, and
+the values are the keysyms of Tk. The two of them agree about nothing but
+`Tab`, which is in here anyway so that the mapping answers for every name
+the notation has rather than for the ones that happen to differ.
+
+<a id="edit_cfg_json_tk.key_names.tk_sequence"></a>
+
+#### tk\_sequence
+
+```python
+def tk_sequence(combination: str) -> Optional[str]
+```
+
+Return one key combination as the event sequence that Tk binds by.
+
+**Arguments**:
+
+- `combination` - One key combination, as `ActionSettings` writes them.
+  
+
+**Returns**:
+
+  The Tk event sequence of that combination, or None when it names a
+  modifier or a key that this module does not know. None is not an
+- `error` - the action it belongs to keeps its button and loses only
+  this way of reaching it.
 

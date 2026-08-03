@@ -8,6 +8,11 @@
   * [SAVE\_AS\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_AS_TEXT)
   * [CLOSE\_TEXT](#edit_cfg_json_tk.tk_editor.CLOSE_TEXT)
   * [SAVE\_AS\_TITLE](#edit_cfg_json_tk.tk_editor.SAVE_AS_TITLE)
+  * [CONFIG\_FILES](#edit_cfg_json_tk.tk_editor.CONFIG_FILES)
+  * [ALL\_FILES](#edit_cfg_json_tk.tk_editor.ALL_FILES)
+  * [\_file\_types](#edit_cfg_json_tk.tk_editor._file_types)
+  * [\_key\_handler](#edit_cfg_json_tk.tk_editor._key_handler)
+  * [\_bind\_key](#edit_cfg_json_tk.tk_editor._bind_key)
   * [RowWidgets](#edit_cfg_json_tk.tk_editor.RowWidgets)
     * [field](#edit_cfg_json_tk.tk_editor.RowWidgets.field)
     * [mark](#edit_cfg_json_tk.tk_editor.RowWidgets.mark)
@@ -18,6 +23,7 @@
     * [save\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.save_text_shown)
     * [\_add\_load\_message](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_load_message)
     * [\_add\_buttons](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_buttons)
+    * [\_bind\_keys](#edit_cfg_json_tk.tk_editor.EditorWidgets._bind_keys)
     * [\_add\_row](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_row)
     * [\_add\_value](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_value)
     * [\_writer](#edit_cfg_json_tk.tk_editor.EditorWidgets._writer)
@@ -30,6 +36,11 @@
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.TkEditor.__init__)
     * [run\_editor](#edit_cfg_json_tk.tk_editor.TkEditor.run_editor)
   * [edit](#edit_cfg_json_tk.tk_editor.edit)
+* [edit\_cfg\_json\_tk.key\_names](#edit_cfg_json_tk.key_names)
+  * [MODIFIERS](#edit_cfg_json_tk.key_names.MODIFIERS)
+  * [KEY\_NAMES](#edit_cfg_json_tk.key_names.KEY_NAMES)
+  * [\_tk\_key](#edit_cfg_json_tk.key_names._tk_key)
+  * [tk\_sequence](#edit_cfg_json_tk.key_names.tk_sequence)
 
 <a id="edit_cfg_json_tk.tk_editor"></a>
 
@@ -83,6 +94,86 @@ the writing, which it is not.
 #### SAVE\_AS\_TITLE
 
 Title of the dialog that asks which file to write.
+
+<a id="edit_cfg_json_tk.tk_editor.CONFIG_FILES"></a>
+
+#### CONFIG\_FILES
+
+What the dialog calls the files of the extension the application uses.
+
+<a id="edit_cfg_json_tk.tk_editor.ALL_FILES"></a>
+
+#### ALL\_FILES
+
+What the dialog calls every other file.
+
+<a id="edit_cfg_json_tk.tk_editor._file_types"></a>
+
+#### \_file\_types
+
+```python
+def _file_types(settings: Settings) -> list[tuple[str, str]]
+```
+
+Return what the dialog that asks for a file offers to filter by.
+
+An application that enforces its extension has that one filter and no
+other, because a name with another extension cannot be saved and a
+dialog that offered to look for one would be inviting a refusal. An
+application whose extension is a default offers it first and everything
+else after it, because a name with another extension can be saved. An
+application with no opinion offers nothing, which is what this dialog
+did before there were settings at all.
+
+**Arguments**:
+
+- `settings` - What the application has decided about file names.
+  
+
+**Returns**:
+
+  The file types of the dialog, empty when it has no opinion.
+
+<a id="edit_cfg_json_tk.tk_editor._key_handler"></a>
+
+#### \_key\_handler
+
+```python
+def _key_handler(command: Callable[[], None]) -> Callable[..., str]
+```
+
+Return the callback that runs one command for one key event.
+
+**Arguments**:
+
+- `command` - What that key does.
+  
+
+**Returns**:
+
+  A callback that Tk can bind, which stops the event from being
+  handled a second time by whatever else the window is bound to.
+
+<a id="edit_cfg_json_tk.tk_editor._bind_key"></a>
+
+#### \_bind\_key
+
+```python
+def _bind_key(window: tkinter.Misc, key: str, command: Callable[[],
+                                                                None]) -> None
+```
+
+Bind one key combination of one action, if Tk can bind it.
+
+A combination that the translation does not know, or that Tk refuses,
+leaves that action without that key rather than without an editor: every
+action of this backend has a button as well.
+
+**Arguments**:
+
+- `window` - Window that the binding is made on.
+- `key` - One key combination, as `ActionSettings` writes them.
+- `command` - What that key does.
 
 <a id="edit_cfg_json_tk.tk_editor.RowWidgets"></a>
 
@@ -207,6 +298,29 @@ Create the buttons that validate, save and end the run.
 They share one row, because four buttons stacked above each other
 would push the values of a real configuration off the window.
 
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._bind_keys"></a>
+
+#### \_bind\_keys
+
+```python
+def _bind_keys(window: tkinter.Misc) -> None
+```
+
+Bind the key combinations that the application chose.
+
+The bindings are made on the window and not on each field, because
+a key that a field does not use for itself reaches the window that
+the field is in. Nothing is bound for the cancel action: the only
+question this backend asks is the toolkit's own file dialog, which
+answers that key itself.
+
+The keys are read once, here, which is the whole of what a later
+answer from a settings callable cannot change.
+
+**Arguments**:
+
+- `window` - Window that the bindings are made on.
+
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_row"></a>
 
 #### \_add\_row
@@ -283,10 +397,15 @@ def _save_as() -> None
 
 Ask which file to write, and write it when one was named.
 
-The dialog is given no default extension and no file type filter,
-because this library has no opinion about what a configuration file
-is called: some applications use `.cfg`, some use `.json`, and
-others use something else again.
+What the dialog offers is what the application decided: the
+extension it uses for its configuration is the one the dialog adds
+to a name that has none, and the one it offers to filter by. An
+application with no opinion gets a dialog with none, which is what
+this dialog had before there were settings at all.
+
+The name that comes back is handed to the model, which is what
+completes it and what refuses it, so that a user of this backend and
+a user of the other one are told the same thing about one name.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._refresh"></a>
 
@@ -365,6 +484,7 @@ def edit(config: Config,
          in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
+         settings: SettingsSource = Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]
 ```
 
@@ -380,6 +500,8 @@ documented there.
 - `in_file` - File to read, or None to start from the declared defaults.
 - `out_file` - File to write, or None to write the input file.
 - `policy` - What to do about declared keys the input file does not hold.
+- `settings` - What this application has already decided about key
+  combinations and file names, or a callable that answers with it.
 - `stderr_file` - Stream used for user-facing diagnostics.
   
 
@@ -391,4 +513,83 @@ documented there.
 **Raises**:
 
 - `ConfigLoadError` - The input file cannot be opened for editing.
+
+<a id="edit_cfg_json_tk.key_names"></a>
+
+# edit\_cfg\_json\_tk.key\_names
+
+Translating a key combination into the notation that Tk binds by.
+
+The application writes its key combinations once, in the notation that
+`edit_cfg_json.ActionSettings` documents, and each backend translates them
+into whatever its own toolkit binds by. Tk needs a translation whatever
+notation is chosen, because `<Control-Shift-S>` is a form that no other
+toolkit shares.
+
+A combination this module does not know leaves that action without that key
+rather than without an editor: every action of this backend has a button as
+well.
+
+<a id="edit_cfg_json_tk.key_names.MODIFIERS"></a>
+
+#### MODIFIERS
+
+What Tk calls each modifier that a combination can name.
+
+<a id="edit_cfg_json_tk.key_names.KEY_NAMES"></a>
+
+#### KEY\_NAMES
+
+What Tk calls each named key, where the two notations differ.
+
+The keys of this mapping are the names that `ActionSettings` documents, and
+the values are the keysyms of Tk. The two of them agree about nothing but
+`Tab`, which is in here anyway so that the mapping answers for every name
+the notation has rather than for the ones that happen to differ.
+
+<a id="edit_cfg_json_tk.key_names._tk_key"></a>
+
+#### \_tk\_key
+
+```python
+def _tk_key(key: str, shifted: bool) -> Optional[str]
+```
+
+Return the keysym that Tk knows one key by.
+
+A single character is that character, in upper case when the
+combination also names the shift, because Tk reads `<Control-S>` as the
+shifted key and `<Control-s>` as the unshifted one.
+
+**Arguments**:
+
+- `key` - The part of a combination that is not a modifier.
+- `shifted` - Whether the combination also names the shift.
+  
+
+**Returns**:
+
+  The keysym of that key, or None when this module does not know it.
+
+<a id="edit_cfg_json_tk.key_names.tk_sequence"></a>
+
+#### tk\_sequence
+
+```python
+def tk_sequence(combination: str) -> Optional[str]
+```
+
+Return one key combination as the event sequence that Tk binds by.
+
+**Arguments**:
+
+- `combination` - One key combination, as `ActionSettings` writes them.
+  
+
+**Returns**:
+
+  The Tk event sequence of that combination, or None when it names a
+  modifier or a key that this module does not know. None is not an
+- `error` - the action it belongs to keeps its button and loses only
+  this way of reaching it.
 
