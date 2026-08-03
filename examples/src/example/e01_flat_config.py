@@ -4,20 +4,33 @@
 This is the first example of the editor itself. The configuration class is
 as small as a configuration class can be: one text member and one number
 member, no nested structure. That is on purpose, because the point of this
-example is not the configuration but the three lines it takes to get an
-editor for it:
+example is not the configuration but the one call it takes to get an editor
+for it:
 
 ````python
-config = FlatConfig()          # the application's own configuration object
-model = EditModel(config)      # what the editor needs to know about it
-TkEditor().run_editor(model)   # one of the user interface backends
+saved = edit(config=FlatConfig(), backend=TkEditor(),
+             in_file='my_config.json')
+````
+
+That reads the file, opens the editor, and gives back the configuration
+object that was written, or `None` when the user saved nothing. An
+application that has already chosen its user interface can be even shorter,
+because each backend package has an `edit` of its own:
+
+````python
+from edit_cfg_json_tk import edit
+saved = edit(config=FlatConfig(), in_file='my_config.json')
 ````
 
 Notice what the application does *not* do. It does not list its members for
 the editor, it does not say which of them are text and which are numbers,
-and it does not write a single widget. `EditModel` finds all of that by
+and it does not write a single widget. The editor finds all of that by
 looking at the configuration object it is handed. The configuration schema
 is declared exactly once, in `FlatConfig.__init__`, where it belongs.
+
+Notice also what `edit()` gives back. The editor never modifies the object it
+was handed, so the caller's own object is still holding the values it started
+with; the object that reached the file is the one that comes back.
 
 The members are shown in the order this class declares them, and the text
 member is shown as the text it holds, without the quotation marks that JSON
@@ -84,7 +97,8 @@ python3 examples/src/example/e01_flat_config.py --ui dump --set name=other
 
 In the two graphical backends the same pass is asked for rather than done
 for the user: the Tkinter editor has a Validate button and the Textual
-editor validates on `ctrl+r`, or on `f5`.
+editor validates on `ctrl+r`, or on `f5`. Both of them also have Save and
+Save as, which the last section below is about.
 
 ## Reading the values from a file
 
@@ -136,7 +150,43 @@ defaults filling in: that rescues a file which is merely incomplete, and it
 still refuses an unknown key. Nothing anywhere reads the text of a message to
 decide which of the two it was.
 
-Saving arrives in the following step, so this example writes nothing.
+## Writing the file again
+
+`-o` names the file to write, and defaults to `-i`, which is what an editor
+is normally asked to do. In the two graphical backends the user presses Save;
+`--ui dump` prints once and the run is then over, so `--save` is what asks it
+to really write the file. These four show a round trip, a round trip over the
+input file, a save that is refused, and a save with nowhere to go:
+
+````sh
+cd examples/src/example
+python3 e01_flat_config.py --ui dump -o /tmp/out.json --set answer=7 --save
+cp ../../data/e01_complete.json /tmp/round.json
+python3 e01_flat_config.py --ui dump -i /tmp/round.json --set answer=11 --save
+python3 e01_flat_config.py --ui dump -o /tmp/out.json --set answer=500 --save
+python3 e01_flat_config.py --ui dump --save
+````
+
+Two things about saving are worth knowing, and both follow from the same
+idea: what is written is what the application would read back.
+
+- **An invalid configuration is not written.** Saving is validating and then
+  writing, so the third command above writes nothing and says what is wrong
+  with the value instead. The file that was already there is untouched: this
+  editor cannot leave a user with neither their old configuration nor a new
+  one.
+- **A validator rewrites on the way to the file too**, because saving runs
+  the very same pass. `--set name=other --save` writes `Other`, and the
+  editor shows `Other` afterwards rather than the `other` that was typed.
+
+The fourth command is the one case where the editor has to ask something.
+With neither `-i` nor `-o` there is nowhere to write, and a file name is not
+something a library can guess: the text dump says so, and the two graphical
+backends offer their Save as question instead.
+
+The editor has no opinion about what the file is called. `.json`, `.cfg` or
+anything else is the application's business, so the Save as dialog of the
+Tkinter backend sets no default extension and no file type filter.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -234,6 +284,9 @@ def main(args: Optional[list[str]] = None) -> None:
     # pylint: disable-next=import-outside-toplevel
     from example.cmd_line import run_example
     run_example(example_name='e01_flat_config', config=FlatConfig(), args=args)
+    # `run_example` prints what `edit()` gave back, so that the contract of
+    # this library is something the reader sees rather than something they
+    # have to take on trust: the object that was written, or None.
 
 
 # The usual guard, so that importing this module from a test runs nothing.

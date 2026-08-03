@@ -28,6 +28,18 @@
 * [edit\_cfg\_json.backend](#edit_cfg_json.backend)
   * [EditorBackend](#edit_cfg_json.backend.EditorBackend)
     * [run\_editor](#edit_cfg_json.backend.EditorBackend.run_editor)
+* [edit\_cfg\_json.editing](#edit_cfg_json.editing)
+  * [edit](#edit_cfg_json.editing.edit)
+* [edit\_cfg\_json.saving](#edit_cfg_json.saving)
+  * [NO\_DESTINATION](#edit_cfg_json.saving.NO_DESTINATION)
+  * [NOT\_VALID](#edit_cfg_json.saving.NOT_VALID)
+  * [WRITE\_FAILED](#edit_cfg_json.saving.WRITE_FAILED)
+  * [SAVED](#edit_cfg_json.saving.SAVED)
+  * [WRITE\_ERRORS](#edit_cfg_json.saving.WRITE_ERRORS)
+  * [SaveOutcome](#edit_cfg_json.saving.SaveOutcome)
+    * [saved](#edit_cfg_json.saving.SaveOutcome.saved)
+    * [message](#edit_cfg_json.saving.SaveOutcome.message)
+  * [write\_config](#edit_cfg_json.saving.write_config)
 * [edit\_cfg\_json.leaf\_value](#edit_cfg_json.leaf_value)
   * [value\_as\_text](#edit_cfg_json.leaf_value.value_as_text)
   * [text\_as\_value](#edit_cfg_json.leaf_value.text_as_value)
@@ -42,10 +54,13 @@
   * [VALID\_STATE](#edit_cfg_json.model_text.VALID_STATE)
   * [INVALID\_STATE](#edit_cfg_json.model_text.INVALID_STATE)
   * [UNKNOWN\_STATE](#edit_cfg_json.model_text.UNKNOWN_STATE)
+  * [SAVE\_TO\_FORM](#edit_cfg_json.model_text.SAVE_TO_FORM)
+  * [NO\_DESTINATION\_TEXT](#edit_cfg_json.model_text.NO_DESTINATION_TEXT)
   * [row\_value\_text](#edit_cfg_json.model_text.row_value_text)
   * [row\_marks](#edit_cfg_json.model_text.row_marks)
   * [verdict\_text](#edit_cfg_json.model_text.verdict_text)
   * [load\_text](#edit_cfg_json.model_text.load_text)
+  * [save\_text](#edit_cfg_json.model_text.save_text)
   * [model\_as\_text](#edit_cfg_json.model_text.model_as_text)
   * [model\_title](#edit_cfg_json.model_text.model_title)
 * [edit\_cfg\_json.edit\_model](#edit_cfg_json.edit_model)
@@ -66,9 +81,14 @@
     * [load\_message](#edit_cfg_json.edit_model.EditModel.load_message)
     * [rows](#edit_cfg_json.edit_model.EditModel.rows)
     * [dirty](#edit_cfg_json.edit_model.EditModel.dirty)
+    * [out\_file](#edit_cfg_json.edit_model.EditModel.out_file)
+    * [save\_message](#edit_cfg_json.edit_model.EditModel.save_message)
+    * [saved\_config](#edit_cfg_json.edit_model.EditModel.saved_config)
     * [verdict](#edit_cfg_json.edit_model.EditModel.verdict)
     * [set\_text](#edit_cfg_json.edit_model.EditModel.set_text)
+    * [set\_out\_file](#edit_cfg_json.edit_model.EditModel.set_out_file)
     * [validate](#edit_cfg_json.edit_model.EditModel.validate)
+    * [save](#edit_cfg_json.edit_model.EditModel.save)
 * [edit\_cfg\_json.validation](#edit_cfg_json.validation)
   * [BUFFER\_ERRORS](#edit_cfg_json.validation.BUFFER_ERRORS)
   * [ValidationVerdict](#edit_cfg_json.validation.ValidationVerdict)
@@ -77,6 +97,7 @@
   * [ValidationPass](#edit_cfg_json.validation.ValidationPass)
     * [verdict](#edit_cfg_json.validation.ValidationPass.verdict)
     * [members](#edit_cfg_json.validation.ValidationPass.members)
+    * [candidate](#edit_cfg_json.validation.ValidationPass.candidate)
   * [validate\_buffer](#edit_cfg_json.validation.validate_buffer)
 
 <a id="edit_cfg_json.loading"></a>
@@ -366,6 +387,175 @@ Run the user interface for one model until the user is done.
 - `model` - Model to show. The backend reads and edits the model, and
   never touches the caller's configuration object.
 
+<a id="edit_cfg_json.editing"></a>
+
+# edit\_cfg\_json.editing
+
+One editing session, from the input file to what was saved.
+
+This is the convenience wrapper and deliberately nothing more. Everything it
+does an application can do for itself, in three statements, which is what an
+application that already runs its own event loop has to do: read the file,
+build the model, mount the backend.
+
+<a id="edit_cfg_json.editing.edit"></a>
+
+#### edit
+
+```python
+def edit(config: Config,
+         backend: EditorBackend,
+         *,
+         in_file: Optional[PathOrStr] = None,
+         out_file: Optional[PathOrStr] = None,
+         policy: LoadPolicy = DEFAULT_POLICY,
+         stderr_file: TextIO = sys.stderr) -> Optional[Config]
+```
+
+Edit one configuration and return the object that was saved.
+
+The backend is a parameter because the core never imports a user
+interface library, so it cannot name one. Each backend package also has
+an `edit` of its own that supplies itself, which is the shorter door for
+an application that has already chosen its user interface.
+
+Without an output file the input file is written, which is what an
+editor is normally asked to do. With neither, there is nowhere to write
+and the backend asks the user for a destination before it can save.
+
+**Arguments**:
+
+- `config` - Configuration object saying which class to edit and what its
+  declared defaults are. It is never modified, which is why the
+  saved object is handed back rather than expected to be found in
+  this one.
+- `backend` - User interface to run this session in.
+- `in_file` - File to read, or None to start from the declared defaults.
+- `out_file` - File to write, or None to write the input file.
+- `policy` - What to do about declared keys the input file does not hold.
+- `stderr_file` - Stream used for user-facing diagnostics.
+  
+
+**Returns**:
+
+  The configuration object that was written, or None when the session
+  ended without anything being saved.
+  
+
+**Raises**:
+
+- `ConfigLoadError` - The input file cannot be opened for editing.
+
+<a id="edit_cfg_json.saving"></a>
+
+# edit\_cfg\_json.saving
+
+Writing the edited values to the output file.
+
+Saving is validating and then writing, and it is refused whenever the
+validation is. An editor that wrote a file the application would then refuse
+to read would have failed at the one thing it exists for.
+
+The file name is whatever the application asked for. This library has no
+opinion about the extension: some applications use `.cfg`, some use `.json`,
+and others use something else again.
+
+<a id="edit_cfg_json.saving.NO_DESTINATION"></a>
+
+#### NO\_DESTINATION
+
+Message of a save that has nowhere to write to.
+
+<a id="edit_cfg_json.saving.NOT_VALID"></a>
+
+#### NOT\_VALID
+
+Message of a save refused because the buffer is not a configuration.
+
+<a id="edit_cfg_json.saving.WRITE_FAILED"></a>
+
+#### WRITE\_FAILED
+
+Message of a save whose destination could not be written.
+
+<a id="edit_cfg_json.saving.SAVED"></a>
+
+#### SAVED
+
+Message of a save that wrote the output file.
+
+<a id="edit_cfg_json.saving.WRITE_ERRORS"></a>
+
+#### WRITE\_ERRORS
+
+Every way in which writing the output file can fail.
+
+`OSError` is the file itself: a folder that does not exist, a name that
+cannot be used, a file that may not be written to. The other three are how
+`config_as_json` refuses a configuration, and `Config.write()` validates the
+object again before it writes anything. The object written here has just been
+validated, so those three can only mean a validator that does not give the
+same answer twice. That is a defect of the application rather than of the
+values, but the editor still reports it as a file it could not write, because
+falling over would cost the user the whole session.
+
+<a id="edit_cfg_json.saving.SaveOutcome"></a>
+
+## SaveOutcome Objects
+
+```python
+class SaveOutcome(NamedTuple)
+```
+
+What one attempt to save the edited values did.
+
+<a id="edit_cfg_json.saving.SaveOutcome.saved"></a>
+
+#### saved
+
+Whether the output file was written.
+
+<a id="edit_cfg_json.saving.SaveOutcome.message"></a>
+
+#### message
+
+What the user has to be told about this attempt.
+
+There is always something to say, because a save is something the user
+asked for and an answer is the least it owes them.
+
+<a id="edit_cfg_json.saving.write_config"></a>
+
+#### write\_config
+
+```python
+def write_config(config: Config, out_file: PathOrStr) -> SaveOutcome
+```
+
+Write one validated configuration object to one file.
+
+`Config.write()` serializes before it opens the destination, and
+serializing validates, so a configuration it refuses leaves the file on
+disk exactly as it was. The editor validates first anyway, which makes
+this the second of two gates rather than the only one.
+
+What the write says about the configuration is captured rather than
+printed, for the same reason as everywhere else here: these diagnostics
+belong on the screen the editor owns and not in the terminal behind it.
+They are the diagnostics of the validation pass that has just run, so the
+verdict is already showing them and this copy is dropped.
+
+**Arguments**:
+
+- `config` - Configuration object to write. It has been validated.
+- `out_file` - File to write it to, with whatever extension the
+  application chose.
+  
+
+**Returns**:
+
+  Whether the file was written, and what to tell the user about it.
+
 <a id="edit_cfg_json.leaf_value"></a>
 
 # edit\_cfg\_json.leaf\_value
@@ -514,6 +704,18 @@ State of a buffer that the application itself would refuse.
 
 State of a buffer that has not been validated since it last changed.
 
+<a id="edit_cfg_json.model_text.SAVE_TO_FORM"></a>
+
+#### SAVE\_TO\_FORM
+
+Form of the line that says where saving would write.
+
+<a id="edit_cfg_json.model_text.NO_DESTINATION_TEXT"></a>
+
+#### NO\_DESTINATION\_TEXT
+
+Line shown while no output file has been chosen.
+
 <a id="edit_cfg_json.model_text.row_value_text"></a>
 
 #### row\_value\_text
@@ -611,6 +813,33 @@ two different things about one file.
   What the load did, and nothing at all when it did nothing worth
   saying.
 
+<a id="edit_cfg_json.model_text.save_text"></a>
+
+#### save\_text
+
+```python
+def save_text(model: EditModel) -> str
+```
+
+Return what saving did, or where it would write if it were asked.
+
+Before anything has been saved there is still something to say, because
+where a save would go is the one thing a user cannot see from the values
+themselves, and there is a real difference between a destination that is
+waiting and no destination at all.
+
+Both backends show this, so that neither of them decides on its own what
+the user is told about the output file.
+
+**Arguments**:
+
+- `model` - Model whose saving is reported.
+  
+
+**Returns**:
+
+  What the last attempt to save did, or where saving would write.
+
 <a id="edit_cfg_json.model_text.model_as_text"></a>
 
 #### model\_as\_text
@@ -623,11 +852,13 @@ Return the whole model as text, one line per configuration member.
 
 What reading the input file did comes before the members, because it is
 what explains the marks on them. The validation state of the buffer
-follows them, so that a rendering never leaves it unsaid what the
-application would make of what is shown. This is the rendering used by
-the examples and by the tests, so that every step of the editor can be
-observed without a display. It belongs to the core rather than to a
-backend because it is user interface agnostic.
+follows them, and the saving after that, in the order in which a session
+reaches them, so that a rendering never leaves it unsaid what the
+application would make of what is shown or where it would be written.
+This is the rendering used by the examples and by the tests, so that
+every step of the editor can be observed without a display. It belongs
+to the core rather than to a backend because it is user interface
+agnostic.
 
 **Arguments**:
 
@@ -636,8 +867,8 @@ backend because it is user interface agnostic.
 
 **Returns**:
 
-  What the load did, one line per member and then the validation
-  state, without a trailing line break.
+  What the load did, one line per member, and then the validation
+  state and the saving, without a trailing line break.
 
 <a id="edit_cfg_json.model_text.model_title"></a>
 
@@ -704,7 +935,11 @@ Current value of the member in JSON space, as the user edits it.
 
 #### original
 
-Value that this member had when the model was built.
+Value that this member had when the file was last agreed with.
+
+That is when the model was built, and again after every save: what has
+just been written is what there is no longer anything to save about, so a
+save makes the written value the one the buffer is compared against.
 
 It is what the current value is compared against, and it is also the only
 type information that the model has. A PEP 526 annotation on an instance
@@ -712,7 +947,8 @@ attribute is recorded nowhere at runtime, so the value that the
 configuration object holds is the only source of the type. Reading the
 type from the current value instead would not work: a number member that
 the user has half typed holds text for as long as the text is not a
-number yet, and the member would then stop being a number member.
+number yet, and the member would then stop being a number member. A save
+is safe to move it to, because only a validated value is ever written.
 
 <a id="edit_cfg_json.edit_model.MemberRow.changed_by_validator"></a>
 
@@ -790,12 +1026,13 @@ written.
 def edited() -> bool
 ```
 
-Return whether the user changed this member.
+Return whether this member holds something that is not saved yet.
 
 A member is changed when it would now be written to the file
 differently, and not when it merely was typed in. Typing a value
 back to what it was leaves nothing to save, and an editor that still
 claimed to have changes would be telling the user something untrue.
+Saving says the same thing about every member at once.
 
 <a id="edit_cfg_json.edit_model.EditModel"></a>
 
@@ -820,7 +1057,9 @@ puts around it are added when the file is written and nowhere else.
 The buffer is validated by running the application's own configuration
 class over it rather than by any rule of the editor's own, so the user
 sees the diagnostics the application would produce and the editor cannot
-accept anything the application would refuse.
+accept anything the application would refuse. Saving runs that same pass
+and writes the object it accepted, so nothing reaches the file that the
+application would not read back.
 
 This version of the model handles scalar members only. A member whose
 value is a list or a dict is reported as a row that is not editable.
@@ -832,6 +1071,7 @@ value is a list or a dict is reported as a row that is not editable.
 ```python
 def __init__(config: Config,
              report: LoadReport = LoadReport(),
+             out_file: Optional[PathOrStr] = None,
              stderr_file: TextIO = sys.stderr) -> None
 ```
 
@@ -852,6 +1092,8 @@ before this and what reading it did arrives as the report.
   the member names and their values, and is not modified.
 - `report` - What reading the input file did beyond reading the
   values. The default says there was no file to read.
+- `out_file` - File that saving writes, or None when the user has not
+  chosen one yet and the editor has to ask before it can save.
 - `stderr_file` - Stream used for user-facing diagnostics.
   
 
@@ -917,6 +1159,56 @@ def dirty() -> bool
 
 Return whether the buffer holds anything that is worth saving.
 
+A save answers this question, so a buffer that has just been written
+is no longer dirty however much was typed into it before.
+
+<a id="edit_cfg_json.edit_model.EditModel.out_file"></a>
+
+#### out\_file
+
+```python
+@property
+def out_file() -> Optional[PathOrStr]
+```
+
+Return the file that saving writes, None when there is none yet.
+
+There is none when the editor was started neither on an input file
+nor on an output file, which is what happens when an application
+offers to write its very first configuration file. The editor then
+has to ask for a destination before it can save anything.
+
+<a id="edit_cfg_json.edit_model.EditModel.save_message"></a>
+
+#### save\_message
+
+```python
+@property
+def save_message() -> str
+```
+
+Return what the last attempt to save did, empty when none.
+
+It is dropped as soon as the buffer changes, for the same reason as
+the verdict: what an earlier buffer did when it was saved says
+nothing true about the buffer that is there now.
+
+<a id="edit_cfg_json.edit_model.EditModel.saved_config"></a>
+
+#### saved\_config
+
+```python
+@property
+def saved_config() -> Optional[Config]
+```
+
+Return the configuration object that was written, or None.
+
+This is what `edit()` gives back to the application, so that a
+caller needs no load of its own to work with what was saved. It is
+never the caller's own object, which the editor does not modify and
+which would otherwise be stale.
+
 <a id="edit_cfg_json.edit_model.EditModel.verdict"></a>
 
 #### verdict
@@ -961,6 +1253,27 @@ after a validation pass without that counting as an edit.
 - `KeyError` - The path is not a member of this configuration.
 - `ValueError` - The member is not one that this version can edit.
 
+<a id="edit_cfg_json.edit_model.EditModel.set_out_file"></a>
+
+#### set\_out\_file
+
+```python
+def set_out_file(out_file: PathOrStr) -> None
+```
+
+Choose the file that saving writes from now on.
+
+This is the whole of what a backend's "save as" does before it
+saves, so that choosing a destination and writing to it stay two
+things and an application that mounts the model in a user interface
+of its own can offer them separately.
+
+**Arguments**:
+
+- `out_file` - File to write, with whatever name and extension the
+  application and its user want. The editor has no opinion
+  about either.
+
 <a id="edit_cfg_json.edit_model.EditModel.validate"></a>
 
 #### validate
@@ -982,6 +1295,35 @@ the user the text they typed would be the worst available behaviour.
 **Returns**:
 
   What the pass found. It is also kept, as `verdict`.
+
+<a id="edit_cfg_json.edit_model.EditModel.save"></a>
+
+#### save
+
+```python
+def save() -> SaveOutcome
+```
+
+Write the buffer to the output file, if it can be written.
+
+Saving is validating and then writing, and it runs the very same
+pass that `validate` does, so a validator that rewrites a value
+rewrites it here too and the member says so afterwards. What reaches
+the file is therefore always what the editor is showing.
+
+A configuration the application would refuse is not written, because
+an editor that produced a file its own application cannot read would
+have failed at the one thing it is for. Nor is anything written when
+no destination has been chosen; the editor asks for one instead.
+
+A save that wrote the file leaves nothing to save, so the values
+that were written become the ones the buffer is compared against
+and the model stops reporting itself as dirty.
+
+**Returns**:
+
+  Whether the file was written, and what to tell the user. It is
+  also kept, as `save_message`.
 
 <a id="edit_cfg_json.validation"></a>
 
@@ -1057,6 +1399,17 @@ A member validator returns the value that is stored back into the
 member, so these are not necessarily the values the pass was given.
 They are empty when the buffer was refused, because there is then no
 configuration object to read them from.
+
+<a id="edit_cfg_json.validation.ValidationPass.candidate"></a>
+
+#### candidate
+
+The configuration object the pass built, None when it was refused.
+
+Saving writes this very object rather than building a second one from
+the same text, so that what reaches the file is what the verdict was
+reached about. It is also what `edit()` gives back to the application,
+which then needs no load of its own to see what was saved.
 
 <a id="edit_cfg_json.validation.validate_buffer"></a>
 

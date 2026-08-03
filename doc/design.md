@@ -203,7 +203,8 @@ error at validation, but might be useful for separating between
 a None value and an empty string value of an `Optional[str]`.)
 
 The type metadata of a leaf is **derived from the value that leaf held
-when the model was built**, kept beside the value the user is editing.
+when the file was last agreed with**, which is when the model was built and
+again after every save, kept beside the value the user is editing.
 Deriving the kind from the current value instead does not work: a number
 member that is half typed holds text for as long as its text is not a
 number yet, and it would stop being a number member for the rest of the
@@ -214,6 +215,15 @@ Python considers `True` equal to `1` and `1` equal to `1.0` while a file
 writes all three of them differently, and any of those changes changes
 the file. Future versions will probably add more type information on
 more focus on attribute types.
+
+A successful save moves that value to what was written, which is what makes
+the second question keep answering itself: what has just reached the file is
+not waiting to reach it, so the editor stops reporting unsaved changes and
+the *edited* mark of every leaf clears. Moving it is safe for the first
+question as well, because only a validated configuration is ever written, so
+the value moved to has the type the configuration class gave it. The *changed
+by validator* mark is deliberately not cleared by a save: that a value is not
+literally the one the user typed stays true after it has been written.
 
 Text that is not JSON at all is kept as a string rather than refused, which
 is what makes a value typable at all: it is invalid for most of the time it
@@ -525,17 +535,30 @@ behaviour.
 ## 7. Saving
 
 - **An invalid configuration cannot be saved.** Saving is: validate the
-  candidate, and on success call `write()` on it.
+  candidate, and on success call `write()` on it. It is the *same* pass the
+  user asks for with Validate, so a validator that rewrites a value rewrites
+  it on the way to the file too and the editor shows what was written rather
+  than what was typed.
 - `edit()` returns the saved `Config` object, or `None` if the user
   cancelled. The caller's own object is never mutated and would
   otherwise be stale.
 - `out_file` defaults to `in_file`. If both are `None` the editor starts
-  from defaults and must obtain a destination before it can save.
-- Note: `Config.write()` documents its `stderr_file` as "used for
-  user-facing diagnostics during validation", which suggests `write()`
-  validates as well. Confirm against the implementation; if so, the
-  editor's own validation gate is belt and braces rather than the only
-  guard.
+  from defaults and must obtain a destination before it can save. The model
+  reports that it has none and the backends ask the user for one; the model
+  invents nothing, because a file name is not something a library can guess.
+- **Saving leaves the editor open.** A save is not the end of a session, so
+  Save answers "is there anything to write" and the session ends only when
+  the user closes it. `edit()` then returns the object that really reached
+  the file, whatever was typed afterwards and not saved.
+- **`Config.write()` does validate.** Confirmed against the implementation in
+  `./venv` at step 5: `write()` calls `as_json_string()`, whose first
+  statement is `self.validate(stderr_file=stderr_file)`, and it opens the
+  destination only after the text exists. So the editor's own gate is belt
+  and braces rather than the only guard, and a configuration that `write()`
+  refuses leaves the file on disk exactly as it was.
+- A destination that cannot be written — a folder that does not exist, a file
+  that may not be written to — is a message and not a crash, for the same
+  reason: the alternative costs the user the whole session.
 
 ### 7.1 Draft file (room left, not implemented in v1)
 
@@ -561,7 +584,8 @@ now, and is a rewrite if it is not.
   model itself and mounts the backend as a widget.
 
 ```python
-def edit(config: Config, descriptions: Descriptions, *,
+def edit(config: Config, backend: EditorBackend,
+         descriptions: Descriptions, *,
          in_file: Optional[PathOrStr] = None,
          out_file: Optional[PathOrStr] = None,
          loader: Optional[ConfigLoader] = None,
@@ -572,6 +596,15 @@ def edit(config: Config, descriptions: Descriptions, *,
 The `config` argument serves as the schema and defaults source and stays
 the ergonomic front door; `loader` is the door for applications with
 constructor arguments we do not know about.
+
+The `backend` argument is one this document originally left out, and it has
+to be there: the core never imports a user interface library, so it cannot
+name one. Each backend package therefore also exports an `edit` of its own
+that supplies itself and forwards everything else, which is the shorter door
+for an application that has already chosen its user interface. Those wrappers
+are a signature and one call, so section 8's warning about logic drifting into
+the backends does not apply to them; if either of them ever grows a decision
+of its own, that decision belongs here instead.
 
 A practical consequence of the split: the backends must stay thin. All
 three packages share a single pylint invocation, and this repository

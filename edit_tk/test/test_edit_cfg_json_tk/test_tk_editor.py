@@ -15,12 +15,17 @@ both backends and by the example itself.
 # MIT License
 
 from collections.abc import Callable, Iterator
+from pathlib import Path
 from typing import ClassVar, cast
+import json
 import tkinter
+from tkinter import filedialog
 import pytest
 from edit_cfg_json import EditModel, EditorBackend, LoadReport
 from edit_cfg_json_tk import TkEditor
-from edit_cfg_json_tk.tk_editor import EditorWidgets, VALIDATE_TEXT
+from edit_cfg_json_tk import edit as tk_edit
+from edit_cfg_json_tk.tk_editor import CLOSE_TEXT, EditorWidgets, \
+    SAVE_AS_TEXT, SAVE_TEXT, VALIDATE_TEXT
 from example.e01_flat_config import FlatConfig
 
 UNKNOWN_VERDICT = 'validation: not validated'
@@ -38,8 +43,14 @@ FILLED_MARK = ' (filled from default)'
 VALID_VERDICT = 'validation: valid'
 """Text the editor shows for a buffer the application would accept."""
 
+NO_FILE_TEXT = 'save to: no file chosen yet'
+"""Text the editor shows while no output file has been chosen."""
+
+BUTTON_TEXTS = [VALIDATE_TEXT, SAVE_TEXT, SAVE_AS_TEXT, CLOSE_TEXT]
+"""Texts of the buttons of the editor, in the order they are created."""
+
 EXPECTED_LABELS = ['FlatConfig', 'name', '', 'answer', '', UNKNOWN_VERDICT,
-                   VALIDATE_TEXT, 'Close']
+                   NO_FILE_TEXT, *BUTTON_TEXTS]
 """Widget texts that both the stubbed and the real Tk test expect.
 
 The two empty strings are the marks of the two members, which say nothing
@@ -47,7 +58,7 @@ until the user or a validator has done something to them.
 """
 
 EXPECTED_LOADED = ['FlatConfig', LOAD_MESSAGE, 'name', '', 'answer',
-                   FILLED_MARK, UNKNOWN_VERDICT, VALIDATE_TEXT, 'Close']
+                   FILLED_MARK, UNKNOWN_VERDICT, NO_FILE_TEXT, *BUTTON_TEXTS]
 """Widget texts of a model whose load filled the number member in.
 
 The message of the load is above the members, because it is what explains
@@ -181,11 +192,20 @@ def _real_fields(widget: tkinter.Misc) -> list[tkinter.Entry]:
     return fields
 
 
+def _real_buttons(widget: tkinter.Misc) -> list[tkinter.Button]:
+    """Return every real Tk button below one widget, in the order created."""
+    buttons: list[tkinter.Button] = []
+    for child in widget.winfo_children():
+        if isinstance(child, tkinter.Button):
+            buttons.append(child)
+        buttons.extend(_real_buttons(child))
+    return buttons
+
+
 def _real_press(widget: tkinter.Misc, button_text: str) -> None:
     """Press the one real Tk button below one widget that shows the text."""
-    buttons = [child for child in widget.winfo_children()
-               if isinstance(child, tkinter.Button)
-               and str(child.cget('text')) == button_text]
+    buttons = [button for button in _real_buttons(widget)
+               if str(button.cget('text')) == button_text]
     assert len(buttons) == 1
     buttons[0].invoke()
 
@@ -236,12 +256,13 @@ def test_stub_row_frames(stub_tk: None) -> None:
     root = FakeWidget()
     model = EditModel(FlatConfig())
     EditorWidgets(parent=cast(tkinter.Misc, root), model=model)
-    plain = [widget for widget in FakeWidget.created
-             if widget is not root and 'text' not in widget.options]
-    frames, fields = plain[::2], plain[1::2]
-    assert len(frames) == len(model.rows)
-    assert all(frame.parent is root for frame in frames)
-    assert [field.parent for field in fields] == frames
+    fields = [widget for widget in FakeWidget.created
+              if 'textvariable' in widget.options]
+    assert len(fields) == len(model.rows)
+    for field in fields:
+        frame = field.parent
+        assert isinstance(frame, FakeWidget)
+        assert frame.parent is root
 
 
 def test_stub_typing(stub_tk: None) -> None:
@@ -367,6 +388,248 @@ def test_real_load_message(root_or_skip: tkinter.Tk) -> None:
     EditorWidgets(parent=root_or_skip,
                   model=EditModel(FlatConfig(), FILLED_REPORT))
     assert _real_texts(root_or_skip) == EXPECTED_LOADED
+
+
+def _answer_dialog(monkeypatch: pytest.MonkeyPatch, answer: str) -> list[int]:
+    """Make the Save as dialog answer without a display, and count its uses.
+
+    Args:
+        monkeypatch: The pytest fixture that replaces the dialog.
+        answer: What the dialog gives back. An empty answer is what Tk gives
+            back when the user cancelled it.
+
+    Returns:
+        A list that gets one entry per time the dialog was opened.
+    """
+    opened: list[int] = []
+
+    def ask(**options: object) -> str:
+        """Stand in for the system dialog that asks for a file name."""
+        _ = options
+        opened.append(1)
+        return answer
+    monkeypatch.setattr(filedialog, 'asksaveasfilename', ask)
+    return opened
+
+
+def _written(out_file: Path) -> object:
+    """Return what one output file holds, as JSON space values."""
+    return json.loads(out_file.read_text(encoding='UTF-8'))
+
+
+def test_stub_saves(stub_tk: None, tmp_path: Path) -> None:
+    """Test the stubbed Save button writes the edited values."""
+    _ = stub_tk
+    out_file = tmp_path / 'out.json'
+    widgets = _stub_editor(EditModel(FlatConfig(), out_file=out_file))
+    FakeVar.created[1].set('7')
+    _stub_press(SAVE_TEXT)
+    assert widgets.save_text_shown == f'Saved to {out_file}.'
+    assert _written(out_file) == {'name': 'Flat example', 'answer': 7}
+
+
+def test_real_saves(root_or_skip: tkinter.Tk, tmp_path: Path) -> None:
+    """Test the real Save button writes exactly the same."""
+    out_file = tmp_path / 'out.json'
+    widgets = EditorWidgets(parent=root_or_skip,
+                            model=EditModel(FlatConfig(), out_file=out_file))
+    _retype(_real_fields(root_or_skip)[1], '7')
+    _real_press(root_or_skip, SAVE_TEXT)
+    assert widgets.save_text_shown == f'Saved to {out_file}.'
+    assert _written(out_file) == {'name': 'Flat example', 'answer': 7}
+
+
+def test_stub_save_unmarks(stub_tk: None, tmp_path: Path) -> None:
+    """Test the label loses its mark once the values have been written."""
+    _ = stub_tk
+    widgets = _stub_editor(EditModel(FlatConfig(),
+                                     out_file=tmp_path / 'out.json'))
+    FakeVar.created[1].set('7')
+    assert widgets.label_text == 'FlatConfig *'
+    _stub_press(SAVE_TEXT)
+    assert widgets.label_text == 'FlatConfig'
+
+
+def test_real_save_unmarks(root_or_skip: tkinter.Tk, tmp_path: Path) -> None:
+    """Test the real label does the same after a save."""
+    widgets = EditorWidgets(parent=root_or_skip,
+                            model=EditModel(FlatConfig(),
+                                            out_file=tmp_path / 'out.json'))
+    _retype(_real_fields(root_or_skip)[1], '7')
+    assert widgets.label_text == 'FlatConfig *'
+    _real_press(root_or_skip, SAVE_TEXT)
+    assert widgets.label_text == 'FlatConfig'
+
+
+def test_stub_save_refused(stub_tk: None, tmp_path: Path) -> None:
+    """Test the stubbed editor refuses to write an invalid buffer."""
+    _ = stub_tk
+    out_file = tmp_path / 'out.json'
+    widgets = _stub_editor(EditModel(FlatConfig(), out_file=out_file))
+    FakeVar.created[1].set('500')
+    _stub_press(SAVE_TEXT)
+    assert 'cannot be saved' in widgets.save_text_shown
+    assert 'greater than maximum 100' in widgets.verdict_text_shown
+    assert not out_file.exists()
+
+
+def test_real_save_refused(root_or_skip: tkinter.Tk, tmp_path: Path) -> None:
+    """Test the real editor refuses the same buffer the same way."""
+    out_file = tmp_path / 'out.json'
+    widgets = EditorWidgets(parent=root_or_skip,
+                            model=EditModel(FlatConfig(), out_file=out_file))
+    _retype(_real_fields(root_or_skip)[1], '500')
+    _real_press(root_or_skip, SAVE_TEXT)
+    assert 'cannot be saved' in widgets.save_text_shown
+    assert 'greater than maximum 100' in widgets.verdict_text_shown
+    assert not out_file.exists()
+
+
+def test_stub_save_rewrites(stub_tk: None, tmp_path: Path) -> None:
+    """Test a value a validator rewrote is what the file gets.
+
+    Saving validates, so it rewrites what validating would rewrite, and the
+    field is refreshed to show what really went into the file.
+    """
+    _ = stub_tk
+    out_file = tmp_path / 'out.json'
+    _stub_editor(EditModel(FlatConfig(), out_file=out_file))
+    FakeVar.created[0].set('other')
+    _stub_press(SAVE_TEXT)
+    assert FakeVar.created[0].get() == 'Other'
+    assert _written(out_file) == {'name': 'Other', 'answer': 42}
+
+
+def test_real_save_rewrites(root_or_skip: tkinter.Tk, tmp_path: Path) -> None:
+    """Test the real field and the real file show the same rewrite."""
+    out_file = tmp_path / 'out.json'
+    EditorWidgets(parent=root_or_skip,
+                  model=EditModel(FlatConfig(), out_file=out_file))
+    _retype(_real_fields(root_or_skip)[0], 'other')
+    _real_press(root_or_skip, SAVE_TEXT)
+    assert _real_fields(root_or_skip)[0].get() == 'Other'
+    assert _written(out_file) == {'name': 'Other', 'answer': 42}
+
+
+def test_stub_save_as(stub_tk: None, monkeypatch: pytest.MonkeyPatch,
+                      tmp_path: Path) -> None:
+    """Test Save as chooses a file, writes it, and says where."""
+    _ = stub_tk
+    out_file = tmp_path / 'chosen.cfg'
+    opened = _answer_dialog(monkeypatch, str(out_file))
+    widgets = _stub_editor(EditModel(FlatConfig()))
+    _stub_press(SAVE_AS_TEXT)
+    assert opened == [1]
+    assert widgets.save_text_shown == f'Saved to {out_file}.'
+    assert _written(out_file) == {'name': 'Flat example', 'answer': 42}
+
+
+def test_real_save_as(root_or_skip: tkinter.Tk,
+                      monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Test the real editor does the same with the dialog answered."""
+    out_file = tmp_path / 'chosen.cfg'
+    _answer_dialog(monkeypatch, str(out_file))
+    widgets = EditorWidgets(parent=root_or_skip, model=EditModel(FlatConfig()))
+    _real_press(root_or_skip, SAVE_AS_TEXT)
+    assert widgets.save_text_shown == f'Saved to {out_file}.'
+    assert _written(out_file) == {'name': 'Flat example', 'answer': 42}
+
+
+def test_stub_save_as_left(stub_tk: None,
+                           monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test a cancelled dialog writes nothing and chooses nothing.
+
+    Tk reports a cancelled dialog as an empty file name, and there is no
+    file whose name is nothing.
+    """
+    _ = stub_tk
+    _answer_dialog(monkeypatch, '')
+    model = EditModel(FlatConfig())
+    widgets = _stub_editor(model)
+    _stub_press(SAVE_AS_TEXT)
+    assert model.out_file is None
+    assert widgets.save_text_shown == NO_FILE_TEXT
+
+
+def test_stub_save_asks(stub_tk: None, monkeypatch: pytest.MonkeyPatch,
+                        tmp_path: Path) -> None:
+    """Test Save asks where to write when the session has no file yet.
+
+    That is what every editor does, and it is the reason the model may be
+    built with no destination at all.
+    """
+    _ = stub_tk
+    out_file = tmp_path / 'asked.json'
+    opened = _answer_dialog(monkeypatch, str(out_file))
+    widgets = _stub_editor(EditModel(FlatConfig()))
+    _stub_press(SAVE_TEXT)
+    assert opened == [1]
+    assert widgets.save_text_shown == f'Saved to {out_file}.'
+
+
+def test_real_save_asks(root_or_skip: tkinter.Tk,
+                        monkeypatch: pytest.MonkeyPatch,
+                        tmp_path: Path) -> None:
+    """Test the real Save button asks the same question."""
+    out_file = tmp_path / 'asked.json'
+    _answer_dialog(monkeypatch, str(out_file))
+    widgets = EditorWidgets(parent=root_or_skip, model=EditModel(FlatConfig()))
+    _real_press(root_or_skip, SAVE_TEXT)
+    assert widgets.save_text_shown == f'Saved to {out_file}.'
+
+
+def test_stub_destination(stub_tk: None, tmp_path: Path) -> None:
+    """Test a session that has a file says where it would write."""
+    _ = stub_tk
+    out_file = tmp_path / 'out.json'
+    widgets = _stub_editor(EditModel(FlatConfig(), out_file=out_file))
+    assert widgets.save_text_shown == f'save to: {out_file}'
+
+
+def test_stub_edit_after_save(stub_tk: None, tmp_path: Path) -> None:
+    """Test an edit after a save is worth saving again."""
+    _ = stub_tk
+    out_file = tmp_path / 'out.json'
+    widgets = _stub_editor(EditModel(FlatConfig(), out_file=out_file))
+    _stub_press(SAVE_TEXT)
+    FakeVar.created[1].set('7')
+    assert widgets.label_text == 'FlatConfig *'
+    assert widgets.save_text_shown == f'save to: {out_file}'
+
+
+def test_edit_returns_saved(monkeypatch: pytest.MonkeyPatch,
+                            tmp_path: Path) -> None:
+    """Test the edit of this package saves and gives the object back.
+
+    `Tk.mainloop` is replaced by a save and a close, which is what a user
+    who pressed Save and then Close would do.
+    """
+    out_file = tmp_path / 'out.json'
+
+    def save_and_close(window: tkinter.Tk) -> None:
+        """Stand in for Tk.mainloop by saving and closing the window."""
+        _real_press(window, SAVE_TEXT)
+        window.destroy()
+    monkeypatch.setattr(tkinter.Tk, 'mainloop', save_and_close)
+    try:
+        saved = tk_edit(config=FlatConfig(), out_file=out_file)
+    except tkinter.TclError:
+        pytest.skip('No display available for Tk.')
+    assert isinstance(saved, FlatConfig)
+    assert _written(out_file) == {'name': 'Flat example', 'answer': 42}
+
+
+def test_edit_returns_none(monkeypatch: pytest.MonkeyPatch,
+                           tmp_path: Path) -> None:
+    """Test a session that only closes saves nothing and gives back None."""
+    out_file = tmp_path / 'out.json'
+    monkeypatch.setattr(tkinter.Tk, 'mainloop', tkinter.Tk.destroy)
+    try:
+        saved = tk_edit(config=FlatConfig(), out_file=out_file)
+    except tkinter.TclError:
+        pytest.skip('No display available for Tk.')
+    assert saved is None
+    assert not out_file.exists()
 
 
 def test_is_editor_backend() -> None:

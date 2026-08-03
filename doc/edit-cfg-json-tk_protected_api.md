@@ -4,7 +4,10 @@
   * [NAME\_COLUMN\_WIDTH](#edit_cfg_json_tk.tk_editor.NAME_COLUMN_WIDTH)
   * [PADDING](#edit_cfg_json_tk.tk_editor.PADDING)
   * [VALIDATE\_TEXT](#edit_cfg_json_tk.tk_editor.VALIDATE_TEXT)
+  * [SAVE\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_TEXT)
+  * [SAVE\_AS\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_AS_TEXT)
   * [CLOSE\_TEXT](#edit_cfg_json_tk.tk_editor.CLOSE_TEXT)
+  * [SAVE\_AS\_TITLE](#edit_cfg_json_tk.tk_editor.SAVE_AS_TITLE)
   * [RowWidgets](#edit_cfg_json_tk.tk_editor.RowWidgets)
     * [field](#edit_cfg_json_tk.tk_editor.RowWidgets.field)
     * [mark](#edit_cfg_json_tk.tk_editor.RowWidgets.mark)
@@ -12,16 +15,21 @@
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.EditorWidgets.__init__)
     * [label\_text](#edit_cfg_json_tk.tk_editor.EditorWidgets.label_text)
     * [verdict\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.verdict_text_shown)
+    * [save\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.save_text_shown)
     * [\_add\_load\_message](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_load_message)
     * [\_add\_buttons](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_buttons)
     * [\_add\_row](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_row)
     * [\_add\_value](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_value)
     * [\_writer](#edit_cfg_json_tk.tk_editor.EditorWidgets._writer)
     * [\_validate](#edit_cfg_json_tk.tk_editor.EditorWidgets._validate)
+    * [\_save](#edit_cfg_json_tk.tk_editor.EditorWidgets._save)
+    * [\_save\_as](#edit_cfg_json_tk.tk_editor.EditorWidgets._save_as)
+    * [\_refresh](#edit_cfg_json_tk.tk_editor.EditorWidgets._refresh)
     * [\_show\_state](#edit_cfg_json_tk.tk_editor.EditorWidgets._show_state)
   * [TkEditor](#edit_cfg_json_tk.tk_editor.TkEditor)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.TkEditor.__init__)
     * [run\_editor](#edit_cfg_json_tk.tk_editor.TkEditor.run_editor)
+  * [edit](#edit_cfg_json_tk.tk_editor.edit)
 
 <a id="edit_cfg_json_tk.tk_editor"></a>
 
@@ -47,11 +55,34 @@ Padding in pixels around the widgets of the editor.
 
 Text of the button that runs the validation of the application.
 
+<a id="edit_cfg_json_tk.tk_editor.SAVE_TEXT"></a>
+
+#### SAVE\_TEXT
+
+Text of the button that writes the output file.
+
+<a id="edit_cfg_json_tk.tk_editor.SAVE_AS_TEXT"></a>
+
+#### SAVE\_AS\_TEXT
+
+Text of the button that chooses an output file and then writes it.
+
 <a id="edit_cfg_json_tk.tk_editor.CLOSE_TEXT"></a>
 
 #### CLOSE\_TEXT
 
 Text of the button that ends the editor.
+
+Closing writes nothing of its own. It is the "cancel" of the design, and it
+is called Close because saving leaves the editor open: a button called Cancel
+beside values that have already been written would read as an offer to undo
+the writing, which it is not.
+
+<a id="edit_cfg_json_tk.tk_editor.SAVE_AS_TITLE"></a>
+
+#### SAVE\_AS\_TITLE
+
+Title of the dialog that asks which file to write.
 
 <a id="edit_cfg_json_tk.tk_editor.RowWidgets"></a>
 
@@ -137,6 +168,17 @@ def verdict_text_shown() -> str
 
 Return the text that the validation part of the editor shows.
 
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets.save_text_shown"></a>
+
+#### save\_text\_shown
+
+```python
+@property
+def save_text_shown() -> str
+```
+
+Return the text that the saving part of the editor shows.
+
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_load_message"></a>
 
 #### \_add\_load\_message
@@ -160,7 +202,10 @@ message that will never come.
 def _add_buttons(parent: tkinter.Misc) -> None
 ```
 
-Create the button that validates and the one that ends the run.
+Create the buttons that validate, save and end the run.
+
+They share one row, because four buttons stacked above each other
+would push the values of a real configuration off the window.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_row"></a>
 
@@ -210,9 +255,51 @@ def _validate() -> None
 
 Validate the buffer and show what the application would say.
 
-The fields are written back from the model afterwards, because a
-validation pass is not read only: a member validator returns the
-value that is stored back into the member, so a value can end up
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._save"></a>
+
+#### \_save
+
+```python
+def _save() -> None
+```
+
+Write the output file, and say what came of trying.
+
+Saving validates, so it can rewrite a value exactly as validating
+can, and the fields are refreshed for the same reason.
+
+A session that has no file to write yet is asked where to write,
+which is what every editor does and what the design asks a backend
+for. There is no way round to loop back here, because the question
+is what gives the session a file.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._save_as"></a>
+
+#### \_save\_as
+
+```python
+def _save_as() -> None
+```
+
+Ask which file to write, and write it when one was named.
+
+The dialog is given no default extension and no file type filter,
+because this library has no opinion about what a configuration file
+is called: some applications use `.cfg`, some use `.json`, and
+others use something else again.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._refresh"></a>
+
+#### \_refresh
+
+```python
+def _refresh() -> None
+```
+
+Write the buffer back into the fields and show the new state.
+
+A pass over the buffer is not read only: a member validator returns
+the value that is stored back into the member, so a value can end up
 different from the one the user typed. Writing the text the model
 already holds into a field is not an edit, so this refresh does not
 undo the marks that the pass has just set.
@@ -225,7 +312,7 @@ undo the marks that the pass has just set.
 def _show_state() -> None
 ```
 
-Show the label, the verdict and the mark of every member.
+Show the label, the verdict, the saving and every member mark.
 
 <a id="edit_cfg_json_tk.tk_editor.TkEditor"></a>
 
@@ -267,4 +354,41 @@ own the fields that the Tcl variables belong to.
 **Arguments**:
 
 - `model` - Model to show and to edit.
+
+<a id="edit_cfg_json_tk.tk_editor.edit"></a>
+
+#### edit
+
+```python
+def edit(config: Config,
+         *,
+         in_file: Optional[PathOrStr] = None,
+         out_file: Optional[PathOrStr] = None,
+         policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
+         stderr_file: TextIO = sys.stderr) -> Optional[Config]
+```
+
+Edit one configuration in a Tk window, and return what was saved.
+
+This is `edit_cfg_json.edit` with this package's backend filled in, for
+an application that has already chosen Tkinter. Everything it does is
+documented there.
+
+**Arguments**:
+
+- `config` - Configuration object to edit. It is never modified.
+- `in_file` - File to read, or None to start from the declared defaults.
+- `out_file` - File to write, or None to write the input file.
+- `policy` - What to do about declared keys the input file does not hold.
+- `stderr_file` - Stream used for user-facing diagnostics.
+  
+
+**Returns**:
+
+  The configuration object that was written, or None when nothing was.
+  
+
+**Raises**:
+
+- `ConfigLoadError` - The input file cannot be opened for editing.
 

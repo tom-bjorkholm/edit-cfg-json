@@ -8,6 +8,6 @@ that nothing has to be imported from an internal module.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from edit_cfg_json_textual.textual_editor import TextualEditor
+from edit_cfg_json_textual.textual_editor import TextualEditor, edit
 
-__all__ = ['TextualEditor']
+__all__ = ['TextualEditor', 'edit']

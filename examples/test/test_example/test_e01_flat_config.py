@@ -4,14 +4,20 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from pathlib import Path
+import json
 import pytest
 from example import e01_flat_config
-from .helpers import data_file, dump, open_tk_ui, refused, textual_titles
+from .helpers import DUMP_TAIL, data_file, dump, input_tail, open_tk_ui, \
+    refused, saved_tail, textual_titles
 
 VALID_LINE = 'validation: valid'
 """Line that `--ui dump` ends with for a buffer the example accepts."""
 
-EXPECTED_DUMP = f'name = Flat example\nanswer = 42\n{VALID_LINE}'
+VALID_END = f'{VALID_LINE}\n{DUMP_TAIL}'
+"""How a dump of an accepted buffer with no output file ends."""
+
+EXPECTED_DUMP = f'name = Flat example\nanswer = 42\n{VALID_END}'
 """Text that `--ui dump` is expected to print for the default values."""
 
 FILLED_LINE = ('This file did not hold every value. What it left out was '
@@ -58,17 +64,23 @@ def test_unknown_ui(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 @pytest.mark.parametrize('option', ['-o', '--output'])
-def test_output_refused(option: str,
-                        capsys: pytest.CaptureFixture[str]) -> None:
-    """Test the output option is refused until saving is implemented."""
-    assert 'not supported yet' in _refused(capsys, '--ui', 'dump', option,
-                                           'some.json')
+def test_output_named(option: str, tmp_path: Path,
+                      capsys: pytest.CaptureFixture[str]) -> None:
+    """Test naming an output file says where a save would write it.
+
+    Both spellings of the option are tried, because both are documented.
+    """
+    out_file = tmp_path / 'out.json'
+    assert _dump(capsys, option, str(out_file)) == (
+        f'name = Flat example\nanswer = 42\n{VALID_LINE}\n'
+        f'save to: {out_file}\nedit() returned None, so nothing was saved.')
+    assert not out_file.exists()
 
 
 def test_set_members(capsys: pytest.CaptureFixture[str]) -> None:
     """Test --set edits the buffer and marks what the user changed."""
     assert _dump(capsys, '--set', 'name=Other', '--set', 'answer=7') == \
-        f'name = Other (edited)\nanswer = 7 (edited)\n{VALID_LINE}'
+        f'name = Other (edited)\nanswer = 7 (edited)\n{VALID_END}'
 
 
 def test_set_same_value(capsys: pytest.CaptureFixture[str]) -> None:
@@ -79,7 +91,7 @@ def test_set_same_value(capsys: pytest.CaptureFixture[str]) -> None:
 def test_set_empty_value(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a member can be set to an empty field."""
     assert _dump(capsys, '--set', 'name=') == \
-        f'name =  (edited)\nanswer = 42\n{VALID_LINE}'
+        f'name =  (edited)\nanswer = 42\n{VALID_END}'
 
 
 def test_set_not_a_number(capsys: pytest.CaptureFixture[str]) -> None:
@@ -87,7 +99,8 @@ def test_set_not_a_number(capsys: pytest.CaptureFixture[str]) -> None:
     assert _dump(capsys, '--set', 'answer=not-a-number') == \
         ('name = Flat example\nanswer = not-a-number (edited)\n'
          'validation: invalid\n'
-         'Invalid configuration: Value for answer is not of type int.')
+         'Invalid configuration: Value for answer is not of type int.\n'
+         f'{DUMP_TAIL}')
 
 
 def test_dump_refused_bool(capsys: pytest.CaptureFixture[str]) -> None:
@@ -100,7 +113,8 @@ def test_dump_refused_bool(capsys: pytest.CaptureFixture[str]) -> None:
     assert _dump(capsys, '--set', 'answer=true') == \
         ('name = Flat example\nanswer = true (edited)\n'
          'validation: invalid\n'
-         'Invalid configuration: Value for answer must not be of type bool.')
+         'Invalid configuration: Value for answer must not be of type bool.\n'
+         f'{DUMP_TAIL}')
 
 
 def test_dump_refused_value(capsys: pytest.CaptureFixture[str]) -> None:
@@ -108,7 +122,8 @@ def test_dump_refused_value(capsys: pytest.CaptureFixture[str]) -> None:
     assert _dump(capsys, '--set', 'answer=500') == \
         ('name = Flat example\nanswer = 500 (edited)\n'
          'validation: invalid\nInvalid configuration: '
-         'Value 500 for answer is greater than maximum 100.')
+         'Value 500 for answer is greater than maximum 100.\n'
+         f'{DUMP_TAIL}')
 
 
 def test_dump_rewritten_value(capsys: pytest.CaptureFixture[str]) -> None:
@@ -120,7 +135,7 @@ def test_dump_rewritten_value(capsys: pytest.CaptureFixture[str]) -> None:
     """
     assert _dump(capsys, '--set', 'name=other') == \
         ('name = Other (edited) (changed by validator)\n'
-         f'answer = 42\n{VALID_LINE}')
+         f'answer = 42\n{VALID_END}')
 
 
 def test_set_unknown_member(capsys: pytest.CaptureFixture[str]) -> None:
@@ -137,23 +152,26 @@ def test_set_without_value(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_read_complete_file(capsys: pytest.CaptureFixture[str]) -> None:
     """Test -i shows the values of the file and not the declared defaults."""
-    assert _dump(capsys, '-i', data_file('e01_complete.json')) == \
-        f'name = From a file\nanswer = 7\n{VALID_LINE}'
+    assert _dump(capsys, '-i', data_file('e01_complete.json')) == (
+        f'name = From a file\nanswer = 7\n{VALID_LINE}\n'
+        f'{input_tail("e01_complete.json")}')
 
 
 def test_read_incomplete_file(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a value the file leaves out is filled in and said to be."""
-    assert _dump(capsys, '-i', data_file('e01_incomplete.json')) == \
-        (f'{FILLED_LINE}\nname = Only a name\n'
-         f'answer = 42 (filled from default)\n{VALID_LINE}')
+    assert _dump(capsys, '-i', data_file('e01_incomplete.json')) == (
+        f'{FILLED_LINE}\nname = Only a name\n'
+        f'answer = 42 (filled from default)\n{VALID_LINE}\n'
+        f'{input_tail("e01_incomplete.json")}')
 
 
 def test_defaults_policy(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the permissive policy reads the same incomplete file alike."""
     assert _dump(capsys, '--policy', 'defaults', '-i',
-                 data_file('e01_incomplete.json')) == \
-        (f'{FILLED_LINE}\nname = Only a name\n'
-         f'answer = 42 (filled from default)\n{VALID_LINE}')
+                 data_file('e01_incomplete.json')) == (
+        f'{FILLED_LINE}\nname = Only a name\n'
+        f'answer = 42 (filled from default)\n{VALID_LINE}\n'
+        f'{input_tail("e01_incomplete.json")}')
 
 
 def test_strict_policy(capsys: pytest.CaptureFixture[str]) -> None:
@@ -167,8 +185,9 @@ def test_strict_policy(capsys: pytest.CaptureFixture[str]) -> None:
 def test_strict_complete_file(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the strict policy opens a file that holds every value."""
     assert _dump(capsys, '--policy', 'strict', '-i',
-                 data_file('e01_complete.json')) == \
-        f'name = From a file\nanswer = 7\n{VALID_LINE}'
+                 data_file('e01_complete.json')) == (
+        f'name = From a file\nanswer = 7\n{VALID_LINE}\n'
+        f'{input_tail("e01_complete.json")}')
 
 
 @pytest.mark.parametrize('case, name, expected', REFUSED_FILES)
@@ -188,8 +207,97 @@ def test_unknown_policy(capsys: pytest.CaptureFixture[str]) -> None:
 def test_edit_loaded_value(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a value read from a file can be edited like any other."""
     assert _dump(capsys, '-i', data_file('e01_complete.json'), '--set',
-                 'answer=9') == \
-        f'name = From a file\nanswer = 9 (edited)\n{VALID_LINE}'
+                 'answer=9') == (
+        f'name = From a file\nanswer = 9 (edited)\n{VALID_LINE}\n'
+        f'{input_tail("e01_complete.json")}')
+
+
+def _written(out_file: Path) -> object:
+    """Return what one output file holds, as JSON space values."""
+    return json.loads(out_file.read_text(encoding='UTF-8'))
+
+
+def test_save_writes(tmp_path: Path,
+                     capsys: pytest.CaptureFixture[str]) -> None:
+    """Test --save writes the edited values and says what was returned.
+
+    This is the whole round trip without a display: read nothing, edit two
+    members, validate, write, and hand the saved object back.
+    """
+    out_file = tmp_path / 'out.json'
+    assert _dump(capsys, '-o', str(out_file), '--set', 'answer=7', '--set',
+                 'name=Other', '--save') == (
+        f'name = Other\nanswer = 7\n{VALID_LINE}\n'
+        f'{saved_tail(out_file, "FlatConfig")}')
+    assert _written(out_file) == {'name': 'Other', 'answer': 7}
+
+
+def test_saved_is_not_edited(tmp_path: Path,
+                             capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the members are no longer marked as edited after a save.
+
+    What has been written is not waiting to be written, and an editor that
+    still claimed to have changes would be saying something untrue.
+    """
+    printed = _dump(capsys, '-o', str(tmp_path / 'out.json'), '--set',
+                    'answer=7', '--save')
+    assert '(edited)' not in printed
+
+
+def test_save_over_input(tmp_path: Path,
+                         capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the input file is what a save writes when no output is named."""
+    in_file = tmp_path / 'round.json'
+    in_file.write_text('{"name": "From a file", "answer": 7}',
+                       encoding='UTF-8')
+    assert _dump(capsys, '-i', str(in_file), '--set', 'answer=11',
+                 '--save') == (f'name = From a file\nanswer = 11\n'
+                               f'{VALID_LINE}\n'
+                               f'{saved_tail(in_file, "FlatConfig")}')
+    assert _written(in_file) == {'name': 'From a file', 'answer': 11}
+
+
+def test_save_refused(tmp_path: Path,
+                      capsys: pytest.CaptureFixture[str]) -> None:
+    """Test an invalid buffer is not written, and nothing is handed back."""
+    out_file = tmp_path / 'out.json'
+    printed = _dump(capsys, '-o', str(out_file), '--set', 'answer=500',
+                    '--save')
+    assert 'greater than maximum 100' in printed
+    assert 'These values are not valid, so they cannot be saved.' in printed
+    assert 'edit() returned None' in printed
+    assert not out_file.exists()
+
+
+def test_save_rewritten(tmp_path: Path,
+                        capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the value a validator rewrote is the value that reaches the file.
+
+    An application that took the buffer at face value would disagree with
+    its own file about this member.
+    """
+    out_file = tmp_path / 'out.json'
+    _dump(capsys, '-o', str(out_file), '--set', 'name=other', '--save')
+    assert _written(out_file) == {'name': 'Other', 'answer': 42}
+
+
+def test_save_needs_a_file(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a --save with no file named says so instead of guessing one."""
+    printed = _dump(capsys, '--save')
+    assert 'There is no file to save to yet.' in printed
+    assert 'edit() returned None' in printed
+
+
+@pytest.mark.parametrize('ui_name', ['tk', 'textual'])
+def test_save_only_for_dump(ui_name: str,
+                            capsys: pytest.CaptureFixture[str]) -> None:
+    """Test --save is refused where the editor has a Save of its own.
+
+    An option that looked as if it worked and quietly did nothing would be
+    worse than no option.
+    """
+    error = _refused(capsys, '--ui', ui_name, '--save')
+    assert 'only means something together with --ui dump' in error
 
 
 def test_tk_ui_opens(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -39,11 +39,26 @@ that cannot be opened, so each of them can be tried without writing a file
 first. A file that cannot be opened is a message and an exit, and never an
 editor that quietly shows the default values instead of what was asked for.
 
+`-o/--output` names the file that is written, and defaults to the input file,
+which is what an editor is normally asked to do. With neither, there is
+nowhere to write, and the two graphical backends ask for a destination when
+Save is pressed.
+
 `--ui dump` validates the buffer before it prints it, so the dump always
 says what the application would make of the values it shows. The two
 graphical backends do not: there the user asks for a validation pass, with
 a button or with a key, because a user who is halfway through typing a
 value has not asked anything yet.
+
+`--save` is the one option that only means something for `--ui dump`. The
+dump prints once and the run is then over, so there is no later moment at
+which a user could press Save; without `--save` the dump says where it would
+write, and with it the file is really written. That is what makes the whole
+round trip observable without a display.
+
+Every run ends by saying what `edit()` gave back, because "the saved object,
+or `None` when nothing was saved" is the contract of this library and a
+contract is better seen than read.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -53,7 +68,7 @@ import argparse
 from typing import Optional
 from config_as_json import Config
 from edit_cfg_json import ConfigLoadError, EditModel, EditorBackend, \
-    LoadPolicy, load_config, model_as_text
+    LoadPolicy, edit, model_as_text
 
 UI_DUMP = 'dump'
 """Value of `--ui` that prints the model instead of opening a window."""
@@ -80,8 +95,14 @@ POLICIES = {DEFAULT_POLICY_NAME: LoadPolicy.STRICT_THEN_DEFAULTS,
             'defaults': LoadPolicy.DEFAULTS}
 """Every accepted value of `--policy`, and what the editor makes of it."""
 
-NOT_YET_MESSAGE = '{option} is not supported yet.'
-"""Message used to refuse an option that a later step will implement."""
+DUMP_ONLY_MESSAGE = '--save only means something together with --ui dump.'
+"""Message used to refuse `--save` where a Save button or key exists."""
+
+SAVED_MESSAGE = 'edit() returned the saved {name} object.'
+"""Message that says the editor handed a written configuration back."""
+
+NOTHING_MESSAGE = 'edit() returned None, so nothing was saved.'
+"""Message that says the session ended without writing anything."""
 
 SET_FORM_MESSAGE = '--set needs member=value, and got {setting}.'
 """Message used to refuse a `--set` value that names no member."""
@@ -100,7 +121,7 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
         example_name: Name of the example, used in help and error text.
 
     Returns:
-        A parser for `--ui`, `--set`, `--policy`, `-i/--input` and
+        A parser for `--ui`, `--set`, `--policy`, `--save`, `-i/--input` and
         `-o/--output`.
     """
     parser = argparse.ArgumentParser(prog=example_name)
@@ -112,53 +133,28 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
     parser.add_argument('--policy', default=DEFAULT_POLICY_NAME,
                         choices=tuple(POLICIES),
                         help='What to do about values the file leaves out.')
+    parser.add_argument('--save', action='store_true',
+                        help='Write the output file. Only with --ui dump.')
     parser.add_argument('-i', '--input', default=None,
                         help='Configuration file to read.')
     parser.add_argument('-o', '--output', default=None,
-                        help='Configuration file to write. Not supported yet.')
+                        help='Configuration file to write, or the input file.')
     return parser
 
 
-def _refuse_output(parser: argparse.ArgumentParser,
-                   parsed: argparse.Namespace) -> None:
-    """Refuse the output file option, which is not implemented yet.
+def _refuse_save(parser: argparse.ArgumentParser,
+                 parsed: argparse.Namespace) -> None:
+    """Refuse `--save` where the user interface has a Save of its own.
 
-    The option is accepted already so that the command line of the examples
-    does not have to change again when saving arrives. Until then, using it
-    is an error: an option that looked as if it worked and quietly did
-    nothing would be worse than no option.
+    An option that looked as if it worked and quietly did nothing would be
+    worse than no option.
 
     Args:
         parser: Parser used to report the error and exit.
         parsed: Parsed command line of one example run.
     """
-    if parsed.output is not None:
-        parser.error(NOT_YET_MESSAGE.format(option='-o/--output'))
-
-
-def _load_model(parser: argparse.ArgumentParser, config: Config,
-                parsed: argparse.Namespace) -> EditModel:
-    """Read the values to edit, or say why the file cannot be opened.
-
-    This is the whole of what an application does about loading: it hands
-    over its own configuration object, the file it wants read and the policy
-    it wants applied, and the editor constructs what it needs.
-
-    Args:
-        parser: Parser used to report the error and exit.
-        config: Configuration object of the example. It is not modified.
-        parsed: Parsed command line of one example run.
-
-    Returns:
-        A model holding the values of the file, or the declared defaults
-        when no file was named.
-    """
-    try:
-        loaded = load_config(config=config, in_file=parsed.input,
-                             policy=POLICIES[parsed.policy])
-    except ConfigLoadError as error:
-        parser.error(str(error))
-    return EditModel(config=loaded.config, report=loaded.report)
+    if parsed.save and parsed.ui != UI_DUMP:
+        parser.error(DUMP_ONLY_MESSAGE)
 
 
 def _set_member(parser: argparse.ArgumentParser, model: EditModel, name: str,
@@ -204,6 +200,75 @@ def _apply_settings(parser: argparse.ArgumentParser, model: EditModel,
         _set_member(parser=parser, model=model, name=name, text=text)
 
 
+class DumpEditor:  # pylint: disable=too-few-public-methods
+    """A backend that prints the model instead of opening a window.
+
+    It is a backend and not a special case beside the two real ones, which
+    is worth noticing: `EditorBackend` asks for one method, so anything with
+    that method can be handed to `edit()`. That is also how an application
+    could write a backend of its own.
+    """
+
+    def __init__(self, save: bool) -> None:
+        """Say whether this dump writes the output file or only reports it.
+
+        Args:
+            save: Whether to write the file. A dump prints once and the run
+                is then over, so there is no later moment at which the user
+                could ask for it.
+        """
+        self._save = save
+
+    def run_editor(self, model: EditModel) -> None:
+        """Validate or save, and print the model as text.
+
+        Saving validates too, so either way the printed model says what the
+        application makes of the values in it.
+
+        Args:
+            model: Model to print.
+        """
+        if self._save:
+            model.save()
+        else:
+            model.validate()
+        print(model_as_text(model))
+
+
+class SettingEditor:  # pylint: disable=too-few-public-methods
+    """A backend that types the `--set` edits in and then runs another one.
+
+    The edits belong on this side of `edit()` rather than before it, because
+    `edit()` owns the model: it reads the file and builds the model itself,
+    which is what gives a load its policy and its change reporting. `--set`
+    stands in for a user typing, and a user types into an editor that is
+    already open.
+    """
+
+    def __init__(self, inner: EditorBackend, parser: argparse.ArgumentParser,
+                 settings: Optional[list[str]]) -> None:
+        """Remember the edits to make and the backend to run afterwards.
+
+        Args:
+            inner: Backend that shows the model once it has been edited.
+            parser: Parser used to report a bad `--set` and exit.
+            settings: The `--set` values, or None when there were none.
+        """
+        self._inner = inner
+        self._parser = parser
+        self._settings = settings
+
+    def run_editor(self, model: EditModel) -> None:
+        """Apply every `--set` and then hand the model to the real backend.
+
+        Args:
+            model: Model to edit and then to show.
+        """
+        _apply_settings(parser=self._parser, model=model,
+                        settings=self._settings)
+        self._inner.run_editor(model)
+
+
 def _tk_editor() -> EditorBackend:
     """Return the Tkinter backend, imported only when it is needed.
 
@@ -231,24 +296,62 @@ def _textual_editor() -> EditorBackend:
     return TextualEditor()
 
 
-def _show_model(ui_name: str, model: EditModel) -> None:
-    """Show one model with the user interface that the user selected.
-
-    The text dump validates first, because it prints once and then the run
-    is over: there is no later moment at which the user could ask for it.
-    The two graphical backends leave the pass to the user, who has a button
-    or a key for it.
+def _selected_backend(parsed: argparse.Namespace) -> EditorBackend:
+    """Return the backend that the `--ui` value of one run asks for.
 
     Args:
-        ui_name: One of the values in `UI_CHOICES`.
-        model: Model to show.
+        parsed: Parsed command line of one example run.
+
+    Returns:
+        A backend that satisfies the `EditorBackend` protocol.
     """
-    if ui_name == UI_DUMP:
-        model.validate()
-        print(model_as_text(model))
-        return
-    editor = _tk_editor() if ui_name == UI_TK else _textual_editor()
-    editor.run_editor(model)
+    if parsed.ui == UI_DUMP:
+        return DumpEditor(save=parsed.save)
+    return _tk_editor() if parsed.ui == UI_TK else _textual_editor()
+
+
+def _result_text(saved: Optional[Config]) -> str:
+    """Return what one editing session gave back, as a line of text.
+
+    Args:
+        saved: What `edit()` returned.
+
+    Returns:
+        A line naming the saved configuration class, or saying there is none.
+    """
+    if saved is None:
+        return NOTHING_MESSAGE
+    return SAVED_MESSAGE.format(name=type(saved).__name__)
+
+
+def _run_editor(parser: argparse.ArgumentParser, config: Config,
+                backend: EditorBackend,
+                parsed: argparse.Namespace) -> Optional[Config]:
+    """Run one editing session, or say why the input file cannot be opened.
+
+    This is the whole of what an application does: it hands over its own
+    configuration object, the files it wants read and written, the policy it
+    wants applied and the user interface to use. The editor does the rest,
+    and gives back what it wrote.
+
+    Args:
+        parser: Parser used to report the error and exit.
+        config: Configuration object of the example. It is not modified.
+        backend: User interface to run the session in.
+        parsed: Parsed command line of one example run.
+
+    Returns:
+        The configuration object that was saved, or None when the session
+        ended without writing anything.
+    """
+    try:
+        saved = edit(config=config, backend=backend, in_file=parsed.input,
+                     out_file=parsed.output, policy=POLICIES[parsed.policy])
+    except ConfigLoadError as error:
+        # `parser.error` writes the message and ends the process, so nothing
+        # below this runs when the input file cannot be opened.
+        parser.error(str(error))
+    return saved
 
 
 def run_example(example_name: str, config: Config,
@@ -267,7 +370,8 @@ def run_example(example_name: str, config: Config,
     """
     parser = _create_parser(example_name)
     parsed = parser.parse_args(args)
-    _refuse_output(parser=parser, parsed=parsed)
-    model = _load_model(parser=parser, config=config, parsed=parsed)
-    _apply_settings(parser=parser, model=model, settings=parsed.settings)
-    _show_model(ui_name=parsed.ui, model=model)
+    _refuse_save(parser=parser, parsed=parsed)
+    backend = SettingEditor(inner=_selected_backend(parsed), parser=parser,
+                            settings=parsed.settings)
+    print(_result_text(_run_editor(parser=parser, config=config,
+                                   backend=backend, parsed=parsed)))

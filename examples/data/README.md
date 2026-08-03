@@ -8,6 +8,11 @@ be opened is as much a part of an editor as editing is.
 They live outside [examples/src/](../src/) because they are data and not
 Python. Nothing in this folder is part of the installed packages.
 
+None of them is ever written to. An example that is asked to save writes the
+file that `-o` names, or the file that `-i` names when there is no `-o`, so
+copy one of these somewhere else first if you want to try the round trip over
+its own input file.
+
 ## Files for `e01_flat_config.py`
 
 `FlatConfig` declares one text member `name` and one number member `answer`,

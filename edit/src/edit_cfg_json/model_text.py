@@ -34,6 +34,12 @@ INVALID_STATE = 'invalid'
 UNKNOWN_STATE = 'not validated'
 """State of a buffer that has not been validated since it last changed."""
 
+SAVE_TO_FORM = 'save to: {name}'
+"""Form of the line that says where saving would write."""
+
+NO_DESTINATION_TEXT = 'save to: no file chosen yet'
+"""Line shown while no output file has been chosen."""
+
 
 def row_value_text(row: MemberRow) -> str:
     """Return the value of one member as the text a field would show.
@@ -119,26 +125,53 @@ def load_text(model: EditModel) -> str:
     return model.load_message
 
 
+def save_text(model: EditModel) -> str:
+    """Return what saving did, or where it would write if it were asked.
+
+    Before anything has been saved there is still something to say, because
+    where a save would go is the one thing a user cannot see from the values
+    themselves, and there is a real difference between a destination that is
+    waiting and no destination at all.
+
+    Both backends show this, so that neither of them decides on its own what
+    the user is told about the output file.
+
+    Args:
+        model: Model whose saving is reported.
+
+    Returns:
+        What the last attempt to save did, or where saving would write.
+    """
+    if model.save_message:
+        return model.save_message
+    if model.out_file is None:
+        return NO_DESTINATION_TEXT
+    return SAVE_TO_FORM.format(name=model.out_file)
+
+
 def model_as_text(model: EditModel) -> str:
     """Return the whole model as text, one line per configuration member.
 
     What reading the input file did comes before the members, because it is
     what explains the marks on them. The validation state of the buffer
-    follows them, so that a rendering never leaves it unsaid what the
-    application would make of what is shown. This is the rendering used by
-    the examples and by the tests, so that every step of the editor can be
-    observed without a display. It belongs to the core rather than to a
-    backend because it is user interface agnostic.
+    follows them, and the saving after that, in the order in which a session
+    reaches them, so that a rendering never leaves it unsaid what the
+    application would make of what is shown or where it would be written.
+    This is the rendering used by the examples and by the tests, so that
+    every step of the editor can be observed without a display. It belongs
+    to the core rather than to a backend because it is user interface
+    agnostic.
 
     Args:
         model: Model to render.
 
     Returns:
-        What the load did, one line per member and then the validation
-        state, without a trailing line break.
+        What the load did, one line per member, and then the validation
+        state and the saving, without a trailing line break.
     """
     rows = [_row_as_text(row) for row in model.rows]
-    lines = [load_text(model)] + rows + [verdict_text(model)]
+    lines = [load_text(model)] + rows + [verdict_text(model),
+                                         save_text(model)]
     return '\n'.join(line for line in lines if line)
 
 

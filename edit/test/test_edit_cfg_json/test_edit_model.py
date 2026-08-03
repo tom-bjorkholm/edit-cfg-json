@@ -4,6 +4,8 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from pathlib import Path
+import json
 import pytest
 from config_as_json import JsonType
 from edit_cfg_json import EditModel, MemberRow
@@ -14,6 +16,12 @@ from .sample_cfg import ExtraArgCfg, FlatCfg, IntEnumCfg, ListCfg, NoneCfg, \
 def _row(model: EditModel, name: str) -> MemberRow:
     """Return the row of one member of a model."""
     return {row.name: row for row in model.rows}[name]
+
+
+def _written(out_file: Path) -> JsonType:
+    """Return what one output file holds, as JSON space values."""
+    value: JsonType = json.loads(out_file.read_text(encoding='UTF-8'))
+    return value
 
 
 def test_flat_rows() -> None:
@@ -444,3 +452,174 @@ def test_validate_unbuildable() -> None:
     verdict = model.validate()
     assert not verdict.valid
     assert 'TypeError' in verdict.diagnostics
+
+
+def test_no_destination_yet() -> None:
+    """Test a model built without an output file has none, and says nothing."""
+    model = EditModel(FlatCfg())
+    assert model.out_file is None
+    assert model.save_message == ''
+    assert model.saved_config is None
+
+
+def test_save_needs_a_file() -> None:
+    """Test a save with nowhere to write refuses and says why.
+
+    The backends turn this into a question, but the model has to answer it
+    for a caller that cannot ask one, such as the text dump of the examples.
+    """
+    model = EditModel(FlatCfg())
+    outcome = model.save()
+    assert not outcome.saved
+    assert 'no file to save to' in outcome.message
+    assert model.save_message == outcome.message
+    assert model.saved_config is None
+
+
+def test_save_writes(tmp_path: Path) -> None:
+    """Test saving writes the edited values and gives the object back."""
+    out_file = tmp_path / 'out.json'
+    model = EditModel(FlatCfg(), out_file=out_file)
+    model.set_text(path=('answer',), text='7')
+    assert model.save().saved
+    assert _written(out_file) == {'name': 'flat text', 'answer': 7}
+    saved = model.saved_config
+    assert isinstance(saved, FlatCfg)
+    assert saved.answer == 7
+
+
+def test_save_leaves_caller(tmp_path: Path) -> None:
+    """Test the caller's own object is untouched by a save.
+
+    This is why `edit()` gives the saved object back at all: the caller's
+    object would otherwise be the stale one and there would be no other.
+    """
+    config = FlatCfg()
+    model = EditModel(config, out_file=tmp_path / 'out.json')
+    model.set_text(path=('answer',), text='7')
+    assert model.save().saved
+    assert config.answer == 42
+    assert model.saved_config is not config
+
+
+def test_save_refuses_invalid(tmp_path: Path) -> None:
+    """Test an invalid buffer is not written, and the verdict says why."""
+    out_file = tmp_path / 'out.json'
+    model = EditModel(RangeCfg(), out_file=out_file)
+    model.set_text(path=('answer',), text='500')
+    outcome = model.save()
+    assert not outcome.saved
+    assert 'cannot be saved' in outcome.message
+    assert not out_file.exists()
+    assert model.saved_config is None
+    verdict = model.verdict
+    assert verdict is not None
+    assert 'greater than maximum 100' in verdict.diagnostics
+
+
+def test_save_keeps_old_file(tmp_path: Path) -> None:
+    """Test a refused save leaves an existing output file as it was.
+
+    A user who saves an invalid buffer over their own configuration file has
+    to still have the file afterwards.
+    """
+    out_file = tmp_path / 'out.json'
+    out_file.write_text('kept', encoding='UTF-8')
+    model = EditModel(RangeCfg(), out_file=out_file)
+    model.set_text(path=('answer',), text='500')
+    assert not model.save().saved
+    assert out_file.read_text(encoding='UTF-8') == 'kept'
+
+
+def test_save_validates(tmp_path: Path) -> None:
+    """Test saving runs the same pass as validating, and marks a rewrite.
+
+    A validator that rewrites a value rewrites it on the way to the file as
+    well, so the value that was written is the value the editor shows.
+    """
+    out_file = tmp_path / 'out.json'
+    model = EditModel(RewriteCfg(), out_file=out_file)
+    model.set_text(path=('name',), text='typed text')
+    assert model.save().saved
+    assert _row(model, 'name').value == 'Typed text'
+    assert _row(model, 'name').changed_by_validator
+    assert _written(out_file) == {'name': 'Typed text'}
+
+
+def test_save_leaves_nothing(tmp_path: Path) -> None:
+    """Test a save answers the question of what is worth saving.
+
+    What has just been written is not waiting to be written, so the values
+    that reached the file become the ones the buffer is compared against.
+    """
+    model = EditModel(FlatCfg(), out_file=tmp_path / 'out.json')
+    model.set_text(path=('answer',), text='7')
+    assert model.dirty
+    assert model.save().saved
+    assert not model.dirty
+    assert not _row(model, 'answer').edited
+    assert _row(model, 'answer').value == 7
+
+
+def test_edit_after_save(tmp_path: Path) -> None:
+    """Test the next edit is worth saving again and drops the message."""
+    model = EditModel(FlatCfg(), out_file=tmp_path / 'out.json')
+    assert model.save().saved
+    model.set_text(path=('answer',), text='7')
+    assert model.dirty
+    assert model.save_message == ''
+    assert model.verdict is None
+
+
+def test_saved_object_stays(tmp_path: Path) -> None:
+    """Test a file that was written stays written after a further edit.
+
+    `edit()` gives back what really reached the file, and an edit that came
+    afterwards and was not saved does not take that back.
+    """
+    model = EditModel(FlatCfg(), out_file=tmp_path / 'out.json')
+    assert model.save().saved
+    model.set_text(path=('name',), text='typed later')
+    assert model.saved_config is not None
+
+
+def test_save_twice(tmp_path: Path) -> None:
+    """Test a second save writes the values as they are by then."""
+    out_file = tmp_path / 'out.json'
+    model = EditModel(FlatCfg(), out_file=out_file)
+    model.set_text(path=('answer',), text='7')
+    assert model.save().saved
+    model.set_text(path=('answer',), text='8')
+    assert model.save().saved
+    assert _written(out_file) == {'name': 'flat text', 'answer': 8}
+
+
+def test_set_out_file(tmp_path: Path) -> None:
+    """Test choosing a destination is what saving to it takes."""
+    out_file = tmp_path / 'chosen.cfg'
+    model = EditModel(FlatCfg())
+    model.set_out_file(out_file)
+    assert model.out_file == out_file
+    assert model.save().saved
+    assert out_file.exists()
+
+
+def test_new_destination_text(tmp_path: Path) -> None:
+    """Test choosing another destination drops what the last save said.
+
+    "Saved to the other file" beside a destination that is now a different
+    one would be true of nothing the user can see.
+    """
+    model = EditModel(FlatCfg(), out_file=tmp_path / 'first.json')
+    assert model.save().saved
+    model.set_out_file(tmp_path / 'second.json')
+    assert model.save_message == ''
+
+
+def test_save_containers(tmp_path: Path) -> None:
+    """Test a member this version cannot edit is still saved as it was."""
+    out_file = tmp_path / 'out.json'
+    model = EditModel(ListCfg(), out_file=out_file)
+    assert model.save().saved
+    assert _written(out_file) == {'tags': ['first', 'second'], 'answer': 3,
+                                  'limits': {'low': 1, 'high': 9}}

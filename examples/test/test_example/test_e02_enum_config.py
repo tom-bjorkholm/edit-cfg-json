@@ -15,16 +15,20 @@ import pytest
 from example import e02_enum_config
 from example.e02_enum_config import AvailableCompetence, EnumConfig, \
     NeededCompetence
-from .helpers import data_file, dump, open_tk_ui, refused, textual_titles
+from .helpers import DUMP_TAIL, data_file, dump, input_tail, open_tk_ui, \
+    refused, textual_titles
 
 VALID_LINE = 'validation: valid'
 """Line that `--ui dump` ends with for a buffer the example accepts."""
+
+VALID_END = f'{VALID_LINE}\n{DUMP_TAIL}'
+"""How a dump of an accepted buffer with no output file ends."""
 
 FILLED_LINE = ('This file did not hold every value. What it left out was '
                'filled in from the defaults, and is marked.')
 """What the example says about a file that leaves a value out."""
 
-EXPECTED_DUMP = f'needed = ELECTRICAL\navailable = MECHANICAL\n{VALID_LINE}'
+EXPECTED_DUMP = f'needed = ELECTRICAL\navailable = MECHANICAL\n{VALID_END}'
 """Text that `--ui dump` is expected to print for the default values."""
 
 REFUSAL_FORM = ('validation: invalid\n'
@@ -32,7 +36,8 @@ REFUSAL_FORM = ('validation: invalid\n'
                 'Probably incorrectly edited configuration,\n'
                 'or using wrong file (not config file) as configuration.\n'
                 "'{text} is not one of: "
-                "MECHANICAL, ELECTRICAL, ELECTRONIC'")
+                "MECHANICAL, ELECTRICAL, ELECTRONIC'\n"
+                f"{DUMP_TAIL}")
 """What the example says about text that names no member of the enum.
 
 The first three lines are the ones that `config_as_json` writes for JSON it
@@ -75,7 +80,7 @@ def test_dump(capsys: pytest.CaptureFixture[str]) -> None:
 def test_set_enum(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a full member name is accepted and leaves nothing to explain."""
     assert _dump(capsys, '--set', 'needed=ELECTRONIC') == \
-        f'needed = ELECTRONIC (edited)\navailable = MECHANICAL\n{VALID_LINE}'
+        f'needed = ELECTRONIC (edited)\navailable = MECHANICAL\n{VALID_END}'
 
 
 @pytest.mark.parametrize('typed, whole',
@@ -91,7 +96,7 @@ def test_completed(typed: str, whole: str,
     """
     assert _dump(capsys, '--set', f'needed={typed}') == \
         (f'needed = {whole} (edited) (changed by validator)\n'
-         f'available = MECHANICAL\n{VALID_LINE}')
+         f'available = MECHANICAL\n{VALID_END}')
 
 
 def test_set_int_enum(capsys: pytest.CaptureFixture[str]) -> None:
@@ -99,7 +104,7 @@ def test_set_int_enum(capsys: pytest.CaptureFixture[str]) -> None:
     assert _dump(capsys, '--set', 'available=electronic') == \
         ('needed = ELECTRICAL\n'
          'available = ELECTRONIC (edited) (changed by validator)\n'
-         f'{VALID_LINE}')
+         f'{VALID_END}')
 
 
 @pytest.mark.parametrize('case, setting', REFUSED_SETTINGS)
@@ -137,15 +142,17 @@ def test_parse_gives_enum() -> None:
 
 def test_read_enum_names(capsys: pytest.CaptureFixture[str]) -> None:
     """Test both enum members are read from a file as their names."""
-    assert _dump(capsys, '-i', data_file('e02_complete.json')) == \
-        f'needed = MECHANICAL\navailable = ELECTRONIC\n{VALID_LINE}'
+    assert _dump(capsys, '-i', data_file('e02_complete.json')) == (
+        f'needed = MECHANICAL\navailable = ELECTRONIC\n{VALID_LINE}\n'
+        f'{input_tail("e02_complete.json")}')
 
 
 def test_enum_filled_in(capsys: pytest.CaptureFixture[str]) -> None:
     """Test an enum member the file leaves out gets its declared default."""
-    assert _dump(capsys, '-i', data_file('e02_incomplete.json')) == \
-        (f'{FILLED_LINE}\nneeded = ELECTRONIC\n'
-         f'available = MECHANICAL (filled from default)\n{VALID_LINE}')
+    assert _dump(capsys, '-i', data_file('e02_incomplete.json')) == (
+        f'{FILLED_LINE}\nneeded = ELECTRONIC\n'
+        f'available = MECHANICAL (filled from default)\n{VALID_LINE}\n'
+        f'{input_tail("e02_incomplete.json")}')
 
 
 def test_bad_enum_in_file(capsys: pytest.CaptureFixture[str]) -> None:

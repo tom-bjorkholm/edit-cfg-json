@@ -356,6 +356,62 @@ incompleteness in design and tests that need to be attended to.
 
 ### Step 5 — Saving, and `edit()` — milestone 1
 
+Status: **Implemented and committed.**
+
+**Decided while building it.**
+
+- **`Config.write()` does validate.** It calls `as_json_string()`, whose first
+  statement is `self.validate(stderr_file=stderr_file)`, and it opens the
+  destination only after the text exists. So the editor's gate is belt and
+  braces, and a refused configuration leaves the file on disk untouched. The
+  open question of design section 7 is answered there.
+- **Saving leaves the editor open.** Save answers "is there anything to
+  write"; the session ends when the user closes it. So the Tk button stays
+  called Close and the Textual key stays `ctrl+q`: a button called Cancel
+  beside values that have already been written would read as an offer to undo
+  the writing, which it is not. `edit()` returns what really reached the file.
+- **A save moves the baseline.** What has just been written is not waiting to
+  be written, so the values that reached the file become the ones the buffer
+  is compared against: the title loses its mark and every *edited* mark
+  clears. The *changed by validator* mark deliberately stays, because it is
+  still true. Recorded in `doc/design.md` section 4.2.
+- **Save with no destination asks.** The model reports that it has none and
+  invents nothing; both backends turn that into the Save as question, which
+  is what every editor does and what design section 7 asks a backend for.
+- `edit()` needs a `backend` argument, which design section 8 had left out:
+  the core cannot name a user interface it never imports. Each backend package
+  also exports a one-call `edit` of its own. Recorded in section 8.
+- New public names: `edit`, `SaveOutcome` and `save_text`, plus
+  `EditModel.save`, `out_file`, `set_out_file`, `save_message` and
+  `saved_config`. No type alias was needed.
+- `cmd_line.py` wires `-o` and gains `--save`, which only means something for
+  `--ui dump`: a dump prints once and the run is then over, so there is no
+  later moment at which a user could press Save. Every run now ends by saying
+  what `edit()` gave back. `--set` moved onto a backend that applies the edits
+  and then runs the real one, because `edit()` owns the model and `--set`
+  stands in for a user typing into an editor that is already open.
+- `EditModel` keeps its rows in a `dict` keyed by `ConfigPath` rather than in
+  a list beside an index map. That is what the design already says a leaf is
+  addressed by, a dictionary keeps the order it was built in, and it took the
+  class back under the instance attribute count that saving pushed it over.
+
+**Found while building it, and the lesson it carries.** The Textual Save as
+question was not modal, although it is a `ModalScreen`. Textual dispatches a
+**priority** binding from `reversed(screen._binding_chain)`, the whole chain,
+while everything else uses `_modal_binding_chain`, which stops at the last
+modal screen. The editor's keys are priority bindings, so they went on acting
+on the editor underneath: one more `ctrl+s` stacked a second question on the
+first, and `ctrl+q` would have abandoned the question altogether. The fix is
+`App.check_action`, which turns the editor's own actions off while the
+question is up and greys them in the footer. The lesson is the one step 4
+already taught in its own way: a Textual screen has to be driven, not
+inspected. A test that had only asked the modal what it held would have found
+nothing wrong.
+
+The same modal also had to stop its own `Input` messages. They bubble, and the
+editor writes every field change into the model, so the name of a file was
+being looked for among the members of the configuration.
+
 **Observable outcome.** `-i in.json -o out.json --ui textual` opens the
 editor, and Save writes a validated file while Cancel writes nothing.
 Save is refused while the buffer is invalid, with the diagnostics from
@@ -510,7 +566,23 @@ including the two that are refused.
 
 ### Milestone 5 — release readiness
 
-**Step 15 — v1 polish.** Rewrite the `readme_parts/` of all three
+**Step 15 - Confirmation before droping edits.** If Cancel/Close is asked
+for in an editor with unsaved changes it should ask for confirmation before
+discarding the edits.
+
+**Step 16 - Old/backup file when overwriting.** If the editor is asked
+to write to a file name where the file exists, it should create an
+old/backup file with the previous content (probably by renaming the
+existing file to the old/backup file name). This logic only applies
+if the file was not previously saved to (written) by the editor in
+the current editing session (as we do not want to keep an extra backup
+file for every time the user presses save).
+Design decision to take here: Should editor also ask for confirmation
+before over-writing an existing file?
+Note: This behaviour should probably be configurable in the Settings
+dataclass.
+
+**Step 17 — v1 polish.** Rewrite the `readme_parts/` of all three
 packages against what was actually built; regenerate the API documents in
 `doc/`; confirm that the Alpha wording of design section 2.5 and the PyPI
 classifiers still say what they should; verify that

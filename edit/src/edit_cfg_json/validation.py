@@ -5,7 +5,7 @@
 # MIT License
 
 from io import StringIO
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 import json
 from config_as_json import Config, JsonType
 
@@ -52,6 +52,15 @@ class ValidationPass(NamedTuple):
     member, so these are not necessarily the values the pass was given.
     They are empty when the buffer was refused, because there is then no
     configuration object to read them from.
+    """
+
+    candidate: Optional[Config]
+    """The configuration object the pass built, None when it was refused.
+
+    Saving writes this very object rather than building a second one from
+    the same text, so that what reaches the file is what the verdict was
+    reached about. It is also what `edit()` gives back to the application,
+    which then needs no load of its own to see what was saved.
     """
 
 
@@ -107,8 +116,9 @@ def validate_buffer(config_type: type[Config],
     except BUFFER_ERRORS as error:
         return ValidationPass(
             verdict=_refused(captured=diagnostics.getvalue(), error=error),
-            members={})
+            members={}, candidate=None)
     assert isinstance(validated, dict)
     accepted = ValidationVerdict(valid=True,
                                  diagnostics=diagnostics.getvalue())
-    return ValidationPass(verdict=accepted, members=validated)
+    return ValidationPass(verdict=accepted, members=validated,
+                          candidate=candidate)

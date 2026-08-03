@@ -4,7 +4,10 @@
   * [NAME\_COLUMN\_WIDTH](#edit_cfg_json_tk.tk_editor.NAME_COLUMN_WIDTH)
   * [PADDING](#edit_cfg_json_tk.tk_editor.PADDING)
   * [VALIDATE\_TEXT](#edit_cfg_json_tk.tk_editor.VALIDATE_TEXT)
+  * [SAVE\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_TEXT)
+  * [SAVE\_AS\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_AS_TEXT)
   * [CLOSE\_TEXT](#edit_cfg_json_tk.tk_editor.CLOSE_TEXT)
+  * [SAVE\_AS\_TITLE](#edit_cfg_json_tk.tk_editor.SAVE_AS_TITLE)
   * [RowWidgets](#edit_cfg_json_tk.tk_editor.RowWidgets)
     * [field](#edit_cfg_json_tk.tk_editor.RowWidgets.field)
     * [mark](#edit_cfg_json_tk.tk_editor.RowWidgets.mark)
@@ -12,9 +15,11 @@
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.EditorWidgets.__init__)
     * [label\_text](#edit_cfg_json_tk.tk_editor.EditorWidgets.label_text)
     * [verdict\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.verdict_text_shown)
+    * [save\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.save_text_shown)
   * [TkEditor](#edit_cfg_json_tk.tk_editor.TkEditor)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.TkEditor.__init__)
     * [run\_editor](#edit_cfg_json_tk.tk_editor.TkEditor.run_editor)
+  * [edit](#edit_cfg_json_tk.tk_editor.edit)
 
 <a id="edit_cfg_json_tk.tk_editor"></a>
 
@@ -40,11 +45,34 @@ Padding in pixels around the widgets of the editor.
 
 Text of the button that runs the validation of the application.
 
+<a id="edit_cfg_json_tk.tk_editor.SAVE_TEXT"></a>
+
+#### SAVE\_TEXT
+
+Text of the button that writes the output file.
+
+<a id="edit_cfg_json_tk.tk_editor.SAVE_AS_TEXT"></a>
+
+#### SAVE\_AS\_TEXT
+
+Text of the button that chooses an output file and then writes it.
+
 <a id="edit_cfg_json_tk.tk_editor.CLOSE_TEXT"></a>
 
 #### CLOSE\_TEXT
 
 Text of the button that ends the editor.
+
+Closing writes nothing of its own. It is the "cancel" of the design, and it
+is called Close because saving leaves the editor open: a button called Cancel
+beside values that have already been written would read as an offer to undo
+the writing, which it is not.
+
+<a id="edit_cfg_json_tk.tk_editor.SAVE_AS_TITLE"></a>
+
+#### SAVE\_AS\_TITLE
+
+Title of the dialog that asks which file to write.
 
 <a id="edit_cfg_json_tk.tk_editor.RowWidgets"></a>
 
@@ -130,6 +158,17 @@ def verdict_text_shown() -> str
 
 Return the text that the validation part of the editor shows.
 
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets.save_text_shown"></a>
+
+#### save\_text\_shown
+
+```python
+@property
+def save_text_shown() -> str
+```
+
+Return the text that the saving part of the editor shows.
+
 <a id="edit_cfg_json_tk.tk_editor.TkEditor"></a>
 
 ## TkEditor Objects
@@ -170,4 +209,41 @@ own the fields that the Tcl variables belong to.
 **Arguments**:
 
 - `model` - Model to show and to edit.
+
+<a id="edit_cfg_json_tk.tk_editor.edit"></a>
+
+#### edit
+
+```python
+def edit(config: Config,
+         *,
+         in_file: Optional[PathOrStr] = None,
+         out_file: Optional[PathOrStr] = None,
+         policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
+         stderr_file: TextIO = sys.stderr) -> Optional[Config]
+```
+
+Edit one configuration in a Tk window, and return what was saved.
+
+This is `edit_cfg_json.edit` with this package's backend filled in, for
+an application that has already chosen Tkinter. Everything it does is
+documented there.
+
+**Arguments**:
+
+- `config` - Configuration object to edit. It is never modified.
+- `in_file` - File to read, or None to start from the declared defaults.
+- `out_file` - File to write, or None to write the input file.
+- `policy` - What to do about declared keys the input file does not hold.
+- `stderr_file` - Stream used for user-facing diagnostics.
+  
+
+**Returns**:
+
+  The configuration object that was written, or None when nothing was.
+  
+
+**Raises**:
+
+- `ConfigLoadError` - The input file cannot be opened for editing.
 

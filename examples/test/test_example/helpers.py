@@ -35,6 +35,35 @@ The path is derived from this file rather than from the working folder, so
 that the tests can be run from anywhere.
 """
 
+NO_DESTINATION = 'save to: no file chosen yet'
+"""What a dump says when no output file was named on the command line."""
+
+NOTHING_SAVED = 'edit() returned None, so nothing was saved.'
+"""What a run says when the session ended without writing anything."""
+
+DUMP_TAIL = f'{NO_DESTINATION}\n{NOTHING_SAVED}'
+"""The two lines that every dump without an output file ends with.
+
+Every example run ends by saying where it would save and what `edit()` gave
+back, because both are part of the contract of the library and a contract is
+better seen than read. The two lines are here rather than in each test
+module, so that one example more does not mean one more copy of them.
+"""
+
+
+def saved_tail(out_file: Path, class_name: str) -> str:
+    """Return the two lines that a dump which wrote a file ends with.
+
+    Args:
+        out_file: File that the run was asked to write.
+        class_name: Name of the configuration class of the example.
+
+    Returns:
+        What the run says about the save and about what `edit()` gave back.
+    """
+    return (f'Saved to {out_file}.\n'
+            f'edit() returned the saved {class_name} object.')
+
 
 def data_file(name: str) -> str:
     """Return the path of one input file of the examples.
@@ -46,6 +75,21 @@ def data_file(name: str) -> str:
         The path of that file, as the command line takes it.
     """
     return str(DATA_FOLDER / name)
+
+
+def input_tail(name: str) -> str:
+    """Return the two lines a dump ends with when only `-i` was given.
+
+    The input file is what a save writes when no output file was named, which
+    is what an editor is normally asked to do.
+
+    Args:
+        name: File name inside the data folder of the examples.
+
+    Returns:
+        What the run says about the save and about what `edit()` gave back.
+    """
+    return f'save to: {data_file(name)}\n{NOTHING_SAVED}'
 
 
 def dump(main: Callable[[list[str]], None], capsys: pytest.CaptureFixture[str],

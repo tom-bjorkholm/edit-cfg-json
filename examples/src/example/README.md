@@ -14,12 +14,12 @@ repository only.
 
 | Example | What it teaches |
 | --- | --- |
-| [e01_flat_config.py](e01_flat_config.py) | The whole library in three lines: hand a `Config` object to `EditModel` and hand the model to a backend. A flat configuration with one text member and one number member, both editable and both validated by the application's own validation plan. Why the editor never describes the schema a second time, why the values it shows are the declared members in their declared order rather than the sorted keys of the JSON file, and why a value that a validator rewrote is marked. Also the four ways an input file can be refused and the one way it can be incomplete and still be opened. |
+| [e01_flat_config.py](e01_flat_config.py) | The whole library in one call: hand a `Config` object and a backend to `edit()`. A flat configuration with one text member and one number member, both editable and both validated by the application's own validation plan. Why the editor never describes the schema a second time, why the values it shows are the declared members in their declared order rather than the sorted keys of the JSON file, and why a value that a validator rewrote is marked. Also the four ways an input file can be refused, the one way it can be incomplete and still be opened, and the round trip that ends with a written file and the object that was written. |
 | [e02_enum_config.py](e02_enum_config.py) | An `Enum` member and an `IntEnum` member, with no validators at all. An enum is written to the file as the name of its member, so it is edited as text, and a name that is no member is refused by the conversion rather than by a validator. Which of `parse_converters()` and `serialize_converters()` an application has to write, why matching a name is forgiving enough to complete a prefix, and why a half typed name in a field is kept while the same name in a file refuses the file. |
 
-More examples arrive with the steps that they demonstrate: saving,
-descriptions and docstrings, field level diagnostics, lists and dicts,
-nested `Config` objects, folding, and adding and removing elements.
+More examples arrive with the steps that they demonstrate: descriptions and
+docstrings, field level diagnostics, lists and dicts, nested `Config`
+objects, folding, and adding and removing elements.
 
 ## Shared command line handling
 
@@ -36,7 +36,8 @@ takes the same options:
 | `--set member=value` | Edit one member before showing it. Repeatable. |
 | `-i`, `--input` | Configuration file to read. |
 | `--policy` | What to do about a declared value the file does not hold. |
-| `-o`, `--output` | Configuration file to write. Not supported yet. |
+| `-o`, `--output` | Configuration file to write, or the input file. |
+| `--save` | Really write that file. Only with `--ui dump`. |
 
 `--ui` is required. There is no default, because which one you want is not
 something the example can guess, and a silent choice would teach the wrong
@@ -47,9 +48,19 @@ thing about a library that has more than one user interface.
 core, so it shows exactly the model that the two graphical backends draw.
 That is what lets every example be checked without a display.
 
-`-o/--output` is accepted but refused, with a message saying so. It exists
-already so that the command line does not have to change again when saving
-arrives.
+`-o/--output` defaults to the input file, which is what an editor is normally
+asked to do. With neither, there is nowhere to write, and the two graphical
+backends ask for a destination when Save is pressed.
+
+`--save` is the one option that only means something for `--ui dump`. The dump
+prints once and the run is then over, so there is no later moment at which a
+user could press Save; without `--save` the dump says where it *would* write,
+and with it the file is really written. That is what makes the whole round
+trip observable without a display.
+
+Every run ends by saying what `edit()` gave back, because "the saved object,
+or `None` when nothing was saved" is the contract of this library and a
+contract is better seen than read.
 
 `--policy` is one of `strict-then-defaults`, which is the default, `strict`
 or `defaults`. The input files in [examples/data/](../../data/) cover every

@@ -4,10 +4,12 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from pathlib import Path
 import pytest
 from config_as_json import JsonType
 from edit_cfg_json import EditModel, LoadReport, MemberRow, load_text, \
-    model_as_text, model_title, row_marks, row_value_text, verdict_text
+    model_as_text, model_title, row_marks, row_value_text, save_text, \
+    verdict_text
 from .sample_cfg import FlatCfg, ListCfg, NoneCfg, RangeCfg, RewriteCfg
 
 UNKNOWN_LINE = 'validation: not validated'
@@ -22,11 +24,14 @@ LOAD_LINE = 'the file left something out'
 FILLED_REPORT = LoadReport(message=LOAD_LINE, filled=frozenset({'answer'}))
 """Report of a load that filled the number member in from the default."""
 
+NO_FILE_LINE = 'save to: no file chosen yet'
+"""Line that a rendering of a model with no destination ends with."""
+
 
 def test_flat_text() -> None:
     """Test the rendering has one line per member and then the verdict."""
     assert model_as_text(EditModel(FlatCfg())) == \
-        f'name = flat text\nanswer = 42\n{UNKNOWN_LINE}'
+        f'name = flat text\nanswer = 42\n{UNKNOWN_LINE}\n{NO_FILE_LINE}'
 
 
 def test_text_has_no_quotes() -> None:
@@ -51,8 +56,9 @@ def test_edited_text() -> None:
     """Test an edited member is marked, and only that member."""
     model = EditModel(FlatCfg())
     model.set_text(path=('answer',), text='7')
-    assert model_as_text(model) == \
-        f'name = flat text\nanswer = 7 (edited)\n{UNKNOWN_LINE}'
+    assert model_as_text(model) == (
+        f'name = flat text\nanswer = 7 (edited)\n{UNKNOWN_LINE}\n'
+        f'{NO_FILE_LINE}')
 
 
 def test_edit_undone_text() -> None:
@@ -61,7 +67,7 @@ def test_edit_undone_text() -> None:
     model.set_text(path=('answer',), text='7')
     model.set_text(path=('answer',), text='42')
     assert model_as_text(model) == \
-        f'name = flat text\nanswer = 42\n{UNKNOWN_LINE}'
+        f'name = flat text\nanswer = 42\n{UNKNOWN_LINE}\n{NO_FILE_LINE}'
 
 
 def test_invalid_value_text() -> None:
@@ -118,15 +124,20 @@ def test_rewritten_text() -> None:
     model = EditModel(RewriteCfg())
     model.set_text(path=('name',), text='typed text')
     model.validate()
-    assert model_as_text(model) == \
-        f'name = Typed text (edited) (changed by validator)\n{VALID_LINE}'
+    assert model_as_text(model) == (
+        f'name = Typed text (edited) (changed by validator)\n'
+        f'{VALID_LINE}\n{NO_FILE_LINE}')
 
 
-def test_verdict_is_last() -> None:
-    """Test the verdict is the last line of a rendering of a whole model."""
+def test_verdict_before_save() -> None:
+    """Test the verdict and then the saving end a rendering, in that order.
+
+    That is the order in which a session reaches them: what the application
+    makes of the values decides whether they can be written at all.
+    """
     model = EditModel(FlatCfg())
     model.validate()
-    assert model_as_text(model).splitlines()[-1] == VALID_LINE
+    assert model_as_text(model).splitlines()[-2:] == [VALID_LINE, NO_FILE_LINE]
 
 
 @pytest.mark.parametrize('value, expected',
@@ -185,10 +196,64 @@ def test_load_text_is_first() -> None:
     model = EditModel(FlatCfg(), FILLED_REPORT)
     assert model_as_text(model) == (
         f'{LOAD_LINE}\nname = flat text\n'
-        f'answer = 42 (filled from default)\n{UNKNOWN_LINE}')
+        f'answer = 42 (filled from default)\n{UNKNOWN_LINE}\n'
+        f'{NO_FILE_LINE}')
 
 
 def test_no_load_no_line() -> None:
     """Test a rendering with nothing to say about a load has no empty line."""
     assert model_as_text(EditModel(FlatCfg())).splitlines()[0] == \
         'name = flat text'
+
+
+def test_no_destination_text() -> None:
+    """Test a model with nowhere to write says so rather than saying nothing.
+
+    "No file chosen yet" and "this file is waiting to be written" are two
+    different states, and a user who cannot tell them apart cannot tell
+    whether pressing Save will ask them something.
+    """
+    assert save_text(EditModel(FlatCfg())) == NO_FILE_LINE
+
+
+def test_destination_text(tmp_path: Path) -> None:
+    """Test a model that has a destination says where it would write."""
+    out_file = tmp_path / 'out.json'
+    assert save_text(EditModel(FlatCfg(), out_file=out_file)) == \
+        f'save to: {out_file}'
+
+
+def test_saved_text(tmp_path: Path) -> None:
+    """Test the rendering says what saving did once it has been asked for."""
+    out_file = tmp_path / 'out.json'
+    model = EditModel(FlatCfg(), out_file=out_file)
+    model.save()
+    assert save_text(model) == f'Saved to {out_file}.'
+    assert model_as_text(model).splitlines()[-1] == f'Saved to {out_file}.'
+
+
+def test_refused_save_text(tmp_path: Path) -> None:
+    """Test a refused save is reported where a successful one would be."""
+    model = EditModel(RangeCfg(), out_file=tmp_path / 'out.json')
+    model.set_text(path=('answer',), text='500')
+    model.save()
+    assert save_text(model) == \
+        'These values are not valid, so they cannot be saved.'
+
+
+def test_edit_after_save_text(tmp_path: Path) -> None:
+    """Test an edit puts the rendering back to naming the destination."""
+    out_file = tmp_path / 'out.json'
+    model = EditModel(FlatCfg(), out_file=out_file)
+    model.save()
+    model.set_text(path=('answer',), text='7')
+    assert save_text(model) == f'save to: {out_file}'
+
+
+def test_saved_title(tmp_path: Path) -> None:
+    """Test the model label loses its mark once there is nothing to save."""
+    model = EditModel(FlatCfg(), out_file=tmp_path / 'out.json')
+    model.set_text(path=('name',), text='other text')
+    assert model_title(model) == 'FlatCfg *'
+    model.save()
+    assert model_title(model) == 'FlatCfg'

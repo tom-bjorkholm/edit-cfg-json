@@ -9,11 +9,14 @@ from copy import deepcopy
 from typing import NamedTuple, Optional, TextIO
 import json
 import sys
-from config_as_json import Config, ConfigPath, JsonType
+from config_as_json import Config, ConfigPath, JsonType, PathOrStr
 from edit_cfg_json.leaf_value import text_as_value, value_as_text, \
     values_differ
 from edit_cfg_json.loading import LoadReport
-from edit_cfg_json.validation import ValidationVerdict, validate_buffer
+from edit_cfg_json.saving import NOT_VALID, NO_DESTINATION, SaveOutcome, \
+    write_config
+from edit_cfg_json.validation import ValidationPass, ValidationVerdict, \
+    validate_buffer
 
 NOT_EDITABLE_ERROR = 'Member {name} cannot be edited by this version.'
 """Message of the error raised when a member cannot be edited."""
@@ -34,7 +37,11 @@ class MemberRow(NamedTuple):
     """Current value of the member in JSON space, as the user edits it."""
 
     original: JsonType
-    """Value that this member had when the model was built.
+    """Value that this member had when the file was last agreed with.
+
+    That is when the model was built, and again after every save: what has
+    just been written is what there is no longer anything to save about, so a
+    save makes the written value the one the buffer is compared against.
 
     It is what the current value is compared against, and it is also the only
     type information that the model has. A PEP 526 annotation on an instance
@@ -42,7 +49,8 @@ class MemberRow(NamedTuple):
     configuration object holds is the only source of the type. Reading the
     type from the current value instead would not work: a number member that
     the user has half typed holds text for as long as the text is not a
-    number yet, and the member would then stop being a number member.
+    number yet, and the member would then stop being a number member. A save
+    is safe to move it to, because only a validated value is ever written.
     """
 
     changed_by_validator: bool = False
@@ -94,12 +102,13 @@ class MemberRow(NamedTuple):
 
     @property
     def edited(self) -> bool:
-        """Return whether the user changed this member.
+        """Return whether this member holds something that is not saved yet.
 
         A member is changed when it would now be written to the file
         differently, and not when it merely was typed in. Typing a value
         back to what it was leaves nothing to save, and an editor that still
         claimed to have changes would be telling the user something untrue.
+        Saving says the same thing about every member at once.
         """
         return values_differ(self.value, self.original)
 
@@ -123,14 +132,41 @@ def _ordered_names(config: Config, members: dict[str, JsonType]) -> list[str]:
 
 
 def _rows_from_config(config: Config, filled: frozenset[str],
-                      stderr_file: TextIO) -> list[MemberRow]:
-    """Return one row per serialized member, in declaration order."""
+                      stderr_file: TextIO) -> dict[ConfigPath, MemberRow]:
+    """Return one row per serialized member, by path, in declaration order.
+
+    A mapping by path is what the design asks for, because every leaf is
+    addressed by its path and no other name for it is needed. A dictionary
+    keeps the order it was built in, so the declaration order the rows are
+    shown in survives being a mapping.
+    """
     members = json.loads(config.as_json_string(stderr_file=stderr_file))
     assert isinstance(members, dict)
-    return [MemberRow(path=(name,), value=members[name],
-                      original=members[name],
-                      filled_from_default=name in filled)
-            for name in _ordered_names(config=config, members=members)]
+    return {(name,): MemberRow(path=(name,), value=members[name],
+                               original=members[name],
+                               filled_from_default=name in filled)
+            for name in _ordered_names(config=config, members=members)}
+
+
+def _refreshed(row: MemberRow, members: Mapping[str, JsonType]) -> MemberRow:
+    """Return one row as a validated configuration object left it.
+
+    A member that the validated object does not serialize keeps the value
+    the buffer holds. That happens when a validator sets a member the class
+    leaves out of JSON while it is None, and there is then no value to read
+    back rather than a value that changed.
+
+    Args:
+        row: Member as the buffer holds it.
+        members: One JSON space value per member of the validated object.
+
+    Returns:
+        The row, marked as rewritten when the validation changed its value.
+    """
+    value = members.get(row.name, row.value)
+    if not values_differ(value, row.value):
+        return row
+    return row._replace(value=value, changed_by_validator=True)
 
 
 class EditModel:
@@ -149,13 +185,16 @@ class EditModel:
     The buffer is validated by running the application's own configuration
     class over it rather than by any rule of the editor's own, so the user
     sees the diagnostics the application would produce and the editor cannot
-    accept anything the application would refuse.
+    accept anything the application would refuse. Saving runs that same pass
+    and writes the object it accepted, so nothing reaches the file that the
+    application would not read back.
 
     This version of the model handles scalar members only. A member whose
     value is a list or a dict is reported as a row that is not editable.
     """
 
     def __init__(self, config: Config, report: LoadReport = LoadReport(),
+                 out_file: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
         """Read the JSON space values of one configuration object.
 
@@ -173,6 +212,8 @@ class EditModel:
                 the member names and their values, and is not modified.
             report: What reading the input file did beyond reading the
                 values. The default says there was no file to read.
+            out_file: File that saving writes, or None when the user has not
+                chosen one yet and the editor has to ask before it can save.
             stderr_file: Stream used for user-facing diagnostics.
 
         Raises:
@@ -185,9 +226,10 @@ class EditModel:
         self._rows = _rows_from_config(config=deepcopy(config),
                                        filled=report.filled,
                                        stderr_file=stderr_file)
-        self._number = {row.path: number
-                        for number, row in enumerate(self._rows)}
         self._verdict: Optional[ValidationVerdict] = None
+        self._out_file = out_file
+        self._outcome: Optional[SaveOutcome] = None
+        self._saved: Optional[Config] = None
 
     @property
     def config_type_name(self) -> str:
@@ -216,12 +258,48 @@ class EditModel:
         The rows are a snapshot. Editing a member replaces its row, so a row
         that a caller kept is the state at the time it was read.
         """
-        return tuple(self._rows)
+        return tuple(self._rows.values())
 
     @property
     def dirty(self) -> bool:
-        """Return whether the buffer holds anything that is worth saving."""
-        return any(row.edited for row in self._rows)
+        """Return whether the buffer holds anything that is worth saving.
+
+        A save answers this question, so a buffer that has just been written
+        is no longer dirty however much was typed into it before.
+        """
+        return any(row.edited for row in self._rows.values())
+
+    @property
+    def out_file(self) -> Optional[PathOrStr]:
+        """Return the file that saving writes, None when there is none yet.
+
+        There is none when the editor was started neither on an input file
+        nor on an output file, which is what happens when an application
+        offers to write its very first configuration file. The editor then
+        has to ask for a destination before it can save anything.
+        """
+        return self._out_file
+
+    @property
+    def save_message(self) -> str:
+        """Return what the last attempt to save did, empty when none.
+
+        It is dropped as soon as the buffer changes, for the same reason as
+        the verdict: what an earlier buffer did when it was saved says
+        nothing true about the buffer that is there now.
+        """
+        return self._outcome.message if self._outcome is not None else ''
+
+    @property
+    def saved_config(self) -> Optional[Config]:
+        """Return the configuration object that was written, or None.
+
+        This is what `edit()` gives back to the application, so that a
+        caller needs no load of its own to work with what was saved. It is
+        never the caller's own object, which the editor does not modify and
+        which would otherwise be stale.
+        """
+        return self._saved
 
     @property
     def verdict(self) -> Optional[ValidationVerdict]:
@@ -252,16 +330,32 @@ class EditModel:
             KeyError: The path is not a member of this configuration.
             ValueError: The member is not one that this version can edit.
         """
-        number = self._number[path]
-        row = self._rows[number]
+        row = self._rows[path]
         if not row.editable:
             raise ValueError(NOT_EDITABLE_ERROR.format(name=row.name))
         if value_as_text(row.value) == text:
             return
         value = text_as_value(text=text, is_text_member=row.is_text)
-        self._rows[number] = row._replace(value=value,
-                                          changed_by_validator=False)
+        self._rows[path] = row._replace(value=value,
+                                        changed_by_validator=False)
         self._verdict = None
+        self._outcome = None
+
+    def set_out_file(self, out_file: PathOrStr) -> None:
+        """Choose the file that saving writes from now on.
+
+        This is the whole of what a backend's "save as" does before it
+        saves, so that choosing a destination and writing to it stay two
+        things and an application that mounts the model in a user interface
+        of its own can offer them separately.
+
+        Args:
+            out_file: File to write, with whatever name and extension the
+                application and its user want. The editor has no opinion
+                about either.
+        """
+        self._out_file = out_file
+        self._outcome = None
 
     def validate(self) -> ValidationVerdict:
         """Run the application's own validation over the whole buffer.
@@ -277,12 +371,64 @@ class EditModel:
         Returns:
             What the pass found. It is also kept, as `verdict`.
         """
+        return self._validation_pass().verdict
+
+    def save(self) -> SaveOutcome:
+        """Write the buffer to the output file, if it can be written.
+
+        Saving is validating and then writing, and it runs the very same
+        pass that `validate` does, so a validator that rewrites a value
+        rewrites it here too and the member says so afterwards. What reaches
+        the file is therefore always what the editor is showing.
+
+        A configuration the application would refuse is not written, because
+        an editor that produced a file its own application cannot read would
+        have failed at the one thing it is for. Nor is anything written when
+        no destination has been chosen; the editor asks for one instead.
+
+        A save that wrote the file leaves nothing to save, so the values
+        that were written become the ones the buffer is compared against
+        and the model stops reporting itself as dirty.
+
+        Returns:
+            Whether the file was written, and what to tell the user. It is
+            also kept, as `save_message`.
+        """
+        if self._out_file is None:
+            return self._record(SaveOutcome(saved=False,
+                                            message=NO_DESTINATION))
+        candidate = self._validation_pass().candidate
+        if candidate is None:
+            return self._record(SaveOutcome(saved=False, message=NOT_VALID))
+        outcome = write_config(config=candidate, out_file=self._out_file)
+        if outcome.saved:
+            self._keep_saved(candidate)
+        return self._record(outcome)
+
+    def _validation_pass(self) -> ValidationPass:
+        """Validate the buffer, refresh it, and keep what the pass found."""
         outcome = validate_buffer(config_type=self._config_type,
                                   members=self._buffer())
         if outcome.verdict.valid:
             self._take_validated(outcome.members)
         self._verdict = outcome.verdict
-        return outcome.verdict
+        return outcome
+
+    def _record(self, outcome: SaveOutcome) -> SaveOutcome:
+        """Keep what one attempt to save did, and hand it back."""
+        self._outcome = outcome
+        return outcome
+
+    def _keep_saved(self, candidate: Config) -> None:
+        """Make what was written the values that the buffer is compared to.
+
+        The mark of a member a validator rewrote is deliberately left alone.
+        That a value is not literally the one the user typed stays true after
+        it has been saved, and it is the mark that says so.
+        """
+        self._saved = candidate
+        self._rows = {path: row._replace(original=row.value)
+                      for path, row in self._rows.items()}
 
     def _buffer(self) -> dict[str, JsonType]:
         """Return the buffer as one JSON space value per member.
@@ -291,18 +437,9 @@ class EditModel:
         its path. The members inside lists, dicts and nested configuration
         objects arrive together with the further steps that address them.
         """
-        return {row.name: row.value for row in self._rows}
+        return {row.name: row.value for row in self._rows.values()}
 
     def _take_validated(self, members: Mapping[str, JsonType]) -> None:
-        """Refresh the buffer from the configuration object that was built.
-
-        A member the validated object does not serialize keeps the value the
-        buffer holds. That happens when a validator sets a member that the
-        class leaves out of JSON while it is None, and there is then no
-        value to read back rather than a value that changed.
-        """
-        for number, row in enumerate(self._rows):
-            value = members.get(row.name, row.value)
-            if values_differ(value, row.value):
-                self._rows[number] = row._replace(value=value,
-                                                  changed_by_validator=True)
+        """Refresh the buffer from the configuration object that was built."""
+        self._rows = {path: _refreshed(row=row, members=members)
+                      for path, row in self._rows.items()}
