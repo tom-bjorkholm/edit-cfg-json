@@ -7,6 +7,37 @@
 import json
 from config_as_json import JsonType
 
+TEXT_KIND = 'Text.'
+"""What is said about a member that holds text."""
+
+WHOLE_NUMBER_KIND = 'A whole number.'
+"""What is said about a member that holds an integer."""
+
+NUMBER_KIND = 'A number.'
+"""What is said about a member that holds a floating point number."""
+
+BOOL_KIND = 'True or false.'
+"""What is said about a member that holds a boolean."""
+
+VALUE_KINDS: tuple[tuple[type, str], ...] = ((bool, BOOL_KIND),
+                                             (int, WHOLE_NUMBER_KIND),
+                                             (float, NUMBER_KIND),
+                                             (str, TEXT_KIND))
+"""What each kind of leaf value is called, in the order they are asked.
+
+The order is what makes `True` say what it is: `bool` is a subclass of `int` in
+Python, so a value that is asked in the other order would be a whole number.
+Nothing else here depends on the order.
+"""
+
+NO_KIND = 'No value, so what kind of value it holds is not known.'
+"""What is said about a member that holds nothing at all.
+
+The kind of a member is the kind of the value it held when the file was last
+agreed with, which is the only type information there is (section 4.2 of
+`doc/design.md`), and a member that held nothing gave none.
+"""
+
 
 def value_as_text(value: JsonType) -> str:
     """Return the text that an edit field shows for one value.
@@ -73,3 +104,25 @@ def values_differ(value: JsonType, other: JsonType) -> bool:
         Whether the two values are different values.
     """
     return json.dumps(value) != json.dumps(other)
+
+
+def value_kind(value: JsonType) -> str:
+    """Return what kind of value one member holds, as a line to read.
+
+    It is what the editor knows about a member without being told anything by
+    the application: what the value is, which is what tells the digits of a
+    number from a text that happens to be digits. A list and a dict answer with
+    nothing, because a member the editor cannot edit yet already says which of
+    the two it is where its value would be.
+
+    Args:
+        value: One leaf value of the edit buffer, in JSON space.
+
+    Returns:
+        What kind of value that is, and an empty text for a value whose kind
+        is already said elsewhere.
+    """
+    if value is None:
+        return NO_KIND
+    return next((text for kind, text in VALUE_KINDS
+                 if isinstance(value, kind)), '')

@@ -1107,6 +1107,40 @@ parses the file again. The lesson is that a channel back to the editor is
 shared by every copy of the object, so what it holds has to be read before the
 next parse and not after it. Recorded in section 5.3.
 
+**Found in review, and what came of it.** Four things, of which the first is
+the one that mattered.
+
+- **A Tk window that never settled.** Ticking Explain flickered between two
+  window sizes for ever. Measured in a real window: one toggle cost 19099
+  resizes in two seconds and never stopped, against about ninety after the fix.
+  The canvas followed the width of the body, and a paragraph that has wrapped
+  asks for the width of its longest line, which is a little less than the width
+  it was given — so the window narrowed, the paragraph wrapped into one more
+  line, and asked for something else again. The width the editor opens at is now
+  said and not measured, and the height still follows the body. Recorded in
+  `doc/design.md` section 4.6 through `BODY_WIDTH`; the loop is guarded by a
+  stubbed test, whose stub now reports a body narrower than the opening width,
+  and by a mapped `focus_sensitive` test. Both were checked by reverting the fix.
+- **A width that cannot be measured at all.** Two attempts to keep measuring it
+  failed before that: the first Configure of the body arrives while it is still
+  empty, and Tk delivers the wrap-triggering Configure inside its own idle pass,
+  so a body that has been laid out always asks for about the width it already
+  has. There is no moment in between, which is why the width is a constant.
+- **`--toggle-explain` is a key and can be pressed twice.** It counts now, so
+  two of them show the explanations again.
+- **A program showed no explanations under its members**, and two things were
+  behind that. What the application says about its members needed a door, which
+  is `--descriptions NAME`, brought forward from step 19 with exit code 16 for a
+  name that is no mapping. And what the *editor* knows about a member needed
+  saying at all: every editable member now says what kind of value it holds, and
+  whether the class may leave it out of the file. Recorded in sections 4.2 and
+  4.3; `leaf_value.value_kind`, `descriptions.type_text` and
+  `descriptions.optional_members` are what say it, and every expectation of a
+  described member in every test moved with it.
+- The two classes of `e07_chosen_class.py` gained a second paragraph in their
+  docstrings, because a review that could not see the explanations was looking
+  at classes whose docstring was one line.
+
 **Observable outcome.** `e06_factory_config.py` declares a class that is told
 which teams exist, so the editor cannot construct it, and hands over
 `derived_loader(partial(TeamConfig, KNOWN_TEAMS))`. `--ui dump -i
@@ -1235,19 +1269,18 @@ meaning. That is the property section 8.2.5 was written to protect, so
 the step is not done until an application written against today's
 packages still builds and behaves exactly as it did.
 
-**Step 19 — The rest of the program's command line.** The four options
-step 7B deliberately left out: `--extension` and `--enforce-extension` for
-an application whose configuration files are not called `.json`, `--key
-ACTION=COMBINATIONS` for one whose users want other keys, and
-`--descriptions NAME` naming a `Descriptions` mapping in the same module or
-file as the class. The last of those is the interesting one: it uses the
-attribute loading the program already has, and it is the only way a generic
-launcher can show what an application says about its own members, which is
-otherwise the one thing an application can tell the editor that this
-program cannot pass on. Whether the two parsers of the repository share their
-definitions was settled at step 7B rather than here: `add_file_options` and
-`named_policy` are shared already, and each option this step adds is a
-candidate for the same treatment.
+**Step 19 — The rest of the program's command line.** The options step 7B
+deliberately left out, less the one that step 9 brought forward:
+`--extension` and `--enforce-extension` for an application whose
+configuration files are not called `.json`, and `--key ACTION=COMBINATIONS`
+for one whose users want other keys. `--descriptions NAME` was the
+interesting one and is done: a review of step 9 asked why a program showed no
+explanations under the members, and the answer was that what an application
+says about its own members is the one thing an application can tell the editor
+that the program could not pass on. Whether the two parsers of the repository
+share their definitions was settled at step 7B rather than here:
+`add_file_options` and `named_policy` are shared already, and each option this
+step adds is a candidate for the same treatment.
 Consider if adding a class derived from `config_as_json.Config` for storing
 the `Settings` of the 7B programs instead of passing them as arguments.
 Using such a configuration file may be a better idea than a very long

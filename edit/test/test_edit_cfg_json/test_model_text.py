@@ -31,6 +31,16 @@ EDITED_HEAD = f'FlatCfg *\n{FLAT_DOC}'
 HIDDEN_HEAD = f'FlatCfg - {FLAT_DOC}'
 """The one line that begins a rendering with the explanations hidden."""
 
+TEXT_LINE = '    Text.'
+"""What is shown under a member that holds text.
+
+The editor says what kind of value every member holds, because that is the one
+thing it knows about every member of every configuration without being told.
+"""
+
+WHOLE_LINE = '    A whole number.'
+"""What is shown under a member that holds a whole number."""
+
 ABOUT_NAME = 'What the name of this configuration is for.'
 """Description of the one member that the tests below describe."""
 
@@ -61,7 +71,8 @@ def _row(model: EditModel, name: str) -> MemberRow:
 def test_flat_text() -> None:
     """Test the rendering has one line per member and then the verdict."""
     assert model_as_text(EditModel(FlatCfg())) == \
-        (f'{HEAD}\nname = flat text\nanswer = 42\n{UNKNOWN_LINE}\n'
+        (f'{HEAD}\nname = flat text\n{TEXT_LINE}\nanswer = 42\n'
+         f'{WHOLE_LINE}\n{UNKNOWN_LINE}\n'
          f'{NO_FILE_LINE}')
 
 
@@ -88,7 +99,8 @@ def test_edited_text() -> None:
     model = EditModel(FlatCfg())
     model.set_text(path=('answer',), text='7')
     assert model_as_text(model) == (
-        f'{EDITED_HEAD}\nname = flat text\nanswer = 7 (edited)\n'
+        f'{EDITED_HEAD}\nname = flat text\n{TEXT_LINE}\n'
+        f'answer = 7 (edited)\n{WHOLE_LINE}\n'
         f'{UNKNOWN_LINE}\n{NO_FILE_LINE}')
 
 
@@ -98,7 +110,8 @@ def test_edit_undone_text() -> None:
     model.set_text(path=('answer',), text='7')
     model.set_text(path=('answer',), text='42')
     assert model_as_text(model) == \
-        (f'{HEAD}\nname = flat text\nanswer = 42\n{UNKNOWN_LINE}\n'
+        (f'{HEAD}\nname = flat text\n{TEXT_LINE}\nanswer = 42\n'
+         f'{WHOLE_LINE}\n{UNKNOWN_LINE}\n'
          f'{NO_FILE_LINE}')
 
 
@@ -172,9 +185,9 @@ def test_rewritten_text() -> None:
     model = EditModel(RewriteCfg())
     model.set_text(path=('name',), text='typed text')
     model.validate()
-    assert model_as_text(model).splitlines()[-3:] == [
-        'name = Typed text (edited) (changed by validator)', VALID_LINE,
-        NO_FILE_LINE]
+    assert model_as_text(model).splitlines()[-4:] == [
+        'name = Typed text (edited) (changed by validator)', TEXT_LINE,
+        VALID_LINE, NO_FILE_LINE]
 
 
 def test_verdict_before_save() -> None:
@@ -243,8 +256,9 @@ def test_load_text_is_first() -> None:
     """Test the load comes above the members it explains the marks on."""
     model = EditModel(FlatCfg(), FILLED_REPORT)
     assert model_as_text(model) == (
-        f'{HEAD}\n{LOAD_LINE}\nname = flat text\n'
-        f'answer = 42 (filled from default)\n{UNKNOWN_LINE}\n'
+        f'{HEAD}\n{LOAD_LINE}\nname = flat text\n{TEXT_LINE}\n'
+        f'answer = 42 (filled from default)\n{WHOLE_LINE}\n'
+        f'{UNKNOWN_LINE}\n'
         f'{NO_FILE_LINE}')
 
 
@@ -333,8 +347,10 @@ def test_row_description() -> None:
     """Test the description of a member is shown while they are shown."""
     model = EditModel(FlatCfg(), descriptions=DESCRIPTIONS)
     rows = {row.name: row for row in model.rows}
-    assert row_description(model=model, row=rows['name']) == ABOUT_NAME
-    assert row_description(model=model, row=rows['answer']) == ''
+    assert row_description(model=model, row=rows['name']) == \
+        f'{ABOUT_NAME}\n{TEXT_LINE.strip()}'
+    assert row_description(model=model, row=rows['answer']) == \
+        WHOLE_LINE.strip()
 
 
 def test_hidden_row_about() -> None:
@@ -349,7 +365,8 @@ def test_described_text() -> None:
     """Test a described member has its description on the line below it."""
     model = EditModel(FlatCfg(), descriptions=DESCRIPTIONS)
     assert model_as_text(model) == (
-        f'{HEAD}\nname = flat text\n    {ABOUT_NAME}\nanswer = 42\n'
+        f'{HEAD}\nname = flat text\n    {ABOUT_NAME}\n{TEXT_LINE}\n'
+        f'answer = 42\n{WHOLE_LINE}\n'
         f'{UNKNOWN_LINE}\n{NO_FILE_LINE}')
 
 

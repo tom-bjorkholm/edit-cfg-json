@@ -15,8 +15,8 @@ from edit_cfg_json_textual.textual_editor import DESCRIPTION_ID_PREFIX, \
     VERDICT_ID
 from example.e01_flat_config import FlatConfig
 from .helpers import ABOUT_NAME, DESCRIPTIONS, EXPLAIN_ALT_KEY, EXPLAIN_KEY, \
-    FILLED_REPORT, NoDocConfig, SAVE_KEY, VALIDATE_KEY, described_app, \
-    description_of, docstring_of, field_of
+    FILLED_REPORT, NoDocConfig, SAVE_KEY, TEXT_KIND, VALIDATE_KEY, \
+    WHOLE_KIND, described_app, description_of, docstring_of, field_of
 
 
 async def _explained(*keys: str) -> tuple[str, bool, str]:
@@ -40,11 +40,16 @@ async def _explained(*keys: str) -> tuple[str, bool, str]:
 
 
 def test_explanations_shown() -> None:
-    """Test the editor starts by showing what the configuration is for."""
+    """Test the editor starts by showing what the configuration is for.
+
+    What the application said comes first and what the type of the member says
+    follows it, which is what the editor knows about a member without being
+    told anything at all.
+    """
     docstring, shown, description = asyncio.run(_explained())
     assert docstring == EditModel(FlatConfig()).docstring
     assert shown
-    assert description == ABOUT_NAME
+    assert description == f'{ABOUT_NAME}\n{TEXT_KIND}'
 
 
 @pytest.mark.parametrize('key', [EXPLAIN_KEY, EXPLAIN_ALT_KEY])
@@ -86,21 +91,24 @@ def test_hidden_at_start() -> None:
     assert not showing
 
 
-def test_no_about_widget() -> None:
-    """Test a member the application says nothing about gets no widget.
+def test_undescribed_told() -> None:
+    """Test a member the application says nothing about says what it holds.
 
-    There is nothing that could ever appear in it, so the row has one widget
-    less rather than an empty one.
+    Every editable member has something to say, because its own type says what
+    kind of value it is, so every one of them gets the widget for it. A widget
+    is left out only where there is nothing that could ever appear in it, which
+    is a member the editor cannot edit yet: its row says which kind of
+    container it is where its value would be.
     """
-    async def widgets() -> tuple[int, int]:
-        """Run the described application and count the two members."""
+    async def described() -> tuple[str, str]:
+        """Run the described application and read both members."""
         app = described_app()
         async with app.run_test():
-            return (len(app.query(f'#{DESCRIPTION_ID_PREFIX}name')),
-                    len(app.query(f'#{DESCRIPTION_ID_PREFIX}answer')))
-    described, undescribed = asyncio.run(widgets())
-    assert described == 1
-    assert not undescribed
+            return (str(description_of(app, 'name').content),
+                    str(description_of(app, 'answer').content))
+    about_name, about_answer = asyncio.run(described())
+    assert about_name == f'{ABOUT_NAME}\n{TEXT_KIND}'
+    assert about_answer == WHOLE_KIND
 
 
 def test_no_docstring_widget() -> None:

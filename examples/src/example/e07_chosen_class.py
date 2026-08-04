@@ -175,7 +175,14 @@ class CadConfig(Config):
 
 
 class Cad2DConfig(CadConfig):
-    """Settings of the two dimensional drawing mode of this application."""
+    """Settings of the two dimensional drawing mode of this application.
+
+    A drawing is laid out on paper, so it may use a grid as fine as the
+    thickness of a line, and nothing in it is seen from an angle. This is also
+    the class the editor is given when there is no file at all, because a
+    configuration that does not exist yet has to be of some class and a drawing
+    is what this application starts with.
+    """
 
     OWN_MODE: str = MODE_2D
     """A drawing configuration is the one this application starts with."""
@@ -185,7 +192,13 @@ class Cad2DConfig(CadConfig):
 
 
 class Cad3DConfig(CadConfig):
-    """Settings of the three dimensional modelling mode of this application."""
+    """Settings of the three dimensional modelling mode of this application.
+
+    A model is measured in the space it will be built in, so the finest grid it
+    may use is coarser than a drawing's: a solid positioned to a hundredth of a
+    millimetre is a solid nobody can make. Everything else about the two modes
+    is the same, which is why a file has to say which of them it holds.
+    """
 
     OWN_MODE: str = MODE_3D
     """A model configuration is what a file with this mode holds."""

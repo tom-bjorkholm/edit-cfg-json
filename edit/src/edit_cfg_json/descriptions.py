@@ -4,8 +4,14 @@
 There are three sources of it, they are independent, and all of them are
 optional. The docstring of the configuration class labels the configuration
 object, a mapping supplied by the application labels the individual members,
-and the type of a member says the rest where the member has a type that says
-anything, which today means an enum.
+and the type of a member says the rest.
+
+What a type says is the names of an enum where the member holds one, and what
+kind of value the member holds where it does not: text, a whole number, a
+number, or true or false. That last one is the least the editor can say about
+any member and it is never nothing, which is what a review of step 9 asked for:
+a program that is told a class and no mapping showed the members with nothing
+under them at all, and the editor does know something about each of them.
 
 It takes a mapping for the members because a member has no docstring at
 runtime. A class has one and every reader of the code can see it, while a
@@ -24,7 +30,8 @@ from collections.abc import Mapping
 from enum import Enum
 from typing import Optional
 import inspect
-from config_as_json import ConfigPath, ParseConverter
+from config_as_json import Config, ConfigPath, JsonType, ParseConverter
+from edit_cfg_json.leaf_value import value_kind
 
 EVERY_ELEMENT = '['
 """The path step that means every list element or dictionary value here.
@@ -36,6 +43,16 @@ description once per list index or once per dictionary key.
 
 CHOICES_FORM = 'One of: {names}.'
 """What the editor says about the names one enum member accepts."""
+
+OPTIONAL_TEXT = 'It may be left out of the file.'
+"""What the editor says about a member that the class treats as optional.
+
+`_omit_none_from_json()` is what says which members those are, and section 4.1
+of `doc/design.md` names it as one of the sources of the structure. It is a
+protected name of `config_as_json` and it is read anyway, because nothing else
+answers the question and the answer is worth having: a member that may be left
+out is a member a user may leave empty.
+"""
 
 
 type Descriptions = Mapping[ConfigPath, str]
@@ -204,26 +221,74 @@ def enum_text(converter: Optional[ParseConverter]) -> str:
                      if line)
 
 
+def optional_members(config: Config) -> frozenset[str]:
+    """Return the members that this configuration may leave out of a file.
+
+    The class is asked, because only the class knows: a member that holds
+    nothing right now may be one that has to hold something, and one that holds
+    something may still be allowed to hold nothing. What it is asked is a
+    protected method, for the reason `OPTIONAL_TEXT` gives, and the answer
+    needs no checking here, because constructing the object checked it.
+
+    Args:
+        config: Configuration object being edited. It is not modified.
+
+    Returns:
+        The names of the members that are genuinely optional.
+    """
+    # pylint: disable-next=protected-access
+    return frozenset(config._omit_none_from_json())
+
+
+def type_text(converter: Optional[ParseConverter], value: JsonType,
+              optional: bool) -> str:
+    """Return everything the type of one member says about it.
+
+    An enum says the most, so where a member holds one that is what is said and
+    the kind of the value would only repeat it: the name of an enum member is
+    text, and knowing that is worth nothing beside knowing which names there
+    are. Every other member says what kind of value it holds, which is the one
+    thing the editor knows about every member of every configuration.
+
+    Args:
+        converter: How the text of this member becomes a value, or None.
+        value: Value the member held when the file was last agreed with, which
+            is the only type information there is.
+        optional: Whether the class may leave this member out of the file.
+
+    Returns:
+        What the type of that member says, and an empty text when it says
+        nothing at all.
+    """
+    said = enum_text(converter) or value_kind(value)
+    if not optional:
+        return said
+    return f'{said} {OPTIONAL_TEXT}'.strip()
+
+
 def member_description(descriptions: Descriptions, path: ConfigPath,
-                       converter: Optional[ParseConverter]) -> str:
+                       converter: Optional[ParseConverter], value: JsonType,
+                       optional: bool) -> str:
     """Return everything the editor has to say about one member.
 
     What the application says comes first, because it is what this member is
     for in this application, and what the type of the member says comes after
     it. The second is appended rather than used only where the first is
-    missing: the names an enum accepts are true whatever the application
-    wrote, and an application that explains what its members mean should not
-    have to list the names as well.
+    missing: what a member holds is true whatever the application wrote, and an
+    application that explains what its members mean should not have to list the
+    names of an enum or say that a number is a number.
 
     Args:
         descriptions: What the application says about its members.
         path: Path of the member that is being described.
         converter: How the text of this member becomes a value, or None.
+        value: Value the member held when the file was last agreed with.
+        optional: Whether the class may leave this member out of the file.
 
     Returns:
-        The description of that member, and an empty text when neither the
-        application nor the type of the member says anything about it.
+        The description of that member, which is never empty for a member the
+        editor can edit, because the type of it always says something.
     """
     said = [path_description(descriptions=descriptions, path=path),
-            enum_text(converter)]
+            type_text(converter=converter, value=value, optional=optional)]
     return '\n'.join(line for line in said if line)

@@ -124,12 +124,19 @@ Python and reaching it means importing the module it is in.
 | `-i`, `--input` | Configuration file to read. Without it the editor starts from the values the class declares. |
 | `-o`, `--output` | Configuration file to write. Without it the input file is written, which is what an editor is normally asked to do. |
 | `--policy` | What to do about a declared value the file does not hold: `strict-then-defaults`, which is the default, `strict` or `defaults`. |
+| `--descriptions` | Name of an `edit_cfg_json.Descriptions` mapping beside the class, saying what its members are for. Without it the members are shown with whatever their own types say about them, which for most of them is nothing. |
+
+A member has no docstring at runtime, so what a member is for is either in a
+mapping like that or nowhere at all, which is why `--descriptions` exists: it is
+the one thing an application knows that this program could not otherwise pass
+on. The docstring of the configuration class needs no option, because the class
+carries it.
 
 An application that has more to say about its own configuration — the file name
-extension it uses, the key combinations its own user interface has taken, and
-what its individual members mean — says it in `edit_cfg_json.Settings` and in a
-description mapping, and gets there through `edit` rather than through this
-program. Options for those are what the next version of this program adds.
+extension it uses and the key combinations its own user interface has taken —
+says it in `edit_cfg_json.Settings`, and gets there through `edit` rather than
+through this program. Options for those are what the next version of this
+program adds.
 
 ### A class this editor cannot construct on its own
 
@@ -182,6 +189,7 @@ exit code of its own:
 | `13` | The name that `--loader` names cannot be called at all. |
 | `14` | The loader needs arguments that a command line cannot supply. |
 | `15` | The loader did not construct the class that `--class` asked for. |
+| `16` | The name that `--descriptions` names is no mapping of any kind. |
 
 The numbers are `edit_cfg_json.ExitCode`, so a program that runs this one can
 name them instead of writing them out.
@@ -376,7 +384,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 1039 passed, 2 deselected in 20s
+- Test result: 1054 passed, 3 deselected in 20s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

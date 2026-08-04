@@ -41,6 +41,21 @@ The path is derived from this file rather than from the working folder, so
 that the tests can be run from anywhere.
 """
 
+TEXT_LINE = '    Text.'
+"""What a dump says under a member that holds text.
+
+The editor says what kind of value every member holds, because that is the one
+thing it knows about every member of every configuration without being told
+anything at all. It is written out here rather than read from the core, in the
+same way that the names of an enum are written out where a test expects them.
+"""
+
+WHOLE_LINE = '    A whole number.'
+"""What a dump says under a member that holds a whole number."""
+
+NUMBER_LINE = '    A number.'
+"""What a dump says under a member that holds a number with a fraction."""
+
 NO_DESTINATION = 'save to: no file chosen yet'
 """What a dump says when no output file was named on the command line."""
 

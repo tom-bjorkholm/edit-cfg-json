@@ -40,8 +40,14 @@ TOO_MANY = ('Invalid configuration: Value 9 for retries is greater than '
 SPACED_NAME = 'Invalid configuration: job_name may not contain a space.'
 """What the validator of the example writes about a name with a space."""
 
-ABOUT_RETRIES = 'How many further attempts one failed run gets. From 0 to 5.'
-"""What the example says about the member whose limit these tests break."""
+ABOUT_RETRIES = ('How many further attempts one failed run gets. From 0 to 5.'
+                 '\nA whole number.')
+"""What is said about the member whose limit these tests break.
+
+The example says the first line of it and the type of the member says the
+second, which is what the editor knows about every member without being told.
+The two are one widget, because they are one thing: what this member is.
+"""
 
 
 def _described() -> EditModel:

@@ -20,7 +20,7 @@ from edit_cfg_json_tk.tk_editor import EMPHASIS_COLOURS, EditorWidgets, \
 from example.e01_flat_config import FlatConfig
 from .helpers import ABOUT_NAME, DESCRIPTIONS, FakeWidget, FILLED_REPORT, \
     FLAT_DOCSTRING, FLAT_SUMMARY, real_press, real_ticks, stub_editor, \
-    stub_press, STUB_BODY_HEIGHT
+    stub_press, STUB_BODY_HEIGHT, TEXT_KIND
 
 WHEEL_UP = -1
 """How far one turn of the wheel away from the user scrolls the body."""
@@ -345,7 +345,7 @@ def test_real_paragraph_wraps(root_or_skip: tkinter.Tk) -> None:
     labels = {str(label.cget('text')): label
               for label in _real_widgets(root_or_skip, tkinter.Label)}
     docstring = labels[FLAT_DOCSTRING]
-    description = labels[ABOUT_NAME]
+    description = labels[f'{ABOUT_NAME}\n{TEXT_KIND}']
     assert _wrapped_at(docstring) == max(docstring.winfo_width(),
                                          LEAST_WRAP_WIDTH)
     assert _wrapped_at(description) == max(description.winfo_width(),

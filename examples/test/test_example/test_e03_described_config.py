@@ -12,8 +12,8 @@ mapping deliberately says nothing about is shown to have nothing under it.
 import pytest
 from example import e03_described_config
 from example.e03_described_config import DESCRIPTIONS, DescribedConfig
-from .helpers import DUMP_TAIL, data_file, dump, head, input_tail, \
-    open_tk_ui, refused, textual_titles
+from .helpers import DUMP_TAIL, TEXT_LINE, WHOLE_LINE, data_file, dump, \
+    head, input_tail, open_tk_ui, refused, textual_titles
 
 VALID_LINE = 'validation: valid'
 """Line that `--ui dump` ends with for a buffer the example accepts."""
@@ -57,15 +57,16 @@ is therefore explained by the application in words.
 """
 
 VALUE_LINES = ['project_name = Example project', f'    {ABOUT_NAME}',
-               'report_file = report.md', 'max_items = 20',
-               f'    {ABOUT_ITEMS}', 'priority = ROUTINE',
-               f'    {ABOUT_PRIORITY}', *PRIORITY_TYPE]
+               TEXT_LINE, 'report_file = report.md', TEXT_LINE,
+               'max_items = 20', f'    {ABOUT_ITEMS}', WHOLE_LINE,
+               'priority = ROUTINE', f'    {ABOUT_PRIORITY}', *PRIORITY_TYPE]
 """Every line that the default values of this example are shown as.
 
-`report_file` has no line below it, because the mapping of the example says
-nothing about that member and its type says nothing either. An application
-that describes half of its configuration gets half of it explained, and not
-an empty line under the other half.
+`report_file` has nothing below it from the mapping of this example, which says
+nothing about that member, and it still says what kind of value it holds: that
+is the one thing the editor knows about every member without being told. The
+enum member says the names it accepts instead, because they say what kind of
+value it holds and say it better.
 """
 
 HIDDEN_LINES = ['project_name = Example project', 'report_file = report.md',
@@ -117,7 +118,8 @@ def test_edit_described(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a described member is edited exactly like any other member."""
     printed = _dump(capsys, '--set', 'max_items=5')
     assert printed.startswith(EDITED_HEAD)
-    assert f'max_items = 5 (edited)\n    {ABOUT_ITEMS}' in printed
+    assert f'max_items = 5 (edited)\n    {ABOUT_ITEMS}\n{WHOLE_LINE}' in \
+        printed
     assert VALID_LINE in printed
 
 
@@ -130,7 +132,7 @@ def test_refused_value(capsys: pytest.CaptureFixture[str]) -> None:
     what the member is for and the refusal is the thing to act on.
     """
     printed = _dump(capsys, '--set', 'max_items=500')
-    assert (f'max_items = 500 (edited)\n    {ABOUT_ITEMS}\n'
+    assert (f'max_items = 500 (edited)\n    {ABOUT_ITEMS}\n{WHOLE_LINE}\n'
             '    Invalid configuration: Value 500 for max_items is greater '
             'than maximum 100.') in printed
     assert 'validation: invalid, see max_items' in printed
@@ -170,9 +172,15 @@ def test_completed_enum(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_undescribed_member(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test the member the mapping says nothing about is shown without one."""
+    """Test a member the mapping says nothing about says what it holds.
+
+    That is all it says, because the mapping of this example describes three of
+    its four members and the editor does not invent a fourth description. What
+    it does know is the kind of every value, and it says that.
+    """
     printed = _dump(capsys)
-    assert 'report_file = report.md\nmax_items' in printed
+    assert f'report_file = report.md\n{TEXT_LINE}\nmax_items' in printed
+    assert ABOUT_NAME not in printed.split('report_file')[1]
 
 
 def test_read_file(capsys: pytest.CaptureFixture[str]) -> None:
@@ -183,7 +191,8 @@ def test_read_file(capsys: pytest.CaptureFixture[str]) -> None:
     """
     printed = _dump(capsys, '-i', data_file('e03_complete.json'))
     assert printed.startswith(HEAD)
-    assert f'project_name = From a file\n    {ABOUT_NAME}' in printed
+    assert f'project_name = From a file\n    {ABOUT_NAME}\n{TEXT_LINE}' in \
+        printed
     assert 'priority = URGENT' in printed
     assert printed.endswith(input_tail('e03_complete.json'))
 

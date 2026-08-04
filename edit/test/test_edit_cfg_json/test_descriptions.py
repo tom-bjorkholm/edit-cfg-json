@@ -10,14 +10,17 @@ those says anything about the others.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from config_as_json import ConfigPath, ParseConverter
+from config_as_json import ConfigPath, JsonType, ParseConverter
 import pytest
 from edit_cfg_json import Descriptions
 from edit_cfg_json.converting import member_converters
-from edit_cfg_json.descriptions import class_docstring, class_summary, \
-    enum_text, member_description, path_description
+from edit_cfg_json.descriptions import OPTIONAL_TEXT, class_docstring, \
+    class_summary, enum_text, member_description, optional_members, \
+    path_description
+from edit_cfg_json.leaf_value import BOOL_KIND, NO_KIND, NUMBER_KIND, \
+    TEXT_KIND, WHOLE_NUMBER_KIND, value_kind
 from .sample_cfg import DocumentedCfg, EnumCfg, FlatCfg, HexCfg, IntEnumCfg, \
-    NoDocCfg, PlainEnumCfg, SampleCfg, WrappedDocCfg
+    NoDocCfg, OmitCfg, PlainEnumCfg, SampleCfg, WrappedDocCfg
 
 SUMMARY = 'One line that says what this configuration is for.'
 """The summary paragraph of the docstring of `DocumentedCfg`."""
@@ -208,18 +211,69 @@ def test_description_appended() -> None:
     """
     descriptions: Descriptions = {('colour',): ABOUT_COLOUR}
     assert member_description(descriptions=descriptions, path=('colour',),
-                              converter=_converter(EnumCfg(), 'colour')) == \
+                              converter=_converter(EnumCfg(), 'colour'),
+                              value='RED', optional=False) == \
         f'{ABOUT_COLOUR}\n{COLOUR_SUMMARY}\nOne of: RED, GREEN.'
 
 
 def test_type_describes_alone() -> None:
     """Test a member the application says nothing about is still explained."""
     assert member_description(descriptions={}, path=('colour',),
-                              converter=_converter(EnumCfg(), 'colour')) == \
+                              converter=_converter(EnumCfg(), 'colour'),
+                              value='RED', optional=False) == \
         f'{COLOUR_SUMMARY}\nOne of: RED, GREEN.'
 
 
+def test_kind_describes_alone() -> None:
+    """Test a member with no enum and no description says what it holds.
+
+    That is the least the editor can say about any member of any
+    configuration, and it is what a program that is told a class and no
+    description mapping shows.
+    """
+    assert member_description(descriptions={}, path=('name',), converter=None,
+                              value='text', optional=False) == TEXT_KIND
+
+
+@pytest.mark.parametrize('value,expected',
+                         [('text', TEXT_KIND), (42, WHOLE_NUMBER_KIND),
+                          (1.5, NUMBER_KIND), (True, BOOL_KIND),
+                          (None, NO_KIND), ([1], ''), ({'a': 1}, '')])
+def test_kind_of_value(value: JsonType, expected: str) -> None:
+    """Test what each kind of value says about itself.
+
+    `True` is the case the order of the answers exists for, because `bool` is
+    a subclass of `int` in Python. A list and a dict say nothing, because a
+    member the editor cannot edit yet says which of the two it is where its
+    value would be.
+    """
+    assert value_kind(value) == expected
+
+
+def test_optional_is_said() -> None:
+    """Test a member the class may leave out of the file says so.
+
+    `_omit_none_from_json()` is the only thing that answers this, and a member
+    holding nothing is not the answer: a member that holds nothing may be one
+    that has to hold something.
+    """
+    said = member_description(descriptions={}, path=('optional',),
+                              converter=None, value=None, optional=True)
+    assert said == f'{NO_KIND} {OPTIONAL_TEXT}'
+
+
+def test_optional_asked() -> None:
+    """Test the class is what says which of its members are optional."""
+    assert optional_members(OmitCfg()) == frozenset({'optional'})
+    assert optional_members(FlatCfg()) == frozenset()
+
+
 def test_nothing_to_describe() -> None:
-    """Test a member nothing is known about is described by nothing."""
-    assert member_description(descriptions={}, path=('name',),
-                              converter=None) == ''
+    """Test a member whose kind is said elsewhere is described by nothing.
+
+    A list and a dict are the two, because the row of such a member says which
+    of them it is where its value would be, and saying it twice would be
+    worse than saying it once.
+    """
+    assert member_description(descriptions={}, path=('tags',), converter=None,
+                              value=['one'], optional=False) == ''

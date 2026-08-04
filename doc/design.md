@@ -195,11 +195,16 @@ The buffer is however not JSON text. For example: in the edit field no
 quotation marks are shown around a string. The edit field will show
 the digits `1` and `0` as`10` for both the string `'10'` and the
 integer `10`. The edit buffer needs to hold additional metadata/flags
-with type information for each leaf. There is not yet any decision
-to show the type metadata as a label by the field to the user.
-There is not yet any decision to allow the user of the editor to try
-to change this type metadata (which in many cases would trigger an
-error at validation, but might be useful for separating between
+with type information for each leaf.
+
+**Whether that type information is shown to the user** was left open here and
+is answered at step 9: it is, as a line of explanatory text below the member,
+in the same place and under the same toggle as everything else explanatory.
+Section 4.3 is where it says what. It is not shown as a label beside the field,
+because it is text about the value and not part of it, and because a narrow
+window would then squeeze the field for it. There is still no decision to allow
+the user of the editor to try to change this type metadata (which in many cases
+would trigger an error at validation, but might be useful for separating between
 a None value and an empty string value of an `Optional[str]`.)
 
 The type metadata of a leaf is **derived from the value that leaf held
@@ -332,11 +337,32 @@ Two complementary, independently optional sources of explanatory text:
   after an assignment is discarded, and PEP 526 annotations are not
   recorded.
 
-- **The type of a member** says the rest, where the member has a type that
-  says anything, which today means an enum. `parse_converters()` is what says
-  that a member holds one, because it is what turns the name in the file back
-  into a member of it, and the enum class then says the rest itself: the
-  summary of its own docstring and the names it accepts. Settled at step 7.
+- **The type of a member** says the rest, and it always says something. Where
+  the member holds an enum, `parse_converters()` is what says so, because it is
+  what turns the name in the file back into a member of it, and the enum class
+  then says the rest itself: the summary of its own docstring and the names it
+  accepts. Settled at step 7.
+
+  Where it holds anything else, what is said is **what kind of value it is** —
+  text, a whole number, a number, or true or false — read from the value the
+  member held when the file was last agreed with, which section 4.2 already
+  keeps as the only type information there is. A member the class may leave out
+  of the file says that as well, from `_omit_none_from_json()`, which section
+  4.1 lists as a source and nothing else uses. Added at step 9, after a review
+  found a program that had been told a class and no description mapping showing
+  its members with nothing under them at all, when the editor did know
+  something about each of them.
+
+  It is the least that can be said and it is worth saying, because it answers
+  the one question a value cannot answer about itself: whether `10` in a field
+  is the number or the text. A member the editor cannot edit yet says nothing
+  here, because its row already says which kind of container it is where its
+  value would be.
+
+  What a validator would have added — a range, a set of allowed values — stays
+  out, permanently, for the reason section 11 gives. That is the difference
+  between the names of an enum and the bounds of a number: the first is the type
+  of the member and the second is a rule about it.
 
   This is **not** the reading of a validator that section 11 permanently rules
   out. The names an enum has are its type, as true as the name of the member

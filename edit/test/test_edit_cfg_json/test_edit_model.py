@@ -13,6 +13,16 @@ from .sample_cfg import PICKED_NAME, DocumentedCfg, ExtraArgCfg, FlatCfg, \
     IntEnumCfg, ListCfg, NoneCfg, OmitCfg, RangeCfg, RewriteCfg, \
     picking_loader
 
+TEXT_KIND = 'Text.'
+"""What the type of a text member says about it.
+
+The editor says what kind of value every member holds, because that is the one
+thing it knows about every member of every configuration without being told.
+"""
+
+WHOLE_KIND = 'A whole number.'
+"""What the type of a member holding a whole number says about it."""
+
 ABOUT_NAME = 'What the name of this configuration is for.'
 """Description of the one member that the tests below describe."""
 
@@ -329,15 +339,24 @@ def test_row_flags_start_off() -> None:
 
 
 def test_described_rows() -> None:
-    """Test the description of a member reaches the row of that member."""
+    """Test the description of a member reaches the row of that member.
+
+    What the type of the member says follows it, on a line of its own, and a
+    member the application says nothing about has that alone.
+    """
     model = EditModel(FlatCfg(), descriptions=DESCRIPTIONS)
-    assert _row(model, 'name').description == ABOUT_NAME
-    assert _row(model, 'answer').description == ''
+    assert _row(model, 'name').description == f'{ABOUT_NAME}\n{TEXT_KIND}'
+    assert _row(model, 'answer').description == WHOLE_KIND
 
 
 def test_no_descriptions() -> None:
-    """Test an application that describes nothing gets rows without one."""
-    assert all(row.description == '' for row in EditModel(FlatCfg()).rows)
+    """Test an application that describes nothing still explains the types.
+
+    That is what a program which is told a class and no mapping shows, and it
+    is the least the editor can say about a member: what kind of value it is.
+    """
+    described = [row.description for row in EditModel(FlatCfg()).rows]
+    assert described == [TEXT_KIND, WHOLE_KIND]
 
 
 def test_description_stays() -> None:
@@ -349,7 +368,7 @@ def test_description_stays() -> None:
     model = EditModel(FlatCfg(), descriptions=DESCRIPTIONS)
     model.set_text(path=('name',), text='other text')
     model.validate()
-    assert _row(model, 'name').description == ABOUT_NAME
+    assert _row(model, 'name').description == f'{ABOUT_NAME}\n{TEXT_KIND}'
 
 
 def test_class_docstring() -> None:

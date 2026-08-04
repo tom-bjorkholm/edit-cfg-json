@@ -22,8 +22,8 @@ from edit_cfg_json import EditModel, LoadPolicy, load_config
 from example import e05_old_format_config
 from example.e05_old_format_config import CURRENT_FORMAT, NoHookConfig, \
     OldFormatConfig
-from .helpers import DUMP_TAIL, data_file, dump, head, input_tail, \
-    open_tk_ui, refused, textual_titles
+from .helpers import DUMP_TAIL, TEXT_LINE, WHOLE_LINE, data_file, dump, \
+    head, input_tail, open_tk_ui, refused, textual_titles
 
 OLD_FILE = 'e05_old_format.json'
 """Input file written by an older version of this example's application."""
@@ -52,14 +52,16 @@ SUPPLIED_LINE = ('These values were supplied because this file is in an older '
                  'format: format_version')
 """What the class that takes the hook says about the value it supplied."""
 
-MIGRATED_ROWS = [f'format_version = {CURRENT_FORMAT}{LOAD_MARK}',
-                 f'report_name = monthly-summary{LOAD_MARK}',
-                 f'owner = Ada Lovelace{LOAD_MARK}',
-                 'refresh_seconds = 900']
+MIGRATED_ROWS = [f'format_version = {CURRENT_FORMAT}{LOAD_MARK}', WHOLE_LINE,
+                 f'report_name = monthly-summary{LOAD_MARK}', TEXT_LINE,
+                 f'owner = Ada Lovelace{LOAD_MARK}', TEXT_LINE,
+                 'refresh_seconds = 900', WHOLE_LINE]
 """Every row of that file as read, with the mark of each changed member.
 
-The last of them is the row that matters most: the file holds that value under
-that name, and nothing happened to it, so nothing is said about it.
+The row that matters most is the one for `refresh_seconds`: the file holds that
+value under that name and nothing happened to it, so it carries no mark. What
+each row says below it is the kind of value it holds, which is what the editor
+knows about every member of every configuration without being told anything.
 """
 
 

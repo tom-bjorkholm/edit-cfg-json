@@ -13,7 +13,7 @@ from config_as_json import Config, ConfigPath, JsonType, ParseConverter, \
     PathOrStr
 from edit_cfg_json.converting import convert_member, member_converters
 from edit_cfg_json.descriptions import Descriptions, class_docstring, \
-    class_summary, member_description
+    class_summary, member_description, optional_members
 from edit_cfg_json.leaf_value import text_as_value, value_as_text, \
     values_differ
 from edit_cfg_json.loader import ConfigLoader, ConfigSource
@@ -99,11 +99,14 @@ class MemberRow(NamedTuple):
     """What is said about this member, empty when nothing is.
 
     The application says most of it, in the description mapping, and the type
-    of the member says the rest where it has a type that says anything, which
-    today means an enum. It is read once, when the model is built, because it
-    says what the member is for and that does not change while it is edited. A
-    member that nothing is said about keeps an empty description and is shown
-    without one, which is all that an unexplained member costs.
+    of the member says the rest: the names an enum accepts, or what kind of
+    value the member holds, and whether the class may leave it out of the file.
+    It is read once, when the model is built, because it says what the member
+    is for and that does not change while it is edited.
+
+    It is empty only for a member the editor cannot edit yet, whose row says
+    which kind of container it is where its value would be. Every other member
+    has at least what its own type says about it.
     """
 
     converter: Optional[ParseConverter] = None
@@ -183,8 +186,7 @@ def _ordered_names(config: Config, members: dict[str, JsonType]) -> list[str]:
     return declared + [name for name in members if name not in declared]
 
 
-def _row_of(name: str, value: JsonType, report: LoadReport,
-            descriptions: Descriptions,
+def _row_of(name: str, value: JsonType, report: LoadReport, about: str,
             converter: Optional[ParseConverter]) -> MemberRow:
     """Return the row of one serialized member of a configuration.
 
@@ -194,19 +196,38 @@ def _row_of(name: str, value: JsonType, report: LoadReport,
         value: JSON space value that the member holds.
         report: What reading the input file did, which says whether this
             member holds a value that came from the file.
-        descriptions: What the application says about its members.
+        about: Everything there is to say about this member, empty for a
+            member that nothing says anything about.
         converter: How the text of this member becomes a value, or None.
 
     Returns:
         The row of that member, as the model starts out holding it.
     """
-    path = (name,)
-    about = member_description(descriptions=descriptions, path=path,
-                               converter=converter)
-    return MemberRow(path=path, value=value, original=value,
+    return MemberRow(path=(name,), value=value, original=value,
                      filled_from_default=name in report.filled,
                      changed_by_load=name in report.changed, description=about,
                      converter=converter)
+
+
+def _about(name: str, members: Mapping[str, JsonType],
+           descriptions: Descriptions,
+           converters: Mapping[str, ParseConverter],
+           optional: frozenset[str]) -> str:
+    """Return everything there is to say about one member.
+
+    Args:
+        name: Name of the member, which is the one step of its path.
+        members: One JSON space value per serialized member.
+        descriptions: What the application says about its members.
+        converters: One converter per member that has one.
+        optional: Names of the members the class may leave out of the file.
+
+    Returns:
+        The description of that member.
+    """
+    return member_description(descriptions=descriptions, path=(name,),
+                              converter=converters.get(name),
+                              value=members[name], optional=name in optional)
 
 
 def _rows_from_config(config: Config, report: LoadReport,
@@ -222,9 +243,13 @@ def _rows_from_config(config: Config, report: LoadReport,
     """
     members = json.loads(config.as_json_string(stderr_file=stderr_file))
     assert isinstance(members, dict)
+    optional = optional_members(config)
     return {(name,): _row_of(name=name, value=members[name], report=report,
-                             descriptions=descriptions,
-                             converter=converters.get(name))
+                             converter=converters.get(name),
+                             about=_about(name=name, members=members,
+                                          descriptions=descriptions,
+                                          converters=converters,
+                                          optional=optional))
             for name in _ordered_names(config=config, members=members)}
 
 

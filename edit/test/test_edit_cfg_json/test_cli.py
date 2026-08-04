@@ -555,15 +555,23 @@ def test_descriptions_door() -> None:
                                  'FLAT_DESCRIPTIONS')) == ExitCode.OK
     assert backend.model is not None
     described = {row.name: row.description for row in backend.model.rows}
-    assert described == {'name': ABOUT_FLAT_NAME, 'answer': ''}
+    assert described['name'].startswith(ABOUT_FLAT_NAME)
+    assert 'whole number' in described['answer']
 
 
 def test_no_descriptions() -> None:
-    """Test a run that names none shows the members without a description."""
+    """Test a run that names none still shows what the types say.
+
+    A member has no docstring at runtime, so a program that was told no mapping
+    can say nothing about what a member is for. What kind of value it holds is
+    another matter, and the editor knows that about every member.
+    """
     backend = Recorder()
     assert _run(backend, *_named('FlatCfg')) == ExitCode.OK
     assert backend.model is not None
-    assert not any(row.description for row in backend.model.rows)
+    described = [row.description for row in backend.model.rows]
+    assert described == ['Text.', 'A whole number.']
+    assert ABOUT_FLAT_NAME not in described
 
 
 def test_no_such_described(capsys: pytest.CaptureFixture[str]) -> None:

@@ -588,12 +588,25 @@ the body asks for up to this limit and not this limit.
 
 #### BODY\_WIDTH
 
-Largest width in pixels that the scrolling part of the editor asks for.
+Width in pixels that the scrolling part of the editor opens at.
 
-A canvas asks for a width of its own that has nothing to do with what is on
-it, so the width the editor opens at has to be said here: what the body asks
-for, up to this. Wider than this is left to the user, who can make the window
-any size, and every text that is a paragraph wraps to whatever width there is.
+A canvas asks for a width of its own that has nothing to do with what is on it,
+so the width the editor opens at has to be said, and this is where it is said.
+
+**It is said rather than measured, because the width of the body cannot be
+measured.** Every paragraph wraps to the width it is given, so a body that has
+been laid out asks for about the width it already has, whatever it would have
+liked. Following that answer is what made showing the explanations flicker
+between two window sizes for ever: the wrapped paragraph asked for a little
+less than it was given, the canvas asked for that, the window narrowed, the
+paragraph wrapped into one more line and asked for something else again. Found
+at step 9 in a window and measured: one toggle cost 19099 resizes of the window
+in two seconds and never stopped.
+
+So the width is this, the height is what the body asks for up to a window's
+worth, and a user who wants another width resizes the window — after which
+every paragraph wraps to what there is. A small configuration therefore opens
+in a window no taller than it needs, and this wide whatever it holds.
 
 <a id="edit_cfg_json_tk.scrolling.ScrollingArea"></a>
 

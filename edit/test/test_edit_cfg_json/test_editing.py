@@ -186,8 +186,8 @@ def test_descriptions_given() -> None:
     about = 'What the name of this configuration is for.'
     edit(config=FlatCfg(), backend=backend, descriptions={('name',): about})
     rows = {row.name: row for row in backend.seen[0].rows}
-    assert rows['name'].description == about
-    assert rows['answer'].description == ''
+    assert rows['name'].description.startswith(about)
+    assert 'whole number' in rows['answer'].description
 
 
 def test_settings_reach_model() -> None:

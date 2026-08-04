@@ -90,6 +90,7 @@
   * [LOADER\_ARGS\_MESSAGE](#edit_cfg_json.cli.LOADER_ARGS_MESSAGE)
   * [NO\_LOADER\_CONFIG](#edit_cfg_json.cli.NO_LOADER_CONFIG)
   * [WRONG\_CLASS\_MESSAGE](#edit_cfg_json.cli.WRONG_CLASS_MESSAGE)
+  * [NOT\_DESCRIPTIONS](#edit_cfg_json.cli.NOT_DESCRIPTIONS)
   * [NOT\_SHOWABLE\_MESSAGE](#edit_cfg_json.cli.NOT_SHOWABLE_MESSAGE)
   * [ExitCode](#edit_cfg_json.cli.ExitCode)
     * [OK](#edit_cfg_json.cli.ExitCode.OK)
@@ -108,6 +109,7 @@
     * [NOT\_LOADER](#edit_cfg_json.cli.ExitCode.NOT_LOADER)
     * [LOADER\_ARGS](#edit_cfg_json.cli.ExitCode.LOADER_ARGS)
     * [WRONG\_CLASS](#edit_cfg_json.cli.ExitCode.WRONG_CLASS)
+    * [NOT\_DESCRIPTIONS](#edit_cfg_json.cli.ExitCode.NOT_DESCRIPTIONS)
   * [\_Refusal](#edit_cfg_json.cli._Refusal)
     * [\_\_init\_\_](#edit_cfg_json.cli._Refusal.__init__)
   * [\_default\_policy\_name](#edit_cfg_json.cli._default_policy_name)
@@ -120,6 +122,7 @@
   * [\_module\_from\_file](#edit_cfg_json.cli._module_from_file)
   * [\_class\_in](#edit_cfg_json.cli._class_in)
   * [\_loader\_in](#edit_cfg_json.cli._loader_in)
+  * [\_descriptions\_in](#edit_cfg_json.cli._descriptions_in)
   * [\_named\_module](#edit_cfg_json.cli._named_module)
   * [\_constructed](#edit_cfg_json.cli._constructed)
   * [\_loader\_config](#edit_cfg_json.cli._loader_config)
@@ -130,9 +133,16 @@
   * [\_session](#edit_cfg_json.cli._session)
   * [run\_cli](#edit_cfg_json.cli.run_cli)
 * [edit\_cfg\_json.leaf\_value](#edit_cfg_json.leaf_value)
+  * [TEXT\_KIND](#edit_cfg_json.leaf_value.TEXT_KIND)
+  * [WHOLE\_NUMBER\_KIND](#edit_cfg_json.leaf_value.WHOLE_NUMBER_KIND)
+  * [NUMBER\_KIND](#edit_cfg_json.leaf_value.NUMBER_KIND)
+  * [BOOL\_KIND](#edit_cfg_json.leaf_value.BOOL_KIND)
+  * [VALUE\_KINDS](#edit_cfg_json.leaf_value.VALUE_KINDS)
+  * [NO\_KIND](#edit_cfg_json.leaf_value.NO_KIND)
   * [value\_as\_text](#edit_cfg_json.leaf_value.value_as_text)
   * [text\_as\_value](#edit_cfg_json.leaf_value.text_as_value)
   * [values\_differ](#edit_cfg_json.leaf_value.values_differ)
+  * [value\_kind](#edit_cfg_json.leaf_value.value_kind)
 * [edit\_cfg\_json.loader](#edit_cfg_json.loader)
   * [NO\_FILE\_NAME](#edit_cfg_json.loader.NO_FILE_NAME)
   * [LOADER\_EXITED](#edit_cfg_json.loader.LOADER_EXITED)
@@ -232,6 +242,7 @@
     * [edited](#edit_cfg_json.edit_model.MemberRow.edited)
   * [\_ordered\_names](#edit_cfg_json.edit_model._ordered_names)
   * [\_row\_of](#edit_cfg_json.edit_model._row_of)
+  * [\_about](#edit_cfg_json.edit_model._about)
   * [\_rows\_from\_config](#edit_cfg_json.edit_model._rows_from_config)
   * [\_refreshed](#edit_cfg_json.edit_model._refreshed)
   * [EditModel](#edit_cfg_json.edit_model.EditModel)
@@ -276,6 +287,7 @@
 * [edit\_cfg\_json.descriptions](#edit_cfg_json.descriptions)
   * [EVERY\_ELEMENT](#edit_cfg_json.descriptions.EVERY_ELEMENT)
   * [CHOICES\_FORM](#edit_cfg_json.descriptions.CHOICES_FORM)
+  * [OPTIONAL\_TEXT](#edit_cfg_json.descriptions.OPTIONAL_TEXT)
   * [\_selects](#edit_cfg_json.descriptions._selects)
   * [\_named\_steps](#edit_cfg_json.descriptions._named_steps)
   * [path\_description](#edit_cfg_json.descriptions.path_description)
@@ -283,6 +295,8 @@
   * [class\_summary](#edit_cfg_json.descriptions.class_summary)
   * [\_enum\_type](#edit_cfg_json.descriptions._enum_type)
   * [enum\_text](#edit_cfg_json.descriptions.enum_text)
+  * [optional\_members](#edit_cfg_json.descriptions.optional_members)
+  * [type\_text](#edit_cfg_json.descriptions.type_text)
   * [member\_description](#edit_cfg_json.descriptions.member_description)
 * [edit\_cfg\_json.auto\_change](#edit_cfg_json.auto_change)
   * [WRITE\_ERRORS](#edit_cfg_json.auto_change.WRITE_ERRORS)
@@ -1582,6 +1596,13 @@ its own, so whatever it needs beyond the five keyword arguments of
 `edit_cfg_json.ConfigLoader` has to be bound in the module it is named in — a
 command line cannot supply an argument this library knows nothing about.
 
+**What the application says about its own members is told the same way.**
+`--descriptions NAME` names a `Descriptions` mapping beside the class, because
+that is the one thing an application can tell the editor that this program
+could not otherwise pass on: a member has no docstring at runtime, so what a
+member is for is either in such a mapping or nowhere. The class docstring needs
+no option, because the class already carries it.
+
 **Importing a module runs it.** That is the same exposure as running the file
 with Python, and it is not guarded against, because a guard could only be a
 pretence: a configuration class is Python and reaching it means importing the
@@ -1691,6 +1712,17 @@ A loader may choose its class by looking at the JSON, and `--class` beside it
 is how a script says which class it is prepared to go on with. The check is
 what `isinstance` answers, so a loader that answers with a subclass of the
 class that was named is accepted.
+
+<a id="edit_cfg_json.cli.NOT_DESCRIPTIONS"></a>
+
+#### NOT\_DESCRIPTIONS
+
+Message of the refusal of a `--descriptions` that names something else.
+
+What the keys and the values of the mapping are is not checked, for the reason
+section 4.3 of `doc/design.md` gives: a selector that addresses no member of
+this configuration is simply never used, and a wrong description is a cosmetic
+mistake that is not worth refusing to open an editor over.
 
 <a id="edit_cfg_json.cli.NOT_SHOWABLE_MESSAGE"></a>
 
@@ -1834,6 +1866,12 @@ plainly is better than a half answer.
 #### WRONG\_CLASS
 
 The loader did not construct the class that `--class` asked for.
+
+<a id="edit_cfg_json.cli.ExitCode.NOT_DESCRIPTIONS"></a>
+
+#### NOT\_DESCRIPTIONS
+
+The name that `--descriptions` names is no mapping of any kind.
 
 <a id="edit_cfg_json.cli._Refusal"></a>
 
@@ -2112,6 +2150,34 @@ which is what `_loader_config` below does and reports.
 
 - `_Refusal` - The module holds no such name, or it is nothing to call.
 
+<a id="edit_cfg_json.cli._descriptions_in"></a>
+
+#### \_descriptions\_in
+
+```python
+def _descriptions_in(module: ModuleType,
+                     name: Optional[str]) -> Optional[Descriptions]
+```
+
+Return what one module says about the members of its configuration.
+
+**Arguments**:
+
+- `module` - Module that was named on the command line.
+- `name` - Name of the mapping that was asked for, or None when the command
+  line named none and the members explain themselves as far as their
+  own types allow.
+  
+
+**Returns**:
+
+  That mapping, or None when none was asked for.
+  
+
+**Raises**:
+
+- `_Refusal` - The module holds no such name, or it is no mapping.
+
 <a id="edit_cfg_json.cli._named_module"></a>
 
 #### \_named\_module
@@ -2261,7 +2327,8 @@ answers it, so a subclass of the class that was named is accepted.
 ```python
 def _built_model(parsed: Namespace, config: Config,
                  loader: Optional[ConfigLoader],
-                 wanted: Optional[type[Config]]) -> EditModel
+                 wanted: Optional[type[Config]],
+                 descriptions: Optional[Descriptions]) -> EditModel
 ```
 
 Return the model of one session, on the files that were named.
@@ -2285,6 +2352,8 @@ application that builds the model itself and knows its own class.
 - `loader` - Loader that the command line named, or None when it named
   none.
 - `wanted` - Class that `--class` named, or None when it named none.
+- `descriptions` - What the application says about its own members, or None
+  when the command line named no mapping of them.
   
 
 **Returns**:
@@ -2405,6 +2474,50 @@ written twice is therefore here.
 
 The JSON space meaning of one leaf value of the edit buffer.
 
+<a id="edit_cfg_json.leaf_value.TEXT_KIND"></a>
+
+#### TEXT\_KIND
+
+What is said about a member that holds text.
+
+<a id="edit_cfg_json.leaf_value.WHOLE_NUMBER_KIND"></a>
+
+#### WHOLE\_NUMBER\_KIND
+
+What is said about a member that holds an integer.
+
+<a id="edit_cfg_json.leaf_value.NUMBER_KIND"></a>
+
+#### NUMBER\_KIND
+
+What is said about a member that holds a floating point number.
+
+<a id="edit_cfg_json.leaf_value.BOOL_KIND"></a>
+
+#### BOOL\_KIND
+
+What is said about a member that holds a boolean.
+
+<a id="edit_cfg_json.leaf_value.VALUE_KINDS"></a>
+
+#### VALUE\_KINDS
+
+What each kind of leaf value is called, in the order they are asked.
+
+The order is what makes `True` say what it is: `bool` is a subclass of `int` in
+Python, so a value that is asked in the other order would be a whole number.
+Nothing else here depends on the order.
+
+<a id="edit_cfg_json.leaf_value.NO_KIND"></a>
+
+#### NO\_KIND
+
+What is said about a member that holds nothing at all.
+
+The kind of a member is the kind of the value it held when the file was last
+agreed with, which is the only type information there is (section 4.2 of
+`doc/design.md`), and a member that held nothing gave none.
+
 <a id="edit_cfg_json.leaf_value.value_as_text"></a>
 
 #### value\_as\_text
@@ -2486,6 +2599,32 @@ the editor has to say so.
 **Returns**:
 
   Whether the two values are different values.
+
+<a id="edit_cfg_json.leaf_value.value_kind"></a>
+
+#### value\_kind
+
+```python
+def value_kind(value: JsonType) -> str
+```
+
+Return what kind of value one member holds, as a line to read.
+
+It is what the editor knows about a member without being told anything by
+the application: what the value is, which is what tells the digits of a
+number from a text that happens to be digits. A list and a dict answer with
+nothing, because a member the editor cannot edit yet already says which of
+the two it is where its value would be.
+
+**Arguments**:
+
+- `value` - One leaf value of the edit buffer, in JSON space.
+  
+
+**Returns**:
+
+  What kind of value that is, and an empty text for a value whose kind
+  is already said elsewhere.
 
 <a id="edit_cfg_json.loader"></a>
 
@@ -3851,11 +3990,14 @@ would.
 What is said about this member, empty when nothing is.
 
 The application says most of it, in the description mapping, and the type
-of the member says the rest where it has a type that says anything, which
-today means an enum. It is read once, when the model is built, because it
-says what the member is for and that does not change while it is edited. A
-member that nothing is said about keeps an empty description and is shown
-without one, which is all that an unexplained member costs.
+of the member says the rest: the names an enum accepts, or what kind of
+value the member holds, and whether the class may leave it out of the file.
+It is read once, when the model is built, because it says what the member
+is for and that does not change while it is edited.
+
+It is empty only for a member the editor cannot edit yet, whose row says
+which kind of container it is where its value would be. Every other member
+has at least what its own type says about it.
 
 <a id="edit_cfg_json.edit_model.MemberRow.converter"></a>
 
@@ -3966,8 +4108,7 @@ member can go missing whatever a validator or a converter did.
 #### \_row\_of
 
 ```python
-def _row_of(name: str, value: JsonType, report: LoadReport,
-            descriptions: Descriptions,
+def _row_of(name: str, value: JsonType, report: LoadReport, about: str,
             converter: Optional[ParseConverter]) -> MemberRow
 ```
 
@@ -3980,13 +4121,40 @@ Return the row of one serialized member of a configuration.
 - `value` - JSON space value that the member holds.
 - `report` - What reading the input file did, which says whether this
   member holds a value that came from the file.
-- `descriptions` - What the application says about its members.
+- `about` - Everything there is to say about this member, empty for a
+  member that nothing says anything about.
 - `converter` - How the text of this member becomes a value, or None.
   
 
 **Returns**:
 
   The row of that member, as the model starts out holding it.
+
+<a id="edit_cfg_json.edit_model._about"></a>
+
+#### \_about
+
+```python
+def _about(name: str, members: Mapping[str, JsonType],
+           descriptions: Descriptions, converters: Mapping[str,
+                                                           ParseConverter],
+           optional: frozenset[str]) -> str
+```
+
+Return everything there is to say about one member.
+
+**Arguments**:
+
+- `name` - Name of the member, which is the one step of its path.
+- `members` - One JSON space value per serialized member.
+- `descriptions` - What the application says about its members.
+- `converters` - One converter per member that has one.
+- `optional` - Names of the members the class may leave out of the file.
+  
+
+**Returns**:
+
+  The description of that member.
 
 <a id="edit_cfg_json.edit_model._rows_from_config"></a>
 
@@ -4824,8 +4992,14 @@ The explanatory text that the editor shows about a configuration.
 There are three sources of it, they are independent, and all of them are
 optional. The docstring of the configuration class labels the configuration
 object, a mapping supplied by the application labels the individual members,
-and the type of a member says the rest where the member has a type that says
-anything, which today means an enum.
+and the type of a member says the rest.
+
+What a type says is the names of an enum where the member holds one, and what
+kind of value the member holds where it does not: text, a whole number, a
+number, or true or false. That last one is the least the editor can say about
+any member and it is never nothing, which is what a review of step 9 asked for:
+a program that is told a class and no mapping showed the members with nothing
+under them at all, and the editor does know something about each of them.
 
 It takes a mapping for the members because a member has no docstring at
 runtime. A class has one and every reader of the code can see it, while a
@@ -4851,6 +5025,18 @@ description once per list index or once per dictionary key.
 #### CHOICES\_FORM
 
 What the editor says about the names one enum member accepts.
+
+<a id="edit_cfg_json.descriptions.OPTIONAL_TEXT"></a>
+
+#### OPTIONAL\_TEXT
+
+What the editor says about a member that the class treats as optional.
+
+`_omit_none_from_json()` is what says which members those are, and section 4.1
+of `doc/design.md` names it as one of the sources of the structure. It is a
+protected name of `config_as_json` and it is read anyway, because nothing else
+answers the question and the answer is worth having: a member that may be left
+out is a member a user may leave empty.
 
 <a id="edit_cfg_json.descriptions._selects"></a>
 
@@ -5032,13 +5218,69 @@ between them needs. What they need is the first line and the names.
   What that enum class says about itself and which names it accepts,
   and an empty text for a member that holds no enum.
 
+<a id="edit_cfg_json.descriptions.optional_members"></a>
+
+#### optional\_members
+
+```python
+def optional_members(config: Config) -> frozenset[str]
+```
+
+Return the members that this configuration may leave out of a file.
+
+The class is asked, because only the class knows: a member that holds
+nothing right now may be one that has to hold something, and one that holds
+something may still be allowed to hold nothing. What it is asked is a
+protected method, for the reason `OPTIONAL_TEXT` gives, and the answer
+needs no checking here, because constructing the object checked it.
+
+**Arguments**:
+
+- `config` - Configuration object being edited. It is not modified.
+  
+
+**Returns**:
+
+  The names of the members that are genuinely optional.
+
+<a id="edit_cfg_json.descriptions.type_text"></a>
+
+#### type\_text
+
+```python
+def type_text(converter: Optional[ParseConverter], value: JsonType,
+              optional: bool) -> str
+```
+
+Return everything the type of one member says about it.
+
+An enum says the most, so where a member holds one that is what is said and
+the kind of the value would only repeat it: the name of an enum member is
+text, and knowing that is worth nothing beside knowing which names there
+are. Every other member says what kind of value it holds, which is the one
+thing the editor knows about every member of every configuration.
+
+**Arguments**:
+
+- `converter` - How the text of this member becomes a value, or None.
+- `value` - Value the member held when the file was last agreed with, which
+  is the only type information there is.
+- `optional` - Whether the class may leave this member out of the file.
+  
+
+**Returns**:
+
+  What the type of that member says, and an empty text when it says
+  nothing at all.
+
 <a id="edit_cfg_json.descriptions.member_description"></a>
 
 #### member\_description
 
 ```python
 def member_description(descriptions: Descriptions, path: ConfigPath,
-                       converter: Optional[ParseConverter]) -> str
+                       converter: Optional[ParseConverter], value: JsonType,
+                       optional: bool) -> str
 ```
 
 Return everything the editor has to say about one member.
@@ -5046,21 +5288,23 @@ Return everything the editor has to say about one member.
 What the application says comes first, because it is what this member is
 for in this application, and what the type of the member says comes after
 it. The second is appended rather than used only where the first is
-missing: the names an enum accepts are true whatever the application
-wrote, and an application that explains what its members mean should not
-have to list the names as well.
+missing: what a member holds is true whatever the application wrote, and an
+application that explains what its members mean should not have to list the
+names of an enum or say that a number is a number.
 
 **Arguments**:
 
 - `descriptions` - What the application says about its members.
 - `path` - Path of the member that is being described.
 - `converter` - How the text of this member becomes a value, or None.
+- `value` - Value the member held when the file was last agreed with.
+- `optional` - Whether the class may leave this member out of the file.
   
 
 **Returns**:
 
-  The description of that member, and an empty text when neither the
-  application nor the type of the member says anything about it.
+  The description of that member, which is never empty for a member the
+  editor can edit, because the type of it always says something.
 
 <a id="edit_cfg_json.auto_change"></a>
 

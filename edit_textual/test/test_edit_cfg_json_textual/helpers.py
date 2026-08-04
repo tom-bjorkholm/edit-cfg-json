@@ -59,6 +59,18 @@ names."""
 EXPLAIN_ALT_KEY = DEFAULT_ACTIONS.explain[1]
 """The other key that shows or hides the explanatory text."""
 
+TEXT_KIND = 'Text.'
+"""What the type of a text member says about it.
+
+The editor says what kind of value every member holds, because that is the one
+thing it knows about every member of every configuration without being told.
+It is written out here rather than read from an internal module of the core, in
+the same way as every other text these tests expect.
+"""
+
+WHOLE_KIND = 'A whole number.'
+"""What the type of a member holding a whole number says about it."""
+
 ABOUT_NAME = 'What the name of this configuration is for.'
 """Description of the one member that the tests below describe."""
 

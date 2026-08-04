@@ -17,8 +17,8 @@ import pytest
 from example import e04_validated_config
 from example.e04_validated_config import DESCRIPTIONS, LONGEST_RUN, \
     MOST_RETRIES, ValidatedConfig
-from .helpers import DUMP_TAIL, data_file, dump, head, input_tail, \
-    open_tk_ui, refused, textual_titles
+from .helpers import DUMP_TAIL, TEXT_LINE, WHOLE_LINE, data_file, dump, \
+    head, input_tail, open_tk_ui, refused, textual_titles
 
 VALID_LINE = 'validation: valid'
 """Line that `--ui dump` ends with for a buffer the example accepts."""
@@ -77,7 +77,7 @@ def test_own_validator(capsys: pytest.CaptureFixture[str]) -> None:
     """
     printed = _dump(capsys, '--set', 'job_name=nightly backup')
     assert (f'job_name = nightly backup (edited)\n    {ABOUT_NAME}\n'
-            f'    {SPACED_NAME}') in printed
+            f'{TEXT_LINE}\n    {SPACED_NAME}') in printed
     assert 'validation: invalid, see job_name' in printed
 
 
@@ -85,7 +85,7 @@ def test_library_validator(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a validator the library ships is attributed the same way."""
     printed = _dump(capsys, '--set', 'retries=9')
     assert (f'retries = 9 (edited)\n    {ABOUT_RETRIES}\n'
-            f'    {TOO_MANY}') in printed
+            f'{WHOLE_LINE}\n    {TOO_MANY}') in printed
     assert 'validation: invalid, see retries' in printed
 
 

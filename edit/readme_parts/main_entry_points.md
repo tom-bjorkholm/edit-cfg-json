@@ -259,6 +259,14 @@ DESCRIPTIONS: Descriptions = {
 saved = edit(config=config, backend=backend, descriptions=DESCRIPTIONS)
 ````
 
+**Every member says what kind of value it holds**, whether the application
+describes it or not: text, a whole number, a number, or true or false, and
+whether the class may leave it out of the file. That is read from the value the
+member holds and needs no mapping, and where a member holds an enum the names it
+accepts are said instead, because they say the same thing better. What lives
+inside a validator — a range, a set of allowed values — is not read and never
+will be, so a limit is explained by the application in words or not at all.
+
 A member is named by the absolute `config_as_json.ConfigPath` that addresses
 it, so a member inside a list, a dict or a nested configuration object needs
 no second way of naming it. The `'['` step keeps its `config_as_json` meaning

@@ -29,6 +29,18 @@ from example.e01_flat_config import FlatConfig
 UNKNOWN_VERDICT = 'validation: not validated'
 """Text the editor shows before anything has been validated."""
 
+TEXT_KIND = 'Text.'
+"""What the type of a text member says about it.
+
+The editor says what kind of value every member holds, because that is the one
+thing it knows about every member of every configuration without being told.
+It is written out here rather than read from an internal module of the core, in
+the same way as every other text these tests expect.
+"""
+
+WHOLE_KIND = 'A whole number.'
+"""What the type of a member holding a whole number says about it."""
+
 ABOUT_NAME = 'What the name of this configuration is for.'
 """Description of the one member that the tests below describe."""
 
@@ -74,19 +86,21 @@ BUTTON_TEXTS = [VALIDATE_TEXT, SAVE_TEXT, SAVE_AS_TEXT, EXPLAIN_TEXT,
                 CLOSE_TEXT]
 """Texts of the buttons of the editor, in the order they are created."""
 
-EXPECTED_LABELS = ['FlatConfig', FLAT_DOCSTRING, 'name', '', 'answer', '',
-                   UNKNOWN_VERDICT, NO_FILE_TEXT, *BUTTON_TEXTS]
+EXPECTED_LABELS = ['FlatConfig', FLAT_DOCSTRING, 'name', '', TEXT_KIND,
+                   'answer', '', WHOLE_KIND, UNKNOWN_VERDICT, NO_FILE_TEXT,
+                   *BUTTON_TEXTS]
 """Widget texts that both the stubbed and the real Tk test expect.
 
 The docstring of the configuration class is below its name, because what the
 whole configuration is for is what the members below it are read in the light
 of. The two empty strings are the marks of the two members, which say nothing
-until the user or a validator has done something to them.
+until the user or a validator has done something to them, and the line below
+each member is what the type of that member says about it.
 """
 
 EXPECTED_LOADED = ['FlatConfig', FLAT_DOCSTRING, LOAD_MESSAGE, 'name', '',
-                   'answer', FILLED_MARK, UNKNOWN_VERDICT, NO_FILE_TEXT,
-                   *BUTTON_TEXTS]
+                   TEXT_KIND, 'answer', FILLED_MARK, WHOLE_KIND,
+                   UNKNOWN_VERDICT, NO_FILE_TEXT, *BUTTON_TEXTS]
 """Widget texts of a model whose load filled the number member in.
 
 The message of the load is above the members, because it is what explains
@@ -94,14 +108,15 @@ the mark on one of them. The empty string is the mark of the member the file
 did hold, which has nothing to say.
 """
 
-DESCRIBED_LABELS = ['FlatConfig', FLAT_DOCSTRING, 'name', '', ABOUT_NAME,
-                    'answer', '', UNKNOWN_VERDICT, NO_FILE_TEXT,
-                    *BUTTON_TEXTS]
+DESCRIBED_LABELS = ['FlatConfig', FLAT_DOCSTRING, 'name', '',
+                    f'{ABOUT_NAME}\n{TEXT_KIND}', 'answer', '', WHOLE_KIND,
+                    UNKNOWN_VERDICT, NO_FILE_TEXT, *BUTTON_TEXTS]
 """Widget texts of a model whose text member the application describes.
 
-The description is below the member it belongs to, and the number member has
-none: an application that describes half of its configuration gets half of it
-explained, and not an empty label under the other half.
+The description is below the member it belongs to, with what the type of that
+member says under it. An application that describes half of its configuration
+gets half of it explained, and the other half still says what kind of value it
+holds, because that is the editor's own to say.
 """
 
 HIDDEN_LABELS = ['FlatConfig', FLAT_SUMMARY, 'name', '', 'answer', '',
