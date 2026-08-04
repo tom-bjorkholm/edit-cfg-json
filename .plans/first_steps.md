@@ -1106,6 +1106,10 @@ program cannot pass on. Whether the two parsers of the repository share their
 definitions was settled at step 7B rather than here: `add_file_options` and
 `named_policy` are shared already, and each option this step adds is a
 candidate for the same treatment.
+Consider if adding a class derived from `config_as_json.Config` for storing
+the `Settings` of the 7B programs instead of passing them as arguments.
+Using such a configuration file may be a better idea than a very long
+commmand line.
 
 **Step 20 — The program asks for what the command line left out.** A
 wizard: the program opens with no location, no class name and no files, and
