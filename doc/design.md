@@ -303,6 +303,11 @@ two UIs cannot drift:
   value, cleared when the user next edits that field
 - **filled from default** — set when a permissive load supplied a value
   the input file did not contain
+- **changed by the load** — set when reading the input file put this value
+  there or altered it, which is what an older format and a normalization
+  during parsing both do (section 5.3). It is never set together with the mark
+  above it: that one says the same thing more precisely, and one member
+  carrying two marks about one fact would be worse than either alone.
 
 ### 4.3 Descriptions and docstrings
 
@@ -625,12 +630,17 @@ The outcomes, each with a message of its own:
   arguments this library knows nothing about supplies the explicit loader of
   section 5.1 instead.
 
-The per-field *filled from default* flag is computed from the keys the file
-text contained, because a load that was allowed to use the defaults cannot
-afterwards say which of its values came from the file. That is exact for
-every file the editor can open today. It will over-report a member whose key
-ROCF renamed, and section 5.3 with step 8 of the delivery plan is where the
-automatic changes of an old-format file get reported properly.
+The per-field *filled from default* flag is what the key check of the parse
+was not given, which is exactly what the declared defaults supplied. A load
+that was allowed to use them cannot be asked afterwards, and the keys of the
+file do not answer it either, because ROCF may have renamed a key of the file
+into a member or supplied a value for one the file never held. So the parse is
+asked, by a throwaway subclass whose `check_key_match` records what it was
+given and stops the parse there — the same borrowing as section 6.3, and
+stopping is what keeps the application's own validators running once, on the
+object that is really being edited. Settled at step 8, where computing the flag
+from the keys of the file turned out to claim that a renamed member had been
+filled in from a default, which is untrue of it.
 
 ### 5.3 Making automatic changes visible
 
@@ -659,6 +669,37 @@ surprise:
 The structured `ConfigAutoChangeHook` report is used to *explain* the
 diff when the application's class accepts a hook, and is simply absent
 otherwise.
+
+Built at step 8, where four things about it had to be settled.
+
+**The hook has to survive being copied.** `Config.__init__` stores
+`deepcopy(auto_ch_hook)` and records into that copy, so the hook an
+application passes is never the hook that is filled in. A hook that only
+prints, as `MigrateCfgWarnHook` does, cannot notice; a hook that is read
+afterwards has to say that a copy of it is itself, which the editor's own hook
+does with `__deepcopy__`. That is worth knowing outside this library too: an
+application that wants to react to a migration by reading its own hook has the
+same problem.
+
+**Three things are compared, and three things are reported.** A key of the file
+that the configuration does not write back is reported in the message alone,
+because it is no member and has no row to be marked. A member whose value the
+file does not hold as it stands is marked on its row. What the hook adds is the
+names of the older keys the file was read with, which no comparison can know: a
+renamed key is simply gone, and nothing in the file says what it became. Where
+the hook has spoken the editor does not also report the keys it saw for itself,
+because that would say the same thing with less in it.
+
+**The comparison is canonical.** `config_as_json` writes the keys of a
+dictionary sorted while a file is written by hand, so the values are compared
+with their dictionary keys sorted. Everything else is compared as it is
+written, which is what tells `1` from `1.0` and from `true`, exactly as
+section 4.2 requires of the *edited* mark.
+
+**A class that cannot write itself is left as it was.** The comparison reads
+what the load would write, so such a class has nothing to compare — and it
+cannot be shown at all, for the same reason. The comparison then reports
+nothing and the refusal stays where section 8.3.4 put it.
 
 ## 6. Validation
 

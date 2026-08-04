@@ -20,6 +20,14 @@ VALIDATOR_MARK = ' (changed by validator)'
 FILLED_MARK = ' (filled from default)'
 """Mark that follows the value of a member the input file did not hold."""
 
+LOAD_MARK = ' (changed by the load)'
+"""Mark that follows a value that reading the input file put there.
+
+A file in an older format is what puts one there in practice: a key of it was
+renamed into this member, or the rules for that format supplied the value. A
+value that parsing or validating normalized is marked with this too.
+"""
+
 DIRTY_MARK = ' *'
 """Mark that follows the model label while the buffer has changes."""
 
@@ -87,12 +95,14 @@ def row_value_text(row: MemberRow) -> str:
 def row_marks(row: MemberRow) -> str:
     """Return the marks that follow the value of one member.
 
-    Every mark can be shown at once, because they say three different things
-    that can all be true: the input file did not hold this member, the user
+    They say different things that can all be true at once: the input file did
+    not hold this member, reading the file changed what it holds, the user
     changed it, and a validator then changed what the user had written. They
-    are in the order in which they can happen. Both backends read the marks
-    from here, so that neither of them decides on its own what a member the
-    load, the user or a validator touched looks like.
+    are in the order in which they can happen. The two that a load sets are
+    never both there, because the more precise of the two is the one it sets.
+
+    Both backends read the marks from here, so that neither of them decides on
+    its own what a member the load, the user or a validator touched looks like.
 
     Args:
         row: Member to mark.
@@ -101,9 +111,10 @@ def row_marks(row: MemberRow) -> str:
         The marks of one member, empty when nothing has happened to it.
     """
     filled = FILLED_MARK if row.filled_from_default else ''
+    loaded = LOAD_MARK if row.changed_by_load else ''
     edited = EDITED_MARK if row.edited else ''
     rewritten = VALIDATOR_MARK if row.changed_by_validator else ''
-    return filled + edited + rewritten
+    return filled + loaded + edited + rewritten
 
 
 def docstring_text(model: EditModel) -> str:

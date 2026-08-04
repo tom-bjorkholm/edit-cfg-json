@@ -969,12 +969,70 @@ Also check that the build's package consistency step is content with
 `[project.scripts]` in a `pyproject.toml` whose `name` a `setup.py` also
 declares, against the install step rather than by assumption.
 
-**Step 8 — Automatic-change visibility.** Load the file, re-serialize the
-resulting config and diff that against the raw file text; any difference
-means the load changed something. Use the structured
-`ConfigAutoChangeHook` report to explain the diff when the application's
-class accepts a hook, and do without it otherwise. A new example
-`e05_old_format_config.py` carries `ReadOldConfiguration` rules, so
+**Step 8 — Automatic-change visibility.**
+
+Status: **Implemented and committed.**
+
+**Decided while building it.**
+
+- **The hook the editor passes could not report anything at all.**
+  `Config.__init__` stores `deepcopy(auto_ch_hook)` and records into that copy,
+  so a hook that is read afterwards answers with nothing. Confirmed against
+  `./venv`: after a migrating load the editor's own hook was empty.
+  `ConfigAutoChangeHook.auto_changed` writing to a stream is why
+  `MigrateCfgWarnHook` never noticed. The editor's hook is a subclass whose
+  `__deepcopy__` returns itself, which is the one thing that makes the report
+  reach the editor. Recorded in `doc/design.md` section 5.3, and worth telling
+  an application author, so the example says it too.
+- **Three facts, and each of them where it can be seen.** A key of the file
+  that the configuration does not write back is in the message alone, because
+  it is no member and has no row; a member whose value the file does not hold
+  is marked on its row; and the older keys that only the class can name are in
+  the message where the hook has spoken, in place of the editor's own reading
+  of the same keys rather than beside it.
+- **The `filled from default` flag became exact.** Computing it from the keys
+  of the file said that a member ROCF had renamed into was filled in from a
+  default, which is untrue of it, and it was untrue for *every* older file
+  under `--policy defaults` rather than only for the corner that section 5.2
+  had recorded. It is now what the key check of the parse was not given, read
+  by a throwaway subclass whose `check_key_match` records and stops. Stopping
+  is what keeps the application's validators running once; a test with a
+  counting validator says so. `_absent` and `_declared` in `loading.py` are
+  gone with it.
+- New public names: `LoadReport.changed` and `MemberRow.changed_by_load`, plus
+  `LOAD_MARK` in `model_text` and the message forms in `loading`. New internal
+  module `auto_change.py`. No type alias was needed, and neither backend
+  changed: both already show `core.load_text` and `core.row_marks`.
+- The example declares two classes over one set of `ReadOldConfiguration`
+  rules: `OldFormatConfig`, which takes the hook and is what `main()` runs, and
+  `NoHookConfig`, which does not and is reached through the program of step 7B,
+  as its docstring shows. The same file read by both is what says that the
+  marks do not depend on the hook.
+
+**Found while building it, and the lesson it carries.** Adding two constants to
+the shared `helpers.py` of each backend's tests tripped pylint's
+`duplicate-code` across the two packages: the block of load expectations they
+already shared was three code lines, which is under the threshold, and it went
+over. Attribute docstrings are not docstrings to that checker, so a block that
+looks long is counted by its assignments alone. The new expectation now lives in
+the one test module of each package that uses it, which is where a constant used
+once belongs anyway. A local suppression was not an option: step 6 already found
+that `duplicate-code` is reported against a module and not against a line.
+
+**Observable outcome.** `e05_old_format_config.py --ui dump -i
+examples/data/e05_old_format.json` marks the three members that reading the file
+put there or altered, leaves the fourth alone, and says which older keys the
+file was read with and which value the rules supplied. The same file through
+`edit-cfg-json --module example.e05_old_format_config NoHookConfig` marks the
+same three and says instead which keys of the file the configuration does not
+use. `-i examples/data/e05_current.json` says nothing at all. Both graphical
+backends show the same, with no change to either of them.
+
+**What it was planned to be.** Load the file, re-serialize the resulting config
+and diff that against the raw file text; any difference means the load changed
+something. Use the structured `ConfigAutoChangeHook` report to explain the diff
+when the application's class accepts a hook, and do without it otherwise. A new
+example `e05_old_format_config.py` carries `ReadOldConfiguration` rules, so
 opening an old-format file visibly reports the migration. Risk: the
 hook-independent diff is the primary mechanism and must be tested with a
 config class that does *not* accept a hook.
@@ -1124,6 +1182,17 @@ is a bigger step than the program it completes — roughly the whole of step
 users who would rather not type a module path. It is the reason step 7B
 puts the loading and the reporting in the core: a wizard replaces the
 argument parsing and nothing else.
+When we get here investigate if using
+https://pypi.org/project/wizard-ui-bridge/ makes implementing the wizards
+simpler.
+
+Step 20 also adds version reporting using
+https://pypi.org/project/versionreporter/ as a `--version` flag to all
+3 programs (created at step 7B). Implement as a class `EcajVersionReporter`
+derived from `VersionReporter` in `./edit` and classes derived from
+`EcajVersionRepor` in `./edit_tk` and `./edit_textual` so that the
+backends get the dependencies of `edit-cfg-json` without repeating
+the list of dependencies.
 
 ## 5. Open questions recorded, not answered
 

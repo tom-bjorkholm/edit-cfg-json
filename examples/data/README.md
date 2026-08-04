@@ -56,6 +56,18 @@ take.
 | --- | --- |
 | [e04_complete.json](e04_complete.json) | Opens with every value from the file, and every rule is satisfied: two attempts of 300 seconds is 600, which is under the 900 that all the attempts together may take. |
 
+## Files for `e05_old_format_config.py`
+
+`OldFormatConfig` reads files written by an older version of its application,
+which renamed one member, dropped one key and added one. `NoHookConfig` beside
+it in that example is the same configuration by a class that cannot report what
+the reading did.
+
+| File | What happens |
+| --- | --- |
+| [e05_old_format.json](e05_old_format.json) | Opens under every policy, and reading it changes it: `title` becomes `report_name`, `debug_trace` is dropped, `format_version` is supplied, and the case of `owner` is corrected by a validator. Every member that is not what the file holds is marked, and the message names the older keys. |
+| [e05_current.json](e05_current.json) | Opens with every value from the file and nothing said about the load, because nothing happened to it. It is the same configuration as the file above, in the shape that saving that file writes. |
+
 ## Why a file with a bad value cannot be opened
 
 An editor that refused to open the very file that has to be repaired would

@@ -79,6 +79,21 @@ class MemberRow(NamedTuple):
     the flag above, so that two backends cannot show it differently.
     """
 
+    changed_by_load: bool = False
+    """Whether reading the input file put this value here or altered it.
+
+    Reading a file is not always only reading it. A class that declares rules
+    for reading an older format may have supplied this value or renamed a key
+    of the file into this member, and parsing or validating may have
+    normalized what the file held. The user has to be told, because the value
+    shown is then not the value in the file.
+
+    It stays set for the rest of the session, exactly as the flag above does
+    and for the same reason, and the two are never both set: what the declared
+    defaults filled in is said by that flag, which says more than this one
+    would.
+    """
+
     description: str = ''
     """What is said about this member, empty when nothing is.
 
@@ -167,7 +182,7 @@ def _ordered_names(config: Config, members: dict[str, JsonType]) -> list[str]:
     return declared + [name for name in members if name not in declared]
 
 
-def _row_of(name: str, value: JsonType, filled: frozenset[str],
+def _row_of(name: str, value: JsonType, report: LoadReport,
             descriptions: Descriptions,
             converter: Optional[ParseConverter]) -> MemberRow:
     """Return the row of one serialized member of a configuration.
@@ -176,7 +191,8 @@ def _row_of(name: str, value: JsonType, filled: frozenset[str],
         name: Name of the member, which is the one step of its path while
             every member of the configuration is a scalar.
         value: JSON space value that the member holds.
-        filled: Names of the members the declared defaults supplied.
+        report: What reading the input file did, which says whether this
+            member holds a value that came from the file.
         descriptions: What the application says about its members.
         converter: How the text of this member becomes a value, or None.
 
@@ -187,11 +203,12 @@ def _row_of(name: str, value: JsonType, filled: frozenset[str],
     about = member_description(descriptions=descriptions, path=path,
                                converter=converter)
     return MemberRow(path=path, value=value, original=value,
-                     filled_from_default=name in filled, description=about,
+                     filled_from_default=name in report.filled,
+                     changed_by_load=name in report.changed, description=about,
                      converter=converter)
 
 
-def _rows_from_config(config: Config, filled: frozenset[str],
+def _rows_from_config(config: Config, report: LoadReport,
                       descriptions: Descriptions,
                       converters: Mapping[str, ParseConverter],
                       stderr_file: TextIO) -> dict[ConfigPath, MemberRow]:
@@ -204,7 +221,7 @@ def _rows_from_config(config: Config, filled: frozenset[str],
     """
     members = json.loads(config.as_json_string(stderr_file=stderr_file))
     assert isinstance(members, dict)
-    return {(name,): _row_of(name=name, value=members[name], filled=filled,
+    return {(name,): _row_of(name=name, value=members[name], report=report,
                              descriptions=descriptions,
                              converter=converters.get(name))
             for name in _ordered_names(config=config, members=members)}
@@ -310,7 +327,7 @@ class EditModel:
         self._config_type = type(config)
         self._report = report
         own = deepcopy(config)
-        self._rows = _rows_from_config(config=own, filled=report.filled,
+        self._rows = _rows_from_config(config=own, report=report,
                                        descriptions=descriptions or {},
                                        converters=member_converters(own),
                                        stderr_file=stderr_file)

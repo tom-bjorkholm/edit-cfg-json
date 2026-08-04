@@ -125,9 +125,10 @@ as an offer to undo the writing, which it is not.
 
 What reading the input file did is shown above the fields, when it did
 anything, because it is what explains the marks below it: a member that the
-file did not hold says so beside its field. Both the message and the marks
-are read from the model, so the two backends cannot tell the user two
-different things about one file.
+file did not hold says so beside its field, and so does one whose value the
+reading of the file put there or altered. Both the message and the marks are
+read from the model, so the two backends cannot tell the user two different
+things about one file.
 
 ## Scrolling, and the colours
 

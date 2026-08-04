@@ -7,11 +7,12 @@
 from enum import Enum, IntEnum
 from typing import Optional, TextIO
 import sys
-from config_as_json import Config, ConfigAutoChangeHook, \
+from config_as_json import Config, ConfigAutoChangeHook, ConfigPath, \
     InvalidConfiguration, IntFloatValidator, MemberValidationStep, \
-    MemberValidator, ParseConverter, PathOrStr, StrCaseChangeValidator, \
-    StrCaseSpec, StrPositionSpec, StrValidator, ValidationPlan, \
-    ValueTypeValidator, WholeConfigValidationStep, WholeConfigValidator
+    MemberValidator, ParseConverter, PathOrStr, ReadOldConfiguration, \
+    RocfKeyRename, StrCaseChangeValidator, StrCaseSpec, StrPositionSpec, \
+    StrValidator, ValidationPlan, ValueTypeValidator, \
+    WholeConfigValidationStep, WholeConfigValidator
 
 REFUSAL_MESSAGE = 'The application refuses {name}.'
 """Message of the validator that refuses without saying anything else."""
@@ -432,6 +433,109 @@ class HookCfg(Config):
         """Return no extra validation steps."""
         _ = stderr_file
         return []
+
+
+VALIDATOR_RUNS: list[str] = []
+"""Members that the validator of `CountedCfg` has been run on.
+
+It is module level because a validation plan is asked for anew at every pass,
+so a counter that belonged to a validator would be a different counter every
+time. A test clears it before it reads it.
+"""
+
+
+# pylint: disable-next=too-few-public-methods
+class CountingValidator(MemberValidator):
+    """A member validator that records every run and refuses nothing.
+
+    It is what shows how often reading one file runs the validators of the
+    application, which matters because a load asks the configuration class
+    more than one question and each of them costs a parse.
+    """
+
+    def validate_member(self, config: Config, member_name: str,
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
+        """Record this run and keep the value exactly as it is."""
+        _ = (config, stderr_file)
+        VALIDATOR_RUNS.append(member_name)
+        return member_value
+
+
+class CountedCfg(SampleCfg):
+    """A configuration whose validator records every run of itself."""
+
+    def declare_members(self) -> None:
+        """Assign one member that the file may hold and one it may not."""
+        self.name: str = 'counted'
+        self.answer: int = 11
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return the step that records a run for each of the members."""
+        _ = stderr_file
+        return [MemberValidationStep(member_names=['name', 'answer'],
+                                     validator=CountingValidator())]
+
+
+SUPPLIED_ANSWER = 3
+"""Value that the rules for an older file supply for the number member.
+
+It is deliberately neither declared default, so that a test can tell a value
+the migration rules supplied from one the declared defaults filled in.
+"""
+
+
+class MigrateRules(ReadOldConfiguration):
+    """How a file of the older shape of these tests becomes a current one.
+
+    All three kinds of rule are here, because each of them is something the
+    editor has to report differently: a key that changed its name, a key that
+    is gone, and a value that only the current shape has.
+    """
+
+    def get_json_key_renames(self) -> list[RocfKeyRename]:
+        """Return the one key of the older shape that has a new name."""
+        return [RocfKeyRename(old='title', new='name')]
+
+    def get_keys_to_prune(self) -> list[str]:
+        """Return the one key of the older shape that no longer exists."""
+        return ['trace']
+
+    def get_missing_path_values(self) -> dict[ConfigPath, object]:
+        """Return the value that only the current shape of a file holds."""
+        return {('answer',): SUPPLIED_ANSWER}
+
+
+class OldKeyCfg(SampleCfg):
+    """A configuration that reads a file of its own older shape.
+
+    Its constructor takes no hook, so the automatic changes of a load are
+    reported to nothing at all and what the editor says about such a file is
+    what it can see for itself.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the members of the current shape of this configuration."""
+        self.name: str = 'current name'
+        self.answer: int = 7
+
+    def _get_read_old_config(self) -> ReadOldConfiguration:
+        """Return the rules that turn a file of the older shape into this."""
+        return MigrateRules()
+
+
+class OldKeyHookCfg(HookCfg):
+    """The same older shape, by a class whose constructor takes the hook.
+
+    `HookCfg` declares `auto_ch_hook` and hands it on, so this is the class
+    that can report which older keys one file was read with. Everything else
+    about the two of them is the same, which is what makes the difference
+    between what they report the only difference there is.
+    """
+
+    def _get_read_old_config(self) -> ReadOldConfiguration:
+        """Return the rules that turn a file of the older shape into this."""
+        return MigrateRules()
 
 
 class AltNameCfg(Config):

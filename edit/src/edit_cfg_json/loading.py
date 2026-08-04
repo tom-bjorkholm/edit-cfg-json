@@ -18,18 +18,24 @@ A file whose values a validator refuses cannot be opened either. That is not
 squeamishness: a member validator returns the value that is stored back into
 the member, so a load that stopped part way through leaves it unknown which
 values were already rewritten and which were not.
+
+A load that succeeded still has something to say when it did not leave the
+file as it found it, which happens whenever the class has rules for reading an
+older format, and whenever parsing or validating normalized a value. What
+changed is found in `auto_change`; the words the user reads for it are here,
+beside the words for everything else that one load has to report.
 """
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Iterable
 from enum import Enum, auto
 from io import StringIO
 from pathlib import Path
 from typing import NamedTuple, Optional
-import json
-from config_as_json import Config, ConfigAutoChangeHook, ConfigBadJson, \
-    PathOrStr
+from config_as_json import Config, ConfigBadJson, PathOrStr
+from edit_cfg_json.auto_change import ChangeReport, FileChanges, file_changes
 from edit_cfg_json.constructing import built_config
 from edit_cfg_json.settings import Settings, SettingsSource, checked_file, \
     current_settings
@@ -77,6 +83,41 @@ FILLED_MESSAGE = ('This file did not hold every value. What it left out was '
                   'filled in from the defaults, and is marked.')
 """Message that says a load used the declared defaults of the class."""
 
+AUTO_CHANGED = ('Reading this file changed it, so what is shown is not what '
+                'the file holds. What the load put there or altered is '
+                'marked, and saving writes what is shown.')
+"""Message that says the load itself changed the values of the file.
+
+It is one message for all three of the ways that can happen, because the user
+is being told one thing: the file on the disk and the values on the screen are
+not the same, and it is the screen that a save writes.
+"""
+
+DROPPED_FORM = ('This file holds keys that this configuration does not use, '
+                'and saving leaves them out: {names}')
+"""Form of the line that names the keys of the file that are not used.
+
+None of them is a member of this configuration, so none of them has a row that
+could be marked, and this line is the only place they can be reported.
+"""
+
+OLD_FORMAT_FORM = ('This file is in an older format. It was read with these '
+                   'older keys: {names}')
+"""Form of the line that names the older keys that the load accepted.
+
+It says what the line above it says and says why as well, so the two are never
+both shown: a class that reported its own automatic changes has explained the
+keys of its file, and the editor's own reading of them would only repeat it.
+"""
+
+SUPPLIED_FORM = ('These values were supplied because this file is in an older '
+                 'format: {names}')
+"""Form of the line naming what the rules for an older format supplied.
+
+Neither the file nor the declared defaults gave these values. The
+configuration class did, because the file is too old to hold them at all.
+"""
+
 
 class LoadPolicy(Enum):
     """Policy for declared keys that the input file does not contain."""
@@ -119,6 +160,17 @@ class LoadReport(NamedTuple):
     the file asked for.
     """
 
+    changed: frozenset[str] = frozenset()
+    """Names of the members whose value the load itself put there or altered.
+
+    Reading a file is not always only reading it: the rules a class declares
+    for an older format may have supplied a value or renamed a key into a
+    member, and parsing or validating may have normalized one. The model marks
+    the row of each of these too, so that a value which is not the one in the
+    file can be seen to be one. A member the declared defaults filled in is
+    not here but in `filled`, which says the same thing more precisely.
+    """
+
 
 class LoadedConfig(NamedTuple):
     """The configuration object to edit, and what its load did."""
@@ -147,17 +199,19 @@ class ConfigLoadError(Exception):
         super().__init__('\n'.join(part for part in parts if part))
 
 
-def _defaults(config_type: type[Config], said: StringIO) -> Config:
+def _defaults(config_type: type[Config], said: StringIO,
+              hook: ChangeReport) -> Config:
     """Return one configuration object holding its declared defaults.
 
     The hook is offered whatever the class does with it, because
-    `built_config` drops it for a class that does not declare it. Nothing
-    reads the hook yet; offering it is what a later step needs to explain the
-    automatic changes of an old format file.
+    `built_config` drops it for a class that does not declare it. What a class
+    that takes it reports through it is what explains the automatic changes of
+    a file in an older format.
 
     Args:
         config_type: Class of the configuration that is being loaded.
         said: Stream that collects what the class says about itself.
+        hook: Hook that the class reports its automatic changes through.
 
     Returns:
         A configuration object holding only what the class declares.
@@ -166,8 +220,7 @@ def _defaults(config_type: type[Config], said: StringIO) -> Config:
         ConfigLoadError: The editor cannot construct this class.
     """
     try:
-        return built_config(config_type, stream=said,
-                            hook=ConfigAutoChangeHook())
+        return built_config(config_type, stream=said, hook=hook)
     except DEFAULTS_ERRORS as error:
         raise ConfigLoadError(NO_DEFAULTS.format(name=config_type.__name__),
                               _explained(said=said, error=error)) from error
@@ -190,11 +243,13 @@ def _explained(said: StringIO, error: Exception) -> str:
 
 
 def _attempt(config_type: type[Config], text: str, ok_to_use_defaults: bool,
-             said: StringIO) -> Config:
+             said: StringIO, hook: ChangeReport) -> Config:
     """Try once to build one configuration object from one file text.
 
     The stream is the caller's, because a key that does not match is
-    reported to the caller and what was said about it is needed there.
+    reported to the caller and what was said about it is needed there. The
+    hook is the caller's for the same reason: what it collects is what the
+    caller reports about the load that succeeded.
 
     Args:
         config_type: Class of the configuration that is being loaded.
@@ -202,6 +257,7 @@ def _attempt(config_type: type[Config], text: str, ok_to_use_defaults: bool,
         ok_to_use_defaults: Whether the declared defaults may fill in the
             keys the file does not hold.
         said: Stream that collects what the class says about the file.
+        hook: Hook that collects the automatic changes of this attempt.
 
     Returns:
         A configuration object holding the values of the file.
@@ -211,7 +267,7 @@ def _attempt(config_type: type[Config], text: str, ok_to_use_defaults: bool,
         ConfigLoadError: The file cannot be opened for editing.
     """
     try:
-        config = _defaults(config_type=config_type, said=said)
+        config = _defaults(config_type=config_type, said=said, hook=hook)
         config.parse_json(from_json_text=text, stderr_file=said,
                           ok_to_use_defaults=ok_to_use_defaults)
     except ConfigBadJson as error:
@@ -223,58 +279,69 @@ def _attempt(config_type: type[Config], text: str, ok_to_use_defaults: bool,
     return config
 
 
-def _declared(config: Config) -> list[str]:
-    """Return the names of the public members of one configuration object.
+def _named(names: Iterable[str]) -> str:
+    """Return several names as one piece of text, in a settled order.
 
-    This is the rule `config_as_json` itself uses to decide what a
-    configuration object consists of: every attribute that is public and is
-    not a method.
-
-    Args:
-        config: Configuration object to read the member names of.
-
-    Returns:
-        The name of every member of that object.
-    """
-    return [name for name in vars(config) if not name.startswith('_')
-            and not callable(getattr(config, name))]
-
-
-def _absent(config: Config, text: str) -> frozenset[str]:
-    """Return the declared members that one file text does not hold.
-
-    The names are read from the file text, because a load that was allowed
-    to use the defaults cannot afterwards say which of its values came from
-    the file. The text has already been read as configuration by the time
-    this is asked, so it is JSON and it is an object.
+    The order is the sorted one and not the one they were collected in,
+    because a list of names that is read is easier to look something up in
+    than one that records the order in which rules happened to run.
 
     Args:
-        config: Configuration object that was loaded from the text.
-        text: The whole text of the input file.
+        names: Names to write out.
 
     Returns:
-        The names of the members the declared defaults supplied.
+        Those names, separated by commas.
     """
-    data = json.loads(text)
-    assert isinstance(data, dict)
-    return frozenset(name for name in _declared(config) if name not in data)
+    return ', '.join(sorted(names))
 
 
-def _filled_report(config: Config, text: str, said: str) -> LoadReport:
-    """Return what a load that was allowed to use the defaults did.
+def _change_lines(changes: FileChanges) -> list[str]:
+    """Return what a load that changed its file has to say about that.
+
+    Args:
+        changes: What the load did to the file it read.
+
+    Returns:
+        The lines to tell the user, and nothing at all for a load that left
+        the file as it found it.
+    """
+    if not changes.anything:
+        return []
+    lines = [AUTO_CHANGED]
+    if changes.old_keys:
+        lines.append(OLD_FORMAT_FORM.format(names=_named(changes.old_keys)))
+    elif changes.dropped:
+        lines.append(DROPPED_FORM.format(names=_named(changes.dropped)))
+    if changes.supplied:
+        lines.append(SUPPLIED_FORM.format(names=_named(changes.supplied)))
+    return lines
+
+
+def _report(config: Config, text: str, said: str, hook: ChangeReport,
+            permissive: bool) -> LoadReport:
+    """Return what one load did beyond reading the values of its file.
+
+    The order of what is said follows the order in which it happened: what the
+    file did not hold, then what reading it changed, and then whatever the
+    configuration class itself said while it read.
 
     Args:
         config: Configuration object that the load built.
         text: The whole text of the input file.
         said: What the configuration class said about the file.
+        hook: Hook that collected the automatic changes of this load.
+        permissive: Whether the load was allowed to fill in what the file
+            left out.
 
     Returns:
-        The report of one permissive load.
+        The report of one load.
     """
-    filled = _absent(config=config, text=text)
-    lines = [FILLED_MESSAGE if filled else '', said.strip()]
+    changes = file_changes(config=config, text=text, hook=hook,
+                           permissive=permissive)
+    lines = [FILLED_MESSAGE if changes.filled else ''] + \
+        _change_lines(changes) + [said.strip()]
     return LoadReport(message='\n'.join(line for line in lines if line),
-                      filled=filled)
+                      filled=changes.filled, changed=changes.changed)
 
 
 def _permissive(config_type: type[Config], text: str) -> LoadedConfig:
@@ -296,15 +363,16 @@ def _permissive(config_type: type[Config], text: str) -> LoadedConfig:
         ConfigLoadError: The file cannot be opened for editing.
     """
     said = StringIO()
+    hook = ChangeReport()
     try:
         config = _attempt(config_type=config_type, text=text, said=said,
-                          ok_to_use_defaults=True)
+                          ok_to_use_defaults=True, hook=hook)
     except KeyError as error:
         raise ConfigLoadError(UNKNOWN_KEY,
                               _explained(said=said, error=error)) from error
     return LoadedConfig(config=config,
-                        report=_filled_report(config=config, text=text,
-                                              said=said.getvalue()))
+                        report=_report(config=config, text=text, hook=hook,
+                                       said=said.getvalue(), permissive=True))
 
 
 def _rescue(config_type: type[Config], text: str, policy: LoadPolicy,
@@ -354,14 +422,16 @@ def _load_text(config_type: type[Config], text: str,
     if policy is LoadPolicy.DEFAULTS:
         return _permissive(config_type=config_type, text=text)
     said = StringIO()
+    hook = ChangeReport()
     try:
         config = _attempt(config_type=config_type, text=text, said=said,
-                          ok_to_use_defaults=False)
+                          ok_to_use_defaults=False, hook=hook)
     except KeyError:
         return _rescue(config_type=config_type, text=text, policy=policy,
                        said=said.getvalue())
     return LoadedConfig(config=config,
-                        report=LoadReport(message=said.getvalue().strip()))
+                        report=_report(config=config, text=text, hook=hook,
+                                       permissive=False, said=said.getvalue()))
 
 
 def default_config(config_type: type[Config]) -> Config:
@@ -375,7 +445,9 @@ def default_config(config_type: type[Config]) -> Config:
     It is the same construction that reading an input file starts from, so a
     class the editor cannot construct is refused here in the same words and
     with the same diagnostics, and the hook that reports the automatic changes
-    of an old format file reaches a class that declares it.
+    of an old format file reaches a class that declares it. Nothing reads that
+    hook here, because there is no file to read and therefore nothing for it to
+    report.
 
     Args:
         config_type: Class to construct with no JSON source, which leaves it
@@ -387,7 +459,8 @@ def default_config(config_type: type[Config]) -> Config:
     Raises:
         ConfigLoadError: The editor cannot construct this class.
     """
-    return _defaults(config_type=config_type, said=StringIO())
+    return _defaults(config_type=config_type, said=StringIO(),
+                     hook=ChangeReport())
 
 
 def _file_text(in_file: PathOrStr) -> str:

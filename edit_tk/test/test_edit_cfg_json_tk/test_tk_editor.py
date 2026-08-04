@@ -10,14 +10,18 @@ Every test here has a stubbed form and a real Tk form, for the reason given in
 
 import tkinter
 from typing import cast
-from edit_cfg_json import EditModel, EditorBackend
+from edit_cfg_json import EditModel, EditorBackend, LoadReport
 from edit_cfg_json_tk import TkEditor
 from edit_cfg_json_tk.tk_editor import EditorWidgets, VALIDATE_TEXT
 from example.e01_flat_config import FlatConfig
 from .helpers import EXPECTED_FIELDS, EXPECTED_LABELS, EXPECTED_LOADED, \
-    FakeVar, FakeWidget, FILLED_REPORT, model_value, real_fields, \
-    real_press, real_texts, REFUSED_VERDICT, retype, REWRITTEN_MARK, \
-    stub_editor, stub_press, stub_texts, UNKNOWN_VERDICT, VALID_VERDICT
+    FakeVar, FakeWidget, FILLED_REPORT, LOAD_MESSAGE, model_value, \
+    real_fields, real_press, real_texts, REFUSED_VERDICT, retype, \
+    REWRITTEN_MARK, stub_editor, stub_press, stub_texts, UNKNOWN_VERDICT, \
+    VALID_VERDICT
+
+LOAD_CHANGE_MARK = ' (changed by the load)'
+"""Mark of a member whose value reading the input file changed."""
 
 
 def test_stub_widget_texts(stub_tk: None) -> None:
@@ -253,6 +257,33 @@ def test_real_load_message(root_or_skip: tkinter.Tk) -> None:
                   model=EditModel(FlatConfig(), FILLED_REPORT))
     shown = real_texts(root_or_skip, packed_only=True)
     assert shown == EXPECTED_LOADED
+
+
+def _changed_model() -> EditModel:
+    """Return a model whose load changed the value of the number member.
+
+    A file in an older format is what leaves such a member: its value was in
+    the file under another key, or the rules for that format supplied it. The
+    mark of it is the model's answer, and this backend shows the marks it is
+    given wherever it shows the other marks of a member.
+    """
+    report = LoadReport(message=LOAD_MESSAGE, changed=frozenset({'answer'}))
+    return EditModel(FlatConfig(), report)
+
+
+def test_stub_load_change(stub_tk: None) -> None:
+    """Test the stubbed editor marks a member whose value the load changed."""
+    _ = stub_tk
+    stub_editor(_changed_model())
+    shown = stub_texts(packed_only=True)
+    assert shown[shown.index('answer') + 1] == LOAD_CHANGE_MARK
+
+
+def test_real_load_change(root_or_skip: tkinter.Tk) -> None:
+    """Test the real Tk editor marks that member in exactly the same way."""
+    EditorWidgets(parent=root_or_skip, model=_changed_model())
+    shown = real_texts(root_or_skip, packed_only=True)
+    assert shown[shown.index('answer') + 1] == LOAD_CHANGE_MARK
 
 
 def test_is_editor_backend() -> None:

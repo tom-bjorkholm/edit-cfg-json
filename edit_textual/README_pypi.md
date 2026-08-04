@@ -297,9 +297,10 @@ a settings callable cannot change.
 
 What reading the input file did is shown above the fields, when it did
 anything, because it is what explains the marks below it: a member that the
-file did not hold says so beside its field. Both the message and the marks
-are read from the model, so the two backends cannot tell the user two
-different things about one file.
+file did not hold says so beside its field, and so does one whose value the
+reading of the file put there or altered. Both the message and the marks are
+read from the model, so the two backends cannot tell the user two different
+things about one file.
 
 ## Installing edit-cfg-json-textual
 
@@ -344,7 +345,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 933 passed, 2 deselected in 19s
+- Test result: 975 passed, 2 deselected in 20s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

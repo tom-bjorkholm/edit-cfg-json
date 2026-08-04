@@ -10,6 +10,10 @@
   * [BAD\_VALUES](#edit_cfg_json.loading.BAD_VALUES)
   * [NO\_DEFAULTS](#edit_cfg_json.loading.NO_DEFAULTS)
   * [FILLED\_MESSAGE](#edit_cfg_json.loading.FILLED_MESSAGE)
+  * [AUTO\_CHANGED](#edit_cfg_json.loading.AUTO_CHANGED)
+  * [DROPPED\_FORM](#edit_cfg_json.loading.DROPPED_FORM)
+  * [OLD\_FORMAT\_FORM](#edit_cfg_json.loading.OLD_FORMAT_FORM)
+  * [SUPPLIED\_FORM](#edit_cfg_json.loading.SUPPLIED_FORM)
   * [LoadPolicy](#edit_cfg_json.loading.LoadPolicy)
     * [STRICT](#edit_cfg_json.loading.LoadPolicy.STRICT)
     * [DEFAULTS](#edit_cfg_json.loading.LoadPolicy.DEFAULTS)
@@ -18,6 +22,7 @@
   * [LoadReport](#edit_cfg_json.loading.LoadReport)
     * [message](#edit_cfg_json.loading.LoadReport.message)
     * [filled](#edit_cfg_json.loading.LoadReport.filled)
+    * [changed](#edit_cfg_json.loading.LoadReport.changed)
   * [LoadedConfig](#edit_cfg_json.loading.LoadedConfig)
     * [config](#edit_cfg_json.loading.LoadedConfig.config)
     * [report](#edit_cfg_json.loading.LoadedConfig.report)
@@ -26,9 +31,9 @@
   * [\_defaults](#edit_cfg_json.loading._defaults)
   * [\_explained](#edit_cfg_json.loading._explained)
   * [\_attempt](#edit_cfg_json.loading._attempt)
-  * [\_declared](#edit_cfg_json.loading._declared)
-  * [\_absent](#edit_cfg_json.loading._absent)
-  * [\_filled\_report](#edit_cfg_json.loading._filled_report)
+  * [\_named](#edit_cfg_json.loading._named)
+  * [\_change\_lines](#edit_cfg_json.loading._change_lines)
+  * [\_report](#edit_cfg_json.loading._report)
   * [\_permissive](#edit_cfg_json.loading._permissive)
   * [\_rescue](#edit_cfg_json.loading._rescue)
   * [\_load\_text](#edit_cfg_json.loading._load_text)
@@ -142,6 +147,7 @@
   * [EDITED\_MARK](#edit_cfg_json.model_text.EDITED_MARK)
   * [VALIDATOR\_MARK](#edit_cfg_json.model_text.VALIDATOR_MARK)
   * [FILLED\_MARK](#edit_cfg_json.model_text.FILLED_MARK)
+  * [LOAD\_MARK](#edit_cfg_json.model_text.LOAD_MARK)
   * [DIRTY\_MARK](#edit_cfg_json.model_text.DIRTY_MARK)
   * [VERDICT\_FORM](#edit_cfg_json.model_text.VERDICT_FORM)
   * [VALID\_STATE](#edit_cfg_json.model_text.VALID_STATE)
@@ -187,6 +193,7 @@
     * [original](#edit_cfg_json.edit_model.MemberRow.original)
     * [changed\_by\_validator](#edit_cfg_json.edit_model.MemberRow.changed_by_validator)
     * [filled\_from\_default](#edit_cfg_json.edit_model.MemberRow.filled_from_default)
+    * [changed\_by\_load](#edit_cfg_json.edit_model.MemberRow.changed_by_load)
     * [description](#edit_cfg_json.edit_model.MemberRow.description)
     * [converter](#edit_cfg_json.edit_model.MemberRow.converter)
     * [conversion](#edit_cfg_json.edit_model.MemberRow.conversion)
@@ -248,6 +255,29 @@
   * [\_enum\_type](#edit_cfg_json.descriptions._enum_type)
   * [enum\_text](#edit_cfg_json.descriptions.enum_text)
   * [member\_description](#edit_cfg_json.descriptions.member_description)
+* [edit\_cfg\_json.auto\_change](#edit_cfg_json.auto_change)
+  * [WRITE\_ERRORS](#edit_cfg_json.auto_change.WRITE_ERRORS)
+  * [PARSE\_ERRORS](#edit_cfg_json.auto_change.PARSE_ERRORS)
+  * [KEY\_PROBE\_NAME](#edit_cfg_json.auto_change.KEY_PROBE_NAME)
+  * [RECORDED](#edit_cfg_json.auto_change.RECORDED)
+  * [ChangeReport](#edit_cfg_json.auto_change.ChangeReport)
+    * [\_\_deepcopy\_\_](#edit_cfg_json.auto_change.ChangeReport.__deepcopy__)
+  * [FileChanges](#edit_cfg_json.auto_change.FileChanges)
+    * [filled](#edit_cfg_json.auto_change.FileChanges.filled)
+    * [dropped](#edit_cfg_json.auto_change.FileChanges.dropped)
+    * [changed](#edit_cfg_json.auto_change.FileChanges.changed)
+    * [old\_keys](#edit_cfg_json.auto_change.FileChanges.old_keys)
+    * [supplied](#edit_cfg_json.auto_change.FileChanges.supplied)
+    * [anything](#edit_cfg_json.auto_change.FileChanges.anything)
+  * [\_canonical](#edit_cfg_json.auto_change._canonical)
+  * [\_written](#edit_cfg_json.auto_change._written)
+  * [\_held](#edit_cfg_json.auto_change._held)
+  * [\_altered](#edit_cfg_json.auto_change._altered)
+  * [\_ParsedKeys](#edit_cfg_json.auto_change._ParsedKeys)
+    * [\_\_init\_\_](#edit_cfg_json.auto_change._ParsedKeys.__init__)
+  * [\_record\_keys](#edit_cfg_json.auto_change._record_keys)
+  * [\_filled](#edit_cfg_json.auto_change._filled)
+  * [file\_changes](#edit_cfg_json.auto_change.file_changes)
 * [edit\_cfg\_json.validation](#edit_cfg_json.validation)
   * [BUFFER\_ERRORS](#edit_cfg_json.validation.BUFFER_ERRORS)
   * [NOTHING\_REFUSED](#edit_cfg_json.validation.NOTHING_REFUSED)
@@ -300,6 +330,12 @@ A file whose values a validator refuses cannot be opened either. That is not
 squeamishness: a member validator returns the value that is stored back into
 the member, so a load that stopped part way through leaves it unknown which
 values were already rewritten and which were not.
+
+A load that succeeded still has something to say when it did not leave the
+file as it found it, which happens whenever the class has rules for reading an
+older format, and whenever parsing or validating normalized a value. What
+changed is found in `auto_change`; the words the user reads for it are here,
+beside the words for everything else that one load has to report.
 
 <a id="edit_cfg_json.loading.DEFAULTS_ERRORS"></a>
 
@@ -365,6 +401,44 @@ Message of the refusal of a class the editor cannot construct.
 #### FILLED\_MESSAGE
 
 Message that says a load used the declared defaults of the class.
+
+<a id="edit_cfg_json.loading.AUTO_CHANGED"></a>
+
+#### AUTO\_CHANGED
+
+Message that says the load itself changed the values of the file.
+
+It is one message for all three of the ways that can happen, because the user
+is being told one thing: the file on the disk and the values on the screen are
+not the same, and it is the screen that a save writes.
+
+<a id="edit_cfg_json.loading.DROPPED_FORM"></a>
+
+#### DROPPED\_FORM
+
+Form of the line that names the keys of the file that are not used.
+
+None of them is a member of this configuration, so none of them has a row that
+could be marked, and this line is the only place they can be reported.
+
+<a id="edit_cfg_json.loading.OLD_FORMAT_FORM"></a>
+
+#### OLD\_FORMAT\_FORM
+
+Form of the line that names the older keys that the load accepted.
+
+It says what the line above it says and says why as well, so the two are never
+both shown: a class that reported its own automatic changes has explained the
+keys of its file, and the editor's own reading of them would only repeat it.
+
+<a id="edit_cfg_json.loading.SUPPLIED_FORM"></a>
+
+#### SUPPLIED\_FORM
+
+Form of the line naming what the rules for an older format supplied.
+
+Neither the file nor the declared defaults gave these values. The
+configuration class did, because the file is too old to hold them at all.
 
 <a id="edit_cfg_json.loading.LoadPolicy"></a>
 
@@ -434,6 +508,19 @@ These are the members the input file did not hold. The model marks the
 row of each of them, so the user can see which values are not the ones
 the file asked for.
 
+<a id="edit_cfg_json.loading.LoadReport.changed"></a>
+
+#### changed
+
+Names of the members whose value the load itself put there or altered.
+
+Reading a file is not always only reading it: the rules a class declares
+for an older format may have supplied a value or renamed a key into a
+member, and parsing or validating may have normalized one. The model marks
+the row of each of these too, so that a value which is not the one in the
+file can be seen to be one. A member the declared defaults filled in is
+not here but in `filled`, which says the same thing more precisely.
+
 <a id="edit_cfg_json.loading.LoadedConfig"></a>
 
 ## LoadedConfig Objects
@@ -487,20 +574,22 @@ Say why the file cannot be opened, and what was said about it.
 #### \_defaults
 
 ```python
-def _defaults(config_type: type[Config], said: StringIO) -> Config
+def _defaults(config_type: type[Config], said: StringIO,
+              hook: ChangeReport) -> Config
 ```
 
 Return one configuration object holding its declared defaults.
 
 The hook is offered whatever the class does with it, because
-`built_config` drops it for a class that does not declare it. Nothing
-reads the hook yet; offering it is what a later step needs to explain the
-automatic changes of an old format file.
+`built_config` drops it for a class that does not declare it. What a class
+that takes it reports through it is what explains the automatic changes of
+a file in an older format.
 
 **Arguments**:
 
 - `config_type` - Class of the configuration that is being loaded.
 - `said` - Stream that collects what the class says about itself.
+- `hook` - Hook that the class reports its automatic changes through.
   
 
 **Returns**:
@@ -541,13 +630,15 @@ which is better than no explanation at all.
 
 ```python
 def _attempt(config_type: type[Config], text: str, ok_to_use_defaults: bool,
-             said: StringIO) -> Config
+             said: StringIO, hook: ChangeReport) -> Config
 ```
 
 Try once to build one configuration object from one file text.
 
 The stream is the caller's, because a key that does not match is
-reported to the caller and what was said about it is needed there.
+reported to the caller and what was said about it is needed there. The
+hook is the caller's for the same reason: what it collects is what the
+caller reports about the load that succeeded.
 
 **Arguments**:
 
@@ -556,6 +647,7 @@ reported to the caller and what was said about it is needed there.
 - `ok_to_use_defaults` - Whether the declared defaults may fill in the
   keys the file does not hold.
 - `said` - Stream that collects what the class says about the file.
+- `hook` - Hook that collects the automatic changes of this attempt.
   
 
 **Returns**:
@@ -568,74 +660,77 @@ reported to the caller and what was said about it is needed there.
 - `KeyError` - The keys of the file do not match the declared members.
 - `ConfigLoadError` - The file cannot be opened for editing.
 
-<a id="edit_cfg_json.loading._declared"></a>
+<a id="edit_cfg_json.loading._named"></a>
 
-#### \_declared
+#### \_named
 
 ```python
-def _declared(config: Config) -> list[str]
+def _named(names: Iterable[str]) -> str
 ```
 
-Return the names of the public members of one configuration object.
+Return several names as one piece of text, in a settled order.
 
-This is the rule `config_as_json` itself uses to decide what a
-configuration object consists of: every attribute that is public and is
-not a method.
+The order is the sorted one and not the one they were collected in,
+because a list of names that is read is easier to look something up in
+than one that records the order in which rules happened to run.
 
 **Arguments**:
 
-- `config` - Configuration object to read the member names of.
+- `names` - Names to write out.
   
 
 **Returns**:
 
-  The name of every member of that object.
+  Those names, separated by commas.
 
-<a id="edit_cfg_json.loading._absent"></a>
+<a id="edit_cfg_json.loading._change_lines"></a>
 
-#### \_absent
+#### \_change\_lines
 
 ```python
-def _absent(config: Config, text: str) -> frozenset[str]
+def _change_lines(changes: FileChanges) -> list[str]
 ```
 
-Return the declared members that one file text does not hold.
-
-The names are read from the file text, because a load that was allowed
-to use the defaults cannot afterwards say which of its values came from
-the file. The text has already been read as configuration by the time
-this is asked, so it is JSON and it is an object.
+Return what a load that changed its file has to say about that.
 
 **Arguments**:
 
-- `config` - Configuration object that was loaded from the text.
-- `text` - The whole text of the input file.
+- `changes` - What the load did to the file it read.
   
 
 **Returns**:
 
-  The names of the members the declared defaults supplied.
+  The lines to tell the user, and nothing at all for a load that left
+  the file as it found it.
 
-<a id="edit_cfg_json.loading._filled_report"></a>
+<a id="edit_cfg_json.loading._report"></a>
 
-#### \_filled\_report
+#### \_report
 
 ```python
-def _filled_report(config: Config, text: str, said: str) -> LoadReport
+def _report(config: Config, text: str, said: str, hook: ChangeReport,
+            permissive: bool) -> LoadReport
 ```
 
-Return what a load that was allowed to use the defaults did.
+Return what one load did beyond reading the values of its file.
+
+The order of what is said follows the order in which it happened: what the
+file did not hold, then what reading it changed, and then whatever the
+configuration class itself said while it read.
 
 **Arguments**:
 
 - `config` - Configuration object that the load built.
 - `text` - The whole text of the input file.
 - `said` - What the configuration class said about the file.
+- `hook` - Hook that collected the automatic changes of this load.
+- `permissive` - Whether the load was allowed to fill in what the file
+  left out.
   
 
 **Returns**:
 
-  The report of one permissive load.
+  The report of one load.
 
 <a id="edit_cfg_json.loading._permissive"></a>
 
@@ -747,7 +842,9 @@ line, and the editor wants an instance of it.
 It is the same construction that reading an input file starts from, so a
 class the editor cannot construct is refused here in the same words and
 with the same diagnostics, and the hook that reports the automatic changes
-of an old format file reaches a class that declares it.
+of an old format file reaches a class that declares it. Nothing reads that
+hook here, because there is no file to read and therefore nothing for it to
+report.
 
 **Arguments**:
 
@@ -2474,6 +2571,16 @@ Mark that follows the value of a member a validation pass rewrote.
 
 Mark that follows the value of a member the input file did not hold.
 
+<a id="edit_cfg_json.model_text.LOAD_MARK"></a>
+
+#### LOAD\_MARK
+
+Mark that follows a value that reading the input file put there.
+
+A file in an older format is what puts one there in practice: a key of it was
+renamed into this member, or the rules for that format supplied the value. A
+value that parsing or validating normalized is marked with this too.
+
 <a id="edit_cfg_json.model_text.DIRTY_MARK"></a>
 
 #### DIRTY\_MARK
@@ -2579,12 +2686,14 @@ def row_marks(row: MemberRow) -> str
 
 Return the marks that follow the value of one member.
 
-Every mark can be shown at once, because they say three different things
-that can all be true: the input file did not hold this member, the user
+They say different things that can all be true at once: the input file did
+not hold this member, reading the file changed what it holds, the user
 changed it, and a validator then changed what the user had written. They
-are in the order in which they can happen. Both backends read the marks
-from here, so that neither of them decides on its own what a member the
-load, the user or a validator touched looks like.
+are in the order in which they can happen. The two that a load sets are
+never both there, because the more precise of the two is the one it sets.
+
+Both backends read the marks from here, so that neither of them decides on
+its own what a member the load, the user or a validator touched looks like.
 
 **Arguments**:
 
@@ -3117,6 +3226,23 @@ session: that the file did not hold this value remains true whatever the
 user then types into it. It belongs to the model for the same reason as
 the flag above, so that two backends cannot show it differently.
 
+<a id="edit_cfg_json.edit_model.MemberRow.changed_by_load"></a>
+
+#### changed\_by\_load
+
+Whether reading the input file put this value here or altered it.
+
+Reading a file is not always only reading it. A class that declares rules
+for reading an older format may have supplied this value or renamed a key
+of the file into this member, and parsing or validating may have
+normalized what the file held. The user has to be told, because the value
+shown is then not the value in the file.
+
+It stays set for the rest of the session, exactly as the flag above does
+and for the same reason, and the two are never both set: what the declared
+defaults filled in is said by that flag, which says more than this one
+would.
+
 <a id="edit_cfg_json.edit_model.MemberRow.description"></a>
 
 #### description
@@ -3239,7 +3365,7 @@ member can go missing whatever a validator or a converter did.
 #### \_row\_of
 
 ```python
-def _row_of(name: str, value: JsonType, filled: frozenset[str],
+def _row_of(name: str, value: JsonType, report: LoadReport,
             descriptions: Descriptions,
             converter: Optional[ParseConverter]) -> MemberRow
 ```
@@ -3251,7 +3377,8 @@ Return the row of one serialized member of a configuration.
 - `name` - Name of the member, which is the one step of its path while
   every member of the configuration is a scalar.
 - `value` - JSON space value that the member holds.
-- `filled` - Names of the members the declared defaults supplied.
+- `report` - What reading the input file did, which says whether this
+  member holds a value that came from the file.
 - `descriptions` - What the application says about its members.
 - `converter` - How the text of this member becomes a value, or None.
   
@@ -3265,7 +3392,7 @@ Return the row of one serialized member of a configuration.
 #### \_rows\_from\_config
 
 ```python
-def _rows_from_config(config: Config, filled: frozenset[str],
+def _rows_from_config(config: Config, report: LoadReport,
                       descriptions: Descriptions,
                       converters: Mapping[str, ParseConverter],
                       stderr_file: TextIO) -> dict[ConfigPath, MemberRow]
@@ -4296,6 +4423,423 @@ have to list the names as well.
 
   The description of that member, and an empty text when neither the
   application nor the type of the member says anything about it.
+
+<a id="edit_cfg_json.auto_change"></a>
+
+# edit\_cfg\_json.auto\_change
+
+What reading one input file did to the values that it holds.
+
+Reading a file can change what the values are, and from three directions: the
+rules a configuration class declares for reading a file of an older format,
+the normalization that parsing and validating do, and the declared defaults
+filling in what the file left out. The user has to be told, because the values
+on the screen are then not the values in the file, and an editor that said
+nothing about that would look broken.
+
+**What changed is found by comparing, and not by asking.** The values the load
+produced are written back to JSON and compared with the text of the file, key
+by key. That is exact, it needs nothing of the configuration class, and it
+covers all three directions at once, which is why it is the mechanism rather
+than the fallback: the report below is one that a class has to opt into, and
+most classes do not.
+
+**Why it changed is asked of the class, where the class answers.**
+`ConfigAutoChangeHook` is what `config_as_json` reports its own automatic
+changes through, and it reaches a class only where that class declares
+`auto_ch_hook` and hands it on. What it adds is what the comparison cannot
+know: the older keys the file was read with. A key that was renamed is simply
+gone from the file, and nothing in the file says which member it became.
+
+**What the declared defaults filled in is asked of the parse.** It is the one
+of the three that has a mark of its own, so it has to be exact, and the keys
+of the file do not answer it: a key the rules for an older format renamed into
+a member was in the file under another name, and a value those rules supplied
+was in the file under no name at all. What the defaults filled in is exactly
+what the key check of the parse was not given, so the parse is what is asked,
+by a throwaway subclass whose key check records and stops.
+
+<a id="edit_cfg_json.auto_change.WRITE_ERRORS"></a>
+
+#### WRITE\_ERRORS
+
+Every way in which writing the values of one load back to JSON can fail.
+
+A class may leave part of its own writing to code outside itself, and there is
+then nothing to compare the file with. Such a class cannot be shown at all,
+because the editor reads the values it shows the very same way, so saying
+nothing about the changes here is what leaves that refusal where it belongs.
+
+<a id="edit_cfg_json.auto_change.PARSE_ERRORS"></a>
+
+#### PARSE\_ERRORS
+
+Every way the parse that records the keys can fail before it records them.
+
+It cannot fail for a text that a load has already read, since the throwaway
+subclass differs from the class that read it in the one method that is not
+reached until the keys have been recorded. It is caught because a mark is not
+worth an exception: what the defaults filled in is then simply not claimed,
+and every member of it is reported as one the load changed instead, which is
+true of it as well and says less.
+
+<a id="edit_cfg_json.auto_change.KEY_PROBE_NAME"></a>
+
+#### KEY\_PROBE\_NAME
+
+Name of the throwaway class that records the keys of one parse.
+
+<a id="edit_cfg_json.auto_change.RECORDED"></a>
+
+#### RECORDED
+
+What the exception that carries those keys says for itself.
+
+<a id="edit_cfg_json.auto_change.ChangeReport"></a>
+
+## ChangeReport Objects
+
+```python
+class ChangeReport(ConfigAutoChangeHook)
+```
+
+The automatic changes of one load, as the load itself reports them.
+
+`Config.__init__` deep copies the hook it is given and records into the
+copy, so a hook that is read afterwards would answer with nothing at all.
+This one is read afterwards, and `__deepcopy__` is how it says so: the
+object is a channel back to the editor, and a copy of a channel is the
+channel.
+
+<a id="edit_cfg_json.auto_change.ChangeReport.__deepcopy__"></a>
+
+#### \_\_deepcopy\_\_
+
+```python
+def __deepcopy__(memo: dict[int, object]) -> 'ChangeReport'
+```
+
+Return this very hook, so that the load reports to the editor.
+
+**Arguments**:
+
+- `memo` - What `copy.deepcopy` has copied already, which a copy that
+  copies nothing has no use for.
+  
+
+**Returns**:
+
+  This object, which is then the one the load records into.
+
+<a id="edit_cfg_json.auto_change.FileChanges"></a>
+
+## FileChanges Objects
+
+```python
+class FileChanges(NamedTuple)
+```
+
+What one load did to the file it read, beyond reading it.
+
+Every field is empty for a file whose values the load took exactly as they
+were, which is the ordinary case and the one in which the editor says
+nothing at all about the load.
+
+<a id="edit_cfg_json.auto_change.FileChanges.filled"></a>
+
+#### filled
+
+Members whose value the declared defaults of the class supplied.
+
+Empty for a load that was not allowed to use the defaults at all, and
+empty for a file that held every declared key.
+
+<a id="edit_cfg_json.auto_change.FileChanges.dropped"></a>
+
+#### dropped
+
+Keys of the file that this configuration does not write back.
+
+A key the rules for an older format renamed or removed is one of these,
+and so is one whose member the class leaves out of JSON while it is None.
+None of them has a row, because none of them is a member of this
+configuration, so the message is the only place they can be reported.
+
+<a id="edit_cfg_json.auto_change.FileChanges.changed"></a>
+
+#### changed
+
+Members whose value the load itself put there or altered.
+
+A member the declared defaults filled in is deliberately not one of them.
+It is marked already, by a mark that says more than this one would, and
+one member carrying two marks about the same thing would be worse than
+either of them alone.
+
+<a id="edit_cfg_json.auto_change.FileChanges.old_keys"></a>
+
+#### old\_keys
+
+Older keys the load accepted, as the configuration class reported them.
+
+Empty for a class that does not declare the hook, and empty for a file
+that is in the current format. A key that was moved rather than renamed is
+reported as `old.path -> new.path`, which is what `config_as_json` puts
+there.
+
+<a id="edit_cfg_json.auto_change.FileChanges.supplied"></a>
+
+#### supplied
+
+Paths the rules for an older format supplied values for.
+
+These are the values that neither the file nor the declared defaults gave:
+the configuration class supplied them, because the file is too old to hold
+them at all.
+
+<a id="edit_cfg_json.auto_change.FileChanges.anything"></a>
+
+#### anything
+
+```python
+@property
+def anything() -> bool
+```
+
+Return whether reading the file changed what the file said.
+
+What the declared defaults filled in is deliberately not one of the
+things that answer this. A file that did not hold every value is
+reported as the incomplete file it is, which is a different thing from
+a file that was read as something other than what it says.
+
+<a id="edit_cfg_json.auto_change._canonical"></a>
+
+#### \_canonical
+
+```python
+def _canonical(value: JsonType) -> str
+```
+
+Return one value as the text that decides whether it is unchanged.
+
+The keys of a dictionary are sorted, because `config_as_json` writes them
+sorted while a file is written by hand, and a file that holds the same
+values in another order holds the same values. Everything else is compared
+as it is written, which is what tells `1` from `1.0` and from `true`: all
+three of them reach the file differently.
+
+**Arguments**:
+
+- `value` - One value in JSON space.
+  
+
+**Returns**:
+
+  The text that stands for that value.
+
+<a id="edit_cfg_json.auto_change._written"></a>
+
+#### \_written
+
+```python
+def _written(config: Config) -> Mapping[str, JsonType]
+```
+
+Return the values that one loaded configuration would write to a file.
+
+The object is copied first, because writing it validates it and a member
+validator returns the value that is stored back into the member. What is
+said while it is written is dropped, because the load has already reported
+whatever there was to say about this file.
+
+**Arguments**:
+
+- `config` - Configuration object that the load produced.
+  
+
+**Returns**:
+
+  One JSON space value per member that this object writes.
+  
+
+**Raises**:
+
+- `TypeError` - A value of this class is no JSON value.
+- `ValueError` - This class refuses to write the values it holds.
+
+<a id="edit_cfg_json.auto_change._held"></a>
+
+#### \_held
+
+```python
+def _held(text: str) -> Mapping[str, JsonType]
+```
+
+Return the values that the text of one input file holds.
+
+The text has already been read as configuration by the time this is asked,
+so it is JSON and it is an object.
+
+**Arguments**:
+
+- `text` - The whole text of the input file.
+  
+
+**Returns**:
+
+  One value per key of that file.
+
+<a id="edit_cfg_json.auto_change._altered"></a>
+
+#### \_altered
+
+```python
+def _altered(written: Mapping[str, JsonType],
+             held: Mapping[str, JsonType]) -> frozenset[str]
+```
+
+Return the members whose value is not the one the file holds.
+
+A member whose key the file does not hold at all is one of them, because
+the value shown for it came from somewhere other than the file: the
+declared defaults, the rules for an older format, or a key that was
+renamed into it.
+
+**Arguments**:
+
+- `written` - What the load would write back to a file.
+- `held` - What the file holds.
+  
+
+**Returns**:
+
+  The names of the members that are not as the file has them.
+
+<a id="edit_cfg_json.auto_change._ParsedKeys"></a>
+
+## \_ParsedKeys Objects
+
+```python
+class _ParsedKeys(Exception)
+```
+
+The keys of one parse, carried out of the parse that recorded them.
+
+It is internal because it exists only to carry two lists of names out of
+one method of one throwaway object, and it is an exception because the
+parse it comes from is not wanted beyond that point.
+
+<a id="edit_cfg_json.auto_change._ParsedKeys.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(declared: Sequence[str], held: Sequence[str]) -> None
+```
+
+Say which keys were declared and which the parsed data held.
+
+**Arguments**:
+
+- `declared` - The members that the configuration class declares.
+- `held` - The keys the data held once the rules for an older format
+  had finished with it.
+
+<a id="edit_cfg_json.auto_change._record_keys"></a>
+
+#### \_record\_keys
+
+```python
+def _record_keys(expected_keys: list[str],
+                 j_keys: list[str],
+                 ok_to_use_defaults: bool,
+                 stderr_file: TextIO,
+                 allowed_missing_keys: Optional[list[str]] = None) -> None
+```
+
+Record the keys of one parse, and stop that parse there.
+
+This stands in for `Config.check_key_match` in the throwaway class below,
+so the parameters are that method's and in its order, because that is how
+`Config.parse_json` calls it.
+
+**Arguments**:
+
+- `expected_keys` - The members that the configuration class declares.
+- `j_keys` - The keys of the data that the parse is about to apply.
+- `ok_to_use_defaults` - Whether missing keys may keep their default, which
+  is the caller's own answer and is not what is being asked here.
+- `stderr_file` - Stream for diagnostics, which a check that refuses
+  nothing writes nothing to.
+- `allowed_missing_keys` - Keys that may be missing whatever the policy is,
+  which a check that refuses nothing has no use for either.
+  
+
+**Raises**:
+
+- `_ParsedKeys` - Always, carrying the two sets of keys.
+
+<a id="edit_cfg_json.auto_change._filled"></a>
+
+#### \_filled
+
+```python
+def _filled(config_type: type[Config], text: str) -> frozenset[str]
+```
+
+Return the members whose value the declared defaults supplied.
+
+A load that was allowed to fill in what the file left out cannot afterwards
+be asked which of its values came from the file, and the keys of the file
+do not answer it either: the rules for an older format may have renamed a
+key of the file into a member, or supplied a value for a member the file
+never had. What the defaults filled in is exactly what the key check of
+the parse was not given, so the parse is what is asked.
+
+The class is therefore parsed a second time, by a throwaway subclass whose
+key check records what it was given and stops the parse there. Stopping is
+what keeps this from repeating anything: everything after the key check is
+what the real load has already done, so the application's own validators
+still run once, on the object that is really being edited.
+
+**Arguments**:
+
+- `config_type` - Class of the configuration that was loaded.
+- `text` - The whole text of the input file.
+  
+
+**Returns**:
+
+  The names of the members that the declared defaults supplied, and
+  nothing at all when the parse did not reach the key check.
+
+<a id="edit_cfg_json.auto_change.file_changes"></a>
+
+#### file\_changes
+
+```python
+def file_changes(config: Config, text: str, hook: ChangeReport,
+                 permissive: bool) -> FileChanges
+```
+
+Return what one successful load did to the file that it read.
+
+**Arguments**:
+
+- `config` - Configuration object that the load produced.
+- `text` - The whole text of the input file.
+- `hook` - Hook the load was given, which a configuration class that
+  declares it has reported its own automatic changes through.
+- `permissive` - Whether the load was allowed to fill in what the file left
+  out. A load that was not fills nothing in, so there is nothing to
+  ask the parse about.
+  
+
+**Returns**:
+
+  What the load did, with every field empty for a file that the load
+  took exactly as it stood.
 
 <a id="edit_cfg_json.validation"></a>
 

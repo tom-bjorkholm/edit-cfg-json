@@ -11,7 +11,7 @@ from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll
 from textual.geometry import Region
 from textual.widgets import Static
-from edit_cfg_json import EditModel
+from edit_cfg_json import EditModel, LoadReport
 from edit_cfg_json_textual.textual_editor import BODY_ID, EditorApp, \
     LEAST_VALUE_WIDTH, LOAD_ID, MARK_ID_PREFIX, SAVE_ID, VALUE_ID_PREFIX, \
     plain_widget
@@ -21,6 +21,9 @@ from .helpers import DESCRIPTIONS, EXPECTED_VALUES, FILLED_MARK, \
     REFUSED_VERDICT, ROOMY_SIZE, SHORT_SIZE, UNKNOWN_VERDICT, \
     VALIDATE_ALT_KEY, VALIDATE_KEY, VALID_VERDICT, field_of, mark_of, \
     model_value, verdict_of
+
+LOAD_CHANGE_MARK = ' (changed by the load)'
+"""Mark of a member whose value reading the input file changed."""
 
 MARKUP_TEXT = 'value [red on blue]here[/] is refused'
 """Text of a configuration that happens to look like console markup."""
@@ -192,6 +195,22 @@ async def _load_shown() -> tuple[str, str, str]:
         return shown, mark_of(app, 'answer'), mark_of(app, 'name')
 
 
+async def _change_shown() -> tuple[str, str]:
+    """Run the application on a model whose load changed a value itself.
+
+    A file in an older format is what leaves such a member: its value was in
+    the file under another key, or the rules for that format supplied it.
+
+    Returns:
+        The mark of the member the load changed, and the mark of the member it
+        left alone.
+    """
+    report = LoadReport(message=LOAD_MESSAGE, changed=frozenset({'answer'}))
+    app = EditorApp(EditModel(FlatConfig(), report))
+    async with app.run_test():
+        return mark_of(app, 'answer'), mark_of(app, 'name')
+
+
 async def _no_load_widget() -> bool:
     """Run the application without a load and look for its widget.
 
@@ -208,6 +227,18 @@ def test_load_message_shown() -> None:
     shown, filled, held = asyncio.run(_load_shown())
     assert shown == LOAD_MESSAGE
     assert filled == FILLED_MARK
+    assert held == ''
+
+
+def test_load_change_shown() -> None:
+    """Test the editor marks a member whose value the load itself changed.
+
+    Which of the two marks a load leaves is the model's answer. This backend
+    shows the marks it is given, so a member the load changed is marked
+    exactly where a member the defaults filled in would be.
+    """
+    changed, held = asyncio.run(_change_shown())
+    assert changed == LOAD_CHANGE_MARK
     assert held == ''
 
 

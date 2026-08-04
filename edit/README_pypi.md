@@ -78,7 +78,7 @@ from edit_cfg_json import ActionSettings, ConfigLoadError, Descriptions, \
 | `load_config` | Reads the configuration to edit from one input file, or hands back the caller's own object when there is no file. It constructs the configuration class itself, because a load policy and the reporting of automatic changes are given to a constructor and to nothing else. |
 | `LoadPolicy` | What to do about a declared value the input file does not hold: `STRICT`, `DEFAULTS`, or `STRICT_THEN_DEFAULTS`, which is the default. |
 | `LoadedConfig` | What `load_config` returns: the object to edit, and the report of its load. |
-| `LoadReport` | What one load did beyond reading the values: what the user has to be told, and the names of the members the declared defaults supplied. It is handed to `EditModel`, which marks those members. |
+| `LoadReport` | What one load did beyond reading the values: what the user has to be told, the names of the members the declared defaults supplied, and the names of the members whose value reading the file itself put there or altered. It is handed to `EditModel`, which marks both kinds. |
 | `ConfigLoadError` | The refusal of an input file that cannot be opened, holding the message for the user and the diagnostics the configuration class produced. |
 | `Settings` | What the application around the editor has already decided: the key combinations of its actions, and what a configuration file of that application is called. Every attribute has a default, so an application with no opinion passes nothing at all. |
 | `ActionSettings` | The key combinations of every action of the editor, one attribute per action, so that an action the application says nothing about keeps its default. |
@@ -93,7 +93,7 @@ from edit_cfg_json import ActionSettings, ConfigLoadError, Descriptions, \
 | `docstring_text` | What the configuration class says about itself, as much of it as is being shown: the whole docstring while the explanations are shown, and its first paragraph while they are hidden. Both backends show it, so neither of them decides on its own how much of a docstring the user is offered. |
 | `row_description` | What one member is for, as it is being shown: the description while the explanations are shown, and nothing while they are hidden. |
 | `row_diagnostic` | What is wrong with one member, and nothing when nothing is known to be. Its text may mean no value of that member at all, which stays true until the member is edited again, or the application may have refused the value, which is only known for as long as the rest of the buffer stands still. |
-| `row_marks` | The marks of one member: that the input file did not hold it, that the user changed it, and that a validation pass then rewrote what the user wrote. All of them can apply at once. |
+| `row_marks` | The marks of one member: that the input file did not hold it, that reading the file put this value there or altered it, that the user changed it, and that a validation pass then rewrote what the user wrote. They can apply at once, except for the first two, of which the load sets the one that says more. |
 | `row_value_text` | The value of one member as the text a field shows. A string is shown as the string itself, without the quotation marks that the file format puts around it. Both backends use it, so neither of them formats values itself. |
 | `Emphasis` | Why a part of the editor stands out from the values: `MUTED` for text about them and for a state nothing has reached, `ATTENTION` for something that has happened to a member, `WARNING` for a remark about the input file, and `GOOD` and `BAD` for what the application accepted and refused. There is no member for ordinary text, because the values and their names are left alone. |
 | `EXPLANATION`, `MEMBER_MARK`, `LOAD_REMARK`, `MEMBER_DIAGNOSTIC` | Which of those the explanatory text, the marks of a member, the message of the load and what is wrong with a member are. They are named here rather than in each backend, so that the two of them cannot colour one thing two ways. |
@@ -217,10 +217,42 @@ the constructor that `config_as_json` documents does not.
 
 A value the file leaves out is filled in from the declared default of the
 class, and that member is marked, so the user can see which values are not
-the ones the file asked for. Every other way in which an input file can be
-wrong is a refusal with a message of its own: a key the configuration does
-not declare, text that cannot be read as configuration, values a validator
-refuses, and a file that cannot be read at all.
+the ones the file asked for. Which members those are is asked of the parse
+itself and not of the keys of the file, because a class with rules for reading
+an older file may have renamed a key of the file into a member, and a member
+that came from the file under another name was not filled in from anything.
+
+Every other way in which an input file can be wrong is a refusal with a
+message of its own: a key the configuration does not declare, text that cannot
+be read as configuration, values a validator refuses, and a file that cannot
+be read at all.
+
+### When reading the file changes it
+
+Reading a file is not always only reading it, and the user has to be told, or
+the editor looks broken: the values on the screen are then not the values in
+the file, and saving writes the screen. It happens in three ways — the rules a
+class declares for reading a file of an older format, a normalization that
+parsing or validating does, and the declared defaults filling in what the file
+left out — and one mechanism finds all three: the values the load produced are
+written back to JSON and compared with the text of the file, key by key. That
+needs nothing at all of the configuration class.
+
+Every member whose value is not the one the file holds is marked, and a key of
+the file that the configuration does not write back is named in the message,
+because it is no member of this configuration and has no row to be marked.
+
+A class whose `__init__` declares `auto_ch_hook` and hands it on adds one thing
+that no comparison could find: the names of the older keys the file was read
+with. A renamed key is simply gone from the file, and nothing in the file says
+which member it became. A class that declares no hook is edited exactly as
+well and the editor then reports what it can see for itself.
+
+One thing to know if an application wants to read such a report of its own:
+`Config.__init__` deep copies the hook it is given, so the object the
+application passed is not the object the load fills in. A hook that only prints
+does not notice; one that is read afterwards has to say that a copy of it is
+itself.
 
 `config_as_json` reports a missing key and an unknown key as the same
 `KeyError`, and the two are told apart by retrying the load with the defaults
@@ -487,7 +519,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 933 passed, 2 deselected in 19s
+- Test result: 975 passed, 2 deselected in 20s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
