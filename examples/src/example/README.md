@@ -19,6 +19,8 @@ repository only.
 | [e03_described_config.py](e03_described_config.py) | Explaining the values to whoever edits them. The docstring of the configuration class labels the object and needs no passing, because the class already has it; the members need a `Descriptions` mapping, because a member docstring does not exist at runtime. Absolute paths as its keys, one member deliberately left undescribed, why a range is explained in words while the names of an enum are not, and the key that hides all of it again. |
 | [e04_validated_config.py](e04_validated_config.py) | Saying which member of a configuration is wrong. Why the validation pass that decides the verdict cannot say it, and how walking the same plan a second time can: a validator this application wrote and a validator `config_as_json` ships are attributed the same way, because the editor recognises no validator by type. Also the rule that is about no single member — a `ProjectedWholeConfigValidator` over two of them — which is why the block below the members is still there. |
 | [e05_old_format_config.py](e05_old_format_config.py) | Saying that reading the file changed it. An application that renamed a member between versions reads its older files with `ReadOldConfiguration`, and the values then on the screen are not the values in the file. How the editor finds that out for every configuration class — by writing the loaded values back and comparing them with the file — and what a class that declares `auto_ch_hook` can add to it, which is the names of the older keys. Two classes, one of each kind, over the same file. |
+| [e06_factory_config.py](e06_factory_config.py) | A configuration class that the editor cannot construct, because it is told which teams exist and only the application knows that. `edit_cfg_json.ConfigLoader` is how an application says how its class is built, `derived_loader` is the one line that says it for a class plus a bound argument, and the same file without a loader is refused with the message that names the class. Also what a loader is *not* needed for: editing, validating and saving work on the object it made. |
+| [e07_chosen_class.py](e07_chosen_class.py) | A loader that chooses its class by looking at the JSON, written out by hand, for an application with two modes whose files have the same shape and different rules. The two rules that make it work: the class is chosen when the file is loaded and the session then edits that class, and a value that would select the other class is refused by the save rather than followed. |
 
 More examples arrive with the steps that they demonstrate: lists and dicts,
 nested `Config` objects, folding, and adding and removing elements.
@@ -117,11 +119,23 @@ the file it lives in:
 
 ```sh
 PYTHONPATH=examples/src ./venv/bin/edit-cfg-json \
-    --module example.e03_described_config DescribedConfig
+    --module example.e03_described_config --class DescribedConfig
 PYTHONPATH=examples/src ./venv/bin/edit-cfg-json-textual \
-    --module example.e02_enum_config EnumConfig
-./venv/bin/edit-cfg-json-tk  --file \
-    examples/src/example/e03_described_config.py DescribedConfig        
+    --module example.e02_enum_config --class EnumConfig
+./venv/bin/edit-cfg-json-tk --file \
+    examples/src/example/e03_described_config.py --class DescribedConfig
+```
+
+A class that the editor cannot construct on its own is named through its
+loader instead, and `--class` beside it says which class the run insists on
+getting:
+
+```sh
+PYTHONPATH=examples/src ./venv/bin/edit-cfg-json \
+    --module example.e06_factory_config --loader team_loader
+PYTHONPATH=examples/src ./venv/bin/edit-cfg-json-tk \
+    --module example.e07_chosen_class --loader chosen_config \
+    --class Cad3DConfig -i examples/data/e07_model.json
 ```
 
 That is a different thing from an example and is worth keeping apart from one.

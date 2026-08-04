@@ -16,9 +16,10 @@ from edit_cfg_json.descriptions import Descriptions, class_docstring, \
     class_summary, member_description
 from edit_cfg_json.leaf_value import text_as_value, value_as_text, \
     values_differ
+from edit_cfg_json.loader import ConfigLoader, ConfigSource
 from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.saving import NOT_VALID, NO_DESTINATION, SaveOutcome, \
-    SaveState, write_config
+    SaveState, reload_refusal, write_config
 from edit_cfg_json.settings import Settings, SettingsSource, checked_file, \
     chosen_file, current_settings
 from edit_cfg_json.validation import ValidationPass, ValidationVerdict, \
@@ -284,6 +285,7 @@ class EditModel:
     # pylint: disable-next=too-many-arguments
     def __init__(self, config: Config, report: LoadReport = LoadReport(), *,
                  descriptions: Optional[Descriptions] = None,
+                 loader: Optional[ConfigLoader] = None,
                  out_file: Optional[PathOrStr] = None,
                  settings: SettingsSource = Settings(),
                  stderr_file: TextIO = sys.stderr) -> None:
@@ -307,6 +309,11 @@ class EditModel:
                 declares, or None when it says nothing. A member that no
                 description reaches is shown without one, which is all that
                 saying nothing costs.
+            loader: How this application constructs its configuration, or None
+                when it did not say. The model needs it for one thing only: a
+                save asks it whether the application would read back the file
+                that is about to be written, which is the one question the
+                validation of a buffer cannot answer.
             out_file: File that saving writes, or None when the user has not
                 chosen one yet and the editor has to ask before it can save.
                 It is taken exactly as it is, because a destination that was
@@ -324,9 +331,9 @@ class EditModel:
             InvalidConfigurationValue: A member of the configuration object
                 does not hold a valid value.
         """
-        self._config_type = type(config)
-        self._report = report
         own = deepcopy(config)
+        self._source = ConfigSource(config=own, loader=loader)
+        self._report = report
         self._rows = _rows_from_config(config=own, report=report,
                                        descriptions=descriptions or {},
                                        converters=member_converters(own),
@@ -335,6 +342,16 @@ class EditModel:
         self._settings = settings
         self._saving = SaveState(out_file=out_file)
         self._explained = True
+
+    @property
+    def _config_type(self) -> type[Config]:
+        """Return the class of the configuration that is being edited.
+
+        It is the class of the object the model was built on, whatever else
+        an application's loader might have made of another file: which class
+        this session is about was settled when that object was loaded.
+        """
+        return self._source.config_type
 
     @property
     def config_type_name(self) -> str:
@@ -593,9 +610,12 @@ class EditModel:
 
         A configuration the application would refuse is not written, because
         an editor that produced a file its own application cannot read would
-        have failed at the one thing it is for. Nor is anything written when
-        no destination has been chosen; the editor asks for one instead. Nor
-        when the destination is a file name that the application does not
+        have failed at the one thing it is for. An application that said how
+        it loads is asked that once more, with the text the file would hold,
+        because a loader that chooses its class by looking at the JSON is the
+        one case a validation pass cannot answer for. Nor is anything written
+        when no destination has been chosen; the editor asks for one instead.
+        Nor when the destination is a file name that the application does not
         use for its configuration, whether it was chosen here or named in
         the call that built this model.
 
@@ -618,6 +638,9 @@ class EditModel:
         candidate = self._validation_pass().candidate
         if candidate is None:
             return self._record(SaveOutcome(saved=False, message=NOT_VALID))
+        refusal = reload_refusal(loader=self._source.loader, config=candidate)
+        if refusal:
+            return self._record(SaveOutcome(saved=False, message=refusal))
         outcome = write_config(config=candidate, out_file=destination.name)
         if outcome.saved:
             self._keep_saved(candidate)
@@ -626,7 +649,7 @@ class EditModel:
     def _validation_pass(self) -> ValidationPass:
         """Validate the buffer, refresh it, and keep what the pass found."""
         self._check_fields()
-        outcome = validate_buffer(config_type=self._config_type,
+        outcome = validate_buffer(config=self._source.config,
                                   members=self._buffer())
         if outcome.verdict.valid:
             self._take_validated(outcome.members)

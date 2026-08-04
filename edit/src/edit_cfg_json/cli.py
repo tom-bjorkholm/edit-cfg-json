@@ -14,12 +14,22 @@ also what makes this testable with no display and no toolkit, by handing
 never imports a user interface library, so it cannot name one.
 
 **The class is told and never guessed.** `--module` names an importable module,
-`--file` names a Python file that is not, exactly one of the two is required,
-and the class is a positional argument. A single `module:Class` argument reads
-well and would have to guess which of the two it was given, which is what
-section 8.2.1 of `doc/design.md` settled for this library as a whole; it would
-also make a Windows drive letter a special case, and it would take the refusal
-of a missing or a doubled location away from `argparse`.
+`--file` names a Python file that is not, and exactly one of the two is
+required. A single `module:Class` argument reads well and would have to guess
+which of the two it was given, which is what section 8.2.1 of `doc/design.md`
+settled for this library as a whole; it would also make a Windows drive letter
+a special case, and it would take the refusal of a missing or a doubled
+location away from `argparse`.
+
+**What to edit is either a class or a loader**, and `--class` and `--loader`
+name them in the same module or file. At least one of the two is needed and
+both are allowed: a class alone is constructed on the values it declares, a
+loader alone is asked for a configuration and its class is whatever it answers
+with, and the two together mean that the loader has to answer with that class
+or the program stops. `--loader` is for a class the editor cannot construct on
+its own, so whatever it needs beyond the five keyword arguments of
+`edit_cfg_json.ConfigLoader` has to be bound in the module it is named in — a
+command line cannot supply an argument this library knows nothing about.
 
 **Importing a module runs it.** That is the same exposure as running the file
 with Python, and it is not guarded against, because a guard could only be a
@@ -33,6 +43,7 @@ module it is in.
 from argparse import ArgumentParser, Namespace
 from collections.abc import Mapping, Sequence
 from enum import IntEnum
+from io import StringIO
 from pathlib import Path
 from types import ModuleType
 from typing import Optional
@@ -42,8 +53,9 @@ from config_as_json import Config
 import argcomplete
 from edit_cfg_json.backend import EditorBackend
 from edit_cfg_json.edit_model import EditModel
-from edit_cfg_json.loading import DEFAULT_POLICY, ConfigLoadError, \
-    LoadPolicy, default_config, load_config
+from edit_cfg_json.loader import ConfigLoader, ask_loader
+from edit_cfg_json.loading import DEFAULTS_ERRORS, DEFAULT_POLICY, \
+    ConfigLoadError, LoadPolicy, default_config, load_config
 
 DESCRIPTION = ('Edit one config_as_json configuration class, without '
                'writing a program for it.')
@@ -89,6 +101,44 @@ NO_NAME_MESSAGE = 'Module {module} holds no name {name}.'
 NOT_CONFIG_MESSAGE = ('{module}.{name} is not a class based on '
                       'config_as_json.Config.')
 """Message of the refusal of a name that is not a configuration class."""
+
+NO_TARGET_MESSAGE = ('Name the class to edit with --class, or a loader that '
+                     'constructs it with --loader, or both.')
+"""Message of the refusal of a command line that says what to edit nowhere.
+
+`argparse` cannot be asked for at least one of two options, only for exactly
+one of them, and either alone is a perfectly good command line here.
+"""
+
+NOT_LOADER_MESSAGE = '{module}.{name} cannot be called, so it is no loader.'
+"""Message of the refusal of a `--loader` that names something else."""
+
+LOADER_ARGS_MESSAGE = (
+    'Loader {name} cannot be called by this program: it needs arguments that '
+    'a command line cannot supply. Bind them where the loader is written, for '
+    'example with functools.partial, so that what is left is the five keyword '
+    'arguments of edit_cfg_json.ConfigLoader.')
+"""Message of the refusal of a loader whose own arguments are not bound."""
+
+NO_LOADER_CONFIG = ('Loader {name} did not construct a configuration to '
+                    'edit.')
+"""Message of the refusal of a loader that refused to answer at all.
+
+The editor asks a loader for a configuration with no JSON source, which is what
+`edit_cfg_json.ConfigLoader` says a loader answers. A loader that chooses its
+class by looking at the JSON has to name the class it uses for a configuration
+that does not exist yet, and this is the refusal of one that names none.
+"""
+
+WRONG_CLASS_MESSAGE = ('Loader {name} constructed {other} and not {wanted}, '
+                       'which --class asked for.')
+"""Message of the refusal of a loader that answered with another class.
+
+A loader may choose its class by looking at the JSON, and `--class` beside it
+is how a script says which class it is prepared to go on with. The check is
+what `isinstance` answers, so a loader that answers with a subclass of the
+class that was named is accepted.
+"""
 
 NOT_SHOWABLE_MESSAGE = ('The editor cannot show {name}, because the values '
                         'it holds cannot be written as JSON. A member whose '
@@ -170,6 +220,21 @@ class ExitCode(IntEnum):
     There is then nothing to edit at all: the editor reads what it shows by
     serializing the configuration object.
     """
+
+    NOT_LOADER = 13
+    """The name that `--loader` names cannot be called at all."""
+
+    LOADER_ARGS = 14
+    """The loader needs arguments that a command line cannot supply.
+
+    A loader takes the five keyword arguments of `ConfigLoader` and nothing
+    else, so whatever it needs besides them is bound where it is written. A
+    program cannot bind an argument it knows nothing about, and saying so
+    plainly is better than a half answer.
+    """
+
+    WRONG_CLASS = 15
+    """The loader did not construct the class that `--class` asked for."""
 
 
 class _Refusal(Exception):
@@ -265,8 +330,12 @@ def _create_parser(prog: str, interactive: bool) -> ArgumentParser:
                        help='Importable module that holds the class.')
     where.add_argument('--file', default=None, metavar='PATH',
                        help='Python file that holds the class.')
-    parser.add_argument('class_name', metavar='CLASS',
+    parser.add_argument('--class', dest='class_name', default=None,
+                        metavar='CLASS',
                         help='Name of the config_as_json.Config class.')
+    parser.add_argument('--loader', default=None, metavar='NAME',
+                        help='Name of an edit_cfg_json.ConfigLoader there, '
+                             'for a class this editor cannot construct.')
     add_file_options(parser)
     if interactive:
         parser.set_defaults(save=False)
@@ -277,17 +346,20 @@ def _create_parser(prog: str, interactive: bool) -> ArgumentParser:
     return parser
 
 
-def _said(message: str, error: Exception) -> str:
+def _said(message: str, error: Exception, captured: str = '') -> str:
     """Return one refusal with what Python said about it below it.
 
     Args:
         message: What the program has to tell the user.
         error: The failure that Python reported.
+        captured: What the code that failed wrote to its own diagnostics
+            stream, empty when it wrote nothing or was given none.
 
     Returns:
-        The message, and the failure below it.
+        The message, whatever was said, and the failure below both.
     """
-    return f'{message}\n{type(error).__name__}: {error}'
+    parts = (message, captured.strip(), f'{type(error).__name__}: {error}')
+    return '\n'.join(part for part in parts if part)
 
 
 def _imported_module(name: str) -> ModuleType:
@@ -393,23 +465,49 @@ def _class_in(module: ModuleType, name: str) -> type[Config]:
     return found
 
 
-def _config_class(parsed: Namespace) -> type[Config]:
-    """Return the configuration class that one command line names.
+def _loader_in(module: ModuleType, name: str) -> ConfigLoader:
+    """Return one configuration loader of one module, or refuse to run.
+
+    What can be checked here is that the name can be called at all. Whether it
+    takes the five keyword arguments of a loader is answered by calling it,
+    which is what `_loader_config` below does and reports.
+
+    Args:
+        module: Module that was named on the command line.
+        name: Name of the loader that was asked for.
+
+    Returns:
+        That loader.
+
+    Raises:
+        _Refusal: The module holds no such name, or it is nothing to call.
+    """
+    found = getattr(module, name, None)
+    if found is None:
+        raise _Refusal(NO_NAME_MESSAGE.format(module=module.__name__,
+                                              name=name), ExitCode.NO_NAME)
+    if not isinstance(found, ConfigLoader):
+        raise _Refusal(NOT_LOADER_MESSAGE.format(module=module.__name__,
+                                                 name=name),
+                       ExitCode.NOT_LOADER)
+    return found
+
+
+def _named_module(parsed: Namespace) -> ModuleType:
+    """Return the module that one command line names, or refuse to run.
 
     Args:
         parsed: Parsed command line of one run.
 
     Returns:
-        The class to edit.
+        That module, imported.
 
     Raises:
-        _Refusal: The class cannot be reached.
+        _Refusal: The module cannot be reached.
     """
     if parsed.module is not None:
-        module = _imported_module(parsed.module)
-    else:
-        module = _module_from_file(_python_file(Path(parsed.file)))
-    return _class_in(module=module, name=parsed.class_name)
+        return _imported_module(parsed.module)
+    return _module_from_file(_python_file(Path(parsed.file)))
 
 
 def _constructed(config_type: type[Config]) -> Config:
@@ -424,8 +522,7 @@ def _constructed(config_type: type[Config]) -> Config:
     Raises:
         _Refusal: The editor cannot construct that class. An application
             whose class needs constructor arguments this library knows
-            nothing about supplies an explicit loader instead, which is what
-            step 9 of the delivery plan is about.
+            nothing about names a loader with `--loader` instead.
     """
     try:
         return default_config(config_type)
@@ -433,7 +530,94 @@ def _constructed(config_type: type[Config]) -> Config:
         raise _Refusal(str(error), ExitCode.NO_DEFAULTS) from error
 
 
-def _built_model(parsed: Namespace, config: Config) -> EditModel:
+def _loader_config(loader: ConfigLoader, name: str) -> Config:
+    """Return what one loader answers with when there is no file, or refuse.
+
+    Args:
+        loader: Loader that the command line named.
+        name: Name it was named under, which is what a refusal says.
+
+    Returns:
+        The configuration object that the loader constructed.
+
+    Raises:
+        _Refusal: The loader cannot be called by a program, or it answered
+            with nothing.
+    """
+    said = StringIO()
+    try:
+        return ask_loader(loader, stream=said)
+    except TypeError as error:
+        raise _Refusal(_said(LOADER_ARGS_MESSAGE.format(name=name), error),
+                       ExitCode.LOADER_ARGS) from error
+    except DEFAULTS_ERRORS as error:
+        raise _Refusal(_said(NO_LOADER_CONFIG.format(name=name), error,
+                             said.getvalue()),
+                       ExitCode.NO_DEFAULTS) from error
+
+
+def _target_config(wanted: Optional[type[Config]],
+                   loader: Optional[ConfigLoader],
+                   name: Optional[str]) -> Config:
+    """Return the configuration object that one command line starts from.
+
+    A class alone is constructed on the values it declares. A loader is asked
+    instead, with no JSON source, which is what `ConfigLoader` says a loader
+    answers. Which class that is is not checked here, because it is not settled
+    yet: a loader may choose its class by looking at the input file, and the
+    class of the session is the class of the object the load produced.
+
+    Args:
+        wanted: Class that `--class` named, or None when it named none. It is
+            never None when there is no loader, because a command line that
+            names neither is refused before this.
+        loader: Loader that the command line named, or None when it named
+            none.
+        name: Name the loader was named under, which a refusal says.
+
+    Returns:
+        The configuration object to start the session from.
+
+    Raises:
+        _Refusal: There is no configuration object to edit.
+    """
+    if loader is None:
+        assert wanted is not None
+        return _constructed(wanted)
+    assert name is not None
+    return _loader_config(loader=loader, name=name)
+
+
+def _checked_class(config: Config, wanted: Optional[type[Config]],
+                   name: Optional[str]) -> None:
+    """Refuse a loaded configuration that is not the class that was asked for.
+
+    `--class` beside a `--loader` is a question rather than an instruction: is
+    this the class you are prepared to go on with? It is asked of the object
+    that is really going to be edited, so a loader that chose its class by
+    looking at the input file is answered for that file. `isinstance` is what
+    answers it, so a subclass of the class that was named is accepted.
+
+    Args:
+        config: Configuration object that the load produced.
+        wanted: Class that `--class` named, or None when it named none.
+        name: Name of the loader, or None when the command line named none
+            and there is therefore nothing to check.
+
+    Raises:
+        _Refusal: The class is not the one that was asked for.
+    """
+    if wanted is None or name is None or isinstance(config, wanted):
+        return
+    raise _Refusal(WRONG_CLASS_MESSAGE.format(name=name,
+                                              other=type(config).__name__,
+                                              wanted=wanted.__name__),
+                   ExitCode.WRONG_CLASS)
+
+
+def _built_model(parsed: Namespace, config: Config,
+                 loader: Optional[ConfigLoader],
+                 wanted: Optional[type[Config]]) -> EditModel:
     """Return the model of one session, on the files that were named.
 
     The output file is set only when it was named, because the model already
@@ -450,23 +634,27 @@ def _built_model(parsed: Namespace, config: Config) -> EditModel:
 
     Args:
         parsed: Parsed command line of one run.
-        config: Configuration object holding the declared defaults.
+        config: Configuration object holding the values to start from.
+        loader: Loader that the command line named, or None when it named
+            none.
+        wanted: Class that `--class` named, or None when it named none.
 
     Returns:
         The model of one editing session.
 
     Raises:
-        _Refusal: The input file cannot be opened, or the class cannot be
-            shown at all.
+        _Refusal: The input file cannot be opened, the loaded class is not the
+            one that was asked for, or the class cannot be shown at all.
     """
     try:
         loaded = load_config(config=config, in_file=parsed.input,
-                             policy=named_policy(parsed.policy))
+                             policy=named_policy(parsed.policy), loader=loader)
     except ConfigLoadError as error:
         raise _Refusal(str(error), ExitCode.LOAD_REFUSED) from error
+    _checked_class(config=loaded.config, wanted=wanted, name=parsed.loader)
     try:
         model = EditModel(config=loaded.config, report=loaded.report,
-                          out_file=parsed.input)
+                          loader=loader, out_file=parsed.input)
     except ValueError as error:
         name = type(loaded.config).__name__
         raise _Refusal(_said(NOT_SHOWABLE_MESSAGE.format(name=name), error),
@@ -522,8 +710,14 @@ def _session(backend: EditorBackend, parsed: Namespace,
     Raises:
         _Refusal: The session cannot be started.
     """
-    config = _constructed(_config_class(parsed))
-    model = _built_model(parsed=parsed, config=config)
+    module = _named_module(parsed)
+    loader = None if parsed.loader is None \
+        else _loader_in(module=module, name=parsed.loader)
+    wanted = None if parsed.class_name is None \
+        else _class_in(module=module, name=parsed.class_name)
+    config = _target_config(wanted=wanted, loader=loader, name=parsed.loader)
+    model = _built_model(parsed=parsed, config=config, loader=loader,
+                         wanted=wanted)
     if parsed.save:
         model.save()
     backend.run_editor(model)
@@ -556,11 +750,16 @@ def run_cli(backend: EditorBackend, prog: str, *,
 
     Raises:
         SystemExit: The command line itself is wrong, or help was asked for.
-            That is `argparse` reporting it, with `ExitCode.USAGE`.
+            That is `argparse` reporting it, with `ExitCode.USAGE`. A command
+            line that names neither a class nor a loader is one of those, and
+            it is checked here because `argparse` can be asked for exactly one
+            of two options and not for at least one of them.
     """
     parser = _create_parser(prog=prog, interactive=interactive)
     argcomplete.autocomplete(parser)
     parsed = parser.parse_args(args)
+    if parsed.class_name is None and parsed.loader is None:
+        parser.error(NO_TARGET_MESSAGE)
     try:
         return _session(backend=backend, parsed=parsed,
                         interactive=interactive)

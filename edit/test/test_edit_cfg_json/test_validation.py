@@ -11,6 +11,7 @@ itself would test nothing about the editor.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Callable
 from config_as_json import Config, JsonType
 import pytest
 from edit_cfg_json.validation import validate_buffer
@@ -22,8 +23,8 @@ from .sample_cfg import HIGHEST, REFUSAL_MESSAGE, SUM_LIMIT, \
 ENUM_NAMES = 'is not one of: LOWEST, LOW, HIGH'
 """What the diagnostics say about text that names no member of `Level`."""
 
-REFUSED_BUFFERS: list[tuple[str, type[Config], dict[str, JsonType],
-                            str, str]] = [
+REFUSED_BUFFERS: list[tuple[str, Callable[[], Config],
+                            dict[str, JsonType], str, str]] = [
     ('missing key', FlatCfg, {'name': 'text'}, '', 'No value for answer'),
     ('unknown key', FlatCfg, {'name': 'text', 'answer': 1, 'more': 2}, '',
      'Unexpected parameter more'),
@@ -39,12 +40,10 @@ REFUSED_BUFFERS: list[tuple[str, type[Config], dict[str, JsonType],
      'is greater than maximum 100'),
     ('not allowed', AllowedCfg, {'colour': 'blue'}, 'colour', 'colour'),
     ('wrong type', TypedCfg, {'count': 'text'}, 'count', 'is not of type int'),
-    ('own validator', RefuseCfg, {'name': 'text'}, 'name',
+    ('own validator', RefuseCfg, {'name': 'other'}, 'name',
      REFUSAL_MESSAGE.format(name='name')),
     ('rule about both', RulesCfg, {'first': HIGHEST, 'second': HIGHEST}, '',
-     TOO_LARGE_MESSAGE.format(total=2 * HIGHEST)),
-    ('cannot construct', ExtraArgCfg, {'home': 'here'}, '',
-     "missing 1 required positional argument: 'home'")]
+     TOO_LARGE_MESSAGE.format(total=2 * HIGHEST))]
 """One buffer per way in which a configuration class refuses a buffer.
 
 The first item of each is the name of the case, which pytest uses to identify
@@ -75,7 +74,7 @@ def _refusal_text(outcome_refused: dict[str, str], diagnostics: str,
 
 @pytest.mark.parametrize('name, config_type, members, member, expected',
                          REFUSED_BUFFERS)
-def test_refused_buffer(name: str, config_type: type[Config],
+def test_refused_buffer(name: str, config_type: Callable[[], Config],
                         members: dict[str, JsonType], member: str,
                         expected: str) -> None:
     """Test every way of refusing a buffer becomes a verdict, not a crash.
@@ -84,7 +83,7 @@ def test_refused_buffer(name: str, config_type: type[Config],
     a refusal that is about one member belongs beside that member and one
     that is about no member has nowhere else to go than the block.
     """
-    outcome = validate_buffer(config_type=config_type, members=members)
+    outcome = validate_buffer(config=config_type(), members=members)
     assert not outcome.verdict.valid, name
     told = _refusal_text(outcome_refused=dict(outcome.verdict.refused),
                          diagnostics=outcome.verdict.diagnostics,
@@ -100,7 +99,7 @@ def test_every_bad_member() -> None:
     was told only what that step said would correct one member per pass. The
     walk that attributes the refusals does not stop, which is the whole gain.
     """
-    outcome = validate_buffer(config_type=RulesCfg,
+    outcome = validate_buffer(config=RulesCfg(),
                               members={'first': 500, 'second': 700})
     assert set(outcome.verdict.refused) == {'first', 'second'}
     assert '500' in outcome.verdict.refused['first']
@@ -109,7 +108,7 @@ def test_every_bad_member() -> None:
 
 def test_good_member_silent() -> None:
     """Test a member the application accepted is not named."""
-    outcome = validate_buffer(config_type=RulesCfg,
+    outcome = validate_buffer(config=RulesCfg(),
                               members={'first': 500, 'second': 2})
     assert set(outcome.verdict.refused) == {'first'}
 
@@ -121,7 +120,7 @@ def test_whole_rule_skipped() -> None:
     editor that reported that rule anyway would be reporting something the
     application never did.
     """
-    outcome = validate_buffer(config_type=RulesCfg,
+    outcome = validate_buffer(config=RulesCfg(),
                               members={'first': 500, 'second': 500})
     assert outcome.verdict.diagnostics == ''
 
@@ -132,7 +131,7 @@ def test_rule_about_both() -> None:
     Both members are values their own validators accept, so there is no
     member this refusal could honestly be put beside.
     """
-    outcome = validate_buffer(config_type=RulesCfg,
+    outcome = validate_buffer(config=RulesCfg(),
                               members={'first': HIGHEST, 'second': HIGHEST})
     assert not outcome.verdict.refused
     assert TOO_LARGE_MESSAGE.format(total=2 * HIGHEST) in \
@@ -146,11 +145,26 @@ def test_silent_refusal_told() -> None:
     An application's own validator is free to raise without writing
     anything, and the user would otherwise be shown that the buffer is
     invalid and nothing at all about why. What is asserted is the exception
-    reaching the member, and not anything about `RefuseCfg` itself, which is
-    a class no application could use.
+    reaching the member.
     """
-    outcome = validate_buffer(config_type=RefuseCfg, members={'name': 'x'})
+    outcome = validate_buffer(config=RefuseCfg(), members={'name': 'x'})
     assert outcome.verdict.refused['name'].startswith('ValueError: ')
+
+
+def test_unbuildable_valid() -> None:
+    """Test a buffer of a class the editor cannot construct is validated.
+
+    `ExtraArgCfg` needs a constructor argument this library knows nothing
+    about, so nothing here could construct one. It does not have to: the
+    buffer is applied to a copy of the object that is being edited, which the
+    application built, and the class then validates it as it validates
+    anything.
+    """
+    outcome = validate_buffer(config=ExtraArgCfg(home='here'),
+                              members={'home': 'elsewhere'})
+    assert outcome.verdict.valid
+    assert outcome.members == {'home': 'elsewhere'}
+    assert isinstance(outcome.candidate, ExtraArgCfg)
 
 
 @pytest.mark.parametrize('config_type, members',
@@ -164,10 +178,10 @@ def test_silent_refusal_told() -> None:
                           (RangeCfg, {'answer': 100}),
                           (HexCfg, {'mask': 16}),
                           (RulesCfg, {'first': 1, 'second': 2})])
-def test_accepted_buffer(config_type: type[Config],
+def test_accepted_buffer(config_type: Callable[[], Config],
                          members: dict[str, JsonType]) -> None:
     """Test an accepted buffer is reported as valid and says nothing more."""
-    outcome = validate_buffer(config_type=config_type, members=members)
+    outcome = validate_buffer(config=config_type(), members=members)
     assert outcome.verdict.valid
     assert outcome.verdict.diagnostics == ''
     assert not outcome.verdict.refused
@@ -175,7 +189,7 @@ def test_accepted_buffer(config_type: type[Config],
 
 def test_members_read_back() -> None:
     """Test the members of the accepted configuration object are returned."""
-    outcome = validate_buffer(config_type=FlatCfg,
+    outcome = validate_buffer(config=FlatCfg(),
                               members={'name': 'text', 'answer': 7})
     assert outcome.members == {'name': 'text', 'answer': 7}
 
@@ -187,7 +201,7 @@ def test_rewritten_returned() -> None:
     reason the buffer is refreshed from the object that was built rather
     than left holding what the user typed.
     """
-    outcome = validate_buffer(config_type=RewriteCfg,
+    outcome = validate_buffer(config=RewriteCfg(),
                               members={'name': 'typed text'})
     assert outcome.members == {'name': 'Typed text'}
 
@@ -205,7 +219,7 @@ def test_enum_name_completed(typed: str, whole: str) -> None:
     `LOWEST`. The editor sees the completed name as a value that the pass
     rewrote, which is the same thing that a rewriting validator does.
     """
-    outcome = validate_buffer(config_type=IntEnumCfg, members={'level': typed})
+    outcome = validate_buffer(config=IntEnumCfg(), members={'level': typed})
     assert outcome.verdict.valid
     assert outcome.members == {'level': whole}
 
@@ -218,8 +232,7 @@ def test_int_enum_is_a_name() -> None:
     would be refreshed with a number that the field could not show as a
     name any more.
     """
-    outcome = validate_buffer(config_type=IntEnumCfg,
-                              members={'level': 'HIGH'})
+    outcome = validate_buffer(config=IntEnumCfg(), members={'level': 'HIGH'})
     assert outcome.members == {'level': 'HIGH'}
 
 
@@ -229,7 +242,7 @@ def test_omitted_absent() -> None:
     The configuration class does not serialize it, so there is no value to
     read, which is different from a value that changed.
     """
-    outcome = validate_buffer(config_type=OmitCfg,
+    outcome = validate_buffer(config=OmitCfg(),
                               members={'first': 1, 'last': 2})
     assert outcome.verdict.valid
     assert 'optional' not in outcome.members

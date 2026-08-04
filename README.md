@@ -21,8 +21,8 @@ on any `config_as_json.Config` class it is told the name of, with no code
 written by anybody:
 
 ```sh
-edit-cfg-json-tk --module myapp.config AppConfig -i /etc/myapp.json
-edit-cfg-json --module myapp.config AppConfig -i /etc/myapp.json
+edit-cfg-json-tk --module myapp.config --class AppConfig -i /etc/myapp.json
+edit-cfg-json --module myapp.config --class AppConfig -i /etc/myapp.json
 ```
 
 The second needs no display: it prints the configuration and what the
@@ -166,7 +166,7 @@ browsed through `reports/index.html`.
 
 ## Test summary
 
-- Test result: 975 passed, 2 deselected in 20s
+- Test result: 1039 passed, 2 deselected in 20s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

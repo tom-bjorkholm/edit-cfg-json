@@ -63,8 +63,9 @@ job as much as a way of looking at a class, and nobody has to write a line of
 code to use it:
 
 ````sh
-{{dist_name}} --module myapp.config AppConfig -i /etc/myapp.json
-{{dist_name}} --module myapp.config AppConfig -i partial.json --save
+{{dist_name}} --module myapp.config --class AppConfig -i /etc/myapp.json
+{{dist_name}} --module myapp.config --class AppConfig -i partial.json \
+    --save
 ````
 
 The second of those writes the file the class itself would have written: what
@@ -96,6 +97,37 @@ Every other way in which an input file can be wrong is a refusal with a
 message of its own: a key the configuration does not declare, text that cannot
 be read as configuration, values a validator refuses, and a file that cannot
 be read at all.
+
+### A class this editor cannot construct on its own
+
+Most configuration classes take the keyword arguments that `config_as_json`
+documents and nothing else, and this library constructs them from the signature
+it reads. A class that needs an argument of the application's own — a folder, a
+connection, the list of names its own validators accept — is told to `edit` and
+`load_config` as a `ConfigLoader` instead, and `derived_loader` is what an
+application needs for it in one line:
+
+````python
+from functools import partial
+from {{import_name}} import derived_loader, edit
+
+loader = derived_loader(partial(AppConfig, known_teams=TEAMS))
+saved = edit(config=AppConfig(known_teams=TEAMS), backend=backend,
+             loader=loader, in_file='my_config.cfg')
+````
+
+**Reading a file is the only thing a loader is needed for.** Editing,
+validating and saving apply the buffer to a copy of the object the load
+produced, with the `Config.parse_json` that every configuration class has, so
+they need nothing of its constructor.
+
+Writing the five keyword arguments of the protocol out by hand is the door for
+what that cannot express, which in practice means a class chosen by looking at
+the JSON. Two rules make that work: a loader answers a call with no JSON source
+with the class it uses for a configuration that does not exist yet, and the
+class is chosen when the file is loaded, so the session then edits that class.
+A save asks the loader once more whether the file it is about to write would
+still be read as that class, and refuses to write one that would not.
 
 ### When reading the file changes it
 

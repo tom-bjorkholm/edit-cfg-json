@@ -74,7 +74,7 @@ through the program that the core installs, which needs no example at all:
 
 ````sh
 PYTHONPATH=examples/src edit-cfg-json --module example.e05_old_format_config \
-    NoHookConfig -i examples/data/e05_old_format.json
+    --class NoHookConfig -i examples/data/e05_old_format.json
 ````
 
 The marks are the same, and the line naming the older keys is gone. What is
@@ -88,7 +88,8 @@ program with nobody to press Save is the one that offers `--save`:
 
 ````sh
 PYTHONPATH=examples/src edit-cfg-json --module example.e05_old_format_config \
-    OldFormatConfig -i examples/data/e05_old_format.json -o current.json --save
+    --class OldFormatConfig -i examples/data/e05_old_format.json \
+    -o current.json --save
 ````
 """
 

@@ -68,6 +68,26 @@ the reading did.
 | [e05_old_format.json](e05_old_format.json) | Opens under every policy, and reading it changes it: `title` becomes `report_name`, `debug_trace` is dropped, `format_version` is supplied, and the case of `owner` is corrected by a validator. Every member that is not what the file holds is marked, and the message names the older keys. |
 | [e05_current.json](e05_current.json) | Opens with every value from the file and nothing said about the load, because nothing happened to it. It is the same configuration as the file above, in the shape that saving that file writes. |
 
+## Files for `e06_factory_config.py`
+
+`TeamConfig` is told which teams exist when it is constructed, so the editor
+cannot construct it and reads its files through a loader instead.
+
+| File | What happens |
+| --- | --- |
+| [e06_teams.json](e06_teams.json) | Opens through the loader of that example, with both values from the file. Without a loader the same file is refused, because the editor knows nothing about the list of teams that the class needs. |
+
+## Files for `e07_chosen_class.py`
+
+`Cad2DConfig` and `Cad3DConfig` hold the same three members and differ in the
+finest grid each of them allows. The loader of that example looks at `mode` to
+decide which of the two a file holds.
+
+| File | What happens |
+| --- | --- |
+| [e07_drawing.json](e07_drawing.json) | Opens as `Cad2DConfig`, on a grid finer than a model may use. Editing `mode` to `3D` and saving is refused, because the model class would not read this grid back. |
+| [e07_model.json](e07_model.json) | Opens as `Cad3DConfig`. Editing `mode` to `2D` and saving is refused as well, and for the other reason: that file would be read as the drawing class, which is not the class this session is about. |
+
 ## Why a file with a bad value cannot be opened
 
 An editor that refused to open the very file that has to be repaired would

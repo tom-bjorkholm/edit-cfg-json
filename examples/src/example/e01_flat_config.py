@@ -242,8 +242,9 @@ any, so the same editor is reachable without running this file:
 
 ````sh
 export PYTHONPATH=examples/src
-edit-cfg-json --module example.e01_flat_config FlatConfig -i in.json
-edit-cfg-json-tk --module example.e01_flat_config FlatConfig
+edit-cfg-json --module example.e01_flat_config --class FlatConfig \
+    -i in.json
+edit-cfg-json-tk --module example.e01_flat_config --class FlatConfig
 ````
 
 The first prints the model, as `--ui dump` does here; the second opens the

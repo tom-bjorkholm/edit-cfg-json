@@ -16,12 +16,14 @@ from typing import Optional
 import json
 import pytest
 from config_as_json import Config, ConfigAutoChangeHook
-from edit_cfg_json import ConfigLoadError, EditModel, LoadPolicy, LoadReport, \
-    Settings, load_config
+from edit_cfg_json import ConfigLoadError, ConfigLoader, EditModel, \
+    LoadPolicy, LoadReport, Settings, load_config
+from edit_cfg_json.loader import LOADER_EXITED
 from edit_cfg_json.loading import BAD_VALUES, DEFAULT_POLICY, FILLED_MESSAGE, \
     INCOMPLETE, NOT_CONFIG, NOT_TEXT, NO_DEFAULTS, NO_FILE, UNKNOWN_KEY
-from .sample_cfg import EnumCfg, ExtraArgCfg, FlatCfg, HookCfg, OmitCfg, \
-    RangeCfg
+from .sample_cfg import PICKED_NAME, EnumCfg, ExtraArgCfg, FlatCfg, \
+    HookCfg, OmitCfg, PickedCfg, RangeCfg, exiting_loader, extra_arg_loader, \
+    picking_loader
 
 COMPLETE = {'name': 'From a file', 'answer': 7}
 """Values of a file that holds every member of `FlatCfg`."""
@@ -58,10 +60,12 @@ def _text_file(tmp_path: Path, text: str) -> Path:
 
 
 def _refusal(config: Config, in_file: Path,
-             policy: LoadPolicy = DEFAULT_POLICY) -> ConfigLoadError:
+             policy: LoadPolicy = DEFAULT_POLICY,
+             loader: Optional[ConfigLoader] = None) -> ConfigLoadError:
     """Load one file, expect a refusal, and return it."""
     with pytest.raises(ConfigLoadError) as refused:
-        load_config(config=config, in_file=in_file, policy=policy)
+        load_config(config=config, in_file=in_file, policy=policy,
+                    loader=loader)
     return refused.value
 
 
@@ -225,14 +229,55 @@ def test_folder_not_file(tmp_path: Path) -> None:
 def test_cannot_construct(tmp_path: Path) -> None:
     """Test a class the editor cannot construct is refused, not crashed on.
 
-    The editor knows nothing about a constructor argument of the
-    application's own, and an explicit loader for such a class arrives in a
-    later step. Until then this is a refusal that names the class.
+    The editor knows nothing about a constructor argument of the application's
+    own, so this is a refusal that names the class. An application whose class
+    is like this hands over a loader, which is the test below.
     """
     error = _refusal(config=ExtraArgCfg(home='here'),
                      in_file=_written(tmp_path, {'home': 'there'}))
     assert error.message == NO_DEFAULTS.format(name='ExtraArgCfg')
     assert 'home' in error.diagnostics
+
+
+def test_loader_constructs_it(tmp_path: Path) -> None:
+    """Test a loader is what opens a file of a class like that.
+
+    The argument the editor knows nothing about is bound where the loader is
+    written, so the load has everything it needs and the file opens.
+    """
+    loaded = load_config(config=ExtraArgCfg(home='here'),
+                         in_file=_written(tmp_path, {'home': 'from a file'}),
+                         loader=extra_arg_loader)
+    assert getattr(loaded.config, 'home') == 'from a file'
+    assert loaded.report.message == ''
+
+
+def test_loader_may_choose(tmp_path: Path) -> None:
+    """Test the class a loader chose for the file is the class that is edited.
+
+    Which class a session is about is settled here and nowhere else, which is
+    what the two `--class` cases of the programs and the check that a save
+    makes are both about.
+    """
+    values = {'name': PICKED_NAME, 'answer': 3}
+    loaded = load_config(config=FlatCfg(), loader=picking_loader,
+                         in_file=_written(tmp_path, values))
+    assert isinstance(loaded.config, PickedCfg)
+    assert EditModel(loaded.config).config_type_name == 'PickedCfg'
+
+
+def test_loader_that_exits(tmp_path: Path) -> None:
+    """Test a loader that ends the program is a refusal and not the end.
+
+    `config_as_json` ends the process for a file it cannot make sense of, so a
+    loader written around it does that too, and an editor that let it would
+    cost the user the session. It is reported as the values of the file being
+    ones this application will not have, which is what happened.
+    """
+    error = _refusal(config=FlatCfg(), in_file=_written(tmp_path, COMPLETE),
+                     loader=exiting_loader)
+    assert error.message == BAD_VALUES
+    assert LOADER_EXITED in error.diagnostics
 
 
 def test_hook_forwarded(tmp_path: Path) -> None:

@@ -16,7 +16,8 @@ import json
 import pytest
 from edit_cfg_json import ConfigLoadError, EditModel, LoadPolicy, Settings, \
     edit
-from .sample_cfg import FlatCfg, RangeCfg, RewriteCfg
+from .sample_cfg import PICKED_NAME, ExtraArgCfg, FlatCfg, RangeCfg, \
+    RewriteCfg, extra_arg_loader, picking_loader
 
 COMPLETE = '{"name": "From a file", "answer": 7}'
 """An input file that holds every declared value."""
@@ -264,3 +265,55 @@ def test_saved_is_validated(tmp_path: Path) -> None:
     assert isinstance(saved, RewriteCfg)
     assert saved.name == 'Typed text'
     assert _written(out_file) == {'name': 'Typed text'}
+
+
+def test_loader_round_trip(tmp_path: Path) -> None:
+    """Test the whole way through, for a class the editor cannot construct.
+
+    Only the reading of the input file needs the loader. Everything after it
+    works on the object the load produced, which is why a class like this can
+    be edited, validated and saved at all.
+    """
+    in_file = _input_file(tmp_path, '{"home": "from a file"}')
+    out_file = tmp_path / 'out.json'
+    saved = edit(config=ExtraArgCfg(home='here'), loader=extra_arg_loader,
+                 backend=Saver('home', 'typed home'), in_file=in_file,
+                 out_file=out_file)
+    assert isinstance(saved, ExtraArgCfg)
+    assert _written(out_file) == {'home': 'typed home'}
+
+
+def test_no_loader_refuses_it(tmp_path: Path) -> None:
+    """Test the same class without a loader cannot open the same file."""
+    in_file = _input_file(tmp_path, '{"home": "from a file"}')
+    with pytest.raises(ConfigLoadError):
+        edit(config=ExtraArgCfg(home='here'), backend=Closer(),
+             in_file=in_file)
+
+
+def test_chosen_class_edited(tmp_path: Path) -> None:
+    """Test a loader that chooses its class decides what is edited.
+
+    The model is built on the object the load produced, so the class the file
+    selected is the class whose members are the rows.
+    """
+    in_file = _input_file(tmp_path, json.dumps({'name': PICKED_NAME,
+                                                'answer': 5}))
+    backend = Closer()
+    assert edit(config=FlatCfg(), backend=backend, loader=picking_loader,
+                in_file=in_file) is None
+    assert backend.seen[0].config_type_name == 'PickedCfg'
+
+
+def test_other_class_kept(tmp_path: Path) -> None:
+    """Test a value that would select another class is not written.
+
+    The values are ones the class being edited accepts, so only the loader can
+    say that the file they would write is a file of the other class. It is
+    asked once, before anything is written.
+    """
+    out_file = tmp_path / 'out.json'
+    saved = edit(config=FlatCfg(), loader=picking_loader,
+                 backend=Saver('name', PICKED_NAME), out_file=out_file)
+    assert saved is None
+    assert not out_file.exists()

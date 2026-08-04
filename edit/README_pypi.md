@@ -116,8 +116,9 @@ job as much as a way of looking at a class, and nobody has to write a line of
 code to use it:
 
 ````sh
-edit-cfg-json --module myapp.config AppConfig -i /etc/myapp.json
-edit-cfg-json --module myapp.config AppConfig -i partial.json --save
+edit-cfg-json --module myapp.config --class AppConfig -i /etc/myapp.json
+edit-cfg-json --module myapp.config --class AppConfig -i partial.json \
+    --save
 ````
 
 The second of those writes the file the class itself would have written: what
@@ -131,11 +132,11 @@ could press Save. Its two graphical relatives, `edit-cfg-json-tk` and
 
 The class is told and never guessed. `--module` names a module that is
 importable, `--file` names a Python file that is not, exactly one of the two is
-required, and the class itself is the one positional argument:
+required, and `--class` names the class in it:
 
 ````sh
-edit-cfg-json --module myapp.config AppConfig -i /etc/myapp.json
-edit-cfg-json --file ./somewhere/cfg.py AppConfig
+edit-cfg-json --module myapp.config --class AppConfig -i /etc/myapp.json
+edit-cfg-json --file ./somewhere/cfg.py --class AppConfig
 ````
 
 `--module` uses the ordinary import path, so `PYTHONPATH` reaches a package
@@ -163,6 +164,34 @@ what its individual members mean — says it in `edit_cfg_json.Settings` and in 
 description mapping, and gets there through `edit` rather than through this
 program. Options for those are what the next version of this program adds.
 
+### A class this editor cannot construct on its own
+
+Most configuration classes take the keyword arguments that `config_as_json`
+documents and nothing else, and this program constructs them from the signature
+it reads. A class that needs an argument of the application's own — a folder, a
+connection, the list of names its own validators accept — is reached through
+`--loader NAME` instead, which names an `edit_cfg_json.ConfigLoader` in the same
+module or file:
+
+````sh
+edit-cfg-json --module myapp.config --loader make_config -i /etc/myapp.json
+````
+
+Whatever the loader needs beyond the five keyword arguments of that protocol has
+to be bound where the loader is written, for instance with
+`functools.partial`, because a command line cannot supply an argument this
+library knows nothing about. `edit_cfg_json.derived_loader` is one line for the
+ordinary case:
+
+````python
+make_config = derived_loader(partial(AppConfig, known_teams=TEAMS))
+````
+
+At least one of `--class` and `--loader` is needed and both are allowed. A
+loader may choose its class by looking at the file it is given, and `--class`
+beside it is then how a script says which class it is prepared to go on with:
+the run stops with its own exit code if the loader answers with another one.
+
 ### How the run ends
 
 The program is meant to be usable from a script, so each way of refusing has an
@@ -183,6 +212,9 @@ exit code of its own:
 | `10` | The values are not ones the application would accept. |
 | `11` | The output file was asked for and was not written. |
 | `12` | The values of that class cannot be written as JSON, so there is nothing to show. |
+| `13` | The name that `--loader` names cannot be called at all. |
+| `14` | The loader needs arguments that a command line cannot supply. |
+| `15` | The loader did not construct the class that `--class` asked for. |
 
 The numbers are `edit_cfg_json.ExitCode`, so a program that runs this one can
 name them instead of writing them out.
@@ -193,7 +225,7 @@ Every one of these programs is also reachable through the package it belongs
 to, which needs nothing to be on `PATH`:
 
 ````sh
-python3 -m edit_cfg_json --module myapp.config AppConfig
+python3 -m edit_cfg_json --module myapp.config --class AppConfig
 ````
 
 ### Completing the command line
@@ -226,6 +258,37 @@ Every other way in which an input file can be wrong is a refusal with a
 message of its own: a key the configuration does not declare, text that cannot
 be read as configuration, values a validator refuses, and a file that cannot
 be read at all.
+
+### A class this editor cannot construct on its own
+
+Most configuration classes take the keyword arguments that `config_as_json`
+documents and nothing else, and this library constructs them from the signature
+it reads. A class that needs an argument of the application's own — a folder, a
+connection, the list of names its own validators accept — is told to `edit` and
+`load_config` as a `ConfigLoader` instead, and `derived_loader` is what an
+application needs for it in one line:
+
+````python
+from functools import partial
+from edit_cfg_json import derived_loader, edit
+
+loader = derived_loader(partial(AppConfig, known_teams=TEAMS))
+saved = edit(config=AppConfig(known_teams=TEAMS), backend=backend,
+             loader=loader, in_file='my_config.cfg')
+````
+
+**Reading a file is the only thing a loader is needed for.** Editing,
+validating and saving apply the buffer to a copy of the object the load
+produced, with the `Config.parse_json` that every configuration class has, so
+they need nothing of its constructor.
+
+Writing the five keyword arguments of the protocol out by hand is the door for
+what that cannot express, which in practice means a class chosen by looking at
+the JSON. Two rules make that work: a loader answers a call with no JSON source
+with the class it uses for a configuration that does not exist yet, and the
+class is chosen when the file is loaded, so the session then edits that class.
+A save asks the loader once more whether the file it is about to write would
+still be read as that class, and refuses to write one that would not.
 
 ### When reading the file changes it
 
@@ -519,7 +582,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 975 passed, 2 deselected in 20s
+- Test result: 1039 passed, 2 deselected in 20s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

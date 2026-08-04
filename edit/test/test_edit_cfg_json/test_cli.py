@@ -3,10 +3,11 @@
 
 The program is what makes any configuration class in reach editable without a
 line of user interface code, so most of what is tested here is the two doors to
-a class and the eight ways of being refused at them. Every refusal is checked
-for both its message and its exit code: a program of this library is meant to
-be used from a script, so the number it ends with is as much part of what it
-promises as the sentence it prints.
+a module, the two ways of saying what to edit in it, and every way of being
+refused at any of them. Every refusal is checked for both its message and its
+exit code: a program of this library is meant to be used from a script, so the
+number it ends with is as much part of what it promises as the sentence it
+prints.
 
 The backend is a stub throughout, which is the point of `run_cli` taking one:
 none of this needs a display or a toolkit.
@@ -23,9 +24,12 @@ import sys
 import pytest
 from edit_cfg_json import DumpEditor, EditModel, EditorBackend, ExitCode, \
     LoadPolicy, add_file_options, named_policy, run_cli
-from edit_cfg_json.cli import NOT_CONFIG_MESSAGE, NOT_IMPORTABLE_MESSAGE, \
-    NOT_PYTHON_MESSAGE, NOT_SHOWABLE_MESSAGE, NO_FILE_MESSAGE, \
-    NO_MODULE_MESSAGE, NO_NAME_MESSAGE
+from edit_cfg_json.cli import LOADER_ARGS_MESSAGE, NOT_CONFIG_MESSAGE, \
+    NOT_IMPORTABLE_MESSAGE, NOT_LOADER_MESSAGE, NOT_PYTHON_MESSAGE, \
+    NOT_SHOWABLE_MESSAGE, NO_FILE_MESSAGE, NO_LOADER_CONFIG, \
+    NO_MODULE_MESSAGE, NO_NAME_MESSAGE, NO_TARGET_MESSAGE, \
+    WRONG_CLASS_MESSAGE
+from .sample_cfg import HOME_VALUE, PICKED_NAME
 
 PROGRAM = 'edit-cfg-json-test'
 """Name the program is given in these tests, which is in every refusal."""
@@ -123,7 +127,20 @@ def _named(class_name: str, *args: str) -> list[str]:
     Returns:
         A whole command line, without the program name.
     """
-    return ['--module', SAMPLE, class_name, *args]
+    return ['--module', SAMPLE, '--class', class_name, *args]
+
+
+def _loaded(loader_name: str, *args: str) -> list[str]:
+    """Return the command line that names one loader of the sample module.
+
+    Args:
+        loader_name: Name in that module that `--loader` is given.
+        args: The rest of the command line.
+
+    Returns:
+        A whole command line, without the program name.
+    """
+    return ['--module', SAMPLE, '--loader', loader_name, *args]
 
 
 def _written(path: Path, text: str) -> Path:
@@ -164,7 +181,7 @@ def test_one_location(args: tuple[str, ...],
     options rather than one `module:Class` argument.
     """
     with pytest.raises(SystemExit) as exit_info:
-        _run(Recorder(), *args, 'FlatCfg')
+        _run(Recorder(), *args, '--class', 'FlatCfg')
     assert exit_info.value.code == ExitCode.USAGE
     assert PROGRAM in capsys.readouterr().err
 
@@ -179,7 +196,7 @@ def test_class_name_needed(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_no_such_module(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a module that cannot be imported is refused by name."""
-    assert _run(Recorder(), '--module', 'no_such_module_here',
+    assert _run(Recorder(), '--module', 'no_such_module_here', '--class',
                 'FlatCfg') == ExitCode.NO_MODULE
     said = capsys.readouterr().err
     assert NO_MODULE_MESSAGE.format(name='no_such_module_here') in said
@@ -190,7 +207,7 @@ def test_no_such_file(tmp_path: Path,
                       capsys: pytest.CaptureFixture[str]) -> None:
     """Test a file that is not there is refused by name."""
     missing = tmp_path / 'nowhere.py'
-    assert _run(Recorder(), '--file', str(missing),
+    assert _run(Recorder(), '--file', str(missing), '--class',
                 'FileCfg') == ExitCode.NO_FILE
     assert NO_FILE_MESSAGE.format(name=missing) in capsys.readouterr().err
 
@@ -206,7 +223,7 @@ def test_not_python(name: str, text: str, tmp_path: Path,
     refusal with the same number.
     """
     path = _written(tmp_path / name, text)
-    assert _run(Recorder(), '--file', str(path),
+    assert _run(Recorder(), '--file', str(path), '--class',
                 'FileCfg') == ExitCode.NOT_PYTHON
     assert NOT_PYTHON_MESSAGE.format(name=path) in capsys.readouterr().err
 
@@ -219,7 +236,7 @@ def test_needs_its_package(tmp_path: Path,
     a relative import. The refusal has to say what will work instead.
     """
     path = _written(tmp_path / 'inside.py', RELATIVE_MODULE)
-    assert _run(Recorder(), '--file', str(path),
+    assert _run(Recorder(), '--file', str(path), '--class',
                 'FileCfg') == ExitCode.NOT_IMPORTABLE
     said = capsys.readouterr().err
     assert NOT_IMPORTABLE_MESSAGE.format(name=path) in said
@@ -278,7 +295,8 @@ def test_file_door(tmp_path: Path) -> None:
     """Test a class reached through a file of its own is edited."""
     path = _written(tmp_path / 'own_file.py', FILE_MODULE)
     backend = Recorder()
-    assert _run(backend, '--file', str(path), 'FileCfg') == ExitCode.OK
+    assert _run(backend, '--file', str(path), '--class',
+                'FileCfg') == ExitCode.OK
     assert backend.model is not None
     assert backend.model.rows[0].value == 'from a file'
 
@@ -292,7 +310,8 @@ def test_file_leaves_no_trace(tmp_path: Path) -> None:
     """
     path = _written(tmp_path / 'traceless.py', FILE_MODULE)
     saved_path = list(sys.path)
-    assert _run(Recorder(), '--file', str(path), 'FileCfg') == ExitCode.OK
+    assert _run(Recorder(), '--file', str(path), '--class',
+                'FileCfg') == ExitCode.OK
     assert sys.path == saved_path
     assert 'traceless' not in sys.modules
 
@@ -305,7 +324,8 @@ def test_second_file_is_read(tmp_path: Path) -> None:
     for path, expected in ((first, 'from a file'),
                            (second, 'from the second')):
         backend = Recorder()
-        assert _run(backend, '--file', str(path), 'FileCfg') == ExitCode.OK
+        assert _run(backend, '--file', str(path), '--class',
+                    'FileCfg') == ExitCode.OK
         assert backend.model is not None
         assert backend.model.rows[0].value == expected
 
@@ -400,17 +420,127 @@ def test_nothing_to_write() -> None:
 def test_invalid_is_reported() -> None:
     """Test a program with no user ends on the verdict of the buffer.
 
-    `NoTextCfg` cannot be given a buffer at all, so its values load and cannot
-    be validated, which is the state this is about. A program that printed
+    `RoundTripCfg` writes a file that it would itself refuse to read, so the
+    values it shows are not a configuration of it. A program that printed
     `invalid` and ended with success could not be used as a check.
     """
-    outcome = _run(DumpEditor(), *_named('NoTextCfg'), interactive=False)
+    outcome = _run(DumpEditor(), *_named('RoundTripCfg'), interactive=False)
     assert outcome == ExitCode.INVALID
 
 
 def test_session_end_is_ok() -> None:
     """Test closing an editor is not a failure, whatever is in the fields."""
     assert _run(Recorder(), *_named('NoTextCfg')) == ExitCode.OK
+
+
+def test_target_needed(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a run that names neither a class nor a loader is refused.
+
+    `argparse` can be asked for exactly one of two options and not for at
+    least one of them, so this refusal is written by hand and still ends the
+    way every wrong command line ends.
+    """
+    with pytest.raises(SystemExit) as exit_info:
+        _run(Recorder(), '--module', SAMPLE)
+    assert exit_info.value.code == ExitCode.USAGE
+    assert NO_TARGET_MESSAGE in capsys.readouterr().err
+
+
+def test_loader_door() -> None:
+    """Test a loader is what opens a class the editor cannot construct."""
+    backend = Recorder()
+    assert _run(backend, *_loaded('extra_arg_loader')) == ExitCode.OK
+    assert backend.model is not None
+    assert backend.model.config_type_name == 'ExtraArgCfg'
+    assert [row.value for row in backend.model.rows] == [HOME_VALUE]
+
+
+def test_loader_reads_file(tmp_path: Path) -> None:
+    """Test the loader is what the input file of such a class is read with."""
+    in_file = _input_file(tmp_path, home='from a file')
+    backend = Recorder()
+    arguments = _loaded('extra_arg_loader', '-i', in_file)
+    assert _run(backend, *arguments) == ExitCode.OK
+    assert backend.model is not None
+    assert [row.value for row in backend.model.rows] == ['from a file']
+
+
+def test_class_beside_loader() -> None:
+    """Test a class named beside a loader is the class that has to come out."""
+    assert _run(Recorder(), *_loaded('extra_arg_loader', '--class',
+                                     'ExtraArgCfg')) == ExitCode.OK
+
+
+def test_wrong_class_refused(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a loader that answers with another class stops the program.
+
+    A loader may choose its class by looking at the file, so `--class` beside
+    it is how a script says which class it is prepared to go on with. The check
+    is made on the object that is really going to be edited.
+    """
+    outcome = _run(Recorder(), *_loaded('picking_loader', '--class',
+                                        'PickedCfg'))
+    assert outcome == ExitCode.WRONG_CLASS
+    expected = WRONG_CLASS_MESSAGE.format(name='picking_loader',
+                                          other='FlatCfg', wanted='PickedCfg')
+    assert expected in capsys.readouterr().err
+
+
+def test_chosen_class_checked(tmp_path: Path) -> None:
+    """Test the class the file selected is the one that `--class` is asked of.
+
+    The loader answers with `FlatCfg` when there is no file, so a check made
+    before the load would have refused this run and this file really is the
+    other class.
+    """
+    in_file = _input_file(tmp_path, name=PICKED_NAME, answer=2)
+    assert _run(Recorder(), *_loaded('picking_loader', '--class', 'PickedCfg',
+                                     '-i', in_file)) == ExitCode.OK
+
+
+def test_not_a_loader(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a name that cannot be called at all is refused as no loader."""
+    outcome = _run(Recorder(), *_loaded('REFUSAL_MESSAGE'))
+    assert outcome == ExitCode.NOT_LOADER
+    name = 'REFUSAL_MESSAGE'
+    expected = NOT_LOADER_MESSAGE.format(module=SAMPLE, name=name)
+    assert expected in capsys.readouterr().err
+
+
+def test_loader_needs_args(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a callable that is not a loader yet says what has to be done.
+
+    A configuration class is exactly that case: it can be called, and it takes
+    none of the five keyword arguments that a loader takes. What a command line
+    cannot supply has to be bound where the loader is written, and saying so
+    plainly is better than a half answer.
+    """
+    outcome = _run(Recorder(), *_loaded('ExtraArgCfg'))
+    assert outcome == ExitCode.LOADER_ARGS
+    said = capsys.readouterr().err
+    assert LOADER_ARGS_MESSAGE.format(name='ExtraArgCfg') in said
+    assert 'TypeError' in said
+
+
+def test_loader_says_nothing(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a loader that will not answer without a file is refused.
+
+    The program asks a loader for a configuration with no JSON source, which
+    is what a loader answers. One that ends the program instead is turned into
+    a refusal, because ending it is never this library's answer.
+    """
+    outcome = _run(Recorder(), *_loaded('exiting_loader'))
+    assert outcome == ExitCode.NO_DEFAULTS
+    expected = NO_LOADER_CONFIG.format(name='exiting_loader')
+    assert expected in capsys.readouterr().err
+
+
+def test_no_such_loader(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a loader name the module does not hold is refused by name."""
+    outcome = _run(Recorder(), *_loaded('no_loader_here'))
+    assert outcome == ExitCode.NO_NAME
+    expected = NO_NAME_MESSAGE.format(module=SAMPLE, name='no_loader_here')
+    assert expected in capsys.readouterr().err
 
 
 def test_added_file_options() -> None:

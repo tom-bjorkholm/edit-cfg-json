@@ -5,6 +5,14 @@ Saving is validating and then writing, and it is refused whenever the
 validation is. An editor that wrote a file the application would then refuse
 to read would have failed at the one thing it exists for.
 
+Where the application said how it loads its own configuration, that is asked
+once more before anything is written, with the very text the file would hold.
+It is the one thing a validation pass cannot answer: the pass applies the
+buffer to the class that is being edited, and a loader that chooses its class
+by looking at the JSON may read the same text back as another class
+altogether. A value that would do that has to be caught here, because after
+the file is written it is the application that meets it.
+
 The file name is whatever the application asked for. This library has no
 opinion about the extension: some applications use `.cfg`, some use `.json`,
 and others use something else again.
@@ -17,12 +25,38 @@ from dataclasses import dataclass
 from io import StringIO
 from typing import NamedTuple, Optional
 from config_as_json import Config, PathOrStr
+from edit_cfg_json.loader import ConfigLoader, ask_loader
 
 NO_DESTINATION = 'There is no file to save to yet. Save as chooses one.'
 """Message of a save that has nowhere to write to."""
 
 NOT_VALID = 'These values are not valid, so they cannot be saved.'
 """Message of a save refused because the buffer is not a configuration."""
+
+NOT_LOADABLE = ('These values cannot be saved: this application would not be '
+                'able to read back the file that they would write.')
+"""Message of a save whose file the application's own loader refuses."""
+
+OTHER_CLASS = ('These values cannot be saved: this application would read the '
+               'file that they would write as {other} and not as {own}.')
+"""Message of a save whose file the loader would read as another class.
+
+Which class a configuration is was settled when the file was opened, and the
+session has been about that class ever since: its members are the rows, and
+its docstring is the label. A value that would select another class is
+therefore not something the editor can follow, and writing the file anyway
+would leave the application with one it may not be able to read at all.
+"""
+
+RELOAD_ERRORS = (KeyError, TypeError, ValueError)
+"""Every way the application's own loader can refuse what would be written.
+
+They are the three ways `config_as_json` refuses anything, which is what a
+loader built around it refuses with, and `ask_loader` turns a loader that ends
+the process into the third of them. A refusal here is a file that is not
+written, exactly like a refused validation, and never an exception the
+application has to handle.
+"""
 
 WRITE_FAILED = 'File {name} cannot be written.'
 """Message of a save whose destination could not be written."""
@@ -98,6 +132,37 @@ def _failed(name: PathOrStr, error: Exception) -> str:
         The message of one refused save.
     """
     return f'{WRITE_FAILED.format(name=name)}\n{type(error).__name__}: {error}'
+
+
+def reload_refusal(loader: Optional[ConfigLoader], config: Config) -> str:
+    """Return why the application would not read back what is to be written.
+
+    An application that said nothing about how it loads is not asked anything,
+    and neither is one whose loader reads back what the editor is showing: both
+    of those are the ordinary case, and both answer with nothing at all.
+
+    Args:
+        loader: How this application constructs its configuration, or None
+            when it did not say and there is nothing to ask.
+        config: Validated configuration object that the save would write.
+
+    Returns:
+        What to tell the user instead of saving, empty when nothing stands in
+        the way of writing the file.
+    """
+    if loader is None:
+        return ''
+    said = StringIO()
+    try:
+        text = config.as_json_string(stderr_file=said)
+        reloaded = ask_loader(loader, stream=said, text=text)
+    except RELOAD_ERRORS as error:
+        told = said.getvalue().strip() or f'{type(error).__name__}: {error}'
+        return f'{NOT_LOADABLE}\n{told}'
+    if isinstance(reloaded, type(config)):
+        return ''
+    return OTHER_CLASS.format(other=type(reloaded).__name__,
+                              own=type(config).__name__)
 
 
 def write_config(config: Config, out_file: PathOrStr) -> SaveOutcome:

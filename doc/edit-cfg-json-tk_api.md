@@ -465,6 +465,7 @@ def edit(config: Config,
          *,
          descriptions: Optional[core.Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
+         loader: Optional[core.ConfigLoader] = None,
          out_file: Optional[PathOrStr] = None,
          policy: core.LoadPolicy = core.LoadPolicy.STRICT_THEN_DEFAULTS,
          settings: core.SettingsSource = core.Settings(),
@@ -483,6 +484,8 @@ documented there.
 - `descriptions` - What the application says about the members it
   declares, or None when it says nothing.
 - `in_file` - File to read, or None to start from the declared defaults.
+- `loader` - How this application constructs its configuration, or None for
+  a class the editor can construct on its own.
 - `out_file` - File to write, or None to write the input file.
 - `policy` - What to do about declared keys the input file does not hold.
 - `settings` - What this application has already decided about key

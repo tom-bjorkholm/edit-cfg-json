@@ -28,8 +28,9 @@
     * [report](#edit_cfg_json.loading.LoadedConfig.report)
   * [ConfigLoadError](#edit_cfg_json.loading.ConfigLoadError)
     * [\_\_init\_\_](#edit_cfg_json.loading.ConfigLoadError.__init__)
-  * [\_defaults](#edit_cfg_json.loading._defaults)
   * [\_explained](#edit_cfg_json.loading._explained)
+  * [\_no\_defaults](#edit_cfg_json.loading._no_defaults)
+  * [\_type\_refusal](#edit_cfg_json.loading._type_refusal)
   * [\_attempt](#edit_cfg_json.loading._attempt)
   * [\_named](#edit_cfg_json.loading._named)
   * [\_change\_lines](#edit_cfg_json.loading._change_lines)
@@ -50,6 +51,9 @@
 * [edit\_cfg\_json.saving](#edit_cfg_json.saving)
   * [NO\_DESTINATION](#edit_cfg_json.saving.NO_DESTINATION)
   * [NOT\_VALID](#edit_cfg_json.saving.NOT_VALID)
+  * [NOT\_LOADABLE](#edit_cfg_json.saving.NOT_LOADABLE)
+  * [OTHER\_CLASS](#edit_cfg_json.saving.OTHER_CLASS)
+  * [RELOAD\_ERRORS](#edit_cfg_json.saving.RELOAD_ERRORS)
   * [WRITE\_FAILED](#edit_cfg_json.saving.WRITE_FAILED)
   * [SAVED](#edit_cfg_json.saving.SAVED)
   * [WRITE\_ERRORS](#edit_cfg_json.saving.WRITE_ERRORS)
@@ -61,6 +65,7 @@
     * [outcome](#edit_cfg_json.saving.SaveState.outcome)
     * [written](#edit_cfg_json.saving.SaveState.written)
   * [\_failed](#edit_cfg_json.saving._failed)
+  * [reload\_refusal](#edit_cfg_json.saving.reload_refusal)
   * [write\_config](#edit_cfg_json.saving.write_config)
 * [edit\_cfg\_json.converting](#edit_cfg_json.converting)
   * [CONVERSION\_ERRORS](#edit_cfg_json.converting.CONVERSION_ERRORS)
@@ -80,6 +85,11 @@
   * [NOT\_IMPORTABLE\_MESSAGE](#edit_cfg_json.cli.NOT_IMPORTABLE_MESSAGE)
   * [NO\_NAME\_MESSAGE](#edit_cfg_json.cli.NO_NAME_MESSAGE)
   * [NOT\_CONFIG\_MESSAGE](#edit_cfg_json.cli.NOT_CONFIG_MESSAGE)
+  * [NO\_TARGET\_MESSAGE](#edit_cfg_json.cli.NO_TARGET_MESSAGE)
+  * [NOT\_LOADER\_MESSAGE](#edit_cfg_json.cli.NOT_LOADER_MESSAGE)
+  * [LOADER\_ARGS\_MESSAGE](#edit_cfg_json.cli.LOADER_ARGS_MESSAGE)
+  * [NO\_LOADER\_CONFIG](#edit_cfg_json.cli.NO_LOADER_CONFIG)
+  * [WRONG\_CLASS\_MESSAGE](#edit_cfg_json.cli.WRONG_CLASS_MESSAGE)
   * [NOT\_SHOWABLE\_MESSAGE](#edit_cfg_json.cli.NOT_SHOWABLE_MESSAGE)
   * [ExitCode](#edit_cfg_json.cli.ExitCode)
     * [OK](#edit_cfg_json.cli.ExitCode.OK)
@@ -95,6 +105,9 @@
     * [INVALID](#edit_cfg_json.cli.ExitCode.INVALID)
     * [NOT\_WRITTEN](#edit_cfg_json.cli.ExitCode.NOT_WRITTEN)
     * [NOT\_SHOWABLE](#edit_cfg_json.cli.ExitCode.NOT_SHOWABLE)
+    * [NOT\_LOADER](#edit_cfg_json.cli.ExitCode.NOT_LOADER)
+    * [LOADER\_ARGS](#edit_cfg_json.cli.ExitCode.LOADER_ARGS)
+    * [WRONG\_CLASS](#edit_cfg_json.cli.ExitCode.WRONG_CLASS)
   * [\_Refusal](#edit_cfg_json.cli._Refusal)
     * [\_\_init\_\_](#edit_cfg_json.cli._Refusal.__init__)
   * [\_default\_policy\_name](#edit_cfg_json.cli._default_policy_name)
@@ -106,8 +119,12 @@
   * [\_python\_file](#edit_cfg_json.cli._python_file)
   * [\_module\_from\_file](#edit_cfg_json.cli._module_from_file)
   * [\_class\_in](#edit_cfg_json.cli._class_in)
-  * [\_config\_class](#edit_cfg_json.cli._config_class)
+  * [\_loader\_in](#edit_cfg_json.cli._loader_in)
+  * [\_named\_module](#edit_cfg_json.cli._named_module)
   * [\_constructed](#edit_cfg_json.cli._constructed)
+  * [\_loader\_config](#edit_cfg_json.cli._loader_config)
+  * [\_target\_config](#edit_cfg_json.cli._target_config)
+  * [\_checked\_class](#edit_cfg_json.cli._checked_class)
   * [\_built\_model](#edit_cfg_json.cli._built_model)
   * [\_outcome](#edit_cfg_json.cli._outcome)
   * [\_session](#edit_cfg_json.cli._session)
@@ -116,6 +133,18 @@
   * [value\_as\_text](#edit_cfg_json.leaf_value.value_as_text)
   * [text\_as\_value](#edit_cfg_json.leaf_value.text_as_value)
   * [values\_differ](#edit_cfg_json.leaf_value.values_differ)
+* [edit\_cfg\_json.loader](#edit_cfg_json.loader)
+  * [NO\_FILE\_NAME](#edit_cfg_json.loader.NO_FILE_NAME)
+  * [LOADER\_EXITED](#edit_cfg_json.loader.LOADER_EXITED)
+  * [ConfigLoader](#edit_cfg_json.loader.ConfigLoader)
+    * [\_\_call\_\_](#edit_cfg_json.loader.ConfigLoader.__call__)
+  * [derived\_loader](#edit_cfg_json.loader.derived_loader)
+  * [ask\_loader](#edit_cfg_json.loader.ask_loader)
+  * [ConfigSource](#edit_cfg_json.loader.ConfigSource)
+    * [config](#edit_cfg_json.loader.ConfigSource.config)
+    * [loader](#edit_cfg_json.loader.ConfigSource.loader)
+    * [config\_type](#edit_cfg_json.loader.ConfigSource.config_type)
+    * [made](#edit_cfg_json.loader.ConfigSource.made)
 * [edit\_cfg\_json.settings](#edit_cfg_json.settings)
   * [DUPLICATE\_KEY](#edit_cfg_json.settings.DUPLICATE_KEY)
   * [NOT\_AN\_EXTENSION](#edit_cfg_json.settings.NOT_AN_EXTENSION)
@@ -207,6 +236,7 @@
   * [\_refreshed](#edit_cfg_json.edit_model._refreshed)
   * [EditModel](#edit_cfg_json.edit_model.EditModel)
     * [\_\_init\_\_](#edit_cfg_json.edit_model.EditModel.__init__)
+    * [\_config\_type](#edit_cfg_json.edit_model.EditModel._config_type)
     * [config\_type\_name](#edit_cfg_json.edit_model.EditModel.config_type_name)
     * [summary](#edit_cfg_json.edit_model.EditModel.summary)
     * [docstring](#edit_cfg_json.edit_model.EditModel.docstring)
@@ -237,10 +267,9 @@
   * [STREAM\_NAME](#edit_cfg_json.constructing.STREAM_NAME)
   * [FILE\_NAME](#edit_cfg_json.constructing.FILE_NAME)
   * [JSON\_TEXT\_NAMES](#edit_cfg_json.constructing.JSON_TEXT_NAMES)
-  * [NO\_JSON\_TEXT](#edit_cfg_json.constructing.NO_JSON_TEXT)
-  * [\_text\_name](#edit_cfg_json.constructing._text_name)
   * [\_arguments](#edit_cfg_json.constructing._arguments)
   * [built\_config](#edit_cfg_json.constructing.built_config)
+  * [parsed\_config](#edit_cfg_json.constructing.parsed_config)
 * [edit\_cfg\_json.\_\_main\_\_](#edit_cfg_json.__main__)
   * [PROGRAM](#edit_cfg_json.__main__.PROGRAM)
   * [main](#edit_cfg_json.__main__.main)
@@ -258,7 +287,7 @@
 * [edit\_cfg\_json.auto\_change](#edit_cfg_json.auto_change)
   * [WRITE\_ERRORS](#edit_cfg_json.auto_change.WRITE_ERRORS)
   * [PARSE\_ERRORS](#edit_cfg_json.auto_change.PARSE_ERRORS)
-  * [KEY\_PROBE\_NAME](#edit_cfg_json.auto_change.KEY_PROBE_NAME)
+  * [KEY\_METHOD](#edit_cfg_json.auto_change.KEY_METHOD)
   * [RECORDED](#edit_cfg_json.auto_change.RECORDED)
   * [ChangeReport](#edit_cfg_json.auto_change.ChangeReport)
     * [\_\_deepcopy\_\_](#edit_cfg_json.auto_change.ChangeReport.__deepcopy__)
@@ -293,10 +322,9 @@
     * [refused](#edit_cfg_json.validation.Attribution.refused)
     * [remaining](#edit_cfg_json.validation.Attribution.remaining)
   * [\_told](#edit_cfg_json.validation._told)
-  * [PROBE\_NAME](#edit_cfg_json.validation.PROBE_NAME)
+  * [PLAN\_METHOD](#edit_cfg_json.validation.PLAN_METHOD)
   * [\_no\_plan](#edit_cfg_json.validation._no_plan)
-  * [\_unvalidated](#edit_cfg_json.validation._unvalidated)
-  * [\_converters\_of](#edit_cfg_json.validation._converters_of)
+  * [\_probe](#edit_cfg_json.validation._probe)
   * [\_unconverted](#edit_cfg_json.validation._unconverted)
   * [\_attribute\_member](#edit_cfg_json.validation._attribute_member)
   * [\_attribute\_step](#edit_cfg_json.validation._attribute_step)
@@ -318,6 +346,11 @@ is already loaded. Both of the things a load has to be told are given to a
 constructor and to nothing else: the hook that reports the automatic changes
 of an old format file, and the policy for declared keys the file does not
 contain.
+
+How that construction happens is the one thing an application may have to say
+for itself, and `loader` is where it says it. Reading a file is also the only
+place the answer is needed: everything the editor does afterwards works on the
+object this produced, by copying it.
 
 Three things can be wrong with an input file, and `config_as_json` reports
 two of them as the same `KeyError`. Which of those two it is follows from
@@ -569,38 +602,6 @@ Say why the file cannot be opened, and what was said about it.
 - `message` - What the editor has to tell the user about this file.
 - `diagnostics` - What the configuration class itself said about it.
 
-<a id="edit_cfg_json.loading._defaults"></a>
-
-#### \_defaults
-
-```python
-def _defaults(config_type: type[Config], said: StringIO,
-              hook: ChangeReport) -> Config
-```
-
-Return one configuration object holding its declared defaults.
-
-The hook is offered whatever the class does with it, because
-`built_config` drops it for a class that does not declare it. What a class
-that takes it reports through it is what explains the automatic changes of
-a file in an older format.
-
-**Arguments**:
-
-- `config_type` - Class of the configuration that is being loaded.
-- `said` - Stream that collects what the class says about itself.
-- `hook` - Hook that the class reports its automatic changes through.
-  
-
-**Returns**:
-
-  A configuration object holding only what the class declares.
-  
-
-**Raises**:
-
-- `ConfigLoadError` - The editor cannot construct this class.
-
 <a id="edit_cfg_json.loading._explained"></a>
 
 #### \_explained
@@ -624,12 +625,63 @@ which is better than no explanation at all.
 
   The diagnostics of one failure.
 
+<a id="edit_cfg_json.loading._no_defaults"></a>
+
+#### \_no\_defaults
+
+```python
+def _no_defaults(source: ConfigSource, said: StringIO,
+                 error: Exception) -> ConfigLoadError
+```
+
+Return the refusal of a configuration the editor cannot construct.
+
+**Arguments**:
+
+- `source` - Configuration being loaded, and how it is constructed.
+- `said` - Stream that collected what the construction said.
+- `error` - The failure that it reported.
+  
+
+**Returns**:
+
+  The refusal to report for it.
+
+<a id="edit_cfg_json.loading._type_refusal"></a>
+
+#### \_type\_refusal
+
+```python
+def _type_refusal(source: ConfigSource, said: StringIO,
+                  error: TypeError) -> ConfigLoadError
+```
+
+Return what one `TypeError` during a load amounts to.
+
+It can mean two quite different things: a configuration this editor cannot
+construct at all, and a value of the file that is of a type the class
+refuses. The two are told apart the same way the two kinds of `KeyError`
+are, by trying the construction that answers it — here a construction with
+no file at all, which succeeds for a class whose own values are fine and
+fails for one that needs an argument nobody has.
+
+**Arguments**:
+
+- `source` - Configuration being loaded, and how it is constructed.
+- `said` - Stream that collected what the load said.
+- `error` - The failure that the load reported.
+  
+
+**Returns**:
+
+  The refusal to report for it.
+
 <a id="edit_cfg_json.loading._attempt"></a>
 
 #### \_attempt
 
 ```python
-def _attempt(config_type: type[Config], text: str, ok_to_use_defaults: bool,
+def _attempt(source: ConfigSource, text: str, ok_to_use_defaults: bool,
              said: StringIO, hook: ChangeReport) -> Config
 ```
 
@@ -642,7 +694,7 @@ caller reports about the load that succeeded.
 
 **Arguments**:
 
-- `config_type` - Class of the configuration that is being loaded.
+- `source` - Configuration being loaded, and how it is constructed.
 - `text` - The whole text of the input file.
 - `ok_to_use_defaults` - Whether the declared defaults may fill in the
   keys the file does not hold.
@@ -737,7 +789,7 @@ configuration class itself said while it read.
 #### \_permissive
 
 ```python
-def _permissive(config_type: type[Config], text: str) -> LoadedConfig
+def _permissive(source: ConfigSource, text: str) -> LoadedConfig
 ```
 
 Load one file text with the defaults filling in what it lacks.
@@ -749,7 +801,7 @@ is either from a newer version or has a misspelled key in it.
 
 **Arguments**:
 
-- `config_type` - Class of the configuration that is being loaded.
+- `source` - Configuration being loaded, and how it is constructed.
 - `text` - The whole text of the input file.
   
 
@@ -767,7 +819,7 @@ is either from a newer version or has a misspelled key in it.
 #### \_rescue
 
 ```python
-def _rescue(config_type: type[Config], text: str, policy: LoadPolicy,
+def _rescue(source: ConfigSource, text: str, policy: LoadPolicy,
             said: str) -> LoadedConfig
 ```
 
@@ -782,7 +834,7 @@ difference between those two policies.
 
 **Arguments**:
 
-- `config_type` - Class of the configuration that is being loaded.
+- `source` - Configuration being loaded, and how it is constructed.
 - `text` - The whole text of the input file.
 - `policy` - What to do about declared keys the file does not hold.
 - `said` - What the class said about the load that failed.
@@ -802,7 +854,7 @@ difference between those two policies.
 #### \_load\_text
 
 ```python
-def _load_text(config_type: type[Config], text: str,
+def _load_text(source: ConfigSource, text: str,
                policy: LoadPolicy) -> LoadedConfig
 ```
 
@@ -810,7 +862,7 @@ Load one file text under one policy, or refuse to open the file.
 
 **Arguments**:
 
-- `config_type` - Class of the configuration that is being loaded.
+- `source` - Configuration being loaded, and how it is constructed.
 - `text` - The whole text of the input file.
 - `policy` - What to do about declared keys the file does not hold.
   
@@ -845,6 +897,9 @@ with the same diagnostics, and the hook that reports the automatic changes
 of an old format file reaches a class that declares it. Nothing reads that
 hook here, because there is no file to read and therefore nothing for it to
 report.
+
+An application whose class needs a constructor argument this library knows
+nothing about has a loader instead, and calls that with no JSON source.
 
 **Arguments**:
 
@@ -894,12 +949,11 @@ stay alive.
 #### load\_config
 
 ```python
-def load_config(
-    config: Config,
-    in_file: Optional[PathOrStr] = None,
-    policy: LoadPolicy = DEFAULT_POLICY,
-    settings: SettingsSource = Settings()
-) -> LoadedConfig
+def load_config(config: Config,
+                in_file: Optional[PathOrStr] = None,
+                policy: LoadPolicy = DEFAULT_POLICY,
+                settings: SettingsSource = Settings(),
+                loader: Optional[ConfigLoader] = None) -> LoadedConfig
 ```
 
 Read the configuration to edit from one file, or use the defaults.
@@ -926,6 +980,12 @@ is the report or the refusal.
 - `settings` - What the application around the editor has already
   decided, or a callable that answers with it. The default is an
   application with no opinion.
+- `loader` - How this application constructs its configuration, or None
+  for a class the editor can construct from the signature it
+  declares. A loader is what a class needing a constructor argument
+  this library knows nothing about is reached through, and it is
+  also what may answer with a class of its own choosing: the class
+  of the object it returns is then the class of the session.
   
 
 **Returns**:
@@ -1055,6 +1115,7 @@ def edit(config: Config,
          *,
          descriptions: Optional[Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
+         loader: Optional[ConfigLoader] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = DEFAULT_POLICY,
          settings: SettingsSource = Settings(),
@@ -1085,6 +1146,11 @@ and the backend asks the user for a destination before it can save.
   labels the object — and a member no description reaches is shown
   without one.
 - `in_file` - File to read, or None to start from the declared defaults.
+- `loader` - How this application constructs its configuration, or None for
+  a class the editor can construct from the signature it declares.
+  An application whose class needs a constructor argument this
+  library knows nothing about says it here, and
+  `edit_cfg_json.derived_loader` is the shortest way to say it.
 - `out_file` - File to write, or None to write the input file. A name
   that has no extension gets the one the application uses for its
   configuration; the input file never does.
@@ -1116,6 +1182,14 @@ Saving is validating and then writing, and it is refused whenever the
 validation is. An editor that wrote a file the application would then refuse
 to read would have failed at the one thing it exists for.
 
+Where the application said how it loads its own configuration, that is asked
+once more before anything is written, with the very text the file would hold.
+It is the one thing a validation pass cannot answer: the pass applies the
+buffer to the class that is being edited, and a loader that chooses its class
+by looking at the JSON may read the same text back as another class
+altogether. A value that would do that has to be caught here, because after
+the file is written it is the application that meets it.
+
 The file name is whatever the application asked for. This library has no
 opinion about the extension: some applications use `.cfg`, some use `.json`,
 and others use something else again.
@@ -1131,6 +1205,36 @@ Message of a save that has nowhere to write to.
 #### NOT\_VALID
 
 Message of a save refused because the buffer is not a configuration.
+
+<a id="edit_cfg_json.saving.NOT_LOADABLE"></a>
+
+#### NOT\_LOADABLE
+
+Message of a save whose file the application's own loader refuses.
+
+<a id="edit_cfg_json.saving.OTHER_CLASS"></a>
+
+#### OTHER\_CLASS
+
+Message of a save whose file the loader would read as another class.
+
+Which class a configuration is was settled when the file was opened, and the
+session has been about that class ever since: its members are the rows, and
+its docstring is the label. A value that would select another class is
+therefore not something the editor can follow, and writing the file anyway
+would leave the application with one it may not be able to read at all.
+
+<a id="edit_cfg_json.saving.RELOAD_ERRORS"></a>
+
+#### RELOAD\_ERRORS
+
+Every way the application's own loader can refuse what would be written.
+
+They are the three ways `config_as_json` refuses anything, which is what a
+loader built around it refuses with, and `ask_loader` turns a loader that ends
+the process into the third of them. A refusal here is a file that is not
+written, exactly like a refused validation, and never an exception the
+application has to handle.
 
 <a id="edit_cfg_json.saving.WRITE_FAILED"></a>
 
@@ -1244,6 +1348,32 @@ Return what a save that could not write the file has to say.
 **Returns**:
 
   The message of one refused save.
+
+<a id="edit_cfg_json.saving.reload_refusal"></a>
+
+#### reload\_refusal
+
+```python
+def reload_refusal(loader: Optional[ConfigLoader], config: Config) -> str
+```
+
+Return why the application would not read back what is to be written.
+
+An application that said nothing about how it loads is not asked anything,
+and neither is one whose loader reads back what the editor is showing: both
+of those are the ordinary case, and both answer with nothing at all.
+
+**Arguments**:
+
+- `loader` - How this application constructs its configuration, or None
+  when it did not say and there is nothing to ask.
+- `config` - Validated configuration object that the save would write.
+  
+
+**Returns**:
+
+  What to tell the user instead of saving, empty when nothing stands in
+  the way of writing the file.
 
 <a id="edit_cfg_json.saving.write_config"></a>
 
@@ -1435,12 +1565,22 @@ also what makes this testable with no display and no toolkit, by handing
 never imports a user interface library, so it cannot name one.
 
 **The class is told and never guessed.** `--module` names an importable module,
-`--file` names a Python file that is not, exactly one of the two is required,
-and the class is a positional argument. A single `module:Class` argument reads
-well and would have to guess which of the two it was given, which is what
-section 8.2.1 of `doc/design.md` settled for this library as a whole; it would
-also make a Windows drive letter a special case, and it would take the refusal
-of a missing or a doubled location away from `argparse`.
+`--file` names a Python file that is not, and exactly one of the two is
+required. A single `module:Class` argument reads well and would have to guess
+which of the two it was given, which is what section 8.2.1 of `doc/design.md`
+settled for this library as a whole; it would also make a Windows drive letter
+a special case, and it would take the refusal of a missing or a doubled
+location away from `argparse`.
+
+**What to edit is either a class or a loader**, and `--class` and `--loader`
+name them in the same module or file. At least one of the two is needed and
+both are allowed: a class alone is constructed on the values it declares, a
+loader alone is asked for a configuration and its class is whatever it answers
+with, and the two together mean that the loader has to answer with that class
+or the program stops. `--loader` is for a class the editor cannot construct on
+its own, so whatever it needs beyond the five keyword arguments of
+`edit_cfg_json.ConfigLoader` has to be bound in the module it is named in — a
+command line cannot supply an argument this library knows nothing about.
 
 **Importing a module runs it.** That is the same exposure as running the file
 with Python, and it is not guarded against, because a guard could only be a
@@ -1508,6 +1648,49 @@ Message of the refusal of a class name that the module does not hold.
 #### NOT\_CONFIG\_MESSAGE
 
 Message of the refusal of a name that is not a configuration class.
+
+<a id="edit_cfg_json.cli.NO_TARGET_MESSAGE"></a>
+
+#### NO\_TARGET\_MESSAGE
+
+Message of the refusal of a command line that says what to edit nowhere.
+
+`argparse` cannot be asked for at least one of two options, only for exactly
+one of them, and either alone is a perfectly good command line here.
+
+<a id="edit_cfg_json.cli.NOT_LOADER_MESSAGE"></a>
+
+#### NOT\_LOADER\_MESSAGE
+
+Message of the refusal of a `--loader` that names something else.
+
+<a id="edit_cfg_json.cli.LOADER_ARGS_MESSAGE"></a>
+
+#### LOADER\_ARGS\_MESSAGE
+
+Message of the refusal of a loader whose own arguments are not bound.
+
+<a id="edit_cfg_json.cli.NO_LOADER_CONFIG"></a>
+
+#### NO\_LOADER\_CONFIG
+
+Message of the refusal of a loader that refused to answer at all.
+
+The editor asks a loader for a configuration with no JSON source, which is what
+`edit_cfg_json.ConfigLoader` says a loader answers. A loader that chooses its
+class by looking at the JSON has to name the class it uses for a configuration
+that does not exist yet, and this is the refusal of one that names none.
+
+<a id="edit_cfg_json.cli.WRONG_CLASS_MESSAGE"></a>
+
+#### WRONG\_CLASS\_MESSAGE
+
+Message of the refusal of a loader that answered with another class.
+
+A loader may choose its class by looking at the JSON, and `--class` beside it
+is how a script says which class it is prepared to go on with. The check is
+what `isinstance` answers, so a loader that answers with a subclass of the
+class that was named is accepted.
 
 <a id="edit_cfg_json.cli.NOT_SHOWABLE_MESSAGE"></a>
 
@@ -1628,6 +1811,29 @@ The values of that configuration class cannot be written as JSON.
 
 There is then nothing to edit at all: the editor reads what it shows by
 serializing the configuration object.
+
+<a id="edit_cfg_json.cli.ExitCode.NOT_LOADER"></a>
+
+#### NOT\_LOADER
+
+The name that `--loader` names cannot be called at all.
+
+<a id="edit_cfg_json.cli.ExitCode.LOADER_ARGS"></a>
+
+#### LOADER\_ARGS
+
+The loader needs arguments that a command line cannot supply.
+
+A loader takes the five keyword arguments of `ConfigLoader` and nothing
+else, so whatever it needs besides them is bound where it is written. A
+program cannot bind an argument it knows nothing about, and saying so
+plainly is better than a half answer.
+
+<a id="edit_cfg_json.cli.ExitCode.WRONG_CLASS"></a>
+
+#### WRONG\_CLASS
+
+The loader did not construct the class that `--class` asked for.
 
 <a id="edit_cfg_json.cli._Refusal"></a>
 
@@ -1752,7 +1958,7 @@ either way.
 #### \_said
 
 ```python
-def _said(message: str, error: Exception) -> str
+def _said(message: str, error: Exception, captured: str = '') -> str
 ```
 
 Return one refusal with what Python said about it below it.
@@ -1761,11 +1967,13 @@ Return one refusal with what Python said about it below it.
 
 - `message` - What the program has to tell the user.
 - `error` - The failure that Python reported.
+- `captured` - What the code that failed wrote to its own diagnostics
+  stream, empty when it wrote nothing or was given none.
   
 
 **Returns**:
 
-  The message, and the failure below it.
+  The message, whatever was said, and the failure below both.
 
 <a id="edit_cfg_json.cli._imported_module"></a>
 
@@ -1875,15 +2083,44 @@ Return one configuration class of one module, or refuse to run.
 
 - `_Refusal` - The module holds no such class.
 
-<a id="edit_cfg_json.cli._config_class"></a>
+<a id="edit_cfg_json.cli._loader_in"></a>
 
-#### \_config\_class
+#### \_loader\_in
 
 ```python
-def _config_class(parsed: Namespace) -> type[Config]
+def _loader_in(module: ModuleType, name: str) -> ConfigLoader
 ```
 
-Return the configuration class that one command line names.
+Return one configuration loader of one module, or refuse to run.
+
+What can be checked here is that the name can be called at all. Whether it
+takes the five keyword arguments of a loader is answered by calling it,
+which is what `_loader_config` below does and reports.
+
+**Arguments**:
+
+- `module` - Module that was named on the command line.
+- `name` - Name of the loader that was asked for.
+  
+
+**Returns**:
+
+  That loader.
+  
+
+**Raises**:
+
+- `_Refusal` - The module holds no such name, or it is nothing to call.
+
+<a id="edit_cfg_json.cli._named_module"></a>
+
+#### \_named\_module
+
+```python
+def _named_module(parsed: Namespace) -> ModuleType
+```
+
+Return the module that one command line names, or refuse to run.
 
 **Arguments**:
 
@@ -1892,12 +2129,12 @@ Return the configuration class that one command line names.
 
 **Returns**:
 
-  The class to edit.
+  That module, imported.
   
 
 **Raises**:
 
-- `_Refusal` - The class cannot be reached.
+- `_Refusal` - The module cannot be reached.
 
 <a id="edit_cfg_json.cli._constructed"></a>
 
@@ -1923,15 +2160,108 @@ Return the declared defaults of one class, or refuse to run.
 
 - `_Refusal` - The editor cannot construct that class. An application
   whose class needs constructor arguments this library knows
-  nothing about supplies an explicit loader instead, which is what
-  step 9 of the delivery plan is about.
+  nothing about names a loader with `--loader` instead.
+
+<a id="edit_cfg_json.cli._loader_config"></a>
+
+#### \_loader\_config
+
+```python
+def _loader_config(loader: ConfigLoader, name: str) -> Config
+```
+
+Return what one loader answers with when there is no file, or refuse.
+
+**Arguments**:
+
+- `loader` - Loader that the command line named.
+- `name` - Name it was named under, which is what a refusal says.
+  
+
+**Returns**:
+
+  The configuration object that the loader constructed.
+  
+
+**Raises**:
+
+- `_Refusal` - The loader cannot be called by a program, or it answered
+  with nothing.
+
+<a id="edit_cfg_json.cli._target_config"></a>
+
+#### \_target\_config
+
+```python
+def _target_config(wanted: Optional[type[Config]],
+                   loader: Optional[ConfigLoader],
+                   name: Optional[str]) -> Config
+```
+
+Return the configuration object that one command line starts from.
+
+A class alone is constructed on the values it declares. A loader is asked
+instead, with no JSON source, which is what `ConfigLoader` says a loader
+answers. Which class that is is not checked here, because it is not settled
+yet: a loader may choose its class by looking at the input file, and the
+class of the session is the class of the object the load produced.
+
+**Arguments**:
+
+- `wanted` - Class that `--class` named, or None when it named none. It is
+  never None when there is no loader, because a command line that
+  names neither is refused before this.
+- `loader` - Loader that the command line named, or None when it named
+  none.
+- `name` - Name the loader was named under, which a refusal says.
+  
+
+**Returns**:
+
+  The configuration object to start the session from.
+  
+
+**Raises**:
+
+- `_Refusal` - There is no configuration object to edit.
+
+<a id="edit_cfg_json.cli._checked_class"></a>
+
+#### \_checked\_class
+
+```python
+def _checked_class(config: Config, wanted: Optional[type[Config]],
+                   name: Optional[str]) -> None
+```
+
+Refuse a loaded configuration that is not the class that was asked for.
+
+`--class` beside a `--loader` is a question rather than an instruction: is
+this the class you are prepared to go on with? It is asked of the object
+that is really going to be edited, so a loader that chose its class by
+looking at the input file is answered for that file. `isinstance` is what
+answers it, so a subclass of the class that was named is accepted.
+
+**Arguments**:
+
+- `config` - Configuration object that the load produced.
+- `wanted` - Class that `--class` named, or None when it named none.
+- `name` - Name of the loader, or None when the command line named none
+  and there is therefore nothing to check.
+  
+
+**Raises**:
+
+- `_Refusal` - The class is not the one that was asked for.
 
 <a id="edit_cfg_json.cli._built_model"></a>
 
 #### \_built\_model
 
 ```python
-def _built_model(parsed: Namespace, config: Config) -> EditModel
+def _built_model(parsed: Namespace, config: Config,
+                 loader: Optional[ConfigLoader],
+                 wanted: Optional[type[Config]]) -> EditModel
 ```
 
 Return the model of one session, on the files that were named.
@@ -1951,7 +2281,10 @@ application that builds the model itself and knows its own class.
 **Arguments**:
 
 - `parsed` - Parsed command line of one run.
-- `config` - Configuration object holding the declared defaults.
+- `config` - Configuration object holding the values to start from.
+- `loader` - Loader that the command line named, or None when it named
+  none.
+- `wanted` - Class that `--class` named, or None when it named none.
   
 
 **Returns**:
@@ -1961,8 +2294,8 @@ application that builds the model itself and knows its own class.
 
 **Raises**:
 
-- `_Refusal` - The input file cannot be opened, or the class cannot be
-  shown at all.
+- `_Refusal` - The input file cannot be opened, the loaded class is not the
+  one that was asked for, or the class cannot be shown at all.
 
 <a id="edit_cfg_json.cli._outcome"></a>
 
@@ -2061,7 +2394,10 @@ written twice is therefore here.
 **Raises**:
 
 - `SystemExit` - The command line itself is wrong, or help was asked for.
-  That is `argparse` reporting it, with `ExitCode.USAGE`.
+  That is `argparse` reporting it, with `ExitCode.USAGE`. A command
+  line that names neither a class nor a loader is one of those, and
+  it is checked here because `argparse` can be asked for exactly one
+  of two options and not for at least one of them.
 
 <a id="edit_cfg_json.leaf_value"></a>
 
@@ -2150,6 +2486,271 @@ the editor has to say so.
 **Returns**:
 
   Whether the two values are different values.
+
+<a id="edit_cfg_json.loader"></a>
+
+# edit\_cfg\_json.loader
+
+How the application says that its configuration is constructed.
+
+Most applications say nothing: their configuration class takes the keyword
+arguments that `config_as_json` documents, and the editor constructs it from
+the signature it reads. An application whose class needs an argument this
+library knows nothing about — a folder, a connection, the list of names its own
+validators accept — has to say so, and a loader is how it says it.
+
+**The signature of a loader is closed.** The editor passes the five things it
+owns, all of them keyword arguments, and everything else is bound before the
+callable reaches the editor, with a closure or `functools.partial`. That is
+what keeps this protocol from growing a parameter for every application that
+has one: what the editor does not know about is not the editor's to pass.
+
+**A loader answers a call with no JSON source**, with the configuration that
+class uses when there is no file yet. The editor asks for that when it is
+started on the declared values rather than on a file, so a loader that chooses
+its class by looking at the JSON has to name the class it uses for a
+configuration that does not exist yet.
+
+**The class is chosen when the file is loaded.** A loader that returns
+different classes for different files is supported, and this is the rule that
+makes it work: the model is built on the object the load produced, and the
+session then edits that class. Nothing asks the loader again while the user
+types, because the rows, the descriptions and the marks are that one class's.
+What a save does ask is whether the file it is about to write would still be
+read as the class being edited, which is where a value that selects another
+class is caught.
+
+<a id="edit_cfg_json.loader.NO_FILE_NAME"></a>
+
+#### NO\_FILE\_NAME
+
+Message of the refusal of a file name given to a derived loader.
+
+<a id="edit_cfg_json.loader.LOADER_EXITED"></a>
+
+#### LOADER\_EXITED
+
+Message of a loader that raised `SystemExit` rather than an exception.
+
+Ending the process is never the right answer inside an editor: it costs the
+user the whole session. `config_as_json` does it in more than one place, so a
+loader written around one of those does it too, and `ask_loader` is where it
+becomes a refusal like any other.
+
+<a id="edit_cfg_json.loader.ConfigLoader"></a>
+
+## ConfigLoader Objects
+
+```python
+@runtime_checkable
+class ConfigLoader(Protocol)
+```
+
+Construct the application's configuration object for the editor.
+
+This is `config_as_json.ConfigFactory` plus the two parameters it lacks, so
+a factory an application already has is nearly one of these. The two that
+are added are the ones a load has to be told: the hook that reports what
+reading an old format file changed, and whether the declared defaults may
+fill in what the file leaves out.
+
+It is checkable at runtime because a program of this library is told the
+name of one on a command line, and a name that turns out to be something
+else has to be refused rather than called. What that check can see is that
+the object can be called at all; whether it takes these five keyword
+arguments is answered by calling it.
+
+<a id="edit_cfg_json.loader.ConfigLoader.__call__"></a>
+
+#### \_\_call\_\_
+
+```python
+def __call__(*,
+             from_json_data_text: Optional[str] = None,
+             from_json_filename: Optional[PathOrStr] = None,
+             ok_to_use_defaults: bool = False,
+             auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
+             stderr_file: TextIO = sys.stderr) -> Config
+```
+
+Construct one configuration object from the given JSON source.
+
+**Arguments**:
+
+- `from_json_data_text` - JSON text to apply, or None for the values
+  that the configuration class declares.
+- `from_json_filename` - File to read. The editor reads its own input
+  files and never passes this, and it is here so that a callable
+  written for `config_as_json` fits without being rewritten.
+- `ok_to_use_defaults` - Whether the declared defaults may fill in the
+  members that the JSON text does not hold.
+- `auto_ch_hook` - Hook that the class reports its automatic changes
+  through, or None when the caller wants none.
+- `stderr_file` - Stream used for user-facing diagnostics.
+  
+
+**Returns**:
+
+  One configuration object holding the values of that source.
+
+<a id="edit_cfg_json.loader.derived_loader"></a>
+
+#### derived\_loader
+
+```python
+def derived_loader(factory: Callable[..., Config]) -> ConfigLoader
+```
+
+Return a loader that constructs one configuration with one callable.
+
+This is what the editor does for a class it is given no loader for, offered
+to an application that needs the same thing with an argument of its own
+bound into it:
+
+
+The callable is asked for a configuration holding its declared values, and
+the JSON text is then applied with `Config.parse_json`. Constructing and
+parsing are two steps because the load policy belongs to the second of
+them: `Config.__init__` takes no `ok_to_use_defaults` at all.
+
+A loader written by hand is the door for anything this cannot express, and
+a class chosen by looking at the JSON is what that means in practice.
+
+````python
+loader = derived_loader(partial(TeamConfig, KNOWN_TEAMS))
+````
+
+**Arguments**:
+
+- `factory` - Class to construct, or a callable that constructs it with
+  arguments of its own already bound.
+  
+
+**Returns**:
+
+  A loader for that callable, which satisfies `ConfigLoader`.
+
+<a id="edit_cfg_json.loader.ask_loader"></a>
+
+#### ask\_loader
+
+```python
+def ask_loader(loader: ConfigLoader,
+               *,
+               stream: TextIO,
+               text: Optional[str] = None,
+               ok_to_use_defaults: bool = False,
+               hook: Optional[ConfigAutoChangeHook] = None) -> Config
+```
+
+Ask one loader for one configuration object of this application.
+
+Every call the editor makes to a loader goes through here, so that a loader
+that ends the process is turned into a refusal in one place rather than in
+four. It becomes a `ValueError`, which is what every caller already reports
+as values the configuration class would not accept.
+
+**Arguments**:
+
+- `loader` - How this application constructs its configuration.
+- `stream` - Stream that collects what the loader says.
+- `text` - JSON text to apply, or None for the declared values.
+- `ok_to_use_defaults` - Whether the declared defaults may fill in what the
+  text does not hold.
+- `hook` - Hook that reports the automatic changes of an old format file.
+  
+
+**Returns**:
+
+  The configuration object that the loader made.
+  
+
+**Raises**:
+
+- `ValueError` - The loader ended the program, or refused the values.
+- `KeyError` - The keys of the text do not match the declared members.
+- `TypeError` - The loader cannot construct the configuration this way.
+- `AttributeError` - The class declares no public member at all.
+
+<a id="edit_cfg_json.loader.ConfigSource"></a>
+
+## ConfigSource Objects
+
+```python
+class ConfigSource(NamedTuple)
+```
+
+The configuration of one session, and how it is constructed.
+
+The two belong together because each of them answers what the other cannot.
+The object says which class is being edited and is what an edit buffer is
+applied to; the loader is how a further object of that class is made, which
+only reading a file needs and only an application can say.
+
+<a id="edit_cfg_json.loader.ConfigSource.config"></a>
+
+#### config
+
+An object of the class being edited, which is never modified.
+
+<a id="edit_cfg_json.loader.ConfigSource.loader"></a>
+
+#### loader
+
+How the application constructs it, None when it did not say.
+
+None does not mean that nothing can be constructed: it means the class is
+constructed from the signature it declares, which is what almost every
+class allows. It is kept apart from a loader that was given, because a save
+checks what it is about to write against a loader the application named and
+has nothing to check it against otherwise.
+
+<a id="edit_cfg_json.loader.ConfigSource.config_type"></a>
+
+#### config\_type
+
+```python
+@property
+def config_type() -> type[Config]
+```
+
+Return the class of the configuration that is being edited.
+
+<a id="edit_cfg_json.loader.ConfigSource.made"></a>
+
+#### made
+
+```python
+def made(*,
+         stream: TextIO,
+         text: Optional[str] = None,
+         ok_to_use_defaults: bool = False,
+         hook: Optional[ConfigAutoChangeHook] = None) -> Config
+```
+
+Return one configuration object of this session's class.
+
+**Arguments**:
+
+- `stream` - Stream that collects what the construction says.
+- `text` - JSON text to apply, or None for the declared values.
+- `ok_to_use_defaults` - Whether the declared defaults may fill in what
+  the text does not hold.
+- `hook` - Hook that reports the automatic changes of an old format
+  file.
+  
+
+**Returns**:
+
+  The configuration object that was constructed.
+  
+
+**Raises**:
+
+- `ValueError` - The values are ones the configuration refuses.
+- `KeyError` - The keys of the text do not match the declared members.
+- `TypeError` - The configuration cannot be constructed this way.
+- `AttributeError` - The class declares no public member at all.
 
 <a id="edit_cfg_json.settings"></a>
 
@@ -3475,6 +4076,7 @@ def __init__(config: Config,
              report: LoadReport = LoadReport(),
              *,
              descriptions: Optional[Descriptions] = None,
+             loader: Optional[ConfigLoader] = None,
              out_file: Optional[PathOrStr] = None,
              settings: SettingsSource = Settings(),
              stderr_file: TextIO = sys.stderr) -> None
@@ -3501,6 +4103,11 @@ before this and what reading it did arrives as the report.
   declares, or None when it says nothing. A member that no
   description reaches is shown without one, which is all that
   saying nothing costs.
+- `loader` - How this application constructs its configuration, or None
+  when it did not say. The model needs it for one thing only: a
+  save asks it whether the application would read back the file
+  that is about to be written, which is the one question the
+  validation of a buffer cannot answer.
 - `out_file` - File that saving writes, or None when the user has not
   chosen one yet and the editor has to ask before it can save.
   It is taken exactly as it is, because a destination that was
@@ -3519,6 +4126,21 @@ before this and what reading it did arrives as the report.
 - `InvalidConfiguration` - The configuration object is not valid.
 - `InvalidConfigurationValue` - A member of the configuration object
   does not hold a valid value.
+
+<a id="edit_cfg_json.edit_model.EditModel._config_type"></a>
+
+#### \_config\_type
+
+```python
+@property
+def _config_type() -> type[Config]
+```
+
+Return the class of the configuration that is being edited.
+
+It is the class of the object the model was built on, whatever else
+an application's loader might have made of another file: which class
+this session is about was settled when that object was loaded.
 
 <a id="edit_cfg_json.edit_model.EditModel.config_type_name"></a>
 
@@ -3870,9 +4492,12 @@ the file is therefore always what the editor is showing.
 
 A configuration the application would refuse is not written, because
 an editor that produced a file its own application cannot read would
-have failed at the one thing it is for. Nor is anything written when
-no destination has been chosen; the editor asks for one instead. Nor
-when the destination is a file name that the application does not
+have failed at the one thing it is for. An application that said how
+it loads is asked that once more, with the text the file would hold,
+because a loader that chooses its class by looking at the JSON is the
+one case a validation pass cannot answer for. Nor is anything written
+when no destination has been chosen; the editor asks for one instead.
+Nor when the destination is a file name that the application does not
 use for its configuration, whether it was chosen here or named in
 the call that built this model.
 
@@ -3962,27 +4587,34 @@ Refresh the buffer from the configuration object that was built.
 
 # edit\_cfg\_json.constructing
 
-Constructing one configuration class the way its own signature allows.
+Building the configuration objects that the editor works with.
 
-The editor constructs the application's configuration class rather than
-receiving an object of it, and it does so in four places: to read the declared
-defaults, to read a file, to validate a buffer, and to say which member of a
-refused buffer was refused. All four ask the same question — what do I call
-this class with — so it is answered here once.
+There are two of them, and only one of them asks the class for anything.
 
-**The signature decides, not one documented shape.** More than one shape is in
-use, and a class the editor refused over the name of a parameter would be
-refused for no reason a reader of it could see. So every parameter this module
-knows the meaning of is passed when the class declares it and left out when it
-does not, which is principle 4 of section 3 of `doc/design.md` applied to a
-constructor: what cannot be said is not said, and the editor is then only less
-pleasant rather than unusable.
+**An object that did not exist before.** The declared defaults and the values
+of an input file both need one, and only the class can make one. More than one
+constructor shape is in use, so every parameter this module knows the meaning
+of is passed when the class declares it and left out when it does not, which is
+principle 4 of section 3 of `doc/design.md` applied to a constructor: what
+cannot be said is not said, and the editor is then only less pleasant rather
+than unusable.
 
-The one thing that cannot degrade quietly is the JSON text. A class with
-nowhere to put it would be constructed on its declared defaults instead, and a
-buffer validated against the defaults would be accepted whatever the user
-typed. That is refused with a `TypeError`, which is what every caller here
-already reports as a configuration it cannot build.
+**An object holding the edit buffer.** Validating the buffer, and saying which
+member of a refused buffer was refused, both need an object holding the values
+that are on the screen. There the class is not asked at all: the object the
+editor already has is copied, and `Config.parse_json` applies the buffer to the
+copy. That runs the whole chain the class runs while it reads a file — the keys
+are matched, the dict shapes are checked against the defaults, the parse
+converters run, the nested configuration objects are built and the validation
+plan is applied — and it needs nothing whatever of the constructor. So a class
+that needs an argument this library knows nothing about is edited, validated
+and saved exactly as well as any other, and only reading a file needs the
+loader that the application supplies for it.
+
+**The JSON text is therefore never given to a constructor**, which is what
+makes that true. It would gain nothing if it were: `Config.__init__` passes the
+text straight to `parse_json` itself, and the one thing that has to go with it
+is the load policy, which `__init__` does not take.
 
 <a id="edit_cfg_json.constructing.HOOK_NAME"></a>
 
@@ -4011,67 +4643,31 @@ Every name a configuration class gives its JSON text parameter.
 `Config.__init__` names it `from_json_data_text`, and the example
 configuration classes that `config_as_json` ships name it `from_json_text` in
 the constructors they declare, as does `ConfigFactory`. Both names are
-therefore in use in practice, so both are looked for, in the order of the one
-that `Config` itself documents first.
-
-<a id="edit_cfg_json.constructing.NO_JSON_TEXT"></a>
-
-#### NO\_JSON\_TEXT
-
-Message of the refusal of a class that cannot be given a buffer.
-
-<a id="edit_cfg_json.constructing._text_name"></a>
-
-#### \_text\_name
-
-```python
-def _text_name(parameters: Mapping[str, inspect.Parameter],
-               config_type: type[Config],
-               text: Optional[str]) -> Optional[str]
-```
-
-Return which parameter of one class takes the JSON text, if any.
-
-**Arguments**:
-
-- `parameters` - The parameters of the constructor of that class.
-- `config_type` - Class that is being constructed, named in the refusal.
-- `text` - The JSON text that is to be given to it, or None when the
-  declared defaults are what is wanted.
-  
-
-**Returns**:
-
-  The name to pass the text under, or None when the class declares none
-  and none is needed.
-  
-
-**Raises**:
-
-- `TypeError` - There is a text to pass and the class takes none.
+therefore in use in practice, so both are looked for. Nothing is ever passed
+under either of them but `None`: a class that declares the parameter without a
+default of its own has to be given one, and a class that declares none is
+constructed without it.
 
 <a id="edit_cfg_json.constructing._arguments"></a>
 
 #### \_arguments
 
 ```python
-def _arguments(config_type: type[Config], stream: TextIO, text: Optional[str],
-               hook: Optional[ConfigAutoChangeHook]) -> dict[str, Any]
+def _arguments(factory: Callable[..., Config], stream: TextIO,
+               hook: Optional[ConfigAutoChangeHook]) -> dict[str, object]
 ```
 
 Return what to call one configuration class with.
 
-The values are a stream, a hook, a JSON text and `None`, and which
-parameter each of them belongs to differs from class to class, so there is
-no one type that they share.
+The values are a stream, a hook and `None`, and which parameter each of
+them belongs to differs from class to class, so there is no one type that
+they share.
 
 **Arguments**:
 
-- `config_type` - Class that is being constructed.
+- `factory` - Class, or callable with its own arguments already bound,
+  that constructs the configuration.
 - `stream` - Stream that collects what the class says about itself.
-- `text` - JSON text to construct it from, or None for the declared
-  defaults. A file name is never passed, because the editor reads
-  the file itself.
 - `hook` - Hook that reports the automatic changes of an old format file,
   or None when the caller wants none.
   
@@ -4079,40 +4675,28 @@ no one type that they share.
 **Returns**:
 
   The keyword arguments for one construction of that class.
-  
-
-**Raises**:
-
-- `TypeError` - There is a text to pass and the class takes none.
 
 <a id="edit_cfg_json.constructing.built_config"></a>
 
 #### built\_config
 
 ```python
-def built_config(config_type: type[Config],
+def built_config(factory: Callable[..., Config],
                  *,
                  stream: TextIO,
-                 text: Optional[str] = None,
                  hook: Optional[ConfigAutoChangeHook] = None) -> Config
 ```
 
-Construct one configuration class, from JSON text or from nothing.
-
-Constructing with no JSON text is what leaves a class holding its declared
-defaults, and constructing with text is the whole of what validating a
-buffer amounts to: the keys are matched, the dict shapes are checked
-against the defaults, the parse converters run, the nested configuration
-objects are built, and the validation plan is applied.
+Construct one configuration holding the values that its class declares.
 
 **Arguments**:
 
-- `config_type` - Class to construct.
+- `factory` - Class to construct, or a callable that constructs it with
+  arguments of its own already bound. A signature is all this needs,
+  and `functools.partial` over a class has one.
 - `stream` - Stream that collects what the class says about itself. It is
   passed only to a class that declares it; one that does not writes
   wherever it writes, which is less pleasant and not a refusal.
-- `text` - JSON text to construct the object from, or None to leave it
-  holding the values the class declares.
 - `hook` - Hook that reports the automatic changes of an old format file.
   It reaches a class that declares the parameter and is dropped for
   one that does not, which is what `config_as_json` leaves to the
@@ -4124,18 +4708,72 @@ objects are built, and the validation plan is applied.
 
 **Returns**:
 
-  A configuration object of that class.
+  A configuration object holding only what the class declares.
   
 
 **Raises**:
 
-- `TypeError` - The class cannot be constructed this way. A class whose
-  constructor needs an argument this library knows nothing about,
-  and a class with nowhere to put the JSON text, are both this.
-- `KeyError` - The keys of the text do not match the declared members.
-- `ValueError` - A value of the text is one the class refuses. Every
+- `TypeError` - The class cannot be constructed this way, which a class
+  whose constructor needs an argument this library knows nothing
+  about is.
+- `ValueError` - The declared values are ones the class refuses. Every
   refusal of `config_as_json` is a subclass of this.
 - `AttributeError` - The class declares no public member at all.
+
+<a id="edit_cfg_json.constructing.parsed_config"></a>
+
+#### parsed\_config
+
+```python
+def parsed_config(config: Config,
+                  text: str,
+                  *,
+                  stream: TextIO,
+                  replace: str = '',
+                  method: Optional[Callable[..., object]] = None) -> Config
+```
+
+Return a copy of one configuration object holding one JSON text.
+
+This is how an edit buffer becomes a configuration object. The copy is what
+keeps the editor from ever modifying the object it was given, and
+`parse_json` is what applies the buffer, with everything the configuration
+class does while it reads a file.
+
+One method of the copy can be replaced, on the object and not on the class,
+which is how the editor reaches a state that the class does not offer: a
+parse that validates nothing, so that the plan can be walked step by step
+afterwards, and a parse that stops at the key check, so that what the
+declared defaults filled in can be read off it. Replacing it on the object
+leaves the class of the application untouched, and `parse_json` does not
+mistake the replacement for a member, because it counts only the attributes
+that are not callable.
+
+**Arguments**:
+
+- `config` - Configuration object whose class and copy are used. It is not
+  modified.
+- `text` - JSON text holding one value per member, which is the edit buffer
+  or the text of an input file.
+- `stream` - Stream that collects what the class says about the text.
+- `replace` - Name of the method to replace on the copy, empty for none.
+- `method` - What to replace that method with, None to replace nothing. It
+  is called as the method is called and without the object, because
+  an attribute of the object is not a bound method.
+  
+
+**Returns**:
+
+  A copy of that configuration object holding the values of the text.
+  
+
+**Raises**:
+
+- `KeyError` - The keys of the text do not match the declared members.
+- `TypeError` - A value of the text is of a type the class refuses.
+- `ValueError` - A value of the text is one the class refuses. Every
+  refusal of `config_as_json` is a subclass of this, and text that
+  is not JSON at all raises `ConfigBadJson`, which is one of them.
 
 <a id="edit_cfg_json.__main__"></a>
 
@@ -4457,7 +5095,7 @@ of the file do not answer it: a key the rules for an older format renamed into
 a member was in the file under another name, and a value those rules supplied
 was in the file under no name at all. What the defaults filled in is exactly
 what the key check of the parse was not given, so the parse is what is asked,
-by a throwaway subclass whose key check records and stops.
+into a copy of the loaded object whose key check records and stops.
 
 <a id="edit_cfg_json.auto_change.WRITE_ERRORS"></a>
 
@@ -4476,18 +5114,18 @@ nothing about the changes here is what leaves that refusal where it belongs.
 
 Every way the parse that records the keys can fail before it records them.
 
-It cannot fail for a text that a load has already read, since the throwaway
-subclass differs from the class that read it in the one method that is not
-reached until the keys have been recorded. It is caught because a mark is not
-worth an exception: what the defaults filled in is then simply not claimed,
-and every member of it is reported as one the load changed instead, which is
-true of it as well and says less.
+It cannot fail for a text that a load has already read, since the probe differs
+from the object that read it in the one method that is not reached until the
+keys have been recorded. It is caught because a mark is not worth an exception:
+what the defaults filled in is then simply not claimed, and every member of it
+is reported as one the load changed instead, which is true of it as well and
+says less.
 
-<a id="edit_cfg_json.auto_change.KEY_PROBE_NAME"></a>
+<a id="edit_cfg_json.auto_change.KEY_METHOD"></a>
 
-#### KEY\_PROBE\_NAME
+#### KEY\_METHOD
 
-Name of the throwaway class that records the keys of one parse.
+Name of the method that the probe below has replaced with a recording.
 
 <a id="edit_cfg_json.auto_change.RECORDED"></a>
 
@@ -4510,6 +5148,11 @@ copy, so a hook that is read afterwards would answer with nothing at all.
 This one is read afterwards, and `__deepcopy__` is how it says so: the
 object is a channel back to the editor, and a copy of a channel is the
 channel.
+
+What that costs is that every copy of a configuration object reports into
+this same hook, so a second parse of the same file records what the first
+one recorded a second time. `file_changes` reads the hook before it parses
+anything, which is where that is dealt with.
 
 <a id="edit_cfg_json.auto_change.ChangeReport.__deepcopy__"></a>
 
@@ -4760,9 +5403,11 @@ def _record_keys(expected_keys: list[str],
 
 Record the keys of one parse, and stop that parse there.
 
-This stands in for `Config.check_key_match` in the throwaway class below,
-so the parameters are that method's and in its order, because that is how
-`Config.parse_json` calls it.
+This stands in for `Config.check_key_match` on the probe below, so the
+parameters are that method's and in its order, because that is how
+`Config.parse_json` calls it. There is no object among them for the same
+reason as in `validation`: an attribute of an object is not a bound method,
+and the real method is a static one in any case.
 
 **Arguments**:
 
@@ -4785,7 +5430,7 @@ so the parameters are that method's and in its order, because that is how
 #### \_filled
 
 ```python
-def _filled(config_type: type[Config], text: str) -> frozenset[str]
+def _filled(config: Config, text: str) -> frozenset[str]
 ```
 
 Return the members whose value the declared defaults supplied.
@@ -4797,15 +5442,15 @@ key of the file into a member, or supplied a value for a member the file
 never had. What the defaults filled in is exactly what the key check of
 the parse was not given, so the parse is what is asked.
 
-The class is therefore parsed a second time, by a throwaway subclass whose
-key check records what it was given and stops the parse there. Stopping is
-what keeps this from repeating anything: everything after the key check is
-what the real load has already done, so the application's own validators
-still run once, on the object that is really being edited.
+The file is therefore parsed a second time, into a copy of the loaded
+object whose key check records what it was given and stops the parse there.
+Stopping is what keeps this from repeating anything: everything after the
+key check is what the real load has already done, so the application's own
+validators still run once, on the object that is really being edited.
 
 **Arguments**:
 
-- `config_type` - Class of the configuration that was loaded.
+- `config` - Configuration object that the load produced.
 - `text` - The whole text of the input file.
   
 
@@ -4852,7 +5497,7 @@ the text of each member means is answered first, by the parse converter the
 class declared for that member, because a value that does not exist cannot be
 validated and the message the configuration class prints for one is about
 JSON rather than about the member. What the application makes of the whole
-buffer is answered next, by constructing a candidate configuration, which is
+buffer is answered next, by applying it to a candidate configuration, which is
 the pass that decides whether the buffer is valid at all. And when that pass
 refuses, the plan is walked a third time to say which members it was about,
 because `Config.validate()` stops at the first step that refuses and can
@@ -5010,85 +5655,64 @@ its exception left to report, which is better than no explanation.
 
   What to tell the user about that refusal.
 
-<a id="edit_cfg_json.validation.PROBE_NAME"></a>
+<a id="edit_cfg_json.validation.PLAN_METHOD"></a>
 
-#### PROBE\_NAME
+#### PLAN\_METHOD
 
-Name of the throwaway class that parses a buffer without validating it.
+Name of the method that the probe below has replaced with nothing.
 
 <a id="edit_cfg_json.validation._no_plan"></a>
 
 #### \_no\_plan
 
 ```python
-def _no_plan(config: Config, stderr_file: TextIO) -> ValidationPlan
+def _no_plan(stderr_file: TextIO) -> ValidationPlan
 ```
 
-Return no validation steps at all, for the throwaway subclass.
+Return no validation steps at all, for the probe object.
 
-<a id="edit_cfg_json.validation._unvalidated"></a>
+It is an attribute of one object rather than a method of a class, so it is
+called without the object, exactly as `parse_converters` and the rest of
+the parse call the real method.
 
-#### \_unvalidated
+<a id="edit_cfg_json.validation._probe"></a>
+
+#### \_probe
 
 ```python
-def _unvalidated(config_type: type[Config]) -> type[Config]
+def _probe(config: Config, members: dict[str, JsonType]) -> Optional[Config]
 ```
 
-Return a subclass of one configuration class that validates nothing.
+Return the buffer in an object that has not been validated.
 
-A configuration object cannot be built without being validated:
-`Config.__init__` ends in `parse_json()`, which ends in `validate()`,
-which raises at the first step that refuses. So the object that could say
-which member was refused is exactly the object that a refusal keeps the
-editor from ever holding.
+A configuration object normally cannot hold a buffer without being
+validated: `Config.parse_json` ends in `validate()`, which raises at the
+first step that refuses. So the object that could say which member was
+refused is exactly the object that a refusal keeps the editor from ever
+holding.
 
-An object of a subclass whose validation plan is empty is that object.
-Everything else the construction does still happens — the keys are
-matched, the dict shapes are checked, the parse converters run, the
-nested configuration objects are built — and only the plan is left out,
-which is what the walk below then applies itself, one member at a time.
+A copy whose validation plan is empty is that object. Everything else the
+parse does still happens — the keys are matched, the dict shapes are
+checked, the parse converters run, the nested configuration objects are
+built — and only the plan is left out, which is what the walk below then
+applies itself, one member at a time.
 
-That is also why this is a subclass rather than an object of the class
-holding its declared defaults with the buffer assigned onto it. Assigning
-would mean applying the parse converters here, which is a second
-implementation of what `config_as_json` does while it parses, and it
-would put a plain dict where a nested configuration object belongs. The
-one method left out is the whole of what this borrows.
+That is also why the buffer is parsed rather than assigned onto the object
+member by member. Assigning would mean applying the parse converters here,
+which is a second implementation of what `config_as_json` does while it
+parses, and it would put a plain dict where a nested configuration object
+belongs. The one method left out is the whole of what this borrows.
 
 **Arguments**:
 
-- `config_type` - Class of the configuration that is being edited.
+- `config` - Configuration object of this session. It is not modified.
+- `members` - The edit buffer, as one JSON space value per member.
   
 
 **Returns**:
 
-  A throwaway subclass of it that runs no validation step.
-
-<a id="edit_cfg_json.validation._converters_of"></a>
-
-#### \_converters\_of
-
-```python
-def _converters_of(probe_type: type[Config]) -> dict[str, ParseConverter]
-```
-
-Return the parse converters that one configuration class declares.
-
-They are read from an object because `parse_converters()` is a method,
-and from an object of the throwaway class because that one can always be
-built. A class the editor cannot construct at all is the one case that
-answers nothing, and a buffer of that class is refused for that reason
-long before any converter would have mattered.
-
-**Arguments**:
-
-- `probe_type` - Throwaway subclass of the class being edited.
-  
-
-**Returns**:
-
-  One converter per member that has one, empty when the class cannot
-  be constructed without arguments this library knows nothing about.
+  An object holding the buffer, or None when the buffer is not a
+  configuration of this class at all.
 
 <a id="edit_cfg_json.validation._unconverted"></a>
 
@@ -5181,7 +5805,7 @@ Return what one step that is about no single member refused, if any.
 #### \_plan\_failures
 
 ```python
-def _plan_failures(config_type: type[Config], probe: Config) -> Attribution
+def _plan_failures(probe: Config) -> Attribution
 ```
 
 Walk the validation plan far enough to say which members are refused.
@@ -5200,14 +5824,14 @@ No validator class is recognised by type in any of this. What is read is
 both of which are public, so an application's own `MemberValidator`
 subclass is attributed exactly as the ones `config_as_json` ships are.
 
-The plan is asked of the class that is being edited and not of the object,
-because the object is of the throwaway subclass and that one has no plan
-at all. It is the plan of the real class that is applied here, step by
-step, which is the whole point.
+The plan is asked of the class and not of the object, because it is the
+object that has no plan: what was replaced on it is the very method that
+answers this. The class of the probe is the class being edited, so what is
+applied here is the application's own plan, step by step, which is the
+whole point.
 
 **Arguments**:
 
-- `config_type` - Class of the configuration that is being edited.
 - `probe` - Configuration object holding the buffer, not yet validated. It
   is modified: a member validator returns the value that is stored
   back into the member, exactly as the real pass stores it.
@@ -5223,16 +5847,14 @@ step, which is the whole point.
 #### \_attribution
 
 ```python
-def _attribution(config_type: type[Config], probe_type: type[Config],
-                 members: dict[str, JsonType]) -> Attribution
+def _attribution(config: Config, members: dict[str, JsonType]) -> Attribution
 ```
 
 Return what the validators of one refused buffer were about.
 
 **Arguments**:
 
-- `config_type` - Class of the configuration that is being edited.
-- `probe_type` - Throwaway subclass of it that runs no validation step.
+- `config` - Configuration object of this session. It is not modified.
 - `members` - The edit buffer, as one JSON space value per member.
   
 
@@ -5247,9 +5869,8 @@ Return what the validators of one refused buffer were about.
 #### \_refused\_verdict
 
 ```python
-def _refused_verdict(config_type: type[Config], probe_type: type[Config],
-                     members: dict[str, JsonType], captured: str,
-                     error: Exception) -> ValidationVerdict
+def _refused_verdict(config: Config, members: dict[str, JsonType],
+                     captured: str, error: Exception) -> ValidationVerdict
 ```
 
 Return the verdict of a pass that the configuration class refused.
@@ -5263,11 +5884,10 @@ instead, so that the same sentence is not on the screen twice.
 
 **Arguments**:
 
-- `config_type` - Class of the configuration that is being edited.
-- `probe_type` - Throwaway subclass of it that runs no validation step.
+- `config` - Configuration object of this session. It is not modified.
 - `members` - The edit buffer, as one JSON space value per member.
-- `captured` - What the refused construction wrote to its stream.
-- `error` - The failure that the construction reported.
+- `captured` - What the refused parse wrote to its stream.
+- `error` - The failure that the parse reported.
   
 
 **Returns**:
@@ -5289,19 +5909,25 @@ Return the pass of a buffer that never became a configuration.
 #### validate\_buffer
 
 ```python
-def validate_buffer(config_type: type[Config],
-                    members: dict[str, JsonType]) -> ValidationPass
+def validate_buffer(config: Config, members: dict[str,
+                                                  JsonType]) -> ValidationPass
 ```
 
-Validate one edit buffer by constructing a candidate configuration.
+Validate one edit buffer by applying it to a candidate configuration.
 
-Constructing a configuration object runs the whole chain that the
-application runs when it reads its own file: key matching, the recursive
-check of dict shapes against the defaults, the parse converters, the
-nested configuration objects and then the validation plan. So the user
-sees exactly the diagnostics that the application would produce, there
-is no second implementation of validation anywhere, and there is no way
-for the editor to accept something the application would then refuse.
+The buffer is applied to a copy of the configuration object with
+`Config.parse_json`, which runs the whole chain the application runs when
+it reads its own file: key matching, the recursive check of dict shapes
+against the defaults, the parse converters, the nested configuration
+objects and then the validation plan. So the user sees exactly the
+diagnostics that the application would produce, there is no second
+implementation of validation anywhere, and there is no way for the editor
+to accept something the application would then refuse.
+
+The class is not constructed, and it is not asked to be. What a
+construction would add is the declaring of the members, which a copy has
+already, so a class that needs a constructor argument this library knows
+nothing about is validated here exactly as well as any other.
 
 What each value means is settled before that, by running the parse
 converter of its member. A value that means nothing is reported as the
@@ -5315,7 +5941,9 @@ and belong on the screen and not in the terminal behind it.
 
 **Arguments**:
 
-- `config_type` - Class of the configuration that is being edited.
+- `config` - Configuration object of this session, which says which class
+  the buffer belongs to and holds everything about it that is not a
+  member. It is not modified.
 - `members` - The edit buffer, as one JSON space value per member.
   
 

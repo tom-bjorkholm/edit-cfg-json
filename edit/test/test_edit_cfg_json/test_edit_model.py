@@ -9,8 +9,9 @@ import json
 import pytest
 from config_as_json import JsonType
 from edit_cfg_json import Descriptions, EditModel, MemberRow, Settings
-from .sample_cfg import DocumentedCfg, ExtraArgCfg, FlatCfg, IntEnumCfg, \
-    ListCfg, NoneCfg, OmitCfg, RangeCfg, RewriteCfg
+from .sample_cfg import PICKED_NAME, DocumentedCfg, ExtraArgCfg, FlatCfg, \
+    IntEnumCfg, ListCfg, NoneCfg, OmitCfg, RangeCfg, RewriteCfg, \
+    picking_loader
 
 ABOUT_NAME = 'What the name of this configuration is for.'
 """Description of the one member that the tests below describe."""
@@ -504,16 +505,18 @@ def test_no_stderr_output(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_validate_unbuildable() -> None:
-    """Test a class the editor cannot construct is refused, not crashed on.
+    """Test a class the editor cannot construct is edited and validated.
 
-    The editor knows nothing about the extra constructor argument until the
-    explicit loader of a later step exists, so a pass has to report that as
-    a verdict rather than let the exception reach the user interface.
+    Nothing here could construct `ExtraArgCfg`, because its constructor needs
+    an argument this library knows nothing about. It does not have to: a buffer
+    is applied to a copy of the object the application handed over, so the
+    class validates it exactly as it validates any other. A loader is what such
+    a class needs for reading a file, and for nothing else.
     """
     model = EditModel(ExtraArgCfg(home='here'))
-    verdict = model.validate()
-    assert not verdict.valid
-    assert 'TypeError' in verdict.diagnostics
+    model.set_text(path=('home',), text='elsewhere')
+    assert model.validate().valid
+    assert next(row.value for row in model.rows) == 'elsewhere'
 
 
 def test_no_destination_yet() -> None:
@@ -855,3 +858,32 @@ def test_converter_on_row() -> None:
     """Test a member that holds no enum carries no converter."""
     assert _row(EditModel(FlatCfg()), 'name').converter is None
     assert _row(EditModel(IntEnumCfg()), 'level').converter is not None
+
+
+def test_loader_refuses_save(tmp_path: Path) -> None:
+    """Test a save asks the loader whether the file could be read back.
+
+    The buffer is valid, and the class being edited is the class the rows are
+    of, so nothing but the loader can say that this file is a file of another
+    class. The model reports it as a save that did not happen, exactly as it
+    reports every other one.
+    """
+    out_file = tmp_path / 'out.json'
+    model = EditModel(FlatCfg(), loader=picking_loader, out_file=out_file)
+    model.set_text(path=('name',), text=PICKED_NAME)
+    outcome = model.save()
+    assert not outcome.saved
+    assert 'PickedCfg' in outcome.message
+    assert model.save_message == outcome.message
+    assert not out_file.exists()
+    assert model.saved_config is None
+
+
+def test_loader_allows_save(tmp_path: Path) -> None:
+    """Test the same model saves what that loader does read back."""
+    out_file = tmp_path / 'out.json'
+    model = EditModel(FlatCfg(), loader=picking_loader, out_file=out_file)
+    model.set_text(path=('name',), text='still flat')
+    assert model.save().saved
+    assert json.loads(out_file.read_text(encoding='UTF-8')) == \
+        {'name': 'still flat', 'answer': 42}

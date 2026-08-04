@@ -12,6 +12,7 @@ from edit_cfg_json.edit_model import EditModel, MemberRow
 from edit_cfg_json.backend import DumpEditor, EditorBackend
 from edit_cfg_json.descriptions import Descriptions
 from edit_cfg_json.editing import edit
+from edit_cfg_json.loader import ConfigLoader, derived_loader
 from edit_cfg_json.loading import ConfigLoadError, LoadPolicy, LoadReport, \
     LoadedConfig, default_config, load_config
 from edit_cfg_json.emphasis import EXPLANATION, Emphasis, LOAD_REMARK, \
@@ -26,8 +27,9 @@ from edit_cfg_json.cli import ExitCode, add_file_options, named_policy, \
     run_cli
 
 __all__ = ['EditModel', 'MemberRow', 'EditorBackend', 'Descriptions', 'edit',
-           'ConfigLoadError', 'LoadPolicy', 'LoadReport', 'LoadedConfig',
-           'load_config', 'SaveOutcome', 'ActionSettings', 'Settings',
+           'ConfigLoadError', 'ConfigLoader', 'LoadPolicy', 'LoadReport',
+           'LoadedConfig', 'derived_loader', 'load_config', 'SaveOutcome',
+           'ActionSettings', 'Settings',
            'SettingsSource', 'ValidationVerdict', 'Emphasis', 'EXPLANATION',
            'LOAD_REMARK', 'MEMBER_DIAGNOSTIC', 'MEMBER_MARK', 'save_emphasis',
            'verdict_emphasis', 'docstring_text', 'load_text', 'model_as_text',

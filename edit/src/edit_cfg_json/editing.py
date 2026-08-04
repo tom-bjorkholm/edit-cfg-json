@@ -16,6 +16,7 @@ from config_as_json import Config, PathOrStr
 from edit_cfg_json.backend import EditorBackend
 from edit_cfg_json.descriptions import Descriptions
 from edit_cfg_json.edit_model import EditModel
+from edit_cfg_json.loader import ConfigLoader
 from edit_cfg_json.loading import DEFAULT_POLICY, LoadPolicy, load_config
 from edit_cfg_json.settings import Settings, SettingsSource
 
@@ -29,6 +30,7 @@ from edit_cfg_json.settings import Settings, SettingsSource
 def edit(config: Config, backend: EditorBackend, *,
          descriptions: Optional[Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
+         loader: Optional[ConfigLoader] = None,
          out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = DEFAULT_POLICY,
          settings: SettingsSource = Settings(),
@@ -56,6 +58,11 @@ def edit(config: Config, backend: EditorBackend, *,
             labels the object — and a member no description reaches is shown
             without one.
         in_file: File to read, or None to start from the declared defaults.
+        loader: How this application constructs its configuration, or None for
+            a class the editor can construct from the signature it declares.
+            An application whose class needs a constructor argument this
+            library knows nothing about says it here, and
+            `edit_cfg_json.derived_loader` is the shortest way to say it.
         out_file: File to write, or None to write the input file. A name
             that has no extension gets the one the application uses for its
             configuration; the input file never does.
@@ -74,10 +81,11 @@ def edit(config: Config, backend: EditorBackend, *,
         ConfigLoadError: The input file cannot be opened for editing.
     """
     loaded = load_config(config=config, in_file=in_file, policy=policy,
-                         settings=settings)
+                         settings=settings, loader=loader)
     model = EditModel(config=loaded.config, report=loaded.report,
-                      descriptions=descriptions, out_file=in_file,
-                      settings=settings, stderr_file=stderr_file)
+                      descriptions=descriptions, loader=loader,
+                      out_file=in_file, settings=settings,
+                      stderr_file=stderr_file)
     # A destination this call names is one that was chosen for this session,
     # so it gets the extension of the application when it has none of its
     # own. The input file is inherited rather than chosen, and is taken

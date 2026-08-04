@@ -28,7 +28,7 @@ of the file do not answer it: a key the rules for an older format renamed into
 a member was in the file under another name, and a value those rules supplied
 was in the file under no name at all. What the defaults filled in is exactly
 what the key check of the parse was not given, so the parse is what is asked,
-by a throwaway subclass whose key check records and stops.
+into a copy of the loaded object whose key check records and stops.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -40,7 +40,7 @@ from io import StringIO
 from typing import NamedTuple, Optional, TextIO
 import json
 from config_as_json import Config, ConfigAutoChangeHook, JsonType
-from edit_cfg_json.constructing import built_config
+from edit_cfg_json.constructing import parsed_config
 
 WRITE_ERRORS = (TypeError, ValueError)
 """Every way in which writing the values of one load back to JSON can fail.
@@ -54,16 +54,16 @@ nothing about the changes here is what leaves that refusal where it belongs.
 PARSE_ERRORS = (KeyError, TypeError, ValueError)
 """Every way the parse that records the keys can fail before it records them.
 
-It cannot fail for a text that a load has already read, since the throwaway
-subclass differs from the class that read it in the one method that is not
-reached until the keys have been recorded. It is caught because a mark is not
-worth an exception: what the defaults filled in is then simply not claimed,
-and every member of it is reported as one the load changed instead, which is
-true of it as well and says less.
+It cannot fail for a text that a load has already read, since the probe differs
+from the object that read it in the one method that is not reached until the
+keys have been recorded. It is caught because a mark is not worth an exception:
+what the defaults filled in is then simply not claimed, and every member of it
+is reported as one the load changed instead, which is true of it as well and
+says less.
 """
 
-KEY_PROBE_NAME = 'RecordedKeys'
-"""Name of the throwaway class that records the keys of one parse."""
+KEY_METHOD = 'check_key_match'
+"""Name of the method that the probe below has replaced with a recording."""
 
 RECORDED = 'The keys of one parse were recorded.'
 """What the exception that carries those keys says for itself."""
@@ -80,6 +80,11 @@ class ChangeReport(ConfigAutoChangeHook):
     This one is read afterwards, and `__deepcopy__` is how it says so: the
     object is a channel back to the editor, and a copy of a channel is the
     channel.
+
+    What that costs is that every copy of a configuration object reports into
+    this same hook, so a second parse of the same file records what the first
+    one recorded a second time. `file_changes` reads the hook before it parses
+    anything, which is where that is dealt with.
     """
 
     def __deepcopy__(self, memo: dict[int, object]) -> 'ChangeReport':
@@ -265,9 +270,11 @@ def _record_keys(expected_keys: list[str], j_keys: list[str],
                  allowed_missing_keys: Optional[list[str]] = None) -> None:
     """Record the keys of one parse, and stop that parse there.
 
-    This stands in for `Config.check_key_match` in the throwaway class below,
-    so the parameters are that method's and in its order, because that is how
-    `Config.parse_json` calls it.
+    This stands in for `Config.check_key_match` on the probe below, so the
+    parameters are that method's and in its order, because that is how
+    `Config.parse_json` calls it. There is no object among them for the same
+    reason as in `validation`: an attribute of an object is not a bound method,
+    and the real method is a static one in any case.
 
     Args:
         expected_keys: The members that the configuration class declares.
@@ -286,7 +293,7 @@ def _record_keys(expected_keys: list[str], j_keys: list[str],
     raise _ParsedKeys(declared=expected_keys, held=j_keys)
 
 
-def _filled(config_type: type[Config], text: str) -> frozenset[str]:
+def _filled(config: Config, text: str) -> frozenset[str]:
     """Return the members whose value the declared defaults supplied.
 
     A load that was allowed to fill in what the file left out cannot afterwards
@@ -296,25 +303,23 @@ def _filled(config_type: type[Config], text: str) -> frozenset[str]:
     never had. What the defaults filled in is exactly what the key check of
     the parse was not given, so the parse is what is asked.
 
-    The class is therefore parsed a second time, by a throwaway subclass whose
-    key check records what it was given and stops the parse there. Stopping is
-    what keeps this from repeating anything: everything after the key check is
-    what the real load has already done, so the application's own validators
-    still run once, on the object that is really being edited.
+    The file is therefore parsed a second time, into a copy of the loaded
+    object whose key check records what it was given and stops the parse there.
+    Stopping is what keeps this from repeating anything: everything after the
+    key check is what the real load has already done, so the application's own
+    validators still run once, on the object that is really being edited.
 
     Args:
-        config_type: Class of the configuration that was loaded.
+        config: Configuration object that the load produced.
         text: The whole text of the input file.
 
     Returns:
         The names of the members that the declared defaults supplied, and
         nothing at all when the parse did not reach the key check.
     """
-    probe = type(KEY_PROBE_NAME, (config_type,),
-                 {'check_key_match': staticmethod(_record_keys)})
-    assert issubclass(probe, Config)
     try:
-        built_config(probe, stream=StringIO(), text=text)
+        parsed_config(config, text, stream=StringIO(), replace=KEY_METHOD,
+                      method=_record_keys)
     except _ParsedKeys as keys:
         return frozenset(keys.declared) - frozenset(keys.held)
     except PARSE_ERRORS:
@@ -339,15 +344,19 @@ def file_changes(config: Config, text: str, hook: ChangeReport,
         What the load did, with every field empty for a file that the load
         took exactly as it stood.
     """
+    # The hook is read first, before anything here parses this file again. The
+    # editor's hook says that a copy of it is itself, which is the only way its
+    # report reaches the editor at all, so the probe below would otherwise
+    # record the same automatic changes into it a second time.
+    reported = FileChanges(old_keys=tuple(hook.old_keys),
+                           supplied=tuple(hook.rocf_val_keys))
     try:
         written = _written(config)
     except WRITE_ERRORS:
         return FileChanges()
     held = _held(text)
-    filled = _filled(config_type=type(config), text=text) if permissive \
-        else frozenset()
-    return FileChanges(filled=filled,
-                       dropped=frozenset(held) - frozenset(written),
-                       changed=_altered(written=written, held=held) - filled,
-                       old_keys=tuple(hook.old_keys),
-                       supplied=tuple(hook.rocf_val_keys))
+    filled = _filled(config=config, text=text) if permissive else frozenset()
+    return reported._replace(filled=filled,
+                             dropped=frozenset(held) - frozenset(written),
+                             changed=_altered(written=written,
+                                              held=held) - filled)

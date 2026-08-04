@@ -1,8 +1,10 @@
 #! /usr/bin/env python3
 """Tests for writing a validated configuration object to a file.
 
-These are the tests of the writing alone. What decides whether there is
-anything to write belongs to the model, and is tested with it.
+These are the tests of the writing alone, and of the one question that is asked
+just before it: whether the application would be able to read back the file
+that is about to be written. What decides whether there is anything to write at
+all belongs to the model, and is tested with it.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -11,8 +13,11 @@ anything to write belongs to the model, and is tested with it.
 from pathlib import Path
 import json
 import pytest
-from edit_cfg_json.saving import write_config
-from .sample_cfg import FlatCfg
+from edit_cfg_json import derived_loader
+from edit_cfg_json.saving import NOT_LOADABLE, OTHER_CLASS, reload_refusal, \
+    write_config
+from .sample_cfg import PICKED_NAME, FlatCfg, PickedCfg, RangeCfg, \
+    picking_loader
 
 READ_ONLY = 0o444
 """Permission bits of a file that its owner may read and not write."""
@@ -79,3 +84,61 @@ def test_nothing_printed(tmp_path: Path,
     """
     write_config(config=FlatCfg(), out_file=tmp_path / 'out.json')
     assert capsys.readouterr() == ('', '')
+
+
+def test_no_loader_no_ask() -> None:
+    """Test an application that said nothing about loading is asked nothing."""
+    assert reload_refusal(loader=None, config=FlatCfg()) == ''
+
+
+def test_loader_rereads() -> None:
+    """Test nothing stands in the way when the loader reads what is written."""
+    assert reload_refusal(loader=picking_loader, config=FlatCfg()) == ''
+
+
+def test_other_class_refused() -> None:
+    """Test values that would select another class are not written.
+
+    Which class is being edited was settled when the file was opened, and the
+    rows are that class's members. A file that this application would read as
+    another class is therefore not something the editor can write and go on
+    showing what it is showing.
+    """
+    text = json.dumps({'name': PICKED_NAME, 'answer': 1})
+    refusal = reload_refusal(loader=picking_loader,
+                             config=FlatCfg(from_json_data_text=text))
+    assert refusal == OTHER_CLASS.format(other='PickedCfg', own='FlatCfg')
+
+
+class _MoreFlatCfg(FlatCfg):
+    """The class being edited, in a more specific class of the same shape."""
+
+
+def test_subclass_accepted() -> None:
+    """Test a loader that answers with a subclass is answering with the class.
+
+    `isinstance` is what the check asks, so an application that loads its own
+    configuration as a more specific class than the one being edited is not
+    stopped by this.
+    """
+    assert reload_refusal(loader=derived_loader(_MoreFlatCfg),
+                          config=FlatCfg()) == ''
+
+
+def test_chosen_class_is_kept() -> None:
+    """Test the class a loader chose for a file is the one it is checked as."""
+    text = json.dumps({'name': PICKED_NAME, 'answer': 1})
+    assert reload_refusal(loader=picking_loader,
+                          config=PickedCfg(from_json_data_text=text)) == ''
+
+
+def test_loader_refuses_file() -> None:
+    """Test a loader that could not read the file back stops the save.
+
+    What the loader said is shown below the message, because that is the only
+    thing that says why: the values are ones the class being edited accepts,
+    and it is the way the application loads them that would not have them.
+    """
+    refusal = reload_refusal(loader=picking_loader, config=RangeCfg())
+    assert refusal.startswith(NOT_LOADABLE)
+    assert 'No value for name' in refusal

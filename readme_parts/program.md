@@ -2,11 +2,11 @@
 
 The class is told and never guessed. `--module` names a module that is
 importable, `--file` names a Python file that is not, exactly one of the two is
-required, and the class itself is the one positional argument:
+required, and `--class` names the class in it:
 
 ````sh
-{{dist_name}} --module myapp.config AppConfig -i /etc/myapp.json
-{{dist_name}} --file ./somewhere/cfg.py AppConfig
+{{dist_name}} --module myapp.config --class AppConfig -i /etc/myapp.json
+{{dist_name}} --file ./somewhere/cfg.py --class AppConfig
 ````
 
 `--module` uses the ordinary import path, so `PYTHONPATH` reaches a package
@@ -34,6 +34,34 @@ what its individual members mean — says it in `edit_cfg_json.Settings` and in 
 description mapping, and gets there through `edit` rather than through this
 program. Options for those are what the next version of this program adds.
 
+### A class this editor cannot construct on its own
+
+Most configuration classes take the keyword arguments that `config_as_json`
+documents and nothing else, and this program constructs them from the signature
+it reads. A class that needs an argument of the application's own — a folder, a
+connection, the list of names its own validators accept — is reached through
+`--loader NAME` instead, which names an `edit_cfg_json.ConfigLoader` in the same
+module or file:
+
+````sh
+{{dist_name}} --module myapp.config --loader make_config -i /etc/myapp.json
+````
+
+Whatever the loader needs beyond the five keyword arguments of that protocol has
+to be bound where the loader is written, for instance with
+`functools.partial`, because a command line cannot supply an argument this
+library knows nothing about. `edit_cfg_json.derived_loader` is one line for the
+ordinary case:
+
+````python
+make_config = derived_loader(partial(AppConfig, known_teams=TEAMS))
+````
+
+At least one of `--class` and `--loader` is needed and both are allowed. A
+loader may choose its class by looking at the file it is given, and `--class`
+beside it is then how a script says which class it is prepared to go on with:
+the run stops with its own exit code if the loader answers with another one.
+
 ### How the run ends
 
 The program is meant to be usable from a script, so each way of refusing has an
@@ -54,6 +82,9 @@ exit code of its own:
 | `10` | The values are not ones the application would accept. |
 | `11` | The output file was asked for and was not written. |
 | `12` | The values of that class cannot be written as JSON, so there is nothing to show. |
+| `13` | The name that `--loader` names cannot be called at all. |
+| `14` | The loader needs arguments that a command line cannot supply. |
+| `15` | The loader did not construct the class that `--class` asked for. |
 
 The numbers are `edit_cfg_json.ExitCode`, so a program that runs this one can
 name them instead of writing them out.
@@ -64,7 +95,7 @@ Every one of these programs is also reachable through the package it belongs
 to, which needs nothing to be on `PATH`:
 
 ````sh
-python3 -m {{import_name}} --module myapp.config AppConfig
+python3 -m {{import_name}} --module myapp.config --class AppConfig
 ````
 
 ### Completing the command line

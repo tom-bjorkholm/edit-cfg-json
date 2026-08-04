@@ -56,6 +56,12 @@ no command line option for that, because it is not the kind of thing a command
 line could supply: it is what the application knows about its own
 configuration, and the editor has no way of finding it out.
 
+An example whose configuration class the editor cannot construct on its own
+hands over a loader in the same way, and for the same reason: what that class
+needs besides the JSON is the application's to know. There is no command line
+option for that either — the two examples that have one build it in Python,
+where the argument that has to be bound is.
+
 `--toggle-explain` stands in for the key that shows or hides the explanatory
 text, in the same way that `--set` stands in for a user typing into a field.
 The editor starts with the explanations shown, so this flag is what shows the
@@ -104,9 +110,9 @@ import argparse
 from dataclasses import fields
 from typing import Optional
 from config_as_json import Config
-from edit_cfg_json import ActionSettings, ConfigLoadError, Descriptions, \
-    DumpEditor, EditModel, EditorBackend, Settings, add_file_options, edit, \
-    named_policy
+from edit_cfg_json import ActionSettings, ConfigLoadError, ConfigLoader, \
+    Descriptions, DumpEditor, EditModel, EditorBackend, Settings, \
+    add_file_options, edit, named_policy
 
 UI_DUMP = 'dump'
 """Value of `--ui` that prints the model instead of opening a window."""
@@ -395,16 +401,22 @@ def _result_text(saved: Optional[Config]) -> str:
     return SAVED_MESSAGE.format(name=type(saved).__name__)
 
 
-def _run_editor(parser: argparse.ArgumentParser, config: Config,
+# One argument per thing that an example hands over, which is what makes this
+# the whole of what an application does. See the same disable on `edit` in the
+# core, which these arguments are passed on to.
+# pylint: disable-next=too-many-arguments
+def _run_editor(*, parser: argparse.ArgumentParser, config: Config,
                 backend: EditorBackend, parsed: argparse.Namespace,
-                descriptions: Optional[Descriptions]) -> Optional[Config]:
+                descriptions: Optional[Descriptions],
+                loader: Optional[ConfigLoader]) -> Optional[Config]:
     """Run one editing session, or say why the input file cannot be opened.
 
     This is the whole of what an application does: it hands over its own
-    configuration object, what it says about the members of it, the files it
-    wants read and written, the policy it wants applied, what it has already
-    decided about keys and file names, and the user interface to use. The
-    editor does the rest, and gives back what it wrote.
+    configuration object, what it says about the members of it, how that
+    object is constructed when the editor cannot work it out for itself, the
+    files it wants read and written, the policy it wants applied, what it has
+    already decided about keys and file names, and the user interface to use.
+    The editor does the rest, and gives back what it wrote.
 
     Args:
         parser: Parser used to report the error and exit.
@@ -412,6 +424,7 @@ def _run_editor(parser: argparse.ArgumentParser, config: Config,
         backend: User interface to run the session in.
         parsed: Parsed command line of one example run.
         descriptions: What the example says about its members, or None.
+        loader: How the example constructs its configuration, or None.
 
     Returns:
         The configuration object that was saved, or None when the session
@@ -419,7 +432,8 @@ def _run_editor(parser: argparse.ArgumentParser, config: Config,
     """
     try:
         saved = edit(config=config, backend=backend, in_file=parsed.input,
-                     descriptions=descriptions, out_file=parsed.output,
+                     descriptions=descriptions, loader=loader,
+                     out_file=parsed.output,
                      policy=named_policy(parsed.policy),
                      settings=_settings(parser=parser, parsed=parsed))
     except ConfigLoadError as error:
@@ -431,12 +445,14 @@ def _run_editor(parser: argparse.ArgumentParser, config: Config,
 
 def run_example(example_name: str, config: Config,
                 args: Optional[list[str]] = None,
-                descriptions: Optional[Descriptions] = None) -> None:
+                descriptions: Optional[Descriptions] = None,
+                loader: Optional[ConfigLoader] = None) -> None:
     """Run one example program from the command line.
 
     This is the whole contract between an example and this module: the
     example says what it is called, hands over the configuration object it
-    wants to edit, and says what it has to say about the members of it.
+    wants to edit, says what it has to say about the members of it, and says
+    how that object is constructed if the editor cannot construct it itself.
 
     Args:
         example_name: Name of the example, used in help and error text.
@@ -445,6 +461,9 @@ def run_example(example_name: str, config: Config,
         args: Optional replacement for `sys.argv[1:]`, mainly for tests.
         descriptions: What this example says about the members it declares,
             or None for an example that says nothing about them.
+        loader: How this example constructs its configuration, or None for a
+            class that the editor can construct on its own, which is what
+            every example but the last two is.
     """
     parser = _create_parser(example_name)
     parsed = parser.parse_args(args)
@@ -453,4 +472,4 @@ def run_example(example_name: str, config: Config,
                           parsed=parsed)
     print(_result_text(_run_editor(parser=parser, config=config,
                                    backend=backend, parsed=parsed,
-                                   descriptions=descriptions)))
+                                   descriptions=descriptions, loader=loader)))

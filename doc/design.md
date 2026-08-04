@@ -544,9 +544,45 @@ reading `inspect.signature()` to decide what that class can be told. The hook
 is one of those things (see section 5.3) and the name of the JSON text is
 another, because more than one name for it is in use; section 8.3.4 is where
 that was found and why it is answered from the signature rather than from one
-documented shape. All four places that construct the application's class ask
-one internal module what to call it with, so the answer cannot differ between
-them.
+documented shape.
+
+**The derived loader is published**, as `derived_loader`, because an
+application that needs one usually needs exactly this with one argument of its
+own bound into it, and a hand-written loader for that would be six lines of
+what the editor already does:
+
+```python
+loader = derived_loader(partial(TeamConfig, KNOWN_TEAMS))
+```
+
+It reads the signature of whatever it is given, and `functools.partial` over a
+class has one. Writing the protocol out by hand stays the door for anything
+this cannot express, which in practice means a class chosen by looking at the
+JSON. Settled at step 9.
+
+**Loading is the only thing that needs the loader**, which is what makes it
+affordable. Section 6.1 does not construct the class at all, so an application
+that has a loader needs it for reading a file and for nothing else, and one
+that has no loader is no worse off anywhere else.
+
+**A loader answers a call with no JSON source.** That answer is the
+configuration the editor edits when it was given no file, so the protocol asks
+for it, and a loader that chooses its class by looking at the JSON has to name
+the class it uses for a configuration that does not exist yet.
+
+**A loader may choose the class**, and one rule makes that work: the class is
+chosen when the file is loaded, and the session then edits that class. Nothing
+asks the loader again while the user types, because the rows, the descriptions
+and the marks are that one class's. What a save asks is section 7's question,
+and it is where a value that would select another class is caught.
+
+**A loader that ends the process is turned into a refusal.**
+`config_as_json` ends the process for a file it cannot make sense of —
+`config_factory_from_json` does it when no matcher accepts the JSON — so a
+loader written around it does too, and inside an editor that would cost the
+user the whole session. Every call the editor makes to a loader goes through
+one function, which turns `SystemExit` into the `ValueError` that every caller
+already reports as values the configuration would not accept.
 
 **`Config.__init__` takes no `ok_to_use_defaults`.** Confirmed against the
 implementation in `./venv` at step 4: the parameter belongs to
@@ -635,8 +671,8 @@ was not given, which is exactly what the declared defaults supplied. A load
 that was allowed to use them cannot be asked afterwards, and the keys of the
 file do not answer it either, because ROCF may have renamed a key of the file
 into a member or supplied a value for one the file never held. So the parse is
-asked, by a throwaway subclass whose `check_key_match` records what it was
-given and stops the parse there — the same borrowing as section 6.3, and
+asked, by a copy of the loaded object whose `check_key_match` records what it
+was given and stops the parse there — the same borrowing as section 6.3, and
 stopping is what keeps the application's own validators running once, on the
 object that is really being edited. Settled at step 8, where computing the flag
 from the keys of the file turned out to claim that a renamed member had been
@@ -701,22 +737,46 @@ what the load would write, so such a class has nothing to compare — and it
 cannot be shown at all, for the same reason. The comparison then reports
 nothing and the refusal stays where section 8.3.4 put it.
 
+**The hook is read before anything parses that file again.** Saying that a copy
+of the hook is the hook is what makes the report reach the editor at all, and it
+also means that every copy of the configuration object reports into the same
+hook. The parse that answers what the defaults filled in is one of those copies,
+so it records the same automatic changes a second time, and a hook read after it
+would name every older key twice. Found at step 9, when that parse stopped being
+a subclass built from nothing and became a copy of the loaded object.
+
 ## 6. Validation
 
 ### 6.1 Whole-configuration validation
 
-`Config.__init__` already runs the entire chain: key matching, recursive
+`Config.parse_json` runs the entire chain: key matching, recursive
 dict-shape checks against defaults, `parse_converters()`, nested-config
 construction, and then `get_validation_plan()`. So a validation pass is:
 
-> serialize the edit buffer to JSON text, construct a candidate config
-> from that text with a captured `stderr_file`, and catch `KeyError`,
-> `ConfigBadJson`, `TypeError`, `ValueError`, `InvalidConfiguration`,
-> `InvalidConfigurationValue` and `InvalidConfigurationType`.
+> serialize the edit buffer to JSON text, apply it with `parse_json` to a deep
+> copy of the configuration object of this session with a captured
+> `stderr_file`, and catch `KeyError`, `ConfigBadJson`, `TypeError`,
+> `ValueError`, `InvalidConfiguration`, `InvalidConfigurationValue` and
+> `InvalidConfigurationType`.
 
 The user sees exactly the diagnostics the application would see at load
 time. There is no second validation implementation and no way for the
 editor to accept something the application later rejects.
+
+**The class is not constructed, and it does not have to be.** This document
+first said "construct a candidate config from that text", and step 9 found
+that the construction adds nothing: the declaring of the members is the whole
+of what a constructor does before `parse_json`, and a copy has that already.
+Even the derived loader of section 5.1 never gives the text to a constructor,
+because the load policy belongs to `parse_json` and not to `__init__`.
+
+Copying instead of constructing is what makes two classes editable that were
+refused before: one whose constructor needs an argument this library knows
+nothing about, and one with no JSON text parameter at all. Both are validated
+and saved like any other, and the loader an application supplies is then for
+reading a file and for nothing else. Copying is also what keeps a session on
+one class where a loader would choose another (section 5.1), and it is what
+gives the probe of section 6.3 the object it needs.
 
 ### 6.2 Subtree validation, and why folding is the natural trigger
 
@@ -762,25 +822,36 @@ Note that `validate_member` receives the whole `config` object and may
 inspect other members, so a complete candidate must be built first;
 individual fields cannot be validated in isolation.
 
-**The candidate this needs cannot be built the ordinary way**, and that is
-what step 7 had to solve. `Config.__init__` ends in `parse_json()`, which ends
-in `validate()`, which raises at the first step that refuses — so the object
-that could say which member was refused is exactly the object that a refusal
-keeps the editor from ever holding. A throwaway subclass whose
-`get_validation_plan` returns nothing is that object: everything else the
-construction does still happens, and only the plan is left out, which is what
-the walk then applies itself. The plan is asked of the real class, so what is
+**The candidate this needs cannot be held the ordinary way**, and that is
+what step 7 had to solve. `Config.parse_json()` ends in `validate()`, which
+raises at the first step that refuses — so the object that could say which
+member was refused is exactly the object that a refusal keeps the editor from
+ever holding. A copy whose `get_validation_plan` returns nothing is that
+object: everything else the parse does still happens, and only the plan is left
+out, which is what the walk then applies itself. The plan is asked of the class
+and not of the object, because it is the object that has none, so what is
 applied is the application's own plan and not the empty one.
 
-**The reason it is a subclass and not a default instance** is that the whole
-parse chain runs on the way in: the keys are matched, the dict shapes are
-checked against the defaults, the parse converters run, and from section 4.1's
-step onwards the nested configuration objects are built. The alternative —
-construct the declared defaults and assign the buffer onto them — would mean
-the editor applying the converters itself, which is a second implementation of
-something `config_as_json` already does, and it would put a plain `dict` where
-a nested `Config` object belongs. The subtraction of one method is the whole of
-what this borrows; everything else is the library's.
+**The reason the buffer is parsed and not assigned** is that the whole parse
+chain runs on the way in: the keys are matched, the dict shapes are checked
+against the defaults, the parse converters run, and from section 4.1's step
+onwards the nested configuration objects are built. Assigning the buffer onto
+an object member by member would mean the editor applying the converters
+itself, which is a second implementation of something `config_as_json` already
+does, and it would put a plain `dict` where a nested `Config` object belongs.
+The subtraction of one method is the whole of what this borrows; everything
+else is the library's.
+
+**The method is left out on the object and not on a class.** Step 7 built this
+as a throwaway subclass, and step 9 replaced that with one attribute of one
+copy, for two reasons. It works for a class the editor cannot construct, which
+a subclass of it does not: the loader an application supplies constructs the
+application's class and not the editor's subclass of it. And it leaves the real
+method where the walk needs it, because the class of the copy is untouched.
+`parse_json` does not mistake the replacement for a member, because it counts
+the attributes of the object that are not callable. The same borrowing answers
+what the declared defaults filled in (section 5.2), where the method left out
+is the key check.
 
 **The walk differs from `Config.validate()` in two deliberate ways.** A member
 that is refused is recorded and the walk goes on, so that every member the
@@ -864,6 +935,16 @@ behaviour.
 - A destination that cannot be written — a folder that does not exist, a file
   that may not be written to — is a message and not a crash, for the same
   reason: the alternative costs the user the whole session.
+- **Where the application said how it loads, that is asked once more before
+  anything is written**, with the very text the file would hold. It is the one
+  question a validation pass cannot answer: the pass applies the buffer to the
+  class of the session (section 6.1), and a loader that chooses its class by
+  looking at the JSON may read the same text back as another class altogether. A
+  file the loader refuses, and one it would read as a class the session is not
+  about, are both a refused save with a message; `isinstance` is what the second
+  of those asks, so a loader that answers with a subclass is answering with the
+  class. An application that supplied no loader is asked nothing, and the class
+  it edits is the class it gets. Settled at step 9.
 
 ### 7.1 Draft file (room left, not implemented in v1)
 
@@ -892,8 +973,8 @@ now, and is a rewrite if it is not.
 def edit(config: Config, backend: EditorBackend, *,
          descriptions: Optional[Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
-         out_file: Optional[PathOrStr] = None,
          loader: Optional[ConfigLoader] = None,
+         out_file: Optional[PathOrStr] = None,
          policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
          settings: SettingsSource = Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]:
@@ -901,7 +982,11 @@ def edit(config: Config, backend: EditorBackend, *,
 
 The `config` argument serves as the schema and defaults source and stays
 the ergonomic front door; `loader` is the door for applications with
-constructor arguments we do not know about.
+constructor arguments we do not know about. It stays required when a loader is
+given, because the protocol says a loader answers a call with no JSON source
+(section 5.1), so an application that has one has an object of its class as
+well; `load_config` and `EditModel` take the loader for the same reason and on
+the same terms.
 
 `descriptions` is an optional keyword and not the required positional argument
 this document first gave it. An application that describes none of its members
@@ -1132,11 +1217,32 @@ complete their own command lines with `argcomplete`.
 #### 8.3.2 The class is told, and never guessed
 
 `--module` names an importable module and `--file` names a Python file, exactly
-one of the two is required, and the class is a positional argument. A single
-`module:Class` argument reads better and would have to guess which of the two it
-was given, which is the decision section 8.2.1 already took for this library as
-a whole; it would also make a Windows drive letter a special case, and it would
-take the refusal of a missing or a doubled location away from `argparse`.
+one of the two is required. A single `module:Class` argument reads better and
+would have to guess which of the two it was given, which is the decision section
+8.2.1 already took for this library as a whole; it would also make a Windows
+drive letter a special case, and it would take the refusal of a missing or a
+doubled location away from `argparse`.
+
+**What to edit is either a class or a loader**, named by `--class` and
+`--loader` in that module or file. At least one is needed and both are allowed:
+a class alone is constructed on the values it declares, a loader alone is asked
+for a configuration and the class it answers with is the class of the session,
+and the two together mean that the loader has to answer with that class or the
+program stops. The check is made on the object that is really going to be
+edited, so a loader that chose its class from the input file is answered for
+that file, and `isinstance` is what it asks.
+
+The class was a positional argument until step 9 and is a named option now, so
+that the two ways of saying what to edit are symmetric. `argparse` can be asked
+for exactly one of two options and not for at least one of them, so the refusal
+of a command line that names neither is the one that is written by hand.
+
+**A loader cannot be finished off from a command line**, and the refusal says
+so: whatever it needs beyond the five keyword arguments of `ConfigLoader` has
+to be bound where the loader is written, because a command line cannot supply
+an argument this library knows nothing about. That refusal, a name that cannot
+be called at all, and a loader that answered with the wrong class each have a
+number of their own, for the reason section 8.3.3 gives.
 
 The file door puts the folder of the file at the front of `sys.path` and imports
 it by its own stem, so a module that imports its neighbours works, and it puts
@@ -1175,10 +1281,13 @@ found two things that no example in this repository would have.
   `ConfigFactory`. 32 of those classes were refused by the editor over the name
   of a parameter. The editor now reads the signature and passes every parameter
   it knows the meaning of, which is principle 4 of section 3 applied to a
-  constructor. The one thing that cannot degrade quietly is the JSON text: a
-  class with nowhere to put it would be constructed on its declared defaults
-  instead, and a buffer validated against the defaults would be accepted
-  whatever the user typed, so that is refused.
+  constructor. Step 7B answered that by passing the text under whichever name
+  the class declares, and refusing a class that declares neither, because a
+  buffer validated against the declared defaults would be accepted whatever the
+  user typed. Step 9 removed both: no text is passed to a constructor at all
+  (sections 5.1 and 6.1), so a class with nowhere to put it is edited like any
+  other, and the names are looked for only to pass `None` under one that has no
+  default of its own.
 - **A class may not be able to serialize itself.** The editor reads the values
   it shows with `as_json_string()`, so a class that leaves part of its own
   writing to code outside itself has nothing for the editor to show at all. That
@@ -1186,10 +1295,11 @@ found two things that no example in this repository would have.
   that `EditModel` already documents for an application that builds the model
   itself and knows its own class.
 
-The four places that construct the application's class — the declared defaults,
-the load, the validation of a buffer, and the walk that attributes a refusal —
-now ask one internal module what to call it with, so the answer cannot differ
-between them.
+The places that construct the application's class ask one internal module what
+to call it with, so the answer cannot differ between them. Step 7B had four of
+them; two are left after step 9, the declared defaults and the load, because
+the validation of a buffer and the walk that attributes a refusal now copy an
+object rather than construct one.
 
 ## 9. Settings the application owns
 

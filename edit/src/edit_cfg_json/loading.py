@@ -7,6 +7,11 @@ constructor and to nothing else: the hook that reports the automatic changes
 of an old format file, and the policy for declared keys the file does not
 contain.
 
+How that construction happens is the one thing an application may have to say
+for itself, and `loader` is where it says it. Reading a file is also the only
+place the answer is needed: everything the editor does afterwards works on the
+object this produced, by copying it.
+
 Three things can be wrong with an input file, and `config_as_json` reports
 two of them as the same `KeyError`. Which of those two it is follows from
 retrying the load with the declared defaults filling in what the file lacks:
@@ -37,6 +42,7 @@ from typing import NamedTuple, Optional
 from config_as_json import Config, ConfigBadJson, PathOrStr
 from edit_cfg_json.auto_change import ChangeReport, FileChanges, file_changes
 from edit_cfg_json.constructing import built_config
+from edit_cfg_json.loader import ConfigLoader, ConfigSource
 from edit_cfg_json.settings import Settings, SettingsSource, checked_file, \
     current_settings
 
@@ -199,33 +205,6 @@ class ConfigLoadError(Exception):
         super().__init__('\n'.join(part for part in parts if part))
 
 
-def _defaults(config_type: type[Config], said: StringIO,
-              hook: ChangeReport) -> Config:
-    """Return one configuration object holding its declared defaults.
-
-    The hook is offered whatever the class does with it, because
-    `built_config` drops it for a class that does not declare it. What a class
-    that takes it reports through it is what explains the automatic changes of
-    a file in an older format.
-
-    Args:
-        config_type: Class of the configuration that is being loaded.
-        said: Stream that collects what the class says about itself.
-        hook: Hook that the class reports its automatic changes through.
-
-    Returns:
-        A configuration object holding only what the class declares.
-
-    Raises:
-        ConfigLoadError: The editor cannot construct this class.
-    """
-    try:
-        return built_config(config_type, stream=said, hook=hook)
-    except DEFAULTS_ERRORS as error:
-        raise ConfigLoadError(NO_DEFAULTS.format(name=config_type.__name__),
-                              _explained(said=said, error=error)) from error
-
-
 def _explained(said: StringIO, error: Exception) -> str:
     """Return what a failed load has to say for itself.
 
@@ -242,7 +221,50 @@ def _explained(said: StringIO, error: Exception) -> str:
     return said.getvalue() or f'{type(error).__name__}: {error}'
 
 
-def _attempt(config_type: type[Config], text: str, ok_to_use_defaults: bool,
+def _no_defaults(source: ConfigSource, said: StringIO,
+                 error: Exception) -> ConfigLoadError:
+    """Return the refusal of a configuration the editor cannot construct.
+
+    Args:
+        source: Configuration being loaded, and how it is constructed.
+        said: Stream that collected what the construction said.
+        error: The failure that it reported.
+
+    Returns:
+        The refusal to report for it.
+    """
+    name = source.config_type.__name__
+    return ConfigLoadError(NO_DEFAULTS.format(name=name),
+                           _explained(said=said, error=error))
+
+
+def _type_refusal(source: ConfigSource, said: StringIO,
+                  error: TypeError) -> ConfigLoadError:
+    """Return what one `TypeError` during a load amounts to.
+
+    It can mean two quite different things: a configuration this editor cannot
+    construct at all, and a value of the file that is of a type the class
+    refuses. The two are told apart the same way the two kinds of `KeyError`
+    are, by trying the construction that answers it — here a construction with
+    no file at all, which succeeds for a class whose own values are fine and
+    fails for one that needs an argument nobody has.
+
+    Args:
+        source: Configuration being loaded, and how it is constructed.
+        said: Stream that collected what the load said.
+        error: The failure that the load reported.
+
+    Returns:
+        The refusal to report for it.
+    """
+    try:
+        source.made(stream=StringIO())
+    except DEFAULTS_ERRORS:
+        return _no_defaults(source=source, said=said, error=error)
+    return ConfigLoadError(BAD_VALUES, _explained(said=said, error=error))
+
+
+def _attempt(source: ConfigSource, text: str, ok_to_use_defaults: bool,
              said: StringIO, hook: ChangeReport) -> Config:
     """Try once to build one configuration object from one file text.
 
@@ -252,7 +274,7 @@ def _attempt(config_type: type[Config], text: str, ok_to_use_defaults: bool,
     caller reports about the load that succeeded.
 
     Args:
-        config_type: Class of the configuration that is being loaded.
+        source: Configuration being loaded, and how it is constructed.
         text: The whole text of the input file.
         ok_to_use_defaults: Whether the declared defaults may fill in the
             keys the file does not hold.
@@ -267,16 +289,18 @@ def _attempt(config_type: type[Config], text: str, ok_to_use_defaults: bool,
         ConfigLoadError: The file cannot be opened for editing.
     """
     try:
-        config = _defaults(config_type=config_type, said=said, hook=hook)
-        config.parse_json(from_json_text=text, stderr_file=said,
-                          ok_to_use_defaults=ok_to_use_defaults)
+        return source.made(stream=said, text=text, hook=hook,
+                           ok_to_use_defaults=ok_to_use_defaults)
     except ConfigBadJson as error:
         raise ConfigLoadError(NOT_CONFIG,
                               _explained(said=said, error=error)) from error
-    except (TypeError, ValueError) as error:
+    except AttributeError as error:
+        raise _no_defaults(source=source, said=said, error=error) from error
+    except TypeError as error:
+        raise _type_refusal(source=source, said=said, error=error) from error
+    except ValueError as error:
         raise ConfigLoadError(BAD_VALUES,
                               _explained(said=said, error=error)) from error
-    return config
 
 
 def _named(names: Iterable[str]) -> str:
@@ -344,7 +368,7 @@ def _report(config: Config, text: str, said: str, hook: ChangeReport,
                       filled=changes.filled, changed=changes.changed)
 
 
-def _permissive(config_type: type[Config], text: str) -> LoadedConfig:
+def _permissive(source: ConfigSource, text: str) -> LoadedConfig:
     """Load one file text with the defaults filling in what it lacks.
 
     A key the configuration does not declare is still refused, because
@@ -353,7 +377,7 @@ def _permissive(config_type: type[Config], text: str) -> LoadedConfig:
     is either from a newer version or has a misspelled key in it.
 
     Args:
-        config_type: Class of the configuration that is being loaded.
+        source: Configuration being loaded, and how it is constructed.
         text: The whole text of the input file.
 
     Returns:
@@ -365,7 +389,7 @@ def _permissive(config_type: type[Config], text: str) -> LoadedConfig:
     said = StringIO()
     hook = ChangeReport()
     try:
-        config = _attempt(config_type=config_type, text=text, said=said,
+        config = _attempt(source=source, text=text, said=said,
                           ok_to_use_defaults=True, hook=hook)
     except KeyError as error:
         raise ConfigLoadError(UNKNOWN_KEY,
@@ -375,7 +399,7 @@ def _permissive(config_type: type[Config], text: str) -> LoadedConfig:
                                        said=said.getvalue(), permissive=True))
 
 
-def _rescue(config_type: type[Config], text: str, policy: LoadPolicy,
+def _rescue(source: ConfigSource, text: str, policy: LoadPolicy,
             said: str) -> LoadedConfig:
     """Retry a load that the keys of the file made fail.
 
@@ -387,7 +411,7 @@ def _rescue(config_type: type[Config], text: str, policy: LoadPolicy,
     difference between those two policies.
 
     Args:
-        config_type: Class of the configuration that is being loaded.
+        source: Configuration being loaded, and how it is constructed.
         text: The whole text of the input file.
         policy: What to do about declared keys the file does not hold.
         said: What the class said about the load that failed.
@@ -398,18 +422,18 @@ def _rescue(config_type: type[Config], text: str, policy: LoadPolicy,
     Raises:
         ConfigLoadError: The file cannot be opened for editing.
     """
-    rescued = _permissive(config_type=config_type, text=text)
+    rescued = _permissive(source=source, text=text)
     if policy is LoadPolicy.STRICT:
         raise ConfigLoadError(INCOMPLETE, said)
     return rescued
 
 
-def _load_text(config_type: type[Config], text: str,
+def _load_text(source: ConfigSource, text: str,
                policy: LoadPolicy) -> LoadedConfig:
     """Load one file text under one policy, or refuse to open the file.
 
     Args:
-        config_type: Class of the configuration that is being loaded.
+        source: Configuration being loaded, and how it is constructed.
         text: The whole text of the input file.
         policy: What to do about declared keys the file does not hold.
 
@@ -420,14 +444,14 @@ def _load_text(config_type: type[Config], text: str,
         ConfigLoadError: The file cannot be opened for editing.
     """
     if policy is LoadPolicy.DEFAULTS:
-        return _permissive(config_type=config_type, text=text)
+        return _permissive(source=source, text=text)
     said = StringIO()
     hook = ChangeReport()
     try:
-        config = _attempt(config_type=config_type, text=text, said=said,
+        config = _attempt(source=source, text=text, said=said,
                           ok_to_use_defaults=False, hook=hook)
     except KeyError:
-        return _rescue(config_type=config_type, text=text, policy=policy,
+        return _rescue(source=source, text=text, policy=policy,
                        said=said.getvalue())
     return LoadedConfig(config=config,
                         report=_report(config=config, text=text, hook=hook,
@@ -449,6 +473,9 @@ def default_config(config_type: type[Config]) -> Config:
     hook here, because there is no file to read and therefore nothing for it to
     report.
 
+    An application whose class needs a constructor argument this library knows
+    nothing about has a loader instead, and calls that with no JSON source.
+
     Args:
         config_type: Class to construct with no JSON source, which leaves it
             holding only what it declares.
@@ -459,8 +486,12 @@ def default_config(config_type: type[Config]) -> Config:
     Raises:
         ConfigLoadError: The editor cannot construct this class.
     """
-    return _defaults(config_type=config_type, said=StringIO(),
-                     hook=ChangeReport())
+    said = StringIO()
+    try:
+        return built_config(config_type, stream=said, hook=ChangeReport())
+    except DEFAULTS_ERRORS as error:
+        raise ConfigLoadError(NO_DEFAULTS.format(name=config_type.__name__),
+                              _explained(said=said, error=error)) from error
 
 
 def _file_text(in_file: PathOrStr) -> str:
@@ -491,7 +522,8 @@ def _file_text(in_file: PathOrStr) -> str:
 
 def load_config(config: Config, in_file: Optional[PathOrStr] = None,
                 policy: LoadPolicy = DEFAULT_POLICY,
-                settings: SettingsSource = Settings()) -> LoadedConfig:
+                settings: SettingsSource = Settings(),
+                loader: Optional[ConfigLoader] = None) -> LoadedConfig:
     """Read the configuration to edit from one file, or use the defaults.
 
     The caller's object is the source of the class and of the declared
@@ -515,6 +547,12 @@ def load_config(config: Config, in_file: Optional[PathOrStr] = None,
         settings: What the application around the editor has already
             decided, or a callable that answers with it. The default is an
             application with no opinion.
+        loader: How this application constructs its configuration, or None
+            for a class the editor can construct from the signature it
+            declares. A loader is what a class needing a constructor argument
+            this library knows nothing about is reached through, and it is
+            also what may answer with a class of its own choosing: the class
+            of the object it returns is then the class of the session.
 
     Returns:
         The configuration object to edit, and what the load did to its
@@ -528,5 +566,5 @@ def load_config(config: Config, in_file: Optional[PathOrStr] = None,
     checked = checked_file(name=in_file, settings=current_settings(settings))
     if checked.message:
         raise ConfigLoadError(checked.message)
-    return _load_text(config_type=type(config), policy=policy,
-                      text=_file_text(checked.name))
+    return _load_text(source=ConfigSource(config=config, loader=loader),
+                      policy=policy, text=_file_text(checked.name))

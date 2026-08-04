@@ -81,6 +81,7 @@ that introduces each one is where the name is finally settled.
 | `add_file_options` | function, the shared file and policy options | step 7B |
 | `named_policy` | function, a `--policy` value as a `LoadPolicy` | step 7B |
 | `ConfigLoader` | `Protocol` | step 9 |
+| `derived_loader` | function, a loader made from one callable | step 9 |
 
 `Descriptions` is the only type alias the design asks for, and
 `doc/design.md` section 2.6 already declares it, so introducing it in step
@@ -1037,7 +1038,90 @@ opening an old-format file visibly reports the migration. Risk: the
 hook-independent diff is the primary mechanism and must be tested with a
 config class that does *not* accept a hook.
 
-**Step 9 — The explicit loader.** Add the `ConfigLoader` protocol and the
+**Step 9 — The explicit loader.**
+
+Status: **Implemented and committed.**
+
+**Found before building it, which decided the shape of the step.** A class the
+editor cannot construct was refused in *four* places and not one: the declared
+defaults, the load, the candidate that validates a buffer, and the probe that
+attributes a refusal to a member. A loader that only fixed the load would have
+opened a file into an editor that could never validate or save it.
+
+**Decided while building it.**
+
+- **A buffer becomes a configuration by copying and parsing, not by
+  constructing.** `deepcopy` of the object of the session plus the public
+  `Config.parse_json` runs the same chain a construction runs — key matching,
+  the dict shape checks, the parse converters, the nested objects, the plan —
+  and needs nothing of the constructor. The derived loader never gave the text
+  to a constructor either, because the load policy belongs to `parse_json`, so
+  nothing was lost. Two refusals disappeared with it: a class needing a
+  constructor argument this library knows nothing about, and a class with no
+  JSON text parameter at all, are now edited, validated and saved like any
+  other, with no loader. `built_config` lost its `text` argument and
+  `NO_JSON_TEXT` with it. Recorded in `doc/design.md` sections 5.1, 6.1 and
+  8.3.4.
+- **The two throwaway subclasses became one method replaced on one copy.** A
+  subclass cannot be used where a loader constructs the application's class,
+  and replacing the method on the object leaves the real one where the walk of
+  section 6.3 needs it. `parse_json` counts the attributes that are not
+  callable, so the replacement is no member. `constructing.parsed_config` is
+  the one place both probes and the candidate go through.
+- **Loading is therefore the only thing the loader is needed for**, which is
+  what design section 5 said it was for all along. It reaches `edit`,
+  `load_config` and `EditModel`; the model needs it for one thing only, which
+  is the save.
+- **A save asks the loader whether the file it is about to write would be read
+  back**, and refuses when it would not, or when it would be read as another
+  class. That is the one question a validation pass cannot answer, because the
+  pass applies the buffer to the class of the session. `isinstance` is what the
+  class question asks. Recorded in section 7.
+- **A class-choosing loader is supported**, with two rules: a loader answers a
+  call with no JSON source, and the class is chosen when the file is loaded and
+  the session then edits that class. `config_factory_from_json` cannot be a
+  loader as it stands — it needs exactly one JSON source and it ends the
+  process — so an application wraps it, and every call the editor makes goes
+  through `ask_loader`, which turns `SystemExit` into a refusal.
+- **`derived_loader` is published**, so that an application with one extra
+  constructor argument writes one line instead of a six line wrapper. It reads
+  a signature, and `functools.partial` over a class has one.
+- **`--class` replaces the positional class name**, symmetric with the new
+  `--loader`; at least one of the two is needed, both are allowed, and both
+  together check the class of the object that will really be edited. Three exit
+  codes were added: 13 for a name that cannot be called, 14 for a loader whose
+  own arguments are not bound, 15 for a loader that answered with the wrong
+  class.
+- New public names: `ConfigLoader`, `derived_loader`, plus `loader` keywords on
+  `edit`, `load_config`, `EditModel` and both backends' `edit`. New internal
+  module `loader.py` holding the protocol, `derived_loader`, `ask_loader` and
+  `ConfigSource`, and `saving.reload_refusal`. No type alias was needed.
+
+**Found while building it, and the lesson it carries.** The hook that reports
+the automatic changes of an old format file says that a copy of itself is
+itself, which is the only way its report reaches the editor. Once the probe for
+the *filled from default* flag became a copy of the loaded object rather than a
+fresh subclass, that probe reported into the same hook a second time and every
+older key was named twice. `file_changes` now reads the hook before anything
+parses the file again. The lesson is that a channel back to the editor is
+shared by every copy of the object, so what it holds has to be read before the
+next parse and not after it. Recorded in section 5.3.
+
+**Observable outcome.** `e06_factory_config.py` declares a class that is told
+which teams exist, so the editor cannot construct it, and hands over
+`derived_loader(partial(TeamConfig, KNOWN_TEAMS))`. `--ui dump -i
+examples/data/e06_teams.json --set team=alp` completes the name to `alpha` by
+the rule that only the application could have written, and the same file through
+`edit-cfg-json --module example.e06_factory_config --class TeamConfig` is refused
+with the message that names the class, while `--loader team_loader` opens it.
+`e07_chosen_class.py` declares two classes of the same shape and a loader
+written by hand that picks by the `mode` member: `-i examples/data/e07_model.json`
+edits `Cad3DConfig`, `--set mode=2D --save` is refused because the file would be
+read as `Cad2DConfig`, and the drawing file with `--set mode=3D --save` is
+refused because the model class would not read it back at all. Both graphical
+backends show the same.
+
+**What it was planned to be.** Add the `ConfigLoader` protocol and the
 `loader` parameter, completing the `edit()` signature of design section 8.
 A new example `e06_factory_config.py` has a config needing constructor
 arguments this library knows nothing about, bound with
@@ -1060,7 +1144,7 @@ supply, and saying so plainly is better than a half-answer.
 **Step 10 — Lists and dicts of scalars.** Ordinary JSON structure inside
 one config's ownership region: render as an indented tree and edit the
 leaves. No adding, no removing, no nested configs. A new example
-`e07_lists_and_dicts.py`. A dict or dict can be folded to single line,
+`e08_lists_and_dicts.py`. A dict or dict can be folded to single line,
 or opended to view all elements. Risk: this is where `model_as_text`
 and the two backends stop being trivially parallel; expect to move
 tree flattening into the core.
@@ -1068,7 +1152,7 @@ tree flattening into the core.
 **Step 11 — Nested `Config` objects.** `nested_configs()` becomes the
 first-authority source it is in design section 4.1. A nested config is a
 first-class node with its own type, docstring and validity state, and it
-segments the tree. A new example `e08_nested_config.py`, modelled on
+segments the tree. A new example `e09_nested_config.py`, modelled on
 `e33_nested_configs.py`. Open question to settle when this step starts:
 `ConfigNestingKind` also has `OPTIONAL_MEMBER`, which design section 11
 neither includes nor excludes. Decide it explicitly rather than by
@@ -1078,7 +1162,7 @@ accident.
 and folding a nested config validates that subtree by constructing its
 `config_type` from that subtree's JSON. Show *subtree-valid* and
 *config-valid* as the two distinct states they are; a subtree can be valid
-while the root is not, and both should be shown. `e08_nested_config.py`
+while the root is not, and both should be shown. `e09_nested_config.py`
 gains the badges. Risk: a `WholeConfigValidator` on a parent relates
 members across a nesting boundary, so a green subtree badge must never be
 allowed to read as "the file can be saved".
@@ -1089,7 +1173,7 @@ allowed to read as "the file can be saved".
 configs, and the `'['` step in description paths meaning "every list
 element or every dictionary value at this point", which is what stops the
 application repeating itself per index or per key. A new example
-`e09_config_containers.py`, modelled on `e34_list_nested_configs.py` and
+`e10_config_containers.py`, modelled on `e34_list_nested_configs.py` and
 `e35_dict_nested_configs.py`.
 
 **Step 14 — Adding and removing elements.** Add and remove elements of
@@ -1099,7 +1183,7 @@ it has no nesting declaration, there is no template and none can be
 invented: the UI says so and offers reorder and remove but not extend.
 `DICT_VALUE_BY_KEY` members and dicts listed in `_unchecked_dicts` are out
 of v1 scope and must be reported as such rather than half-supported. A new
-example `e10_add_remove.py` demonstrates all three cases side by side,
+example `e11_add_remove.py` demonstrates all three cases side by side,
 including the two that are refused.
 
 ### Milestone 5 — release readiness

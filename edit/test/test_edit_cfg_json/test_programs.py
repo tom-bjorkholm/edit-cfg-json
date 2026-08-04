@@ -114,7 +114,8 @@ def test_supplies_own_backend(spec: ProgramSpec,
                      interactive=interactive)
         return ExitCode.OK
     monkeypatch.setattr(entry_point, 'run_cli', fake_run_cli)
-    assert entry_point.main(['--module', MISSING_MODULE, 'Cfg']) is ExitCode.OK
+    command = ['--module', MISSING_MODULE, '--class', 'Cfg']
+    assert entry_point.main(command) is ExitCode.OK
     assert type(given['backend']).__name__ == spec.backend
     assert given['prog'] == spec.program
     assert given['interactive'] is spec.interactive
@@ -128,7 +129,7 @@ def test_module_run_refuses(spec: ProgramSpec) -> None:
     this needs no display, and the exit code says the refusal survived being a
     real process rather than a returned number.
     """
-    done = _module_run(spec, '--module', MISSING_MODULE, 'Cfg')
+    done = _module_run(spec, '--module', MISSING_MODULE, '--class', 'Cfg')
     assert done.returncode == ExitCode.NO_MODULE
     assert MISSING_MODULE in done.stderr
 
@@ -149,7 +150,8 @@ def test_save_only_no_user(spec: ProgramSpec) -> None:
     option is not added at all, which is better than an option that exists and
     then says it means nothing here.
     """
-    done = _module_run(spec, '--save', '--module', MISSING_MODULE, 'Cfg')
+    done = _module_run(spec, '--save', '--module', MISSING_MODULE, '--class',
+                       'Cfg')
     expected = ExitCode.USAGE if spec.interactive else ExitCode.NO_MODULE
     assert done.returncode == expected
     if spec.interactive:

@@ -5,14 +5,17 @@
 # MIT License
 
 from enum import Enum, IntEnum
+from functools import partial
 from typing import Optional, TextIO
 import sys
 from config_as_json import Config, ConfigAutoChangeHook, ConfigPath, \
     InvalidConfiguration, IntFloatValidator, MemberValidationStep, \
     MemberValidator, ParseConverter, PathOrStr, ReadOldConfiguration, \
-    RocfKeyRename, StrCaseChangeValidator, StrCaseSpec, StrPositionSpec, \
+    RocfKeyRename, SerializeConverter, SerializeConverters, \
+    StrCaseChangeValidator, StrCaseSpec, StrPositionSpec, \
     StrValidator, ValidationPlan, ValueTypeValidator, \
     WholeConfigValidationStep, WholeConfigValidator
+from edit_cfg_json import derived_loader
 
 REFUSAL_MESSAGE = 'The application refuses {name}.'
 """Message of the validator that refuses without saying anything else."""
@@ -360,39 +363,48 @@ class RulesCfg(SampleCfg):
                 WholeConfigValidationStep(validator=TooLarge())]
 
 
+ACCEPTED_VALUE = 'text'
+"""The one value that `SilentRefusal` accepts, and the declared default."""
+
+
 class SilentRefusal(MemberValidator):  # pylint: disable=too-few-public-methods
     """A member validator of the kind an application writes for itself.
 
-    It refuses every value with a plain `ValueError` and writes nothing to
-    the diagnostics stream, which an application's own validator is free to
-    do. It is what shows that a verdict still has something to report when
-    the configuration class itself reported nothing.
+    It refuses with a plain `ValueError` and writes nothing to the diagnostics
+    stream, which an application's own validator is free to do. It is what
+    shows that a verdict still has something to report when the configuration
+    class itself reported nothing.
+
+    The declared default is the one value it accepts, so the class below is one
+    an application could really have. A validator that refused that value too
+    would make the class impossible to construct, and therefore impossible to
+    reach the editor with at all.
     """
 
     def validate_member(self, config: Config, member_name: str,
                         member_value: object,
                         stderr_file: TextIO = sys.stderr) -> Optional[object]:
-        """Refuse the value without writing to the diagnostics stream."""
-        _ = (config, member_value, stderr_file)
+        """Refuse anything but the declared value, and say nothing about it."""
+        _ = (config, stderr_file)
+        if member_value == ACCEPTED_VALUE:
+            return member_value
         raise ValueError(REFUSAL_MESSAGE.format(name=member_name))
 
 
 class RefuseCfg(SampleCfg):
-    """A configuration whose own validator refuses every value.
+    """A configuration whose own validator refuses without a word.
 
-    No application could use this class, because its own declared defaults
-    are refused and every way into the editor constructs it first. It is here
-    to make one thing reachable that is otherwise hard to reach: a validator
-    that refuses without writing a word, which an application's own validator
-    is free to do and which the editor still has to explain.
+    It is here to make one thing reachable that is otherwise hard to reach: a
+    validator that refuses without writing anything, which an application's own
+    validator is free to do and which the editor still has to explain.
     """
 
     def declare_members(self) -> None:
-        """Assign the one member that the validator refuses."""
-        self.name: str = 'text'
+        """Assign the one member, holding the one value that is accepted."""
+        self.name: str = ACCEPTED_VALUE
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
-        """Return the step that refuses whatever the member holds."""
+        """Return the step that refuses any other value of that member."""
         _ = stderr_file
         return [MemberValidationStep(member_names=['name'],
                                      validator=SilentRefusal())]
@@ -565,12 +577,13 @@ class AltNameCfg(Config):
 
 
 class NoTextCfg(Config):
-    """A configuration class that cannot be given JSON text at all.
+    """A configuration class whose constructor takes no JSON text at all.
 
-    Its declared defaults can be read, because reading them needs no JSON, but
-    a buffer cannot be handed back to it. Constructing it on the defaults
-    instead and calling that a validation pass would accept whatever the user
-    typed, so the editor refuses it instead.
+    The editor never passes a JSON text to a constructor, so this class is
+    constructed, edited, validated and saved exactly as any other: a buffer
+    reaches it through `Config.parse_json`, which every configuration class
+    has. It was refused until step 9, when the construction of a candidate
+    became a copy of the object instead.
     """
 
     def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
@@ -583,6 +596,126 @@ class NoTextCfg(Config):
         """Return no extra validation steps."""
         _ = stderr_file
         return []
+
+
+SHOUTED = 'TEXT'
+"""The value that `RoundTripCfg` declares, and the only one it accepts."""
+
+
+def _shouted(value: object) -> str:
+    """Return one piece of text, refusing it unless it is upper case."""
+    text = str(value)
+    if text != text.upper():
+        raise ValueError(f'{text} is not upper case.')
+    return text
+
+
+def _muttered(value: object, path_text: str, stderr_file: TextIO) -> str:
+    """Return one piece of text in lower case, for the file to hold."""
+    _ = (path_text, stderr_file)
+    return str(value).lower()
+
+
+class RoundTripCfg(SampleCfg):
+    """A configuration that cannot read back what it writes.
+
+    Its parse converter refuses text that is not upper case and its serialize
+    converter writes the text in lower case, so the file it writes is one it
+    would refuse to read. That is a defect of such a class and not of the
+    editor, and the editor has to report it rather than fall over it: the
+    buffer it reads from this class is not a configuration of it.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the one member that the two converters disagree about."""
+        self.label: str = SHOUTED
+
+    def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
+        """Return the converter that refuses anything but upper case."""
+        return {'label': ParseConverter(result_type=type(None), args={},
+                                        func=_shouted)}
+
+    def serialize_converters(self) -> SerializeConverters:
+        """Return the converter that writes the text in lower case."""
+        return {('label',): SerializeConverter(value_type=str, args={},
+                                               func=_muttered)}
+
+
+PICKED_NAME = 'picked'
+"""Value of the text member that makes `picking_loader` choose `PickedCfg`."""
+
+
+class PickedCfg(SampleCfg):
+    """The class that a loader chooses when the values of a file say so.
+
+    It holds exactly the members `FlatCfg` holds, so a file of either of them
+    can be read as the other. That is what makes it possible to tell that one
+    of them was chosen rather than the other, and it is what a save has to
+    notice before it writes such a file.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the same two members that `FlatCfg` declares."""
+        self.name: str = PICKED_NAME
+        self.answer: int = 42
+
+
+def picking_loader(*, from_json_data_text: Optional[str] = None,
+                   from_json_filename: Optional[PathOrStr] = None,
+                   ok_to_use_defaults: bool = False,
+                   auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
+                   stderr_file: TextIO = sys.stderr) -> Config:
+    """Return the class that the values of one JSON text select.
+
+    This is a loader written by hand, which is what a class chosen by looking
+    at the JSON needs: `derived_loader` constructs one class, and choosing
+    which class is the whole of what this adds, so the rest is handed over to
+    it. A call with no JSON source is answered with `FlatCfg`, because the
+    protocol says a loader answers one and a configuration that does not exist
+    yet has to be of some class.
+    """
+    picked = PICKED_NAME in (from_json_data_text or '')
+    chosen = derived_loader(PickedCfg if picked else FlatCfg)
+    return chosen(from_json_data_text=from_json_data_text,
+                  from_json_filename=from_json_filename,
+                  ok_to_use_defaults=ok_to_use_defaults,
+                  auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+
+
+def exiting_loader(*, from_json_data_text: Optional[str] = None,
+                   from_json_filename: Optional[PathOrStr] = None,
+                   ok_to_use_defaults: bool = False,
+                   auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
+                   stderr_file: TextIO = sys.stderr) -> Config:
+    """End the program instead of refusing, as `config_as_json` itself does.
+
+    `config_factory_from_json` ends the process when no matcher accepts the
+    JSON it was given, so a loader written around it does that too. Inside an
+    editor it would cost the user the whole session, so the editor turns it
+    into a refusal like any other.
+    """
+    _ = (from_json_data_text, from_json_filename, ok_to_use_defaults,
+         auto_ch_hook, stderr_file)
+    sys.exit(1)
+
+
+def text_only_loader(*, from_json_data_text: Optional[str] = None,
+                     from_json_filename: Optional[PathOrStr] = None,
+                     ok_to_use_defaults: bool = False,
+                     auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
+                     stderr_file: TextIO = sys.stderr) -> Config:
+    """Return a configuration, refusing to answer without a JSON text.
+
+    That is what `edit_cfg_json.ConfigLoader` says a loader does not do, so
+    this is here to be refused: the editor asks a loader for the values of a
+    configuration that does not exist yet, and a loader that answers with
+    nothing leaves it with nothing to edit.
+    """
+    _ = (from_json_filename, auto_ch_hook, ok_to_use_defaults)
+    if from_json_data_text is None:
+        raise ValueError('This loader needs a file.')
+    return FlatCfg(from_json_data_text=from_json_data_text,
+                   stderr_file=stderr_file)
 
 
 class Marker:  # pylint: disable=too-few-public-methods
@@ -606,11 +739,11 @@ class NoJsonCfg(SampleCfg):
 class ExtraArgCfg(SampleCfg):
     """A configuration whose constructor needs an argument of its own.
 
-    The editor cannot construct this class, because it knows nothing about
-    the extra argument. An explicit loader is what the design gives the
-    application for exactly that, and it arrives in a later step. Until
-    then such a class is refused, with the diagnostics Python itself
-    produces, rather than being half handled.
+    The editor cannot construct this class, because it knows nothing about the
+    extra argument. It can still be edited, validated and saved, because a
+    buffer is applied to a copy of an object the application built; reading a
+    file is the one thing that needs a `ConfigLoader`, and `extra_arg_loader`
+    below is that loader for this class.
     """
 
     def __init__(self, home: str, from_json_data_text: Optional[str] = None,
@@ -628,3 +761,15 @@ class ExtraArgCfg(SampleCfg):
         The one member of this class is the extra constructor argument, so
         it cannot be assigned anywhere else.
         """
+
+
+HOME_VALUE = 'bound home'
+"""The extra constructor argument that `extra_arg_loader` binds."""
+
+extra_arg_loader = derived_loader(partial(ExtraArgCfg, home=HOME_VALUE))
+"""How an application would let the editor read a file of `ExtraArgCfg`.
+
+`functools.partial` binds the argument that the editor knows nothing about, and
+`derived_loader` makes the five keyword arguments of a loader out of the rest.
+It is a module level name so that the programs of this library can be told it.
+"""

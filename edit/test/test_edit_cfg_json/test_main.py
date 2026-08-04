@@ -23,7 +23,7 @@ SAMPLE = 'test_edit_cfg_json.sample_cfg'
 
 def test_prints_the_model(capsys: pytest.CaptureFixture[str]) -> None:
     """Test running the program prints the model of that class."""
-    assert main(['--module', SAMPLE, 'FlatCfg']) == ExitCode.OK
+    assert main(['--module', SAMPLE, '--class', 'FlatCfg']) == ExitCode.OK
     printed = capsys.readouterr().out
     assert 'FlatCfg' in printed
     assert 'name = flat text' in printed
@@ -33,7 +33,7 @@ def test_prints_the_model(capsys: pytest.CaptureFixture[str]) -> None:
 def test_saves_when_asked(tmp_path: Path) -> None:
     """Test the program writes a file the configuration class can read back."""
     out_file = tmp_path / 'written.json'
-    assert main(['--module', SAMPLE, 'FlatCfg', '-o', str(out_file),
+    assert main(['--module', SAMPLE, '--class', 'FlatCfg', '-o', str(out_file),
                  '--save']) == ExitCode.OK
     assert json.loads(out_file.read_text(encoding='UTF-8')) == {
         'name': 'flat text', 'answer': 42}
@@ -48,7 +48,7 @@ def test_normalizes_a_file(tmp_path: Path) -> None:
     """
     in_file = tmp_path / 'partial.json'
     in_file.write_text(json.dumps({'name': 'only a name'}), encoding='UTF-8')
-    assert main(['--module', SAMPLE, 'FlatCfg', '-i', str(in_file),
+    assert main(['--module', SAMPLE, '--class', 'FlatCfg', '-i', str(in_file),
                  '--save']) == ExitCode.OK
     assert json.loads(in_file.read_text(encoding='UTF-8')) == {
         'name': 'only a name', 'answer': 42}

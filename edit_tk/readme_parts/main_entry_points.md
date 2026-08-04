@@ -40,7 +40,7 @@ application author gets a Tk editor for their own configuration class without
 writing a line of code:
 
 ````sh
-{{dist_name}} --module myapp.config AppConfig -i /etc/myapp.json
+{{dist_name}} --module myapp.config --class AppConfig -i /etc/myapp.json
 ````
 
 The window it opens is the one this page describes, on the class that was
