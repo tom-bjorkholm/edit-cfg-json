@@ -31,6 +31,13 @@ its own, so whatever it needs beyond the five keyword arguments of
 `edit_cfg_json.ConfigLoader` has to be bound in the module it is named in — a
 command line cannot supply an argument this library knows nothing about.
 
+**What the application says about its own members is told the same way.**
+`--descriptions NAME` names a `Descriptions` mapping beside the class, because
+that is the one thing an application can tell the editor that this program
+could not otherwise pass on: a member has no docstring at runtime, so what a
+member is for is either in such a mapping or nowhere. The class docstring needs
+no option, because the class already carries it.
+
 **Importing a module runs it.** That is the same exposure as running the file
 with Python, and it is not guarded against, because a guard could only be a
 pretence: a configuration class is Python and reaching it means importing the
@@ -52,6 +59,7 @@ import sys
 from config_as_json import Config
 import argcomplete
 from edit_cfg_json.backend import EditorBackend
+from edit_cfg_json.descriptions import Descriptions
 from edit_cfg_json.edit_model import EditModel
 from edit_cfg_json.loader import ConfigLoader, ask_loader
 from edit_cfg_json.loading import DEFAULTS_ERRORS, DEFAULT_POLICY, \
@@ -138,6 +146,16 @@ A loader may choose its class by looking at the JSON, and `--class` beside it
 is how a script says which class it is prepared to go on with. The check is
 what `isinstance` answers, so a loader that answers with a subclass of the
 class that was named is accepted.
+"""
+
+NOT_DESCRIPTIONS = ('{module}.{name} is no mapping, so it says nothing about '
+                    'any member.')
+"""Message of the refusal of a `--descriptions` that names something else.
+
+What the keys and the values of the mapping are is not checked, for the reason
+section 4.3 of `doc/design.md` gives: a selector that addresses no member of
+this configuration is simply never used, and a wrong description is a cosmetic
+mistake that is not worth refusing to open an editor over.
 """
 
 NOT_SHOWABLE_MESSAGE = ('The editor cannot show {name}, because the values '
@@ -235,6 +253,9 @@ class ExitCode(IntEnum):
 
     WRONG_CLASS = 15
     """The loader did not construct the class that `--class` asked for."""
+
+    NOT_DESCRIPTIONS = 16
+    """The name that `--descriptions` names is no mapping of any kind."""
 
 
 class _Refusal(Exception):
@@ -336,6 +357,9 @@ def _create_parser(prog: str, interactive: bool) -> ArgumentParser:
     parser.add_argument('--loader', default=None, metavar='NAME',
                         help='Name of an edit_cfg_json.ConfigLoader there, '
                              'for a class this editor cannot construct.')
+    parser.add_argument('--descriptions', default=None, metavar='NAME',
+                        help='Name of an edit_cfg_json.Descriptions mapping '
+                             'there, saying what the members are for.')
     add_file_options(parser)
     if interactive:
         parser.set_defaults(save=False)
@@ -493,6 +517,35 @@ def _loader_in(module: ModuleType, name: str) -> ConfigLoader:
     return found
 
 
+def _descriptions_in(module: ModuleType,
+                     name: Optional[str]) -> Optional[Descriptions]:
+    """Return what one module says about the members of its configuration.
+
+    Args:
+        module: Module that was named on the command line.
+        name: Name of the mapping that was asked for, or None when the command
+            line named none and the members explain themselves as far as their
+            own types allow.
+
+    Returns:
+        That mapping, or None when none was asked for.
+
+    Raises:
+        _Refusal: The module holds no such name, or it is no mapping.
+    """
+    if name is None:
+        return None
+    found = getattr(module, name, None)
+    if found is None:
+        raise _Refusal(NO_NAME_MESSAGE.format(module=module.__name__,
+                                              name=name), ExitCode.NO_NAME)
+    if not isinstance(found, Mapping):
+        raise _Refusal(NOT_DESCRIPTIONS.format(module=module.__name__,
+                                               name=name),
+                       ExitCode.NOT_DESCRIPTIONS)
+    return found
+
+
 def _named_module(parsed: Namespace) -> ModuleType:
     """Return the module that one command line names, or refuse to run.
 
@@ -615,9 +668,13 @@ def _checked_class(config: Config, wanted: Optional[type[Config]],
                    ExitCode.WRONG_CLASS)
 
 
+# One argument per thing that one command line says about a session, which is
+# the same reason `EditModel` itself has that disable.
+# pylint: disable-next=too-many-arguments
 def _built_model(parsed: Namespace, config: Config,
                  loader: Optional[ConfigLoader],
-                 wanted: Optional[type[Config]]) -> EditModel:
+                 wanted: Optional[type[Config]],
+                 descriptions: Optional[Descriptions]) -> EditModel:
     """Return the model of one session, on the files that were named.
 
     The output file is set only when it was named, because the model already
@@ -638,6 +695,8 @@ def _built_model(parsed: Namespace, config: Config,
         loader: Loader that the command line named, or None when it named
             none.
         wanted: Class that `--class` named, or None when it named none.
+        descriptions: What the application says about its own members, or None
+            when the command line named no mapping of them.
 
     Returns:
         The model of one editing session.
@@ -654,7 +713,8 @@ def _built_model(parsed: Namespace, config: Config,
     _checked_class(config=loaded.config, wanted=wanted, name=parsed.loader)
     try:
         model = EditModel(config=loaded.config, report=loaded.report,
-                          loader=loader, out_file=parsed.input)
+                          descriptions=descriptions, loader=loader,
+                          out_file=parsed.input)
     except ValueError as error:
         name = type(loaded.config).__name__
         raise _Refusal(_said(NOT_SHOWABLE_MESSAGE.format(name=name), error),
@@ -716,8 +776,9 @@ def _session(backend: EditorBackend, parsed: Namespace,
     wanted = None if parsed.class_name is None \
         else _class_in(module=module, name=parsed.class_name)
     config = _target_config(wanted=wanted, loader=loader, name=parsed.loader)
+    said = _descriptions_in(module=module, name=parsed.descriptions)
     model = _built_model(parsed=parsed, config=config, loader=loader,
-                         wanted=wanted)
+                         wanted=wanted, descriptions=said)
     if parsed.save:
         model.save()
     backend.run_editor(model)

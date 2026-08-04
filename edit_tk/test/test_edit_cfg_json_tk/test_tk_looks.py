@@ -19,7 +19,8 @@ from edit_cfg_json_tk.tk_editor import EMPHASIS_COLOURS, EditorWidgets, \
     EXPLAIN_TEXT, FIELD_BACKGROUND, FIELD_FOREGROUND, LEAST_WRAP_WIDTH
 from example.e01_flat_config import FlatConfig
 from .helpers import ABOUT_NAME, DESCRIPTIONS, FakeWidget, FILLED_REPORT, \
-    FLAT_DOCSTRING, FLAT_SUMMARY, stub_editor, stub_press, STUB_BODY_HEIGHT
+    FLAT_DOCSTRING, FLAT_SUMMARY, real_press, real_ticks, stub_editor, \
+    stub_press, STUB_BODY_HEIGHT
 
 WHEEL_UP = -1
 """How far one turn of the wheel away from the user scrolls the body."""
@@ -262,20 +263,39 @@ def _body_of(canvas: tkinter.Canvas) -> tkinter.Misc:
 
 
 def test_real_wide_enough(root_or_skip: tkinter.Tk) -> None:
-    """Test the editor opens as wide as what is in it, up to a window.
+    """Test the editor opens one window wide and as tall as it needs.
 
     A canvas asks for a width of its own that has nothing to do with what is
     on it, so the editor opened at 430 pixels and cut off every paragraph and
-    every mark. What it asks for now is what the body asks for, up to the
-    width of a window.
+    every mark. The width it asks for now is said and not measured, because a
+    paragraph wraps to the width it is given and a body that has been laid out
+    therefore asks for about the width it already has. The height is measured,
+    because that answer means something.
     """
     EditorWidgets(parent=root_or_skip, model=_described_model())
     root_or_skip.update_idletasks()
     canvas = _canvas_of(root_or_skip)
     body = _body_of(canvas)
-    assert body.winfo_reqwidth() > BODY_WIDTH / 2
-    assert canvas.winfo_reqwidth() == min(body.winfo_reqwidth(), BODY_WIDTH)
+    assert canvas.winfo_reqwidth() == BODY_WIDTH
     assert canvas.winfo_reqheight() == min(body.winfo_reqheight(), BODY_HEIGHT)
+
+
+def test_stub_width_is_said(stub_tk: None) -> None:
+    """Test being laid out does not change the width the editor opens at.
+
+    Following the width of the body is what made showing the explanations
+    flicker between two window sizes for ever, and this is that bug in the one
+    place a stub can see it: the stub says the body wants less width than the
+    editor opens at, so a canvas that took its answer would be that much
+    narrower.
+    """
+    _ = stub_tk
+    stub_editor(_described_model())
+    canvas = _stub_canvas()
+    assert canvas.options['width'] == BODY_WIDTH
+    _stub_body().bindings['<Configure>']()
+    assert canvas.options['width'] == BODY_WIDTH
+    assert canvas.options['height'] == BODY_HEIGHT
 
 
 def test_real_fixed_first(root_or_skip: tkinter.Tk) -> None:
@@ -356,6 +376,67 @@ def test_shown_window_fits() -> None:
             assert fixed.winfo_height() > 1, size
             assert fixed.winfo_y() + fixed.winfo_height() <= \
                 window.winfo_height(), size
+    finally:
+        window.destroy()
+
+
+RESTLESS_RESIZES = 1000
+"""How many resizes of one window in half a second is a window that loops.
+
+Showing the explanations cost 19099 of them before the width stopped being
+followed and about ninety afterwards, so anything between the two says that the
+callbacks are answering each other again.
+"""
+
+SETTLING_TIME = 500
+"""Milliseconds a window is given to settle after it has been changed."""
+
+
+def _resizes(window: tkinter.Tk,
+             seen: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """Let one window settle, and return the resizes it asked for.
+
+    The window is driven rather than inspected, because a layout that answers
+    itself only shows up in how often it happens.
+
+    Args:
+        window: Window to let settle.
+        seen: List that its resizes are being recorded in, which is emptied
+            here so that each answer is about one change alone.
+
+    Returns:
+        The sizes that were reported while it settled.
+    """
+    seen.clear()
+    window.after(SETTLING_TIME, window.quit)
+    window.mainloop()
+    return list(seen)
+
+
+@pytest.mark.focus_sensitive
+def test_shown_window_settles() -> None:
+    """Test showing the explanations lays the window out and then stops.
+
+    Following the width of the body made this flicker between two window sizes
+    for ever, because a paragraph that has wrapped asks for a little less than
+    it was given. It needs a window a person can see for the same reason the
+    test above does, and it is the reason `BODY_WIDTH` is a width and not a
+    measurement.
+    """
+    window = tkinter.Tk()
+    seen: list[tuple[int, int]] = []
+    try:
+        EditorWidgets(parent=window, model=_described_model())
+        window.bind('<Configure>',
+                    lambda event: seen.append((event.width, event.height)))
+        _resizes(window, seen)
+        opened = (window.winfo_width(), window.winfo_height())
+        real_press(window, EXPLAIN_TEXT)
+        assert len(_resizes(window, seen)) < RESTLESS_RESIZES
+        real_press(window, EXPLAIN_TEXT)
+        assert len(_resizes(window, seen)) < RESTLESS_RESIZES
+        assert (window.winfo_width(), window.winfo_height()) == opened
+        assert real_ticks(window) == [True]
     finally:
         window.destroy()
 

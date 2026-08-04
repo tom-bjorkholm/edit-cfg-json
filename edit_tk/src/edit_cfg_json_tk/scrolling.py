@@ -29,12 +29,25 @@ the body asks for up to this limit and not this limit.
 """
 
 BODY_WIDTH = 720
-"""Largest width in pixels that the scrolling part of the editor asks for.
+"""Width in pixels that the scrolling part of the editor opens at.
 
-A canvas asks for a width of its own that has nothing to do with what is on
-it, so the width the editor opens at has to be said here: what the body asks
-for, up to this. Wider than this is left to the user, who can make the window
-any size, and every text that is a paragraph wraps to whatever width there is.
+A canvas asks for a width of its own that has nothing to do with what is on it,
+so the width the editor opens at has to be said, and this is where it is said.
+
+**It is said rather than measured, because the width of the body cannot be
+measured.** Every paragraph wraps to the width it is given, so a body that has
+been laid out asks for about the width it already has, whatever it would have
+liked. Following that answer is what made showing the explanations flicker
+between two window sizes for ever: the wrapped paragraph asked for a little
+less than it was given, the canvas asked for that, the window narrowed, the
+paragraph wrapped into one more line and asked for something else again. Found
+at step 9 in a window and measured: one toggle cost 19099 resizes of the window
+in two seconds and never stopped.
+
+So the width is this, the height is what the body asks for up to a window's
+worth, and a user who wants another width resizes the window — after which
+every paragraph wraps to what there is. A small configuration therefore opens
+in a window no taller than it needs, and this wide whatever it holds.
 """
 
 
@@ -113,7 +126,12 @@ def _fit_body(canvas: tkinter.Canvas,
 
     It is what makes the canvas scroll: a canvas shows the part of its
     contents that its scroll region says is there, and the contents of this
-    one grow and shrink as the explanations are shown and hidden.
+    one grow and shrink as the explanations are shown and hidden. The height
+    follows too, up to the height of a window, so that showing the
+    explanations makes the window taller while there is room for it.
+
+    **The width is deliberately not followed**, and `BODY_WIDTH` says why it
+    cannot be.
 
     Args:
         canvas: Canvas that holds the body.
@@ -123,10 +141,9 @@ def _fit_body(canvas: tkinter.Canvas,
         A callback for the event that says the body has been laid out.
     """
     def fitted(*event: 'tkinter.Event[tkinter.Misc]') -> None:
-        """Follow the size of the body, up to the size of a window."""
+        """Follow the height of the body, up to the height of a window."""
         _ = event
         canvas.configure(scrollregion=canvas.bbox('all'),
-                         width=min(body.winfo_reqwidth(), BODY_WIDTH),
                          height=min(body.winfo_reqheight(), BODY_HEIGHT))
     return fitted
 
@@ -178,7 +195,8 @@ def scrolling_body(parent: tkinter.Misc) -> ScrollingArea:
     area = tkinter.Frame(parent)
     canvas = tkinter.Canvas(area, highlightthickness=0)
     slider = tkinter.Scrollbar(area, orient='vertical', command=canvas.yview)
-    canvas.configure(yscrollcommand=slider.set, height=BODY_HEIGHT)
+    canvas.configure(yscrollcommand=slider.set, height=BODY_HEIGHT,
+                     width=BODY_WIDTH)
     slider.pack(side='right', fill='y')
     canvas.pack(side='left', fill='both', expand=True)
     body = tkinter.Frame(canvas)

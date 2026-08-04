@@ -15,7 +15,7 @@ from config_as_json import Config, ConfigAutoChangeHook, ConfigPath, \
     StrCaseChangeValidator, StrCaseSpec, StrPositionSpec, \
     StrValidator, ValidationPlan, ValueTypeValidator, \
     WholeConfigValidationStep, WholeConfigValidator
-from edit_cfg_json import derived_loader
+from edit_cfg_json import Descriptions, derived_loader
 
 REFUSAL_MESSAGE = 'The application refuses {name}.'
 """Message of the validator that refuses without saying anything else."""
@@ -71,6 +71,18 @@ class FlatCfg(SampleCfg):
         """Assign one string member and one integer member."""
         self.name: str = 'flat text'
         self.answer: int = 42
+
+
+ABOUT_FLAT_NAME = 'What this name is for, as an application would say it.'
+"""What `FLAT_DESCRIPTIONS` says about the text member of `FlatCfg`."""
+
+FLAT_DESCRIPTIONS: Descriptions = {('name',): ABOUT_FLAT_NAME}
+"""What an application says about the members of `FlatCfg`.
+
+It describes one of the two members and says nothing about the other, which is
+what an application is free to do. It is a module level name so that the
+programs of this library can be told it with `--descriptions`.
+"""
 
 
 class DocumentedCfg(SampleCfg):

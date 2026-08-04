@@ -63,10 +63,11 @@ option for that either — the two examples that have one build it in Python,
 where the argument that has to be bound is.
 
 `--toggle-explain` stands in for the key that shows or hides the explanatory
-text, in the same way that `--set` stands in for a user typing into a field.
-The editor starts with the explanations shown, so this flag is what shows the
-hidden form: the label of the configuration keeps its one line summary, and
-the rest of the class docstring and the description of every member go away.
+text, in the same way that `--set` stands in for a user typing into a field. It
+is a key, so it can be pressed more than once: the editor starts with the
+explanations shown, one of these hides them — the label of the configuration
+keeps its one line summary, and the rest of the class docstring and the
+description of every member go away — and two of them show them again.
 
 `--ui dump` validates the buffer before it prints it, so the dump always
 says what the application would make of the values it shows. The two
@@ -169,8 +170,9 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
     parser.add_argument('--set', action='append', dest='edits',
                         metavar='MEMBER=VALUE',
                         help='Edit one member before showing it. Repeatable.')
-    parser.add_argument('--toggle-explain', action='store_true',
-                        help='Hide the explanations, as the key does.')
+    parser.add_argument('--toggle-explain', action='count', default=0,
+                        help='Press the explain key. Repeatable, as a key '
+                             'is.')
     parser.add_argument('--extension', default=None,
                         help='File name extension this application uses.')
     parser.add_argument('--enforce-extension', action='store_true',
@@ -339,7 +341,7 @@ class StandInUser:  # pylint: disable=too-few-public-methods
         """
         _apply_edits(parser=self._parser, model=model,
                      edits=self._parsed.edits)
-        if self._parsed.toggle_explain:
+        for _ in range(self._parsed.toggle_explain):
             model.toggle_explanations()
         if self._parsed.save:
             model.save()

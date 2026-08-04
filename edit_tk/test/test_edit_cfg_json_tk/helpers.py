@@ -135,11 +135,12 @@ It is taller than the height that part is allowed to have, so that the stubbed
 tests see what the editor does with a configuration too tall for a window.
 """
 
-STUB_BODY_WIDTH = 900
+STUB_BODY_WIDTH = 500
 """Width that the stub reports for the scrolling part of the editor.
 
-It is wider than the width that part asks for at most, so that the stubbed
-tests see what the editor does with a configuration wider than a window.
+It is narrower than the width the editor opens at, which is what makes a
+stubbed test able to see whether the width is being followed: an editor that
+took this answer would be narrower than the one width it is supposed to have.
 """
 
 STUB_CANVAS_ITEM = 7

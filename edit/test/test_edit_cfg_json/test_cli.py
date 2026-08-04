@@ -25,11 +25,11 @@ import pytest
 from edit_cfg_json import DumpEditor, EditModel, EditorBackend, ExitCode, \
     LoadPolicy, add_file_options, named_policy, run_cli
 from edit_cfg_json.cli import LOADER_ARGS_MESSAGE, NOT_CONFIG_MESSAGE, \
-    NOT_IMPORTABLE_MESSAGE, NOT_LOADER_MESSAGE, NOT_PYTHON_MESSAGE, \
-    NOT_SHOWABLE_MESSAGE, NO_FILE_MESSAGE, NO_LOADER_CONFIG, \
-    NO_MODULE_MESSAGE, NO_NAME_MESSAGE, NO_TARGET_MESSAGE, \
+    NOT_DESCRIPTIONS, NOT_IMPORTABLE_MESSAGE, NOT_LOADER_MESSAGE, \
+    NOT_PYTHON_MESSAGE, NOT_SHOWABLE_MESSAGE, NO_FILE_MESSAGE, \
+    NO_LOADER_CONFIG, NO_MODULE_MESSAGE, NO_NAME_MESSAGE, NO_TARGET_MESSAGE, \
     WRONG_CLASS_MESSAGE
-from .sample_cfg import HOME_VALUE, PICKED_NAME
+from .sample_cfg import ABOUT_FLAT_NAME, HOME_VALUE, PICKED_NAME
 
 PROGRAM = 'edit-cfg-json-test'
 """Name the program is given in these tests, which is in every refusal."""
@@ -540,6 +540,52 @@ def test_no_such_loader(capsys: pytest.CaptureFixture[str]) -> None:
     outcome = _run(Recorder(), *_loaded('no_loader_here'))
     assert outcome == ExitCode.NO_NAME
     expected = NO_NAME_MESSAGE.format(module=SAMPLE, name='no_loader_here')
+    assert expected in capsys.readouterr().err
+
+
+def test_descriptions_door() -> None:
+    """Test what an application says about its members reaches the editor.
+
+    It is the one thing this program could not otherwise pass on, because a
+    member has no docstring at runtime: what a member is for is in a mapping
+    like this one or nowhere at all.
+    """
+    backend = Recorder()
+    assert _run(backend, *_named('FlatCfg', '--descriptions',
+                                 'FLAT_DESCRIPTIONS')) == ExitCode.OK
+    assert backend.model is not None
+    described = {row.name: row.description for row in backend.model.rows}
+    assert described == {'name': ABOUT_FLAT_NAME, 'answer': ''}
+
+
+def test_no_descriptions() -> None:
+    """Test a run that names none shows the members without a description."""
+    backend = Recorder()
+    assert _run(backend, *_named('FlatCfg')) == ExitCode.OK
+    assert backend.model is not None
+    assert not any(row.description for row in backend.model.rows)
+
+
+def test_no_such_described(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a name the module does not hold is refused by name."""
+    named = _named('FlatCfg', '--descriptions', 'NotThere')
+    outcome = _run(Recorder(), *named)
+    assert outcome == ExitCode.NO_NAME
+    expected = NO_NAME_MESSAGE.format(module=SAMPLE, name='NotThere')
+    assert expected in capsys.readouterr().err
+
+
+def test_not_a_mapping(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a name that is no mapping at all is refused as no mapping.
+
+    What the keys and the values of a mapping are is deliberately not checked:
+    a selector that addresses no member is never used, and a wrong description
+    is not worth refusing to open an editor over.
+    """
+    outcome = _run(Recorder(), *_named('FlatCfg', '--descriptions',
+                                       'REFUSAL_MESSAGE'))
+    assert outcome == ExitCode.NOT_DESCRIPTIONS
+    expected = NOT_DESCRIPTIONS.format(module=SAMPLE, name='REFUSAL_MESSAGE')
     assert expected in capsys.readouterr().err
 
 
