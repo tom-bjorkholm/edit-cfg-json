@@ -58,13 +58,13 @@ Everything a user of this package needs is re-exported from the top-level
 
 ````python
 from edit_cfg_json import ActionSettings, ConfigLoadError, Descriptions, \
-    EXPLANATION, EditModel, EditorBackend, Emphasis, LOAD_REMARK, \
-    LoadPolicy, LoadReport, LoadedConfig, MEMBER_DIAGNOSTIC, MEMBER_MARK, \
-    MemberRow, SaveOutcome, Settings, SettingsSource, ValidationVerdict, \
-    docstring_text, edit, load_config, load_text, model_as_text, \
-    model_title, row_description, row_diagnostic, row_marks, \
-    row_value_text, save_emphasis, save_text, verdict_emphasis, \
-    verdict_text
+    DumpEditor, EXPLANATION, EditModel, EditorBackend, Emphasis, ExitCode, \
+    LOAD_REMARK, LoadPolicy, LoadReport, LoadedConfig, MEMBER_DIAGNOSTIC, \
+    MEMBER_MARK, MemberRow, SaveOutcome, Settings, SettingsSource, \
+    ValidationVerdict, add_file_options, default_config, docstring_text, \
+    edit, load_config, load_text, model_as_text, model_title, named_policy, \
+    row_description, row_diagnostic, row_marks, row_value_text, run_cli, \
+    save_emphasis, save_text, verdict_emphasis, verdict_text
 ````
 
 | Name | What it is |
@@ -84,6 +84,9 @@ from edit_cfg_json import ActionSettings, ConfigLoadError, Descriptions, \
 | `ActionSettings` | The key combinations of every action of the editor, one attribute per action, so that an action the application says nothing about keeps its default. |
 | `SettingsSource` | What every entry point takes: a `Settings`, or a callable that answers with one. |
 | `EditorBackend` | The protocol a user interface implements. It is phrased against `EditModel`, so a backend can also be mounted by an application that runs its own event loop. |
+| `DumpEditor` | The one backend this package ships, and the only one that needs no user interface library: it validates the buffer, prints the model and returns. It is what the `edit-cfg-json` program below runs, and it is the shortest thing there is to read for anybody writing a backend of their own. |
+| `default_config` | One configuration object holding the declared defaults of a class, which is what `edit` and `EditModel` take. It is the door for a caller that has a class rather than an object, and it refuses a class the editor cannot construct in the same words that reading a file does. |
+| `run_cli` | The whole command line of a ready-to-run program, given a backend. `ExitCode` is what it answers with, `add_file_options` adds the input, output and policy options to any other parser, and `named_policy` turns a `--policy` value into a `LoadPolicy`. |
 | `model_as_text` | The plain text rendering of a whole model, used by the examples and by the tests so that the editor can be observed without a display. It begins with what the load did and ends with the validation state and the saving, so a rendering never leaves any of them unsaid. |
 | `model_title` | The label of a whole model, marked while the buffer holds a change worth saving. Both backends show it, so neither of them decides on its own how an unsaved change looks. |
 | `load_text` | What reading the input file did, as text, and nothing at all when it did nothing worth saying. Both backends show it, so the two of them cannot tell the user two different things about one file. |
@@ -102,6 +105,106 @@ The package is under construction. This version reads a flat configuration
 from a file, edits it, validates it and writes it. A member whose value is a
 list or a dict is reported as a row that cannot be edited yet rather than
 being left out.
+
+## The edit-cfg-json program
+
+Installing this package installs a program of the same name, and it needs no
+display: it prints the configuration class you name, with what that class's own
+validators make of the values, and with `--save` it writes the validated file.
+So it is a configuration checker for a terminal or for a continuous integration
+job as much as a way of looking at a class, and nobody has to write a line of
+code to use it:
+
+````sh
+edit-cfg-json --module myapp.config AppConfig -i /etc/myapp.json
+edit-cfg-json --module myapp.config AppConfig -i partial.json --save
+````
+
+The second of those writes the file the class itself would have written: what
+the file left out is filled in from the declared defaults, and what a validator
+rewrites is rewritten. `--save` exists only in this program of the three,
+because a run that prints once and returns has no later moment at which a user
+could press Save. Its two graphical relatives, `edit-cfg-json-tk` and
+`edit-cfg-json-textual`, open an editor and give the user one instead.
+
+### Telling it which class to edit
+
+The class is told and never guessed. `--module` names a module that is
+importable, `--file` names a Python file that is not, exactly one of the two is
+required, and the class itself is the one positional argument:
+
+````sh
+edit-cfg-json --module myapp.config AppConfig -i /etc/myapp.json
+edit-cfg-json --file ./somewhere/cfg.py AppConfig
+````
+
+`--module` uses the ordinary import path, so `PYTHONPATH` reaches a package
+that is not installed. `--file` puts the folder of the file at the front of the
+path and imports the file by its own name, so a file that imports its
+neighbours works — but a file that belongs to a package and uses a relative
+import cannot be loaded from a bare path at all, and is refused with a message
+saying to use `--module` with `PYTHONPATH` instead.
+
+**Importing a module runs it.** That is the same exposure as running the file
+with `python`, and it is not guarded against, because a configuration class is
+Python and reaching it means importing the module it is in.
+
+### The rest of the command line
+
+| Option | Meaning |
+| --- | --- |
+| `-i`, `--input` | Configuration file to read. Without it the editor starts from the values the class declares. |
+| `-o`, `--output` | Configuration file to write. Without it the input file is written, which is what an editor is normally asked to do. |
+| `--policy` | What to do about a declared value the file does not hold: `strict-then-defaults`, which is the default, `strict` or `defaults`. |
+
+An application that has more to say about its own configuration — the file name
+extension it uses, the key combinations its own user interface has taken, and
+what its individual members mean — says it in `edit_cfg_json.Settings` and in a
+description mapping, and gets there through `edit` rather than through this
+program. Options for those are what the next version of this program adds.
+
+### How the run ends
+
+The program is meant to be usable from a script, so each way of refusing has an
+exit code of its own:
+
+| Code | What it means |
+| --- | --- |
+| `0` | Everything the program was asked to do was done. |
+| `1` | The input file cannot be opened for editing. |
+| `2` | The command line itself is wrong. |
+| `3` | The module that `--module` names cannot be imported. |
+| `4` | The file that `--file` names cannot be read. |
+| `5` | That file is not Python that can be imported. |
+| `6` | That file needs the package it belongs to. |
+| `7` | The module holds no such name. |
+| `8` | That name is not a class based on `config_as_json.Config`. |
+| `9` | The editor cannot construct that class on its own. |
+| `10` | The values are not ones the application would accept. |
+| `11` | The output file was asked for and was not written. |
+| `12` | The values of that class cannot be written as JSON, so there is nothing to show. |
+
+The numbers are `edit_cfg_json.ExitCode`, so a program that runs this one can
+name them instead of writing them out.
+
+### If the script folder is not on the path
+
+Every one of these programs is also reachable through the package it belongs
+to, which needs nothing to be on `PATH`:
+
+````sh
+python3 -m edit_cfg_json --module myapp.config AppConfig
+````
+
+### Completing the command line
+
+The program completes its own options and file names with
+[argcomplete](https://pypi.org/project/argcomplete), which is installed with
+it. Register it once for your shell:
+
+````sh
+eval "$(register-python-argcomplete edit-cfg-json)"
+````
 
 ## Reading the input file
 
@@ -384,7 +487,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 865 passed, 2 deselected in 19s
+- Test result: 933 passed, 2 deselected in 19s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

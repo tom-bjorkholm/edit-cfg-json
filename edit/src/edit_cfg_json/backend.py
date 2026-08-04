@@ -1,11 +1,19 @@
 #! /usr/bin/env python3
-"""The protocol that every user interface backend implements."""
+"""The protocol that every user interface backend implements.
+
+The one backend this package ships is here as well, because it is the one
+that needs no user interface library: it prints the model and returns. That
+makes it the backend of a program that judges a configuration file on a
+machine with no display, and it is also the shortest thing there is to read
+for anybody writing a backend of their own.
+"""
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
 from typing import Protocol
 from edit_cfg_json.edit_model import EditModel
+from edit_cfg_json.model_text import model_as_text
 
 
 class EditorBackend(Protocol):  # pylint: disable=too-few-public-methods
@@ -37,3 +45,34 @@ class EditorBackend(Protocol):  # pylint: disable=too-few-public-methods
             model: Model to show. The backend reads and edits the model, and
                 never touches the caller's configuration object.
         """
+
+
+class DumpEditor:  # pylint: disable=too-few-public-methods
+    """A backend that prints the model instead of opening a window.
+
+    It satisfies `EditorBackend` and is not a special case beside a real
+    backend, which is worth noticing: the protocol asks for one method, so
+    anything with that method can be handed to `edit`. That is also how an
+    application writes a backend of its own.
+
+    It runs to completion in the sense the protocol asks for, and there is
+    simply nothing for the user to do while it runs: it prints once and
+    returns. So it is the backend of a program that says what a configuration
+    file amounts to rather than one that offers to change it, and whoever runs
+    such a program has no later moment at which to press Save. Saving is
+    therefore the caller's to ask for, before the model is handed over.
+    """
+
+    def run_editor(self, model: EditModel) -> None:
+        """Validate the buffer and print the model as text.
+
+        Validating is what makes the printed model say what the application
+        itself would make of the values in it, which is the whole point of
+        printing them. A save that the caller already asked for has validated
+        them too, and says so on the line about saving.
+
+        Args:
+            model: Model to print.
+        """
+        model.validate()
+        print(model_as_text(model))

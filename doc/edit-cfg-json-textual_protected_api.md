@@ -85,6 +85,9 @@
   * [TextualEditor](#edit_cfg_json_textual.textual_editor.TextualEditor)
     * [run\_editor](#edit_cfg_json_textual.textual_editor.TextualEditor.run_editor)
   * [edit](#edit_cfg_json_textual.textual_editor.edit)
+* [edit\_cfg\_json\_textual.\_\_main\_\_](#edit_cfg_json_textual.__main__)
+  * [PROGRAM](#edit_cfg_json_textual.__main__.PROGRAM)
+  * [main](#edit_cfg_json_textual.__main__.main)
 
 <a id="edit_cfg_json_textual.textual_editor"></a>
 
@@ -1108,4 +1111,43 @@ documented there.
 **Raises**:
 
 - `ConfigLoadError` - The input file cannot be opened for editing.
+
+<a id="edit_cfg_json_textual.__main__"></a>
+
+# edit\_cfg\_json\_textual.\_\_main\_\_
+
+The `edit-cfg-json-textual` program: edit any class in the terminal.
+
+It is the same program as `edit-cfg-json` with this package's backend in place
+of the one that prints, so everything about its command line is documented in
+`edit_cfg_json.cli`. What it opens is a Textual screen with a field per member
+of the configuration class it was told to edit.
+
+Run it as `edit-cfg-json-textual`, or as `python -m edit_cfg_json_textual` on
+a machine whose script folder is not on the path.
+
+<a id="edit_cfg_json_textual.__main__.PROGRAM"></a>
+
+#### PROGRAM
+
+Name that this program is installed under.
+
+<a id="edit_cfg_json_textual.__main__.main"></a>
+
+#### main
+
+```python
+def main(args: Optional[Sequence[str]] = None) -> int
+```
+
+Run this program and return what it ends with.
+
+**Arguments**:
+
+- `args` - Optional replacement for `sys.argv[1:]`, mainly for tests.
+  
+
+**Returns**:
+
+  What this run ends with, as one of `edit_cfg_json.ExitCode`.
 

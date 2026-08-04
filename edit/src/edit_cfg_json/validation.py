@@ -23,6 +23,7 @@ from typing import NamedTuple, Optional, TextIO
 import json
 from config_as_json import Config, JsonType, MemberValidationStep, \
     MemberValidator, ParseConverter, ValidationPlan, ValidationStep
+from edit_cfg_json.constructing import built_config
 from edit_cfg_json.converting import convert_member, member_converters, \
     refusal_text
 
@@ -191,8 +192,7 @@ def _converters_of(probe_type: type[Config]) -> dict[str, ParseConverter]:
         be constructed without arguments this library knows nothing about.
     """
     try:
-        probe = probe_type(from_json_data_text=None, from_json_filename=None,
-                           stderr_file=StringIO())
+        probe = built_config(probe_type, stream=StringIO())
     except BUFFER_ERRORS:
         return {}
     return member_converters(probe)
@@ -340,8 +340,8 @@ def _attribution(config_type: type[Config], probe_type: type[Config],
         at all, which is a refusal about no member and no value.
     """
     try:
-        probe = probe_type(from_json_data_text=json.dumps(members),
-                           from_json_filename=None, stderr_file=StringIO())
+        probe = built_config(probe_type, stream=StringIO(),
+                             text=json.dumps(members))
     except BUFFER_ERRORS:
         return Attribution(refused={}, remaining='')
     return _plan_failures(config_type=config_type, probe=probe)
@@ -421,9 +421,8 @@ def validate_buffer(config_type: type[Config],
                                           refused=unconverted))
     diagnostics = StringIO()
     try:
-        candidate = config_type(from_json_data_text=json.dumps(members),
-                                from_json_filename=None,
-                                stderr_file=diagnostics)
+        candidate = built_config(config_type, stream=diagnostics,
+                                 text=json.dumps(members))
         validated = json.loads(
             candidate.as_json_string(stderr_file=diagnostics))
     except BUFFER_ERRORS as error:

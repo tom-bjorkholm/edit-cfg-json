@@ -48,10 +48,14 @@ takes the same options:
 something the example can guess, and a silent choice would teach the wrong
 thing about a library that has more than one user interface.
 
-`--ui dump` is not a lesser mode. It renders the model with
-`edit_cfg_json.model_as_text`, which lives in the user interface agnostic
-core, so it shows exactly the model that the two graphical backends draw.
-That is what lets every example be checked without a display.
+`--ui dump` is not a lesser mode. It runs `edit_cfg_json.DumpEditor`, a backend
+that the core itself ships, so it shows exactly the model that the two
+graphical backends draw. That is what lets every example be checked without a
+display. `StandInUser` beside it in `cmd_line.py` is the other kind of backend:
+one written by hand, in a few lines, which does what a user would do — type
+into a field, press the explain key, press Save — and then hands the model on.
+Between the two of them they say what a backend really is, which is anything
+with a `run_editor` method.
 
 `-o/--output` defaults to the input file, which is what an editor is normally
 asked to do. With neither, there is nowhere to write, and the two graphical
@@ -103,3 +107,25 @@ python3 e01_flat_config.py --ui textual
 
 Every example file can also be imported instead of run, which is what the
 tests in [examples/test/test_example/](../../test/test_example/) do.
+
+## Opening these classes without running an example
+
+Each of the three packages installs a program that takes the *name* of a
+configuration class, so any class in this folder can be opened without running
+the file it lives in:
+
+```sh
+PYTHONPATH=examples/src ./venv/bin/edit-cfg-json \
+    --module example.e03_described_config DescribedConfig
+PYTHONPATH=examples/src ./venv/bin/edit-cfg-json-textual \
+    --module example.e02_enum_config EnumConfig
+./venv/bin/edit-cfg-json-tk  --file \
+    examples/src/example/e03_described_config.py DescribedConfig        
+```
+
+That is a different thing from an example and is worth keeping apart from one.
+The examples are about what an application writes; the program is what an
+application author gets without writing anything. What the program cannot pass
+on is what only the application knows: the description mapping of
+[e03_described_config.py](e03_described_config.py) and the `Settings` of
+[e01_flat_config.py](e01_flat_config.py). Run the example itself to see those.

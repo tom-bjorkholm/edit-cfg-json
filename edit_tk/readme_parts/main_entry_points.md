@@ -33,6 +33,26 @@ TkEditor().run_editor(model)
 saved = model.saved_config
 ````
 
+## The {{dist_name}} program
+
+Installing this package also installs a program of the same name, so an
+application author gets a Tk editor for their own configuration class without
+writing a line of code:
+
+````sh
+{{dist_name}} --module myapp.config AppConfig -i /etc/myapp.json
+````
+
+The window it opens is the one this page describes, on the class that was
+named. It is `edit_cfg_json.run_cli` with this package's backend filled in, so
+the command line below is the same one that `edit-cfg-json` and
+`edit-cfg-json-textual` have; what differs is which of the three shows the
+configuration.
+
+{{include: program.md}}
+
+## What the window shows
+
 The package is under construction. This version opens a window with one edit
 field per configuration member, four buttons — Validate, Save, Save as and
 Close — a tick-box for Explain, and a key for each of them. Every change of a

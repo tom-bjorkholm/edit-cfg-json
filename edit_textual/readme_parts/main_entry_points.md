@@ -33,6 +33,26 @@ TextualEditor().run_editor(model)
 saved = model.saved_config
 ````
 
+## The {{dist_name}} program
+
+Installing this package also installs a program of the same name, so an
+application author gets a Textual editor for their own configuration class
+without writing a line of code:
+
+````sh
+{{dist_name}} --module myapp.config AppConfig -i /etc/myapp.json
+````
+
+The screen it opens is the one this page describes, on the class that was
+named. It is `edit_cfg_json.run_cli` with this package's backend filled in, so
+the command line below is the same one that `edit-cfg-json` and
+`edit-cfg-json-tk` have; what differs is which of the three shows the
+configuration.
+
+{{include: program.md}}
+
+## What the screen shows
+
 The package is under construction. This version opens a terminal screen with
 one edit field per configuration member, and the keys the application chose
 in the `actions` of its `edit_cfg_json.Settings`. With an application that

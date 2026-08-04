@@ -5,13 +5,13 @@ Everything a user of this package needs is re-exported from the top-level
 
 ````python
 from {{import_name}} import ActionSettings, ConfigLoadError, Descriptions, \
-    EXPLANATION, EditModel, EditorBackend, Emphasis, LOAD_REMARK, \
-    LoadPolicy, LoadReport, LoadedConfig, MEMBER_DIAGNOSTIC, MEMBER_MARK, \
-    MemberRow, SaveOutcome, Settings, SettingsSource, ValidationVerdict, \
-    docstring_text, edit, load_config, load_text, model_as_text, \
-    model_title, row_description, row_diagnostic, row_marks, \
-    row_value_text, save_emphasis, save_text, verdict_emphasis, \
-    verdict_text
+    DumpEditor, EXPLANATION, EditModel, EditorBackend, Emphasis, ExitCode, \
+    LOAD_REMARK, LoadPolicy, LoadReport, LoadedConfig, MEMBER_DIAGNOSTIC, \
+    MEMBER_MARK, MemberRow, SaveOutcome, Settings, SettingsSource, \
+    ValidationVerdict, add_file_options, default_config, docstring_text, \
+    edit, load_config, load_text, model_as_text, model_title, named_policy, \
+    row_description, row_diagnostic, row_marks, row_value_text, run_cli, \
+    save_emphasis, save_text, verdict_emphasis, verdict_text
 ````
 
 | Name | What it is |
@@ -31,6 +31,9 @@ from {{import_name}} import ActionSettings, ConfigLoadError, Descriptions, \
 | `ActionSettings` | The key combinations of every action of the editor, one attribute per action, so that an action the application says nothing about keeps its default. |
 | `SettingsSource` | What every entry point takes: a `Settings`, or a callable that answers with one. |
 | `EditorBackend` | The protocol a user interface implements. It is phrased against `EditModel`, so a backend can also be mounted by an application that runs its own event loop. |
+| `DumpEditor` | The one backend this package ships, and the only one that needs no user interface library: it validates the buffer, prints the model and returns. It is what the `{{dist_name}}` program below runs, and it is the shortest thing there is to read for anybody writing a backend of their own. |
+| `default_config` | One configuration object holding the declared defaults of a class, which is what `edit` and `EditModel` take. It is the door for a caller that has a class rather than an object, and it refuses a class the editor cannot construct in the same words that reading a file does. |
+| `run_cli` | The whole command line of a ready-to-run program, given a backend. `ExitCode` is what it answers with, `add_file_options` adds the input, output and policy options to any other parser, and `named_policy` turns a `--policy` value into a `LoadPolicy`. |
 | `model_as_text` | The plain text rendering of a whole model, used by the examples and by the tests so that the editor can be observed without a display. It begins with what the load did and ends with the validation state and the saving, so a rendering never leaves any of them unsaid. |
 | `model_title` | The label of a whole model, marked while the buffer holds a change worth saving. Both backends show it, so neither of them decides on its own how an unsaved change looks. |
 | `load_text` | What reading the input file did, as text, and nothing at all when it did nothing worth saying. Both backends show it, so the two of them cannot tell the user two different things about one file. |
@@ -49,6 +52,29 @@ The package is under construction. This version reads a flat configuration
 from a file, edits it, validates it and writes it. A member whose value is a
 list or a dict is reported as a row that cannot be edited yet rather than
 being left out.
+
+## The {{dist_name}} program
+
+Installing this package installs a program of the same name, and it needs no
+display: it prints the configuration class you name, with what that class's own
+validators make of the values, and with `--save` it writes the validated file.
+So it is a configuration checker for a terminal or for a continuous integration
+job as much as a way of looking at a class, and nobody has to write a line of
+code to use it:
+
+````sh
+{{dist_name}} --module myapp.config AppConfig -i /etc/myapp.json
+{{dist_name}} --module myapp.config AppConfig -i partial.json --save
+````
+
+The second of those writes the file the class itself would have written: what
+the file left out is filled in from the declared defaults, and what a validator
+rewrites is rewritten. `--save` exists only in this program of the three,
+because a run that prints once and returns has no later moment at which a user
+could press Save. Its two graphical relatives, `edit-cfg-json-tk` and
+`edit-cfg-json-textual`, open an editor and give the user one instead.
+
+{{include: program.md}}
 
 ## Reading the input file
 

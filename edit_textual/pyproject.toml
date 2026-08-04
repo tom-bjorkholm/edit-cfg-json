@@ -27,6 +27,9 @@ classifiers = [
 ]
 dynamic = ["dependencies", "version"]
 
+[project.scripts]
+edit-cfg-json-textual = "edit_cfg_json_textual.__main__:main"
+
 [project.urls]
 "Homepage" = "https://github.com/tom-bjorkholm/edit-cfg-json"
 "Source code" = "https://github.com/tom-bjorkholm/edit-cfg-json"

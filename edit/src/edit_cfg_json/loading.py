@@ -27,15 +27,12 @@ from enum import Enum, auto
 from io import StringIO
 from pathlib import Path
 from typing import NamedTuple, Optional
-import inspect
 import json
 from config_as_json import Config, ConfigAutoChangeHook, ConfigBadJson, \
     PathOrStr
+from edit_cfg_json.constructing import built_config
 from edit_cfg_json.settings import Settings, SettingsSource, checked_file, \
     current_settings
-
-HOOK_NAME = 'auto_ch_hook'
-"""Name of the constructor keyword that reports automatic changes."""
 
 DEFAULTS_ERRORS = (AttributeError, KeyError, TypeError, ValueError)
 """Every way in which constructing the declared defaults can fail.
@@ -150,33 +147,13 @@ class ConfigLoadError(Exception):
         super().__init__('\n'.join(part for part in parts if part))
 
 
-def _takes_hook(config_type: type[Config]) -> bool:
-    """Return whether one configuration class takes the change hook.
-
-    `Config.__init__` takes it, but a subclass has to declare it and hand it
-    on, and the three keyword constructor that `config_as_json` documents
-    does not. Only a class that names the keyword itself counts as taking
-    it. A class that collects further keyword arguments could be forwarding
-    them or refusing them, and offering the hook to it would turn a load
-    that works into one that fails, for a report that is a nicety.
-
-    Args:
-        config_type: Class of the configuration that is being loaded.
-
-    Returns:
-        Whether the hook can be passed to this class.
-    """
-    parameters = inspect.signature(config_type).parameters
-    return HOOK_NAME in parameters
-
-
 def _defaults(config_type: type[Config], said: StringIO) -> Config:
     """Return one configuration object holding its declared defaults.
 
-    The hook reaches a class that declares it and is dropped for a class
-    that does not, which is what `config_as_json` leaves to the application
-    to opt into. Nothing reads the hook yet; forwarding it is what a later
-    step needs to explain the automatic changes of an old format file.
+    The hook is offered whatever the class does with it, because
+    `built_config` drops it for a class that does not declare it. Nothing
+    reads the hook yet; offering it is what a later step needs to explain the
+    automatic changes of an old format file.
 
     Args:
         config_type: Class of the configuration that is being loaded.
@@ -188,14 +165,9 @@ def _defaults(config_type: type[Config], said: StringIO) -> Config:
     Raises:
         ConfigLoadError: The editor cannot construct this class.
     """
-    hook = ConfigAutoChangeHook()
     try:
-        if _takes_hook(config_type):
-            return config_type(from_json_data_text=None,
-                               from_json_filename=None, auto_ch_hook=hook,
-                               stderr_file=said)
-        return config_type(from_json_data_text=None, from_json_filename=None,
-                           stderr_file=said)
+        return built_config(config_type, stream=said,
+                            hook=ConfigAutoChangeHook())
     except DEFAULTS_ERRORS as error:
         raise ConfigLoadError(NO_DEFAULTS.format(name=config_type.__name__),
                               _explained(said=said, error=error)) from error
@@ -390,6 +362,32 @@ def _load_text(config_type: type[Config], text: str,
                        said=said.getvalue())
     return LoadedConfig(config=config,
                         report=LoadReport(message=said.getvalue().strip()))
+
+
+def default_config(config_type: type[Config]) -> Config:
+    """Return one configuration object holding the declared defaults.
+
+    This is the door for a caller that has a configuration class and needs
+    the object that `edit` and `EditModel` take. A program that is told which
+    class to edit is the case it exists for: the class is named on a command
+    line, and the editor wants an instance of it.
+
+    It is the same construction that reading an input file starts from, so a
+    class the editor cannot construct is refused here in the same words and
+    with the same diagnostics, and the hook that reports the automatic changes
+    of an old format file reaches a class that declares it.
+
+    Args:
+        config_type: Class to construct with no JSON source, which leaves it
+            holding only what it declares.
+
+    Returns:
+        A configuration object holding the declared defaults of that class.
+
+    Raises:
+        ConfigLoadError: The editor cannot construct this class.
+    """
+    return _defaults(config_type=config_type, said=StringIO())
 
 
 def _file_text(in_file: PathOrStr) -> str:

@@ -21,9 +21,15 @@ should both open a window and print the model. Making them one option also
 means that `argparse` itself refuses a missing or an unknown choice, so this
 module needs no hand written check for either.
 
-The text dump is not a lesser mode. It is `edit_cfg_json.model_as_text`,
-which lives in the user interface agnostic core, so `--ui dump` shows
-exactly the model that the two graphical backends render.
+The text dump is not a lesser mode. It is `edit_cfg_json.DumpEditor`, a
+backend that the core itself ships, so `--ui dump` shows exactly the model
+that the two graphical backends render. It is the backend of the
+`edit-cfg-json` program as well, which is what the core installs for an
+application author who would rather not write a program at all.
+
+`StandInUser` below it is the other kind of backend: one written by hand, in a
+few lines, for this repository's own purposes. Between the two of them they
+say what a backend really is — anything with a `run_editor` method.
 
 The repeatable `--set member=value` option edits the buffer before anything
 is shown. It is what lets an editing step be demonstrated and tested without
@@ -99,7 +105,8 @@ from dataclasses import fields
 from typing import Optional
 from config_as_json import Config
 from edit_cfg_json import ActionSettings, ConfigLoadError, Descriptions, \
-    EditModel, EditorBackend, LoadPolicy, Settings, edit, model_as_text
+    DumpEditor, EditModel, EditorBackend, Settings, add_file_options, edit, \
+    named_policy
 
 UI_DUMP = 'dump'
 """Value of `--ui` that prints the model instead of opening a window."""
@@ -112,19 +119,6 @@ UI_TEXTUAL = 'textual'
 
 UI_CHOICES = (UI_DUMP, UI_TK, UI_TEXTUAL)
 """Every accepted value of the required `--ui` option."""
-
-DEFAULT_POLICY_NAME = 'strict-then-defaults'
-"""Value of `--policy` used when the command line names none of them.
-
-It is the default of the editor as well, so a run that says nothing about the
-policy loads strictly and falls back to the declared defaults when the file
-turns out to be incomplete.
-"""
-
-POLICIES = {DEFAULT_POLICY_NAME: LoadPolicy.STRICT_THEN_DEFAULTS,
-            'strict': LoadPolicy.STRICT,
-            'defaults': LoadPolicy.DEFAULTS}
-"""Every accepted value of `--policy`, and what the editor makes of it."""
 
 DUMP_ONLY_MESSAGE = '--save only means something together with --ui dump.'
 """Message used to refuse `--save` where a Save button or key exists."""
@@ -160,6 +154,9 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
         `--save`, `--extension`, `--enforce-extension`, `--key`,
         `-i/--input` and `-o/--output`.
     """
+    # The last three of those are added by the core, in `add_file_options`,
+    # because the programs the core installs have the very same three options
+    # and they have to mean the same thing here as they do there.
     parser = argparse.ArgumentParser(prog=example_name)
     parser.add_argument('--ui', required=True, choices=UI_CHOICES,
                         help='How to show the configuration.')
@@ -175,15 +172,9 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
     parser.add_argument('--key', action='append', dest='keys',
                         metavar='ACTION=COMBINATIONS',
                         help='Keys of one action of the editor. Repeatable.')
-    parser.add_argument('--policy', default=DEFAULT_POLICY_NAME,
-                        choices=tuple(POLICIES),
-                        help='What to do about values the file leaves out.')
     parser.add_argument('--save', action='store_true',
                         help='Write the output file. Only with --ui dump.')
-    parser.add_argument('-i', '--input', default=None,
-                        help='Configuration file to read.')
-    parser.add_argument('-o', '--output', default=None,
-                        help='Configuration file to write, or the input file.')
+    add_file_options(parser)
     return parser
 
 
@@ -304,50 +295,21 @@ def _settings(parser: argparse.ArgumentParser,
     return settings
 
 
-class DumpEditor:  # pylint: disable=too-few-public-methods
-    """A backend that prints the model instead of opening a window.
-
-    It is a backend and not a special case beside the two real ones, which
-    is worth noticing: `EditorBackend` asks for one method, so anything with
-    that method can be handed to `edit()`. That is also how an application
-    could write a backend of its own.
-    """
-
-    def __init__(self, save: bool) -> None:
-        """Say whether this dump writes the output file or only reports it.
-
-        Args:
-            save: Whether to write the file. A dump prints once and the run
-                is then over, so there is no later moment at which the user
-                could ask for it.
-        """
-        self._save = save
-
-    def run_editor(self, model: EditModel) -> None:
-        """Validate or save, and print the model as text.
-
-        Saving validates too, so either way the printed model says what the
-        application makes of the values in it.
-
-        Args:
-            model: Model to print.
-        """
-        if self._save:
-            model.save()
-        else:
-            model.validate()
-        print(model_as_text(model))
-
-
 class StandInUser:  # pylint: disable=too-few-public-methods
     """A backend that does what a user would, and then runs another one.
 
     What it does belongs on this side of `edit()` rather than before it,
     because `edit()` owns the model: it reads the file and builds the model
     itself, which is what gives a load its policy and its change reporting.
-    `--set` stands in for a user typing and `--toggle-explain` for a user
-    pressing the explain key, and both of those happen in an editor that is
-    already open.
+    `--set` stands in for a user typing, `--toggle-explain` for a user pressing
+    the explain key, and `--save` for a user pressing Save, and all three of
+    those happen in an editor that is already open.
+
+    Saving is here rather than in `DumpEditor` for the same reason as the other
+    two: the dump prints the model it is given, and pressing Save is not
+    printing. A dump does print once and return, though, so `--save` is the
+    only way a user could ever ask it for one, which is why the command line
+    accepts the option for `--ui dump` alone.
     """
 
     def __init__(self, inner: EditorBackend, parser: argparse.ArgumentParser,
@@ -373,6 +335,8 @@ class StandInUser:  # pylint: disable=too-few-public-methods
                      edits=self._parsed.edits)
         if self._parsed.toggle_explain:
             model.toggle_explanations()
+        if self._parsed.save:
+            model.save()
         self._inner.run_editor(model)
 
 
@@ -413,7 +377,7 @@ def _selected_backend(parsed: argparse.Namespace) -> EditorBackend:
         A backend that satisfies the `EditorBackend` protocol.
     """
     if parsed.ui == UI_DUMP:
-        return DumpEditor(save=parsed.save)
+        return DumpEditor()
     return _tk_editor() if parsed.ui == UI_TK else _textual_editor()
 
 
@@ -456,7 +420,7 @@ def _run_editor(parser: argparse.ArgumentParser, config: Config,
     try:
         saved = edit(config=config, backend=backend, in_file=parsed.input,
                      descriptions=descriptions, out_file=parsed.output,
-                     policy=POLICIES[parsed.policy],
+                     policy=named_policy(parsed.policy),
                      settings=_settings(parser=parser, parsed=parsed))
     except ConfigLoadError as error:
         # `parser.error` writes the message and ends the process, so nothing

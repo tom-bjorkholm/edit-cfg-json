@@ -434,6 +434,71 @@ class HookCfg(Config):
         return []
 
 
+class AltNameCfg(Config):
+    """A configuration class that names its JSON text parameter its own way.
+
+    `Config.__init__` calls the parameter `from_json_data_text`, and the
+    example configuration classes that `config_as_json` ships call it
+    `from_json_text` in the constructors they declare. Both names are in use,
+    so the editor reads the signature rather than assuming one of them, and
+    this class is the other one.
+    """
+
+    def __init__(self, from_json_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Declare the members and then apply the JSON under the other name."""
+        self.name: str = 'other name'
+        self.answer: int = 5
+        super().__init__(from_json_data_text=from_json_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return no extra validation steps."""
+        _ = stderr_file
+        return []
+
+
+class NoTextCfg(Config):
+    """A configuration class that cannot be given JSON text at all.
+
+    Its declared defaults can be read, because reading them needs no JSON, but
+    a buffer cannot be handed back to it. Constructing it on the defaults
+    instead and calling that a validation pass would accept whatever the user
+    typed, so the editor refuses it instead.
+    """
+
+    def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
+        """Declare the one member, and take no JSON source of any kind."""
+        self.name: str = 'no text'
+        super().__init__(from_json_data_text=None, from_json_filename=None,
+                         stderr_file=stderr_file)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return no extra validation steps."""
+        _ = stderr_file
+        return []
+
+
+class Marker:  # pylint: disable=too-few-public-methods
+    """A value that is not a JSON value and has no converter of its own."""
+
+
+class NoJsonCfg(SampleCfg):
+    """A configuration whose value cannot be written as JSON.
+
+    A class may leave part of its own writing to code outside itself, and
+    `config_as_json` then refuses to serialize it. The editor reads the values
+    it shows by serializing the configuration object, so such a class has
+    nothing for the editor to show at all.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the one member whose value is no JSON value."""
+        self.marker: object = Marker()
+
+
 class ExtraArgCfg(SampleCfg):
     """A configuration whose constructor needs an argument of its own.
 

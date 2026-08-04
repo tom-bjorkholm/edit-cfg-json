@@ -87,6 +87,9 @@
     * [area](#edit_cfg_json_tk.scrolling.ScrollingArea.area)
     * [body](#edit_cfg_json_tk.scrolling.ScrollingArea.body)
   * [scrolling\_body](#edit_cfg_json_tk.scrolling.scrolling_body)
+* [edit\_cfg\_json\_tk.\_\_main\_\_](#edit_cfg_json_tk.__main__)
+  * [PROGRAM](#edit_cfg_json_tk.__main__.PROGRAM)
+  * [main](#edit_cfg_json_tk.__main__.main)
 
 <a id="edit_cfg_json_tk.tk_editor"></a>
 
@@ -1370,4 +1373,43 @@ read in.
 **Returns**:
 
   The frame to pack, and the frame to build in.
+
+<a id="edit_cfg_json_tk.__main__"></a>
+
+# edit\_cfg\_json\_tk.\_\_main\_\_
+
+The `edit-cfg-json-tk` program: edit any configuration class in a window.
+
+It is the same program as `edit-cfg-json` with this package's backend in place
+of the one that prints, so everything about its command line is documented in
+`edit_cfg_json.cli`. What it opens is a Tk window with a field per member of
+the configuration class it was told to edit.
+
+Run it as `edit-cfg-json-tk`, or as `python -m edit_cfg_json_tk` on a machine
+whose script folder is not on the path.
+
+<a id="edit_cfg_json_tk.__main__.PROGRAM"></a>
+
+#### PROGRAM
+
+Name that this program is installed under.
+
+<a id="edit_cfg_json_tk.__main__.main"></a>
+
+#### main
+
+```python
+def main(args: Optional[Sequence[str]] = None) -> int
+```
+
+Run this program and return what it ends with.
+
+**Arguments**:
+
+- `args` - Optional replacement for `sys.argv[1:]`, mainly for tests.
+  
+
+**Returns**:
+
+  What this run ends with, as one of `edit_cfg_json.ExitCode`.
 

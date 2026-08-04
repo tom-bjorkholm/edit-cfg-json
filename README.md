@@ -16,7 +16,23 @@ folding editor for configuration objects based on `config_as_json.Config`:
 | [edit_tk/](edit_tk/) | `edit-cfg-json-tk` | `edit_cfg_json_tk` |
 | [edit_textual/](edit_textual/) | `edit-cfg-json-textual` | `edit_cfg_json_textual` |
 
-To be written.
+Each package also installs a program of its own name, which opens an editor
+on any `config_as_json.Config` class it is told the name of, with no code
+written by anybody:
+
+```sh
+edit-cfg-json-tk --module myapp.config AppConfig -i /etc/myapp.json
+edit-cfg-json --module myapp.config AppConfig -i /etc/myapp.json
+```
+
+The second needs no display: it prints the configuration and what the
+application's own validators make of it, and ends with an exit code that says
+whether the file is one the application would accept. Inside this repository
+they are `./venv/bin/edit-cfg-json` and so on, and any class under
+[examples/src/example/](examples/src/example/) or
+[https://github.com/tom-bjorkholm/config_as_json/tree/master/example/src/example](https://github.com/tom-bjorkholm/config_as_json/tree/master/example/src/example)
+can be opened with them, which is the quickest way to see the editor against a
+configuration that is not two members long.
 
 ## Related documentation
 
@@ -138,6 +154,11 @@ The helper scripts are:
 - `run_static_checks.py`
   Run pylint, flake8 and mypy on the given files only, for fast iteration
   without rebuilding the virtual environment.
+- `run_focus_sensitive_tests.py`
+  Manually run focus sensitive tests under a controlled display conditions
+  that they need. (Computer with real display, and no user actions moving
+  focus on display. As an automatic test suite cannot guarantee these
+  display conditions, these tests are not run automatically.) 
 
 The standard verification suite includes pytest, pylint, flake8, mypy and
 the Python layout check. After a build, the generated reports can be
@@ -145,7 +166,7 @@ browsed through `reports/index.html`.
 
 ## Test summary
 
-- Test result: 865 passed, 2 deselected in 19s
+- Test result: 933 passed, 2 deselected in 19s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

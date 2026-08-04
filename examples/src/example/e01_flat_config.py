@@ -231,6 +231,26 @@ moves Save, and `--key save_as=` takes the key away from Save as while
 leaving the action reachable through the button and the command palette. Two
 actions given the same combination are refused where the settings are built,
 because only one of the two could ever run.
+
+## Without a program at all
+
+Everything above is what an application does in its own code, and this file is
+that code. There is also a shorter way in that writes nothing: each of the
+three packages installs a program that takes the *name* of a configuration
+class and opens an editor on it. This example's own class is as good a class as
+any, so the same editor is reachable without running this file:
+
+````sh
+export PYTHONPATH=examples/src
+edit-cfg-json --module example.e01_flat_config FlatConfig -i in.json
+edit-cfg-json-tk --module example.e01_flat_config FlatConfig
+````
+
+The first prints the model, as `--ui dump` does here; the second opens the
+window, as `--ui tk` does. What they cannot do is what a command line cannot
+supply: the description mapping of example 3, and the `Settings` above. Those
+are what an application knows about itself, and that is why an application
+still writes the one `edit()` call rather than shelling out to a program.
 """
 
 # Copyright (c) 2026 Tom Björkholm

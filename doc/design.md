@@ -535,8 +535,13 @@ change reporting and load-policy control, which they cannot get through
 `ConfigFactory` today.
 
 When no loader is supplied, the editor derives one from `type(config)`,
-using `inspect.signature()` to decide whether `auto_ch_hook` can be
-forwarded (see section 5.3).
+reading `inspect.signature()` to decide what that class can be told. The hook
+is one of those things (see section 5.3) and the name of the JSON text is
+another, because more than one name for it is in use; section 8.3.4 is where
+that was found and why it is answered from the signature rather than from one
+documented shape. All four places that construct the application's class ask
+one internal module what to call it with, so the answer cannot differ between
+them.
 
 **`Config.__init__` takes no `ok_to_use_defaults`.** Confirmed against the
 implementation in `./venv` at step 4: the parameter belongs to
@@ -889,7 +894,9 @@ about the layering we are paying three packages for.
 An `edit_cfg_json.ui` entry-point group would let backends register
 themselves for discovery (`--ui=auto`). It is additive and breaks
 nothing, and is only worth building once there is a generic launcher or
-a third-party backend in the wild.
+a third-party backend in the wild. The three programs of section 8.3 are not
+that launcher: each of them supplies its own backend, so none of them has
+anything to discover.
 
 ### 8.2 Embedding in an application that already runs a UI
 
@@ -1056,6 +1063,92 @@ per-instance binding the App does today works on a widget too; `Widget`
 warns that a `CSS` class variable is ignored; and
 `tkinter.Variable.__init__` calls `_get_default_root('create variable')`
 when it is given no master.
+
+### 8.3 A ready-to-run program in every package
+
+An application author should not have to write a program to get an editor for
+their own configuration class, so each of the three distributions installs one:
+`edit-cfg-json`, `edit-cfg-json-tk` and `edit-cfg-json-textual`. They are a
+product and not only a development tool, and the second benefit is what built
+them at step 7B: every question about a configuration that is not two members
+long used to cost a hand-written example, and now any class in reach answers it.
+
+#### 8.3.1 The command line owns no logic
+
+`edit_cfg_json.cli` holds all of it — the parsing, the two doors to a class, the
+construction, one editing session and the exit code — and `run_cli` takes the
+backend for exactly the reason `edit()` does: the core names no user interface.
+Each package is then a program of a few statements. Without that split the two
+graphical programs would be near copies of each other, and section 8 answers
+duplicate code between the backends by moving logic into the core rather than by
+suppressing the warning. It is also what makes the whole program testable with
+no display and no toolkit, by handing `run_cli` a backend that is a stub.
+
+Each program is reachable as `python -m` on its own package as well, so a
+machine whose script folder is not on `PATH` can still run it, and all three
+complete their own command lines with `argcomplete`.
+
+#### 8.3.2 The class is told, and never guessed
+
+`--module` names an importable module and `--file` names a Python file, exactly
+one of the two is required, and the class is a positional argument. A single
+`module:Class` argument reads better and would have to guess which of the two it
+was given, which is the decision section 8.2.1 already took for this library as
+a whole; it would also make a Windows drive letter a special case, and it would
+take the refusal of a missing or a doubled location away from `argparse`.
+
+The file door puts the folder of the file at the front of `sys.path` and imports
+it by its own stem, so a module that imports its neighbours works, and it puts
+both back afterwards: a second file of the same stem must really be read rather
+than found among the modules of the first. A module that belongs to a package
+and uses a relative import cannot be loaded from a bare path at all, and is
+refused with a message naming `--module` with `PYTHONPATH` instead.
+
+**Importing a module runs it.** The help text and the readme say so. It is not
+guarded against, because it is the same exposure as `python somefile.py` and a
+guard could only be a pretence.
+
+#### 8.3.3 What the program answers with
+
+`ExitCode` gives each way of refusing a number of its own, because a program of
+this library is meant to be usable from a script and from a continuous
+integration job. A program whose backend prints once and returns is the one that
+`--save` belongs to — there is no later moment at which a user could press Save
+— and it is also the one whose exit code answers with the verdict of the buffer,
+because there is nobody to read one. A program that gives the user a session
+ends with success when the user closes it, whatever is left in the fields:
+closing an editor is not a failure.
+
+That one fact about a backend is what `run_cli` is told, and `--save` is then not
+added to the parser at all for the other two, so it is `argparse` that refuses
+it rather than a check written by hand.
+
+#### 8.3.4 What the corpus showed, which is why the step exists
+
+Opening the 47 configuration classes of `dep_lib_doc/config_as_json/example/`
+found two things that no example in this repository would have.
+
+- **The constructor has more than one shape.** `Config.__init__` names the JSON
+  text `from_json_data_text`; the example classes that `config_as_json` ships
+  name it `from_json_text` in the constructors they declare, as does
+  `ConfigFactory`. 32 of those classes were refused by the editor over the name
+  of a parameter. The editor now reads the signature and passes every parameter
+  it knows the meaning of, which is principle 4 of section 3 applied to a
+  constructor. The one thing that cannot degrade quietly is the JSON text: a
+  class with nowhere to put it would be constructed on its declared defaults
+  instead, and a buffer validated against the defaults would be accepted
+  whatever the user typed, so that is refused.
+- **A class may not be able to serialize itself.** The editor reads the values
+  it shows with `as_json_string()`, so a class that leaves part of its own
+  writing to code outside itself has nothing for the editor to show at all. That
+  is a refusal of the program with a message and a number, and the exception
+  that `EditModel` already documents for an application that builds the model
+  itself and knows its own class.
+
+The four places that construct the application's class — the declared defaults,
+the load, the validation of a buffer, and the walk that attributes a refusal —
+now ask one internal module what to call it with, so the answer cannot differ
+between them.
 
 ## 9. Settings the application owns
 

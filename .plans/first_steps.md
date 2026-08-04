@@ -77,6 +77,9 @@ that introduces each one is where the name is finally settled.
 | `run_cli` | function, the program given a backend | step 7B |
 | `DumpEditor` | class, the backend that prints the model | step 7B |
 | `default_config` | function, the declared defaults of a class | step 7B |
+| `ExitCode` | `IntEnum`, what one run of a program ends with | step 7B |
+| `add_file_options` | function, the shared file and policy options | step 7B |
+| `named_policy` | function, a `--policy` value as a `LoadPolicy` | step 7B |
 | `ConfigLoader` | `Protocol` | step 9 |
 
 `Descriptions` is the only type alias the design asks for, and
@@ -717,13 +720,103 @@ build that now, later, or not at all.
 
 ### Step 7B — A ready-to-run program in every package
 
-Status: **Not started**
+Status: **Implemented and committed.**
 
 Numbered `7B` rather than `8` for the same reason as step 3B: the steps
 after it are cross-referenced by number from this file and from
 `doc/design.md`, and renumbering them would be churn with no content in
-it. It is the next step because the corpus it unlocks is what steps 8 to
+it. It was the next step because the corpus it unlocks is what steps 8 to
 14 need, not because it belongs to milestone 2 by subject.
+
+**Decided while building it.**
+
+- **`run_cli` owns `--save`, and `DumpEditor` does not.** The dump backend
+  became a class with no arguments that validates and prints, and the one fact
+  `run_cli` is told about a backend is whether it gives the user a session. A
+  program whose backend prints once and returns is the one that offers `--save`
+  and the one whose exit code answers with the verdict, because both follow
+  from there being no user. `--save` is then not added to the parser at all for
+  the other two, so it is `argparse` that refuses it rather than a check
+  written by hand — which is one refusal fewer than `cmd_line.py` has. In the
+  examples the saving moved to `StandInUser`, where it belongs beside `--set`
+  and `--toggle-explain`: pressing Save is one more thing a user does.
+- **Each way of refusing has an exit code of its own**, twelve of them, in
+  `ExitCode`. A program of this library is meant to be usable from a script, so
+  a script that wants to tell an uninstalled module from a missing file can.
+  `USAGE = 2` is written down there as well although `run_cli` never returns
+  it, because it is `argparse` that reports a wrong command line and the number
+  is part of the same promise.
+- **The shared options were factored out at once** rather than after pylint
+  complained. `add_file_options` adds `-i`, `-o` and `--policy` to any parser
+  and `named_policy` turns a `--policy` value into a `LoadPolicy`; the examples
+  use both, which is what keeps one meaning of those three options from
+  becoming two. The name of the default policy is looked up from
+  `DEFAULT_POLICY` rather than written twice.
+- **`default_config` publishes what `loading._defaults()` already did**, so the
+  program does not copy the refusal that names the class or lose the hook.
+- **The programs are `[project.scripts]` entries naming each package's
+  `__main__:main`**, so the installed script and `python -m` are the same four
+  statements. Checked against the install step: the build's package
+  consistency step reads only the name, the version, the description, the
+  Python requirement and the dependencies, so `[project.scripts]` beside a
+  `setup.py` is content, and `venv/bin/` really holds all three programs.
+- New public names: `DumpEditor`, `ExitCode`, `run_cli`, `add_file_options`,
+  `named_policy` and `default_config`. New modules `cli.py` and
+  `constructing.py` in the core, and a `__main__.py` in each of the three
+  packages. No type alias was needed.
+
+**What the corpus showed, and why the step was worth having early.** The 47
+configuration classes of `dep_lib_doc/config_as_json/example/` found two things
+that no example in this repository would have, and both are recorded in
+`doc/design.md` section 8.3.4.
+
+- **32 of the 47 were refused over the name of a constructor parameter.**
+  `Config.__init__` names the JSON text `from_json_data_text` and the example
+  classes that `config_as_json` ships name it `from_json_text` in the
+  constructors they declare, as does `ConfigFactory`. The editor now reads the
+  signature and passes every parameter it knows the meaning of, which is
+  principle 4 of section 3 applied to a constructor. The one thing that cannot
+  degrade quietly is the JSON text: a class with nowhere to put it would be
+  constructed on its declared defaults instead, and a buffer validated against
+  the defaults would be accepted whatever the user typed, so that is refused
+  with a `TypeError`. `NoTextCfg` in the core tests is that class and
+  `AltNameCfg` is the other name.
+- **One of the 47 cannot serialize itself**, so it crashed the editor with a
+  traceback. `ExampleConfig21` leaves part of its own writing to a function
+  beside the class, and the editor reads the values it shows with
+  `as_json_string()`, so there is nothing for it to show at all. It is now a
+  refusal with a message and a number of its own. `NoJsonCfg` in the core tests
+  is that class.
+
+**And what came of it.** The four places that construct the application's class
+— the declared defaults, the load, the validation of a buffer, and the walk that
+attributes a refusal — had three copies of the same constructor call between
+them. They now ask `constructing.built_config`, so a fifth shape of constructor
+is one edit and not four. After that change 46 of the 47 classes open, and the
+one that does not is refused rather than crashing.
+
+**Found while building it, and the lesson it carries.** Written as the plan said
+— one subprocess test per package — the two backend program tests were near
+copies of each other, and pylint reported `duplicate-code` across them on the
+first run. There was nothing to factor out where they were, because neither
+backend may import the other, so they became one parametrized table in the
+core's test folder, `test_programs.py`, beside the layering tests that are about
+all three packages for the same reason. That is the better test as well: one
+table names the three programs, their backends and whether each gives the user a
+session, and a table cannot drift the way three copies can.
+
+**Observable outcome, as built.** `edit-cfg-json`, `edit-cfg-json-tk` and
+`edit-cfg-json-textual` are installed by their packages, each is also
+`python -m` on its own package, and all three complete their command lines with
+`argcomplete` after one `eval "$(register-python-argcomplete ...)"`.
+`PYTHONPATH=examples/src edit-cfg-json --module example.e03_described_config
+DescribedConfig` prints that example's configuration with no example being run,
+and `PYTHONPATH=dep_lib_doc/config_as_json edit-cfg-json-textual --module
+example.e33_nested_configs ExampleConfig33` opens a configuration with nested
+objects in it, showing each of them as a row that cannot be edited yet, which is
+what step 11 is for.
+
+**What it was planned to be.**
 
 **Why it is here and not at the end.** Steps 4, 5, 6 and 7 each recorded a
 defect that only a real window holding real content showed: marks laid out
@@ -1009,9 +1102,10 @@ file as the class. The last of those is the interesting one: it uses the
 attribute loading the program already has, and it is the only way a generic
 launcher can show what an application says about its own members, which is
 otherwise the one thing an application can tell the editor that this
-program cannot pass on. By this step there are two parsers with the same
-options in the repository, so settle then whether `cmd_line.py` and the
-core's CLI share their definitions.
+program cannot pass on. Whether the two parsers of the repository share their
+definitions was settled at step 7B rather than here: `add_file_options` and
+`named_policy` are shared already, and each option this step adds is a
+candidate for the same treatment.
 
 **Step 20 — The program asks for what the command line left out.** A
 wizard: the program opens with no location, no class name and no files, and
