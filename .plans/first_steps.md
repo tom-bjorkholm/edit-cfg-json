@@ -792,6 +792,7 @@ for nesting and containers, `e22` for dict key and value types.
 - **The program does not replace an example.** Rule 2 of section 1 holds
   unchanged: what a step does stays observable from
   `examples/src/example/`.
+- all 3 program shall use `argcomplete`, which is available in venv
 
 **Observable outcome.**
 
