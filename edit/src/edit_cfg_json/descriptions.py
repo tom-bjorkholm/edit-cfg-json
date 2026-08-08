@@ -2,9 +2,11 @@
 """The explanatory text that the editor shows about a configuration.
 
 There are three sources of it, they are independent, and all of them are
-optional. The docstring of the configuration class labels the configuration
-object, a mapping supplied by the application labels the individual members,
-and the type of a member says the rest.
+optional. The docstring of a configuration class labels the configuration
+object — the one being edited, and every nested one inside it, because each of
+those is an object with a class of its own. A mapping supplied by the
+application labels the individual members, and the type of a member says the
+rest.
 
 What a type says is the names of an enum where the member holds one, and what
 kind of value the member holds where it does not: text, a whole number, a
@@ -28,11 +30,11 @@ validator.
 
 from collections.abc import Mapping
 from enum import Enum
-from typing import Optional
+from typing import NamedTuple, Optional
 import inspect
 from config_as_json import Config, ConfigPath, JsonType, ParseConverter
 from edit_cfg_json.leaf_value import value_kind
-from edit_cfg_json.tree import EVERY_ELEMENT, selects
+from edit_cfg_json.tree import ConfigNode, EVERY_ELEMENT, selects
 
 CHOICES_FORM = 'One of: {names}.'
 """What the editor says about the names one enum member accepts."""
@@ -218,55 +220,105 @@ def optional_members(config: Config) -> frozenset[str]:
     return frozenset(config._omit_none_from_json())
 
 
-def type_text(converter: Optional[ParseConverter], value: JsonType,
-              optional: bool) -> str:
-    """Return everything the type of one member says about it.
+def optional_paths(nodes: Mapping[ConfigPath, ConfigNode]) \
+        -> frozenset[ConfigPath]:
+    """Return every member of one tree that its own class may leave out.
 
-    An enum says the most, so where a member holds one that is what is said and
-    the kind of the value would only repeat it: the name of an enum member is
-    text, and knowing that is worth nothing beside knowing which names there
-    are. Every other member says what kind of value it holds, which is the one
-    thing the editor knows about every member of every configuration.
+    A nested configuration object writes its own JSON, so which of its members
+    it may leave out of that JSON is its class's to say and not the class's
+    above it. The paths are absolute, so a member is looked up here by the same
+    path that addresses it everywhere else.
 
     Args:
-        converter: How the text of this member becomes a value, or None.
-        value: Value the member held when the file was last agreed with, which
-            is the only type information there is.
-        optional: Whether the class may leave this member out of the file.
+        nodes: Every configuration object of the tree, by its path.
 
     Returns:
-        What the type of that member says, and an empty text when it says
+        The path of every member that the object holding it may omit.
+    """
+    return frozenset(path + (name,) for path, node in nodes.items()
+                     if node.config is not None
+                     for name in optional_members(node.config))
+
+
+class MemberFacts(NamedTuple):
+    """What the editor knows about the type of one node of the tree.
+
+    It is one object rather than one argument each, because the four of them
+    are read together and answer one question between them: what can be said
+    about this node that the application did not say.
+    """
+
+    value: JsonType
+    """Value the node held when the file was last agreed with.
+
+    It is the only type information there is for an ordinary value, because a
+    PEP 526 annotation on an instance attribute is recorded nowhere at runtime.
+    """
+
+    converter: Optional[ParseConverter] = None
+    """How the text of this node becomes the value it holds, or None."""
+
+    optional: bool = False
+    """Whether the class that owns this node may leave it out of the file."""
+
+    nested: bool = False
+    """Whether this node is a declared nested configuration object.
+
+    Such a node holds no value of its own, so what kind of value it is cannot
+    be said about it. What is said about it instead is the docstring of its
+    class, and where that is said depends on whether the node is open, which
+    is why it is not said here.
+    """
+
+
+def type_text(facts: MemberFacts) -> str:
+    """Return everything the type of one node says about it.
+
+    An enum says the most, so where a node holds one that is what is said and
+    the kind of the value would only repeat it: the name of an enum member is
+    text, and knowing that is worth nothing beside knowing which names there
+    are. Every other value says what kind of value it is, which is the one
+    thing the editor knows about every member of every configuration.
+
+    A declared nested configuration object says neither, because it holds no
+    value: it says its class, which its row shows, and its docstring, which is
+    shown below it. What it can still say here is that the class above it may
+    leave it out of the file altogether.
+
+    Args:
+        facts: What the editor knows about the type of that node.
+
+    Returns:
+        What the type of that node says, and an empty text when it says
         nothing at all.
     """
-    said = enum_text(converter) or value_kind(value)
-    if not optional:
+    said = '' if facts.nested else \
+        (enum_text(facts.converter) or value_kind(facts.value))
+    if not facts.optional:
         return said
     return f'{said} {OPTIONAL_TEXT}'.strip()
 
 
 def member_description(descriptions: Descriptions, path: ConfigPath,
-                       converter: Optional[ParseConverter], value: JsonType,
-                       optional: bool) -> str:
-    """Return everything the editor has to say about one member.
+                       facts: MemberFacts) -> str:
+    """Return everything the editor has to say about one node.
 
-    What the application says comes first, because it is what this member is
-    for in this application, and what the type of the member says comes after
+    What the application says comes first, because it is what this node is
+    for in this application, and what the type of the node says comes after
     it. The second is appended rather than used only where the first is
-    missing: what a member holds is true whatever the application wrote, and an
+    missing: what a node holds is true whatever the application wrote, and an
     application that explains what its members mean should not have to list the
     names of an enum or say that a number is a number.
 
     Args:
         descriptions: What the application says about its members.
-        path: Path of the member that is being described.
-        converter: How the text of this member becomes a value, or None.
-        value: Value the member held when the file was last agreed with.
-        optional: Whether the class may leave this member out of the file.
+        path: Path of the node that is being described.
+        facts: What the editor knows about the type of that node.
 
     Returns:
-        The description of that member, which is never empty for a member the
+        The description of that node, which is never empty for a node the
         editor can edit, because the type of it always says something.
     """
     said = [path_description(descriptions=descriptions, path=path),
-            type_text(converter=converter, value=value, optional=optional)]
+            type_text(facts)]
     return '\n'.join(line for line in said if line)

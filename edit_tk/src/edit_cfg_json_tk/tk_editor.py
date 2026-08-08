@@ -547,6 +547,10 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         came back would otherwise land below the ones below it. Nothing here
         is created or destroyed, so a field the user was typing into keeps
         what is in it while its container is folded and opened again.
+
+        What is said below the nodes is shown again as well, because folding a
+        nested configuration object changes it: an object that is showing less
+        of itself says less about itself.
         """
         for widgets in self._rows:
             widgets.frame.pack_forget()
@@ -556,6 +560,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
                                     else FOLD_OPEN_TEXT)
             if row.shown:
                 widgets.frame.pack(fill='x', padx=(self._indent(row), PADDING))
+        self._show_member_texts()
         self._show_fold_all()
 
     @staticmethod
@@ -578,22 +583,25 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
                                                      row=row),
                     diagnostic=core.row_diagnostic(model=self._model, row=row))
 
-    def _add_description(self, parent: tkinter.Misc,
+    @staticmethod
+    def _add_description(parent: tkinter.Misc,
                          row: core.MemberRow) -> Optional[tkinter.Label]:
-        """Create the widget that says what one member is for, if anything.
+        """Create the widget that says what one node is for, if anything.
 
-        A member that nothing is said about gets no widget, because there is
-        nothing that could ever appear in it.
+        A node that nothing is said about gets no widget, because there is
+        nothing that could ever appear in it. Whether anything can be is asked
+        of the core, because the description the row carries is not the whole
+        of what is said below a nested configuration object.
 
         Args:
-            parent: Frame of the member that is being described.
-            row: Member to describe.
+            parent: Frame of the node that is being described.
+            row: Node to describe.
 
         Returns:
             The widget that shows the description, or None when nothing is
-            said about this member.
+            said about this node.
         """
-        if not row.description:
+        if not core.row_describes(row):
             return None
         return shown_text(parent, '', core.EXPLANATION)
 
@@ -601,8 +609,10 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
                    row: core.MemberRow) -> Optional[tkinter.StringVar]:
         """Create the value widget of one member and wire it to the model.
 
-        A member that the model cannot edit yet gets a widget that only
-        shows text, because there is nothing the user could do to it.
+        A node that the model cannot edit gets a widget that only shows text,
+        because there is nothing the user could do to it: a list, a dict and a
+        nested configuration object are each edited through the rows below
+        them, and a declared member that holds no object holds no text either.
 
         The variable is given the parent as its master, so that it is
         created in the same Tcl interpreter as the field that reads it. A

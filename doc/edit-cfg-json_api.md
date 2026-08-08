@@ -7,6 +7,7 @@
   * [ELEMENT\_FORM](#edit_cfg_json.tree.ELEMENT_FORM)
   * [ENTRIES\_FORM](#edit_cfg_json.tree.ENTRIES_FORM)
   * [ENTRY\_FORM](#edit_cfg_json.tree.ENTRY_FORM)
+  * [NO\_OBJECT\_FORM](#edit_cfg_json.tree.NO_OBJECT_FORM)
   * [OPEN\_AT\_MOST](#edit_cfg_json.tree.OPEN_AT_MOST)
   * [path\_text](#edit_cfg_json.tree.path_text)
   * [text\_path](#edit_cfg_json.tree.text_path)
@@ -16,11 +17,14 @@
   * [starts\_folded](#edit_cfg_json.tree.starts_folded)
   * [child\_values](#edit_cfg_json.tree.child_values)
   * [selects](#edit_cfg_json.tree.selects)
-  * [nested\_selectors](#edit_cfg_json.tree.nested_selectors)
-  * [is\_nested](#edit_cfg_json.tree.is_nested)
+  * [ConfigNode](#edit_cfg_json.tree.ConfigNode)
+    * [config\_type](#edit_cfg_json.tree.ConfigNode.config_type)
+    * [config](#edit_cfg_json.tree.ConfigNode.config)
+  * [config\_nodes](#edit_cfg_json.tree.config_nodes)
+  * [owner\_path](#edit_cfg_json.tree.owner_path)
+  * [ordered\_names](#edit_cfg_json.tree.ordered_names)
   * [flat\_values](#edit_cfg_json.tree.flat_values)
   * [under\_dict](#edit_cfg_json.tree.under_dict)
-  * [dict\_nodes](#edit_cfg_json.tree.dict_nodes)
   * [assembled](#edit_cfg_json.tree.assembled)
 * [edit\_cfg\_json.loading](#edit_cfg_json.loading)
   * [DEFAULTS\_ERRORS](#edit_cfg_json.loading.DEFAULTS_ERRORS)
@@ -86,6 +90,7 @@
     * [value](#edit_cfg_json.converting.Converted.value)
     * [message](#edit_cfg_json.converting.Converted.message)
   * [member\_converters](#edit_cfg_json.converting.member_converters)
+  * [node\_converters](#edit_cfg_json.converting.node_converters)
   * [convert\_member](#edit_cfg_json.converting.convert_member)
   * [refusal\_text](#edit_cfg_json.converting.refusal_text)
 * [edit\_cfg\_json.cli](#edit_cfg_json.cli)
@@ -190,7 +195,6 @@
   * [checked\_file](#edit_cfg_json.settings.checked_file)
   * [chosen\_file](#edit_cfg_json.settings.chosen_file)
 * [edit\_cfg\_json.model\_text](#edit_cfg_json.model_text)
-  * [NESTED\_TEXT](#edit_cfg_json.model_text.NESTED_TEXT)
   * [FOLDED\_MARK](#edit_cfg_json.model_text.FOLDED_MARK)
   * [EDITED\_MARK](#edit_cfg_json.model_text.EDITED_MARK)
   * [VALIDATOR\_MARK](#edit_cfg_json.model_text.VALIDATOR_MARK)
@@ -212,6 +216,7 @@
   * [row\_value\_text](#edit_cfg_json.model_text.row_value_text)
   * [row\_marks](#edit_cfg_json.model_text.row_marks)
   * [docstring\_text](#edit_cfg_json.model_text.docstring_text)
+  * [row\_describes](#edit_cfg_json.model_text.row_describes)
   * [row\_description](#edit_cfg_json.model_text.row_description)
   * [row\_fold\_text](#edit_cfg_json.model_text.row_fold_text)
   * [can\_fold](#edit_cfg_json.model_text.can_fold)
@@ -266,6 +271,7 @@
     * [value](#edit_cfg_json.rows.MemberRow.value)
     * [original](#edit_cfg_json.rows.MemberRow.original)
     * [children](#edit_cfg_json.rows.MemberRow.children)
+    * [config\_type](#edit_cfg_json.rows.MemberRow.config_type)
     * [folded](#edit_cfg_json.rows.MemberRow.folded)
     * [shown](#edit_cfg_json.rows.MemberRow.shown)
     * [changed\_by\_validator](#edit_cfg_json.rows.MemberRow.changed_by_validator)
@@ -284,12 +290,10 @@
   * [RowContext](#edit_cfg_json.rows.RowContext)
     * [report](#edit_cfg_json.rows.RowContext.report)
     * [descriptions](#edit_cfg_json.rows.RowContext.descriptions)
+    * [nodes](#edit_cfg_json.rows.RowContext.nodes)
     * [converters](#edit_cfg_json.rows.RowContext.converters)
     * [optional](#edit_cfg_json.rows.RowContext.optional)
-    * [nested](#edit_cfg_json.rows.RowContext.nested)
-  * [row\_context](#edit_cfg_json.rows.row_context)
   * [member\_values](#edit_cfg_json.rows.member_values)
-  * [ordered\_names](#edit_cfg_json.rows.ordered_names)
   * [built\_rows](#edit_cfg_json.rows.built_rows)
   * [stamped](#edit_cfg_json.rows.stamped)
 * [edit\_cfg\_json.constructing](#edit_cfg_json.constructing)
@@ -306,6 +310,12 @@
   * [class\_summary](#edit_cfg_json.descriptions.class_summary)
   * [enum\_text](#edit_cfg_json.descriptions.enum_text)
   * [optional\_members](#edit_cfg_json.descriptions.optional_members)
+  * [optional\_paths](#edit_cfg_json.descriptions.optional_paths)
+  * [MemberFacts](#edit_cfg_json.descriptions.MemberFacts)
+    * [value](#edit_cfg_json.descriptions.MemberFacts.value)
+    * [converter](#edit_cfg_json.descriptions.MemberFacts.converter)
+    * [optional](#edit_cfg_json.descriptions.MemberFacts.optional)
+    * [nested](#edit_cfg_json.descriptions.MemberFacts.nested)
   * [type\_text](#edit_cfg_json.descriptions.type_text)
   * [member\_description](#edit_cfg_json.descriptions.member_description)
 * [edit\_cfg\_json.auto\_change](#edit_cfg_json.auto_change)
@@ -362,23 +372,29 @@ way. A list element is addressed by its index written out, which is what makes
 `('retry_delays', '0')` a path and lets `('retry_delays', '[')` describe every
 element of it.
 
-**A declared nested configuration object is not taken apart here.** It
-serializes as a dict and it is not one: it has a class, a docstring and a
-validity state of its own, and step 11 of the delivery plan is what gives it
-those. Until then it is one node holding what it serializes to, which is the
-honest thing to show and is what keeps step 11 an addition rather than a
-correction.
+**A declared nested configuration object is a node of its own**, and it is
+what segments the tree. It serializes as a dict and it is not one: it has a
+class and a docstring of its own, its members are rows below it in the order
+that class declares them, and everything below it belongs to that class rather
+than to the one above. That last part is the whole of what ownership means
+here: a parse converter and an optional member are the owning class's, exactly
+as `serialize_converters()` is on the way out.
 
-**Which nodes those are is asked as a path and not as a member name**, because
-a member holding one nested object is the least interesting case. A real
-configuration has a list of nested objects, each of which holds a dict of more
-of them, and `ConfigNestingKind` says so: `LIST_ELEMENT` and `DICT_VALUE`
-declare that every value *inside* a member is one. So a nesting declaration
-becomes a selector over paths, written the way `config_as_json` writes one,
-with `'['` for every element or every value at that point. The member that
-holds them stays an ordinary container that can be folded and says how much it
-holds, and each of the objects inside it is one node. What the later steps add
-is what such a node *is*; how it is found is settled here.
+**Where those objects are is asked of the objects themselves.** A member
+holding one nested object is the least interesting case. A real configuration
+has a list of nested objects, each of which holds a dict of more of them, and
+`ConfigNestingKind` says so: `LIST_ELEMENT` and `DICT_VALUE` declare that every
+value *inside* a member is one. So the declarations are walked over the
+configuration object, which answers with the absolute path of every nested
+object there really is, and with the object at it. The member that holds them
+stays an ordinary container that can be folded and says how much it holds.
+
+Walking the objects rather than matching a selector is what makes ownership
+answerable at all: `parse_converters()` and `_omit_none_from_json()` are
+methods of an object, and the declaration says only which class was expected.
+It also tells the truth about a factory that answered with a subclass, and an
+`OPTIONAL_MEMBER` that holds nothing: such a member has a class and no object,
+which is a different thing from a member that has both.
 
 <a id="edit_cfg_json.tree.EVERY_ELEMENT"></a>
 
@@ -425,6 +441,19 @@ What is said about a dict, in place of the value a leaf shows.
 #### ENTRY\_FORM
 
 The same for the one dict that holds a single entry.
+
+<a id="edit_cfg_json.tree.NO_OBJECT_FORM"></a>
+
+#### NO\_OBJECT\_FORM
+
+What a declared nested member that holds no object says instead.
+
+An `OPTIONAL_MEMBER` is what holds none, and a class that writes it as `null`
+rather than leaving it out gives it a row. The row says which class would be
+there and that there is nothing there, because both of those are worth knowing
+and neither is a value: no text typed into a field becomes a configuration
+object, so the row cannot be edited. Making one is adding, and belongs with
+adding an element of a list.
 
 <a id="edit_cfg_json.tree.OPEN_AT_MOST"></a>
 
@@ -618,20 +647,50 @@ written with and what a nesting declaration becomes.
 
   Whether that selector is about that node.
 
-<a id="edit_cfg_json.tree.nested_selectors"></a>
+<a id="edit_cfg_json.tree.ConfigNode"></a>
 
-#### nested\_selectors
+## ConfigNode Objects
 
 ```python
-def nested_selectors(config: Config) -> frozenset[ConfigPath]
+class ConfigNode(NamedTuple)
 ```
 
-Return where this configuration declares nested objects to be.
+One declared configuration object of the tree, wherever it is.
 
-A member that holds one is addressed by its own path, and a member that
-holds a list or a dict of them is addressed by that path and
-`EVERY_ELEMENT`: what is declared is where the objects are, and the member
-that holds them is an ordinary container of the tree.
+<a id="edit_cfg_json.tree.ConfigNode.config_type"></a>
+
+#### config\_type
+
+Class of the object, or the class the member would hold.
+
+It is the class of the object itself wherever there is one, which is not
+always the declared class: a `factory_function` may answer with a subclass,
+and what the object really is is what its docstring and its converters
+belong to. It is the declared class only where there is no object.
+
+<a id="edit_cfg_json.tree.ConfigNode.config"></a>
+
+#### config
+
+The object itself, None for a member that holds none.
+
+An `OPTIONAL_MEMBER` is what holds none. Everything the editor asks of a
+node below this one is asked of this object, so a node that has none has
+nothing below it either.
+
+<a id="edit_cfg_json.tree.config_nodes"></a>
+
+#### config\_nodes
+
+```python
+def config_nodes(config: Config) -> dict[ConfigPath, ConfigNode]
+```
+
+Return every configuration object of one tree, by its path.
+
+The configuration itself is one of them, under the empty path, so that the
+object owning any node is found the same way whether that node is a member
+of the configuration or a member of something nested inside it.
 
 **Arguments**:
 
@@ -640,27 +699,70 @@ that holds them is an ordinary container of the tree.
 
 **Returns**:
 
-  One selector per nesting the class declares.
+  One entry per declared nested configuration object, and one for the
+  configuration itself.
 
-<a id="edit_cfg_json.tree.is_nested"></a>
+<a id="edit_cfg_json.tree.owner_path"></a>
 
-#### is\_nested
+#### owner\_path
 
 ```python
-def is_nested(path: ConfigPath, nested: Collection[ConfigPath]) -> bool
+def owner_path(path: ConfigPath, nodes: Mapping[ConfigPath,
+                                                ConfigNode]) -> ConfigPath
 ```
 
-Return whether one node is a declared nested configuration object.
+Return the path of the configuration object that owns one node.
 
 **Arguments**:
 
 - `path` - Path of the node to ask about.
-- `nested` - The selectors that say where such an object is.
+- `nodes` - Every configuration object of the tree, by its path.
   
 
 **Returns**:
 
-  Whether any of them addresses that node.
+  The path of the innermost object that this node is inside, which is
+  the empty path for a node of the configuration itself.
+
+<a id="edit_cfg_json.tree.ordered_names"></a>
+
+#### ordered\_names
+
+```python
+def ordered_names(config: Config, members: Mapping[str,
+                                                   JsonType]) -> list[str]
+```
+
+Return the serialized member names in the order they are declared.
+
+The declaration order is the order in which the configuration class
+assigns its members, which `vars()` preserves. That is the order the
+application thinks about its configuration in, so it is the order the
+editor shows. The JSON document cannot supply it, because
+`config_as_json` writes its keys sorted.
+
+A member that the class omits from JSON while its value is `None` is
+not serialized and so gets no row. A serialized name that is not an
+attribute of the object is appended instead of dropped, so that no
+member can go missing whatever a validator or a converter did.
+
+Only the members are ordered this way, and a nested configuration object
+has members of its own that are ordered by its own class. What is inside a
+list is in the order that list holds it, and what is inside a dict is in
+the order the file has it, which is the sorted one: a dictionary key has no
+declaration to be read from, and the order a save writes is the order that
+is shown.
+
+**Arguments**:
+
+- `config` - Configuration object whose members are ordered. It is not
+  modified.
+- `members` - One JSON space value per serialized member of that object.
+  
+
+**Returns**:
+
+  The names of those members, in the order they are shown.
 
 <a id="edit_cfg_json.tree.flat_values"></a>
 
@@ -669,9 +771,8 @@ Return whether one node is a declared nested configuration object.
 ```python
 def flat_values(
     members: Mapping[str, JsonType],
-    order: Sequence[str],
-    nested: Collection[ConfigPath] = frozenset()
-) -> list[tuple[ConfigPath, JsonType]]
+    nodes: Mapping[ConfigPath,
+                   ConfigNode]) -> list[tuple[ConfigPath, JsonType]]
 ```
 
 Return every node of one configuration, depth first, in row order.
@@ -679,15 +780,13 @@ Return every node of one configuration, depth first, in row order.
 **Arguments**:
 
 - `members` - One JSON space value per serialized member.
-- `order` - The member names in the order they are shown, which is the
-  order the configuration class declares them in.
-- `nested` - Selectors saying which nodes are declared configuration
-  objects, which are not taken apart whatever they hold.
+- `nodes` - Every configuration object of the tree, by its path, including
+  the configuration itself under the empty path.
   
 
 **Returns**:
 
-  The path and the value of every node, each container before what is
+  The path and the value of every node, each of them before what is
   inside it.
 
 <a id="edit_cfg_json.tree.under_dict"></a>
@@ -702,9 +801,11 @@ def under_dict(path: ConfigPath, values: Mapping[ConfigPath,
 Return whether one node is a value of a dictionary.
 
 A member of the configuration is one, because the configuration itself is
-the outermost dictionary of the file. An element of a list is not. It is
-the question a parse converter is answered by, since `config_as_json`
-applies one while it decodes an object and to nothing else.
+the outermost dictionary of the file, and so is a member of a nested
+configuration object, which writes a dictionary of its own. An element of
+a list is not. It is the question a parse converter is answered by, since
+`config_as_json` applies one while it decodes an object and to nothing
+else.
 
 **Arguments**:
 
@@ -715,31 +816,6 @@ applies one while it decodes an object and to nothing else.
 **Returns**:
 
   Whether that node is the value of a dictionary key.
-
-<a id="edit_cfg_json.tree.dict_nodes"></a>
-
-#### dict\_nodes
-
-```python
-def dict_nodes(
-    members: Mapping[str, JsonType],
-    nested: Collection[ConfigPath] = frozenset()
-) -> list[tuple[ConfigPath, JsonType]]
-```
-
-Return every node that a parse converter of this class can reach.
-
-**Arguments**:
-
-- `members` - One JSON space value per serialized member.
-- `nested` - Selectors saying which nodes are declared configuration
-  objects, whose own converters are their own class's to declare.
-  
-
-**Returns**:
-
-  The path and the value of every node that is the value of a
-  dictionary key, the configuration itself counting as a dictionary.
 
 <a id="edit_cfg_json.tree.assembled"></a>
 
@@ -1567,6 +1643,11 @@ validation follows and for the same reason: an application may declare any
 converter it likes, and running the real one is right for every converter that
 exists or ever will.
 
+Which class declared it is a question of its own once there are nested
+configuration objects, and `node_converters` is where it is answered: a nested
+object parses its own JSON, so what is inside it is answered by its own class
+and not by the class above it.
+
 <a id="edit_cfg_json.converting.CONVERSION_ERRORS"></a>
 
 #### CONVERSION\_ERRORS
@@ -1633,6 +1714,38 @@ the configuration could never be applied to anything in any case.
 **Returns**:
 
   One converter per member that has one.
+
+<a id="edit_cfg_json.converting.node_converters"></a>
+
+#### node\_converters
+
+```python
+def node_converters(
+    nodes: Mapping[ConfigPath, ConfigNode], flat: Sequence[tuple[ConfigPath,
+                                                                 JsonType]]
+) -> dict[ConfigPath, ParseConverter]
+```
+
+Return the parse converter of every node of one tree that has one.
+
+Two things decide it, and each of them is a rule of `config_as_json`
+rather than of this editor. A converter is applied while an object is
+decoded, so it reaches the value of a dictionary key at any depth and
+never an element of a list. And a converter belongs to the class that owns
+the subtree, exactly as a write-side converter does: a nested
+configuration object parses its own JSON and applies its own converters,
+so the converters of the class above it are not the ones that answer for
+what is inside it.
+
+**Arguments**:
+
+- `nodes` - Every configuration object of the tree, by its path.
+- `flat` - The path and the value of every node, in row order.
+  
+
+**Returns**:
+
+  One converter per node that has one, by the path of that node.
 
 <a id="edit_cfg_json.converting.convert_member"></a>
 
@@ -2526,7 +2639,12 @@ of them and fold one of them away.
 
 #### NOT\_EDITABLE\_ERROR
 
-Message of the error raised when a member cannot be edited.
+Message of the error raised when a node is not a value.
+
+A list, a dict and a nested configuration object are all structure rather than
+a value, and each of them is edited through the rows below it. A declared
+member that holds no configuration object is refused as well, because no text
+becomes one.
 
 <a id="edit_cfg_json.buffer.NOT_A_CONTAINER"></a>
 
@@ -2550,10 +2668,11 @@ yet. JSON space is about the kind of the value, not about its notation:
 a string member holds the string, and the quotes that the file format
 puts around it are added when the file is written and nowhere else.
 
-A member that holds a list or a dict is a tree of rows rather than one
-row, because ordinary JSON structure inside a configuration is edited a
-value at a time. Every container holds what its own rows hold, which is
-kept true as they are edited, so a folded container cannot hide a change.
+A member that holds a list, a dict or a nested configuration object is a
+tree of rows rather than one row, because what is inside one of those is
+edited a value at a time. Every one of them holds what its own rows hold,
+which is kept true as they are edited, so a folded node cannot hide a
+change.
 
 <a id="edit_cfg_json.buffer.EditBuffer.__init__"></a>
 
@@ -2777,8 +2896,11 @@ is still there knew is carried over, so the rebuild is a refresh.
 
 **Arguments**:
 
-- `config` - Configuration object of this session, which is what says
-  in which order the members are shown. It is not modified.
+- `config` - Configuration object that the pass accepted, which is
+  what says in which order the members are shown and which of
+  the nodes are configuration objects of their own. It is the
+  object these values were read from, so it is what answers for
+  them. It is not modified.
 - `members` - One JSON space value per member of the accepted object.
 
 <a id="edit_cfg_json.settings"></a>
@@ -3115,16 +3237,6 @@ completed.
 
 Plain text rendering of an edit model and of its individual values.
 
-<a id="edit_cfg_json.model_text.NESTED_TEXT"></a>
-
-#### NESTED\_TEXT
-
-Value text of a member that holds a declared nested configuration.
-
-It serializes as a dict and it is not one, so it is neither shown as a value
-nor taken apart into rows. Step 11 of the delivery plan is what makes it the
-first-class node that section 4.1 of `doc/design.md` describes.
-
 <a id="edit_cfg_json.model_text.FOLDED_MARK"></a>
 
 #### FOLDED\_MARK
@@ -3260,10 +3372,11 @@ Form of the line that shows one value of the configuration.
 
 #### CONTAINER\_FORM
 
-Form of the line that shows one list or dict of the configuration.
+Form of the line that shows one node that is not edited in a field.
 
-A colon and not an equals sign, because what follows is not the value: the
-value is on the rows below, and this says how many of them there are.
+A colon and not an equals sign, because what follows is not the value: for a
+list, a dict or a nested configuration object the value is on the rows below,
+and this says how many of them there are or which class they belong to.
 
 <a id="edit_cfg_json.model_text.row_value_text"></a>
 
@@ -3275,10 +3388,13 @@ def row_value_text(row: MemberRow) -> str
 
 Return the value of one node as the text a field would show.
 
-A container says how much it holds, because its value is on the rows
-below it, and a member holding a declared nested configuration says that
-this version cannot edit it. Every other node shows the text of the value
-it holds.
+A nested configuration object says its class, a list or a dict says how
+much it holds because its value is on the rows below it, and a declared
+member holding no object says which class is missing. Every other node
+shows the text of the value it holds.
+
+Both backends read it from here, so that neither of them decides on its
+own what a node that is not a value looks like.
 
 **Arguments**:
 
@@ -3346,6 +3462,33 @@ much of a docstring the user is offered.
   The text to show for the configuration object, and nothing at all
   when its class has no docstring of its own.
 
+<a id="edit_cfg_json.model_text.row_describes"></a>
+
+#### row\_describes
+
+```python
+def row_describes(row: MemberRow) -> bool
+```
+
+Return whether anything can ever be said below one node.
+
+A backend asks this before it creates the widget that says it, because a
+widget which could never hold anything is a line of the window spent on
+nothing. It is asked of the core rather than worked out by each backend,
+since what is said below a node is the core's to decide: the description
+the row carries is not the whole of it once a nested configuration object
+has a class docstring of its own.
+
+**Arguments**:
+
+- `row` - Node to ask about.
+  
+
+**Returns**:
+
+  Whether the application, the type of the node or the class of the
+  object at it has anything to say.
+
 <a id="edit_cfg_json.model_text.row_description"></a>
 
 #### row\_description
@@ -3354,22 +3497,29 @@ much of a docstring the user is offered.
 def row_description(model: EditModel, row: MemberRow) -> str
 ```
 
-Return what the application says about one member, as it is shown.
+Return what is said about one node, as it is shown.
 
-It is the description of the member while the explanations are shown, and
-nothing while they are hidden. Which of the two it is belongs to the
-model, so that the two backends cannot hide different things.
+It is what the application said about the node and what the type of the
+node says, while the explanations are shown, and nothing while they are
+hidden. Which of the two it is belongs to the model, so that the two
+backends cannot hide different things.
+
+A nested configuration object says what its own class says as well, and
+how much of that is said depends on whether the node is open. That is why
+it is put together here rather than carried by the row: what a row says
+about itself cannot depend on the fold state that is stamped onto it
+afterwards.
 
 **Arguments**:
 
-- `model` - Model that the member belongs to.
-- `row` - Member to describe.
+- `model` - Model that the node belongs to.
+- `row` - Node to describe.
   
 
 **Returns**:
 
-  The description of one member, empty while it is not being shown or
-  when the application said nothing about that member.
+  What is said below that node, empty while it is not being shown or
+  when there is nothing to say about it.
 
 <a id="edit_cfg_json.model_text.row_fold_text"></a>
 
@@ -3791,11 +3941,11 @@ yet. JSON space is about the kind of the value, not about its notation:
 a string member holds the string, and the quotes that the file format
 puts around it are added when the file is written and nowhere else.
 
-A member that holds a list or a dict is a tree of rows rather than one
-row, because ordinary JSON structure inside a configuration is edited a
-value at a time. Each of those rows is addressed by its own path, and a
-container can be folded away, which is state of this model so that two
-backends cannot fold different things.
+A member that holds a list, a dict or a nested configuration object is a
+tree of rows rather than one row, because what is inside one of those is
+edited a value at a time. Each of those rows is addressed by its own path,
+and every one of those nodes can be folded away, which is state of this
+model so that two backends cannot fold different things.
 
 The buffer is validated by running the application's own configuration
 class over it rather than by any rule of the editor's own, so the user
@@ -3810,10 +3960,12 @@ docstring of the class labels the configuration object, and the
 description mapping labels the individual members. Both are optional, and
 whether they are shown is state of this model rather than of a backend.
 
-A member that `nested_configs()` declares is one row that cannot be
-edited yet. It is a configuration object with a class and a validity
-state of its own, and showing it as the dict it serializes to would be
-showing it as something it is not.
+A member that `nested_configs()` declares is a node with a class and a
+docstring of its own, and its members are the rows below it. It is not
+shown as the dict it serializes to, because that would be showing it as
+something it is not, and everything inside it belongs to its own class:
+the parse converters that say what a value there means, and the members
+that class may leave out of a file.
 
 <a id="edit_cfg_json.edit_model.EditModel.__init__"></a>
 
@@ -4320,11 +4472,11 @@ over, which is what makes the second build a refresh rather than a new session.
 
 What a node that is not a member of the configuration is named by.
 
-The declared defaults, the records of a load and the optional members are all
-about a member of the configuration and never about one value inside one, so
-a node inside a list or a dict is looked up under this. No member has it for a
-name, so it cannot collide with one, and the lookups are then one form rather
-than a condition each.
+The declared defaults and the records of a load are both about a member of the
+configuration and never about one value inside one, so every node below a
+member is looked up under this. No member has it for a name, so it cannot
+collide with one, and the lookups are then one form rather than a condition
+each.
 
 <a id="edit_cfg_json.rows.MemberRow"></a>
 
@@ -4388,10 +4540,23 @@ An empty tuple is a list or a dict that holds nothing, which is a
 different thing from a value: it can be folded, it says how much it holds,
 and this version of the editor cannot put anything into it.
 
-It is None for a declared nested configuration object as well, which
-serializes as a dict and is not one. Step 11 of the delivery plan is what
-makes it the first-class node that section 4.1 of `doc/design.md`
-describes; until then it is one row that says it cannot be edited yet.
+A declared nested configuration object has the paths of its own members
+here, in the order its own class declares them, because it is a node with
+members and not the dictionary it happens to serialize as. It is None for
+such a member that holds no object at all, which an `OPTIONAL_MEMBER` does.
+
+<a id="edit_cfg_json.rows.MemberRow.config_type"></a>
+
+#### config\_type
+
+Class of the nested object here, None for every other node.
+
+It is what makes a nested configuration object something other than the
+dict it serializes as: the row says the class instead of how many entries
+there are, and the docstring of that class is what is said below the row.
+
+It is set for a member that holds no object as well, because the class it
+would hold is worth saying and is the whole of what is known about it.
 
 <a id="edit_cfg_json.rows.MemberRow.folded"></a>
 
@@ -4477,14 +4642,18 @@ What is said about this node, empty when nothing is.
 
 The application says most of it, in the description mapping, and the type
 of the node says the rest: the names an enum accepts, or what kind of
-value it holds, and whether the class may leave the member out of the file.
-It is read whenever the rows are built, because it says what the node is
-for and that does not change while it is edited.
+value it holds, and whether the class that owns it may leave it out of the
+file. It is read whenever the rows are built, because it says what the node
+is for and that does not change while it is edited.
 
 A container is described by the application or not at all: the row of a
 container already says how much it holds, and the rows below it say what
-each of them is. So is a member the editor cannot edit yet, whose row says
-which kind of container it is where its value would be.
+each of them is.
+
+The docstring of a nested configuration object is deliberately not here.
+How much of it is shown depends on whether that node is open, and what a
+row says about itself cannot depend on that: `row_description` is where
+the two are put together.
 
 <a id="edit_cfg_json.rows.MemberRow.converter"></a>
 
@@ -4547,11 +4716,11 @@ backends indent a row by.
 def foldable() -> bool
 ```
 
-Return whether this node is a container that can be folded.
+Return whether this node holds rows that can be folded away.
 
-A list or a dict that this version takes apart is one. A declared
-nested configuration object is not, because it is one row until step
-11 of the delivery plan makes it more than one.
+A list, a dict and a nested configuration object are all one. A
+declared member that holds no object is not: there is nothing below it
+for folding to hide.
 
 <a id="edit_cfg_json.rows.MemberRow.editable"></a>
 
@@ -4564,11 +4733,11 @@ def editable() -> bool
 
 Return whether this node is a value that can be edited.
 
-A list, a dict and a declared nested configuration object are all
-structure rather than a value, so none of them is edited in a field.
-A container is edited through the rows below it; a nested
-configuration object cannot be edited at all yet, and its row says so
-rather than letting it go missing.
+A list, a dict and a nested configuration object are all structure
+rather than a value, so none of them is edited in a field: each of
+them is edited through the rows below it. A declared member that holds
+no object is not edited either, because no text typed into a field
+becomes a configuration object.
 
 <a id="edit_cfg_json.rows.MemberRow.is_text"></a>
 
@@ -4618,11 +4787,12 @@ def value_text() -> str
 
 Return the value of this node as the text a field would show.
 
-A container says how much it holds instead, because its value is on
-the rows below it. Every other node shows the text of the value it
-holds, including the declared nested configuration object that this
-version cannot edit: what it serializes to is more than its row can
-show, so its row says how much it holds as well.
+A nested configuration object says its class, because that is what it
+is: showing how many entries it serializes to would be showing it as
+the dictionary it is not. A member that holds no object says which
+class is missing. A list or a dict says how much it holds, because its
+value is on the rows below it. Every other node shows the text of the
+value it holds.
 
 <a id="edit_cfg_json.rows.RowContext"></a>
 
@@ -4637,6 +4807,11 @@ Everything that building the rows of one configuration needs.
 It is one object rather than one argument each, because every one of them
 is read once per node and none of them changes while the rows are built.
 
+The last three are by path and not by name, because the class that answers
+for a node is the class that owns it: a nested configuration object parses
+its own JSON, applies its own parse converters and decides for itself which
+of its members it may leave out of a file.
+
 <a id="edit_cfg_json.rows.RowContext.report"></a>
 
 #### report
@@ -4649,51 +4824,27 @@ What reading the input file did beyond reading the values.
 
 What the application says about the members it declares.
 
+<a id="edit_cfg_json.rows.RowContext.nodes"></a>
+
+#### nodes
+
+Every configuration object of the tree, by its path.
+
+The configuration itself is one of them, under the empty path, so a node
+is answered the same way whether it is a member of the configuration or a
+member of something nested inside it.
+
 <a id="edit_cfg_json.rows.RowContext.converters"></a>
 
 #### converters
 
-One parse converter per member of the configuration that has one.
+One parse converter per node of the tree that has one.
 
 <a id="edit_cfg_json.rows.RowContext.optional"></a>
 
 #### optional
 
-Names of the members the class may leave out of the file.
-
-<a id="edit_cfg_json.rows.RowContext.nested"></a>
-
-#### nested
-
-Selectors saying which nodes are declared configuration objects.
-
-A member that holds one is addressed by its own path, and a member that
-holds a list or a dict of them is addressed by that path and the step that
-means every element of it: a list of configuration objects is what a real
-configuration is made of, and the member that holds them is an ordinary
-container of the tree.
-
-<a id="edit_cfg_json.rows.row_context"></a>
-
-#### row\_context
-
-```python
-def row_context(config: Config, report: LoadReport,
-                descriptions: Descriptions) -> RowContext
-```
-
-Return what the rows of one configuration are built from.
-
-**Arguments**:
-
-- `config` - Configuration object being edited. It is not modified.
-- `report` - What reading the input file did beyond reading the values.
-- `descriptions` - What the application says about its members.
-  
-
-**Returns**:
-
-  Everything about that configuration that building its rows needs.
+Every member that the object holding it may leave out of the file.
 
 <a id="edit_cfg_json.rows.member_values"></a>
 
@@ -4722,51 +4873,14 @@ Return one JSON space value per serialized member of one object.
 - `InvalidConfiguration` - The configuration object is not valid.
 - `InvalidConfigurationValue` - A member does not hold a valid value.
 
-<a id="edit_cfg_json.rows.ordered_names"></a>
-
-#### ordered\_names
-
-```python
-def ordered_names(config: Config, members: Mapping[str,
-                                                   JsonType]) -> list[str]
-```
-
-Return the serialized member names in the order they are declared.
-
-The declaration order is the order in which the configuration class
-assigns its members, which `vars()` preserves. That is the order the
-application thinks about its configuration in, so it is the order the
-editor shows. The JSON document cannot supply it, because
-`config_as_json` writes its keys sorted.
-
-A member that the class omits from JSON while its value is `None` is
-not serialized and so gets no row. A serialized name that is not an
-attribute of the object is appended instead of dropped, so that no
-member can go missing whatever a validator or a converter did.
-
-Only the members are ordered this way. What is inside a list is in the
-order that list holds it, and what is inside a dict is in the order the
-file has it, which is the sorted one: a dictionary key has no declaration
-to be read from, and the order a save writes is the order that is shown.
-
-**Arguments**:
-
-- `config` - Configuration object being edited. It is not modified.
-- `members` - One JSON space value per serialized member.
-  
-
-**Returns**:
-
-  The names of those members, in the order they are shown.
-
 <a id="edit_cfg_json.rows.built_rows"></a>
 
 #### built\_rows
 
 ```python
 def built_rows(
-        members: Mapping[str,
-                         JsonType], order: Sequence[str], context: RowContext,
+        config: Config, members: Mapping[str, JsonType], report: LoadReport,
+        descriptions: Descriptions,
         previous: Mapping[ConfigPath,
                           MemberRow]) -> dict[ConfigPath, MemberRow]
 ```
@@ -4778,11 +4892,18 @@ addressed by its path and no other name for it is needed. A dictionary
 keeps the order it was built in, so the order the rows are shown in
 survives being a mapping.
 
+The configuration object is asked again at every build rather than once,
+because a validation pass hands back the object it accepted and the nested
+configuration objects of that one are the objects that own its values.
+
 **Arguments**:
 
+- `config` - Configuration object whose values these are. It is not
+  modified, and it is what says which nodes are configuration
+  objects and in which order each of them declares its members.
 - `members` - One JSON space value per serialized member.
-- `order` - The member names in the order they are shown.
-- `context` - What the rows of this configuration are built from.
+- `report` - What reading the input file did beyond reading the values.
+- `descriptions` - What the application says about its members.
 - `previous` - The rows as they were before, empty for the first build.
   A node that had a row keeps what that row was compared against
   and is marked when a validation pass changed it; a node that had
@@ -4981,9 +5102,11 @@ that are not callable.
 The explanatory text that the editor shows about a configuration.
 
 There are three sources of it, they are independent, and all of them are
-optional. The docstring of the configuration class labels the configuration
-object, a mapping supplied by the application labels the individual members,
-and the type of a member says the rest.
+optional. The docstring of a configuration class labels the configuration
+object — the one being edited, and every nested one inside it, because each of
+those is an object with a class of its own. A mapping supplied by the
+application labels the individual members, and the type of a member says the
+rest.
 
 What a type says is the names of an enum where the member holds one, and what
 kind of value the member holds where it does not: text, a whole number, a
@@ -5159,34 +5282,106 @@ needs no checking here, because constructing the object checked it.
 
   The names of the members that are genuinely optional.
 
+<a id="edit_cfg_json.descriptions.optional_paths"></a>
+
+#### optional\_paths
+
+```python
+def optional_paths(
+        nodes: Mapping[ConfigPath, ConfigNode]) -> frozenset[ConfigPath]
+```
+
+Return every member of one tree that its own class may leave out.
+
+A nested configuration object writes its own JSON, so which of its members
+it may leave out of that JSON is its class's to say and not the class's
+above it. The paths are absolute, so a member is looked up here by the same
+path that addresses it everywhere else.
+
+**Arguments**:
+
+- `nodes` - Every configuration object of the tree, by its path.
+  
+
+**Returns**:
+
+  The path of every member that the object holding it may omit.
+
+<a id="edit_cfg_json.descriptions.MemberFacts"></a>
+
+## MemberFacts Objects
+
+```python
+class MemberFacts(NamedTuple)
+```
+
+What the editor knows about the type of one node of the tree.
+
+It is one object rather than one argument each, because the four of them
+are read together and answer one question between them: what can be said
+about this node that the application did not say.
+
+<a id="edit_cfg_json.descriptions.MemberFacts.value"></a>
+
+#### value
+
+Value the node held when the file was last agreed with.
+
+It is the only type information there is for an ordinary value, because a
+PEP 526 annotation on an instance attribute is recorded nowhere at runtime.
+
+<a id="edit_cfg_json.descriptions.MemberFacts.converter"></a>
+
+#### converter
+
+How the text of this node becomes the value it holds, or None.
+
+<a id="edit_cfg_json.descriptions.MemberFacts.optional"></a>
+
+#### optional
+
+Whether the class that owns this node may leave it out of the file.
+
+<a id="edit_cfg_json.descriptions.MemberFacts.nested"></a>
+
+#### nested
+
+Whether this node is a declared nested configuration object.
+
+Such a node holds no value of its own, so what kind of value it is cannot
+be said about it. What is said about it instead is the docstring of its
+class, and where that is said depends on whether the node is open, which
+is why it is not said here.
+
 <a id="edit_cfg_json.descriptions.type_text"></a>
 
 #### type\_text
 
 ```python
-def type_text(converter: Optional[ParseConverter], value: JsonType,
-              optional: bool) -> str
+def type_text(facts: MemberFacts) -> str
 ```
 
-Return everything the type of one member says about it.
+Return everything the type of one node says about it.
 
-An enum says the most, so where a member holds one that is what is said and
+An enum says the most, so where a node holds one that is what is said and
 the kind of the value would only repeat it: the name of an enum member is
 text, and knowing that is worth nothing beside knowing which names there
-are. Every other member says what kind of value it holds, which is the one
+are. Every other value says what kind of value it is, which is the one
 thing the editor knows about every member of every configuration.
+
+A declared nested configuration object says neither, because it holds no
+value: it says its class, which its row shows, and its docstring, which is
+shown below it. What it can still say here is that the class above it may
+leave it out of the file altogether.
 
 **Arguments**:
 
-- `converter` - How the text of this member becomes a value, or None.
-- `value` - Value the member held when the file was last agreed with, which
-  is the only type information there is.
-- `optional` - Whether the class may leave this member out of the file.
+- `facts` - What the editor knows about the type of that node.
   
 
 **Returns**:
 
-  What the type of that member says, and an empty text when it says
+  What the type of that node says, and an empty text when it says
   nothing at all.
 
 <a id="edit_cfg_json.descriptions.member_description"></a>
@@ -5195,31 +5390,28 @@ thing the editor knows about every member of every configuration.
 
 ```python
 def member_description(descriptions: Descriptions, path: ConfigPath,
-                       converter: Optional[ParseConverter], value: JsonType,
-                       optional: bool) -> str
+                       facts: MemberFacts) -> str
 ```
 
-Return everything the editor has to say about one member.
+Return everything the editor has to say about one node.
 
-What the application says comes first, because it is what this member is
-for in this application, and what the type of the member says comes after
+What the application says comes first, because it is what this node is
+for in this application, and what the type of the node says comes after
 it. The second is appended rather than used only where the first is
-missing: what a member holds is true whatever the application wrote, and an
+missing: what a node holds is true whatever the application wrote, and an
 application that explains what its members mean should not have to list the
 names of an enum or say that a number is a number.
 
 **Arguments**:
 
 - `descriptions` - What the application says about its members.
-- `path` - Path of the member that is being described.
-- `converter` - How the text of this member becomes a value, or None.
-- `value` - Value the member held when the file was last agreed with.
-- `optional` - Whether the class may leave this member out of the file.
+- `path` - Path of the node that is being described.
+- `facts` - What the editor knows about the type of that node.
   
 
 **Returns**:
 
-  The description of that member, which is never empty for a member the
+  The description of that node, which is never empty for a node the
   editor can edit, because the type of it always says something.
 
 <a id="edit_cfg_json.auto_change"></a>

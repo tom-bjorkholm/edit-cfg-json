@@ -21,8 +21,8 @@ from edit_cfg_json_tk.tk_editor import EditorWidgets, FOLD_ALL_TEXT, \
 from edit_cfg_json_tk.tk_look import PADDING, TREE_INDENT
 from example.e01_flat_config import FlatConfig
 from example.e08_lists_and_dicts import ContainerConfig
-from .helpers import FakeVar, FakeWidget, real_buttons, real_press, \
-    real_texts, stub_editor, stub_press, stub_texts, stub_window
+from .helpers import FakeVar, FakeWidget, real_fold, real_press, \
+    real_texts, stub_editor, stub_fold, stub_press, stub_texts, stub_window
 
 MANY_LABELS = 'many_labels'
 """The member of the example that the editor opens folded."""
@@ -87,7 +87,7 @@ def test_stub_folds_one(stub_tk: None) -> None:
     _ = stub_tk
     _tree_stub()
     before = stub_texts(packed_only=True)
-    _press_stub_fold()
+    stub_fold()
     after = stub_texts(packed_only=True)
     assert PORTS in after
     assert len(after) < len(before)
@@ -99,8 +99,8 @@ def test_stub_opens_again(stub_tk: None) -> None:
     _ = stub_tk
     _tree_stub()
     before = stub_texts(packed_only=True)
-    _press_stub_fold()
-    _press_stub_fold(FOLD_SHUT_TEXT)
+    stub_fold()
+    stub_fold(FOLD_SHUT_TEXT)
     assert stub_texts(packed_only=True) == before
 
 
@@ -177,10 +177,10 @@ def test_real_fold_and_open(root_or_skip: tkinter.Tk) -> None:
     """Test real Tk folds one container away and opens it again."""
     _tree_real(root_or_skip)
     before = real_texts(root_or_skip, packed_only=True)
-    _press_real_fold(root_or_skip)
+    real_fold(root_or_skip)
     folded = real_texts(root_or_skip, packed_only=True)
     assert len(folded) < len(before)
-    _press_real_fold(root_or_skip, FOLD_SHUT_TEXT)
+    real_fold(root_or_skip, FOLD_SHUT_TEXT)
     assert real_texts(root_or_skip, packed_only=True) == before
 
 
@@ -191,34 +191,6 @@ def test_real_fold_all(root_or_skip: tkinter.Tk) -> None:
     shown = real_texts(root_or_skip, packed_only=True)
     assert 'http' not in shown
     assert OPEN_ALL_TEXT in shown
-
-
-def _press_stub_fold(text: str = FOLD_OPEN_TEXT) -> None:
-    """Press the first stub fold control that shows one text.
-
-    There is one per container, so the one to press is named by its place
-    and not by its text: what a control says is what the next press does.
-
-    Args:
-        text: What that control shows now.
-    """
-    controls = [widget for widget in FakeWidget.created
-                if widget.packed and widget.options.get('text') == text]
-    assert controls
-    controls[0].invoke()
-
-
-def _press_real_fold(parent: tkinter.Misc, text: str = FOLD_OPEN_TEXT) -> None:
-    """Press the first real Tk fold control that shows one text.
-
-    Args:
-        parent: Widget whose descendants are looked through.
-        text: What that control shows now.
-    """
-    controls = [button for button in real_buttons(parent)
-                if str(button.cget('text')) == text]
-    assert controls
-    controls[0].invoke()
 
 
 def _set_field(was: str, becomes: str) -> None:

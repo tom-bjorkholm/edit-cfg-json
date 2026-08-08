@@ -133,9 +133,8 @@ class InnerCfg(SampleCfg):
 class NestedCfg(SampleCfg):
     """A configuration that declares one nested configuration object.
 
-    That member serializes as a dict and is not one, so this version of the
-    editor leaves it as one row. Step 11 of the delivery plan is what makes
-    it a node with a class and a validity state of its own.
+    That member serializes as a dict and is not one, so it is a node with a
+    class and members of its own rather than the dictionary it writes.
     """
 
     def declare_members(self) -> None:
@@ -147,6 +146,182 @@ class NestedCfg(SampleCfg):
         """Return the declaration of the one nested configuration object."""
         return {'inner': ConfigNesting(kind=ConfigNestingKind.MEMBER,
                                        config_type=InnerCfg)}
+
+
+class OmitNestedCfg(SampleCfg):
+    """A configuration whose optional nested object is left out of JSON.
+
+    Nothing is written for a member that is not there, so it has no row at
+    all, which is what any member the class omits already does.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the optional nested object and one ordinary member."""
+        self.inner: Optional[InnerCfg] = None
+        self.answer: int = 3
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration of the optional nested object."""
+        optional = ConfigNestingKind.OPTIONAL_MEMBER
+        return {'inner': ConfigNesting(kind=optional, config_type=InnerCfg)}
+
+    def _omit_none_from_json(self) -> list[str]:
+        """Return the member that is left out of JSON while it is None."""
+        return ['inner']
+
+
+class NullNestedCfg(SampleCfg):
+    """A configuration whose optional nested object is written as null.
+
+    This is the one shape in which a declared nested member has a row and no
+    object: the class does not omit it, so `null` reaches the file. The row
+    says which class is missing and cannot be edited, because no text typed
+    into a field becomes a configuration object.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the optional nested object that is written as null."""
+        self.inner: Optional[InnerCfg] = None
+        self.answer: int = 3
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration of the optional nested object."""
+        optional = ConfigNestingKind.OPTIONAL_MEMBER
+        return {'inner': ConfigNesting(kind=optional, config_type=InnerCfg)}
+
+
+class EnumInnerCfg(SampleCfg):
+    """A nested object whose own class declares the converter it needs."""
+
+    def declare_members(self) -> None:
+        """Assign the enum member that this class converts for itself."""
+        self.colour: Colour = Colour.RED
+
+    def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
+        """Return the converter that turns a name into a member of `Colour`."""
+        return {'colour': Config.get_converter_dict(Colour)}
+
+
+class OwnedEnumCfg(SampleCfg):
+    """A configuration whose nested object converts a name that it does not.
+
+    Both classes have a member called `colour` and only the nested one
+    declares a converter for it, so the two members answer differently. That
+    is what a parse converter belonging to the class that owns the subtree
+    means, and it is the one thing about nesting that the rows could not have
+    read from the configuration alone.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the nested object and a plain member of the same name."""
+        self.inner: EnumInnerCfg = EnumInnerCfg()
+        self.colour: str = 'plain text'
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration of the one nested configuration object."""
+        return {'inner': ConfigNesting(kind=ConfigNestingKind.MEMBER,
+                                       config_type=EnumInnerCfg)}
+
+
+class OmitInnerCfg(SampleCfg):
+    """A nested object that leaves one of its own members out of JSON.
+
+    Which members may be left out is the class's own to say, so a member of
+    this one is optional inside it while the member of that name in the class
+    holding it is not.
+    """
+
+    def declare_members(self) -> None:
+        """Assign one optional member and one ordinary member.
+
+        The optional one holds a value, so that it is written and has a row:
+        a member that is left out has no row to say anything about it on.
+        """
+        self.note: Optional[str] = 'inner note'
+        self.width: int = 4
+
+    def _omit_none_from_json(self) -> list[str]:
+        """Return the member that is left out of JSON while it is None."""
+        return ['note']
+
+
+class OwnedOptionCfg(SampleCfg):
+    """A configuration whose nested object decides its own optional member.
+
+    The member called `note` is optional inside the nested object and
+    mandatory here, which is what says that `_omit_none_from_json()` belongs
+    to the class that owns the subtree.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the nested object and a member of the same name beside it."""
+        self.inner: OmitInnerCfg = OmitInnerCfg()
+        self.note: str = 'kept'
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration of the one nested configuration object."""
+        return {'inner': ConfigNesting(kind=ConfigNestingKind.MEMBER,
+                                       config_type=OmitInnerCfg)}
+
+
+class DeepInnerCfg(SampleCfg):
+    """A nested object that holds a dict of nested objects of its own."""
+
+    def declare_members(self) -> None:
+        """Assign the dict of nested objects and one plain member."""
+        self.parts: dict[str, InnerCfg] = {'one': InnerCfg()}
+        self.label: str = 'deep'
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration that every value of the dict is one."""
+        return {'parts': ConfigNesting(kind=ConfigNestingKind.DICT_VALUE,
+                                       config_type=InnerCfg)}
+
+
+class DeepConfigCfg(SampleCfg):
+    """A list of nested objects, each holding a dict of more of them.
+
+    This is what a real configuration looks like rather than a special case,
+    which is why it is one of the samples: the ownership has to hold at every
+    depth and not only at the first.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the list of nested objects."""
+        self.outputs: list[DeepInnerCfg] = [DeepInnerCfg()]
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration that every element of the list is one."""
+        return {'outputs': ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
+                                         config_type=DeepInnerCfg)}
+
+
+class NoDocInnerCfg(InnerCfg):
+    """This docstring is taken away below, so that this class has none."""
+
+
+# A nested configuration class without a docstring is one the editor has to
+# handle, and it cannot be written here, because every class in this
+# repository has to have one. Taking it away afterwards is the same thing, and
+# it is what makes the class hold None under `__doc__` of its own.
+NoDocInnerCfg.__doc__ = None
+
+
+class NoDocNestedCfg(SampleCfg):
+    """A configuration whose nested object has no docstring of its own.
+
+    The docstring of a base class is deliberately not used in its place, so
+    such a node is shown with its class and nothing else.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the nested object whose class says nothing about itself."""
+        self.inner: NoDocInnerCfg = NoDocInnerCfg()
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration of the one nested configuration object."""
+        return {'inner': ConfigNesting(kind=ConfigNestingKind.MEMBER,
+                                       config_type=NoDocInnerCfg)}
 
 
 class ConfigListCfg(SampleCfg):

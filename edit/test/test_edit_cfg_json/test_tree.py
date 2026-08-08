@@ -4,13 +4,14 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from config_as_json import ConfigPath, JsonType
+from config_as_json import Config, ConfigPath, JsonType
 import pytest
 from edit_cfg_json.tree import OPEN_AT_MOST, assembled, child_values, \
-    container_text, dict_nodes, flat_values, is_container, is_nested, \
-    nested_selectors, path_text, rows_below, selects, starts_folded, \
-    text_path, under_dict
-from .container_cfg import ConfigListCfg, NestedCfg, TreeCfg
+    config_nodes, container_text, flat_values, is_container, ordered_names, \
+    owner_path, path_text, rows_below, selects, starts_folded, text_path, \
+    under_dict
+from .container_cfg import ConfigListCfg, DeepConfigCfg, InnerCfg, \
+    NestedCfg, NullNestedCfg, OmitNestedCfg, TreeCfg
 from .sample_cfg import FlatCfg
 
 
@@ -60,50 +61,122 @@ def test_value_has_no_child() -> None:
     assert not child_values(path=('name',), value='text')
 
 
+def _paths(config: Config, members: dict[str, JsonType]) -> list[ConfigPath]:
+    """Return the path of every node of one configuration, in row order."""
+    return [path for path, _ in
+            flat_values(members=members, nodes=config_nodes(config))]
+
+
 def test_flat_is_a_tree() -> None:
     """Test a configuration is taken apart depth first, container first."""
-    config = TreeCfg()
     members: dict[str, JsonType] = {'rules': [{'low': 1}],
                                     'groups': {'red': ['a']}, 'answer': 3}
-    assert [path for path, _ in flat_values(members=members,
-                                            order=list(members))] == \
+    assert _paths(TreeCfg(), members) == \
         [('rules',), ('rules', '0'), ('rules', '0', 'low'), ('groups',),
          ('groups', 'red'), ('groups', 'red', '0'), ('answer',)]
-    assert config.answer == 3
 
 
-def test_nested_is_one_node() -> None:
-    """Test a declared nested configuration object is not taken apart."""
-    members: dict[str, JsonType] = {'inner': {'width': 4},
+def test_nested_is_walked() -> None:
+    """Test a nested configuration object holds rows of its own members."""
+    members: dict[str, JsonType] = {'inner': {'height': 6, 'width': 4},
                                     'limits': {'low': 1}}
-    nested = nested_selectors(NestedCfg())
-    assert nested == frozenset({('inner',)})
-    assert [path for path, _ in flat_values(members=members,
-                                            order=list(members),
-                                            nested=nested)] == \
-        [('inner',), ('limits',), ('limits', 'low')]
+    assert _paths(NestedCfg(), members) == \
+        [('inner',), ('inner', 'width'), ('inner', 'height'), ('limits',),
+         ('limits', 'low')]
+
+
+def test_nested_own_order() -> None:
+    """Test a nested object shows its members in its own declared order.
+
+    The dict it writes is sorted, so `height` comes first in the file and
+    second in the editor: the class that owns the members is what says in
+    which order they are read.
+    """
+    members: dict[str, JsonType] = {'inner': {'height': 6, 'width': 4},
+                                    'limits': {'low': 1}}
+    written = members['inner']
+    assert isinstance(written, dict)
+    assert list(written) == ['height', 'width']
+    assert _paths(NestedCfg(), members)[1:3] == \
+        [('inner', 'width'), ('inner', 'height')]
 
 
 def test_list_of_configs() -> None:
-    """Test a list of configuration objects is a list of one node each.
+    """Test every element of a list of configuration objects is a node.
 
     That is the ordinary shape of a real configuration, so the member stays a
     container that can be folded and says how much it holds, and each object
-    inside it is one node.
+    inside it holds rows of its own.
     """
-    members: dict[str, JsonType] = {'outputs': [{'encoding': 'utf-8'},
-                                                {'encoding': 'latin-1'}]}
-    nested = nested_selectors(ConfigListCfg())
-    assert nested == frozenset({('outputs', '[')})
-    assert [path for path, _ in flat_values(members=members,
-                                            order=list(members),
-                                            nested=nested)] == \
-        [('outputs',), ('outputs', '0'), ('outputs', '1')]
+    members: dict[str, JsonType] = {'outputs': [{'width': 4, 'height': 6},
+                                                {'width': 1, 'height': 2}],
+                                    'answer': 3}
+    assert _paths(ConfigListCfg(), members) == \
+        [('outputs',), ('outputs', '0'), ('outputs', '0', 'width'),
+         ('outputs', '0', 'height'), ('outputs', '1'),
+         ('outputs', '1', 'width'), ('outputs', '1', 'height'), ('answer',)]
+
+
+def test_deep_nesting() -> None:
+    """Test a nested object inside a nested object is found as well."""
+    inner: JsonType = {'parts': {'one': {'width': 4, 'height': 6}},
+                       'label': 'deep'}
+    members: dict[str, JsonType] = {'outputs': [inner]}
+    assert ('outputs', '0', 'parts', 'one', 'width') in \
+        _paths(DeepConfigCfg(), members)
+
+
+def test_missing_is_a_leaf() -> None:
+    """Test a declared member that holds no object holds no rows either."""
+    members: dict[str, JsonType] = {'inner': None, 'answer': 3}
+    assert _paths(NullNestedCfg(), members) == [('inner',), ('answer',)]
+
+
+def test_config_nodes_found() -> None:
+    """Test every configuration object of a tree is found by its path."""
+    nodes = config_nodes(NestedCfg())
+    assert set(nodes) == {(), ('inner',)}
+    assert nodes[('inner',)].config_type is InnerCfg
+    assert nodes[('inner',)].config is not None
+
+
+def test_absent_declared() -> None:
+    """Test a member that holds no object still says which class it wants."""
+    nodes = config_nodes(NullNestedCfg())
+    assert nodes[('inner',)].config_type is InnerCfg
+    assert nodes[('inner',)].config is None
+
+
+def test_omitted_declared() -> None:
+    """Test a member the class leaves out of JSON is declared all the same.
+
+    It has no value to be a row of, so nothing shows it, but where it is is
+    still known: what decides whether it has a row is what is written.
+    """
+    assert config_nodes(OmitNestedCfg())[('inner',)].config is None
 
 
 def test_nothing_is_nested() -> None:
-    """Test a class that declares no nesting has no nested node at all."""
-    assert not nested_selectors(FlatCfg())
+    """Test a class that declares no nesting has only itself as a node."""
+    assert set(config_nodes(FlatCfg())) == {()}
+
+
+@pytest.mark.parametrize('path, owner',
+                         [(('answer',), ()), (('outputs',), ()),
+                          (('outputs', '0'), ()),
+                          (('outputs', '0', 'width'), ('outputs', '0'))])
+def test_owner_path(path: ConfigPath, owner: ConfigPath) -> None:
+    """Test the object owning a node is the innermost one it is inside."""
+    assert owner_path(path=path, nodes=config_nodes(ConfigListCfg())) == owner
+
+
+def test_ordered_names() -> None:
+    """Test the members are ordered as declared, and no name is lost."""
+    config = TreeCfg()
+    members: dict[str, JsonType] = {'answer': 3, 'groups': {}, 'rules': [],
+                                    'extra': 1}
+    assert ordered_names(config=config, members=members) == \
+        ['rules', 'groups', 'answer', 'extra']
 
 
 @pytest.mark.parametrize('selector, path, about',
@@ -117,7 +190,6 @@ def test_nothing_is_nested() -> None:
 def test_selects(selector: ConfigPath, path: ConfigPath, about: bool) -> None:
     """Test a selector addresses a node of the same shape and no other."""
     assert selects(selector=selector, path=path) is about
-    assert is_nested(path=path, nested=[selector]) is about
 
 
 def test_rows_below() -> None:
@@ -137,17 +209,6 @@ def test_long_starts_folded() -> None:
     many = [('a',)] + [('a', str(index)) for index in range(OPEN_AT_MOST + 1)]
     assert starts_folded(path=('a',), paths=many)
     assert not starts_folded(path=('a',), paths=many[:-1])
-
-
-def test_dict_nodes_only() -> None:
-    """Test only the value of a dictionary key can have a converter.
-
-    `config_as_json` applies a parse converter while it decodes an object, so
-    a value inside a list is never converted and a value inside a dict is.
-    """
-    members: dict[str, JsonType] = {'tags': ['a'], 'limits': {'low': 1}}
-    assert [path for path, _ in dict_nodes(members)] == \
-        [('tags',), ('limits',), ('limits', 'low')]
 
 
 def test_under_dict() -> None:

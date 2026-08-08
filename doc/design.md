@@ -199,12 +199,12 @@ Section 4.1's declaration order is about the members, because a member has a
 declaration to be read from; a dictionary key has none, and the order that a
 save writes is the order that is shown.
 
-**A nested configuration object is left as one row** until step 11. It
-serializes as a dict and it is not one: it has a class, a docstring and a
-validity state of its own, and showing it as the dict it writes would be
-showing it as something it is not. Its row says that this version cannot edit
-it, which is principle 4 of section 3 and is what keeps step 11 an addition
-rather than a correction.
+**A nested configuration object is a node of its own**, built at step 11. It
+serializes as a dict and it is not one: it has a class and a docstring of its
+own, its members are the rows below it in the order that class declares them,
+and showing it as the dict it writes would be showing it as something it is
+not. Its row says the class rather than how many entries the dict has, for the
+same reason.
 
 **Where those objects are is asked as a path and not as a member name**, and
 that is the decision this section exists to record, because a configuration
@@ -215,23 +215,53 @@ object is the least interesting shape there is. The ordinary shape is a
 that every value *inside* a member is an object, and `DICT_VALUE_BY_KEY`
 declares one named key of it.
 
-So a nesting declaration becomes a **selector over paths**, written the way
-`config_as_json` writes one: `('inner',)` for `MEMBER`, `('outputs', '[')` for
-`LIST_ELEMENT` and `DICT_VALUE`, and `('modes', 'http')` for
-`DICT_VALUE_BY_KEY`. The member that holds them is then an ordinary container
-of the tree — it folds, it says how much it holds, and its rows are its
-elements — and each object inside it is one node. That is the same `'['` step
-and the same matching that a description of every element already uses, so
-there is one answer in the library to "does this selector address this node?"
+The member that holds them is then an ordinary container of the tree — it
+folds, it says how much it holds, and its rows are its elements — and each
+object inside it is one node with rows of its own. So the paths, the fold
+state, the rebuild of section 4.8 and the addressing of every description are
+already the shape a list of nested objects needs, and steps 13 and 14 change
+**what a nested node offers** and never **how the tree is built**.
 
-What this buys is that steps 11, 13 and 14 change **what a nested node is**
-and never **how the tree is built**: the paths, the fold state, the rebuild of
-section 4.8 and the addressing of every description are already the shape a
-list of nested objects needs. What step 11 does have to add is the ownership
-of `parse_converters()`: a converter belongs to the class that owns the
-subtree, and while the objects are one node each nothing inside them is
-reached, so the root's converters are correct today and would not be once
-their members become rows.
+**The declarations are walked over the object and not matched as selectors.**
+Step 10 found those nodes by turning each declaration into a selector —
+`('outputs', '[')` for a list of them — which was right while a nested object
+was one row. It stops being enough once the object owns the region below it,
+because *ownership is asked of an object*: `parse_converters()`,
+`_omit_none_from_json()` and the declaration order of the members are all
+methods and attributes of an instance, and a declaration says only which class
+was expected. So step 11 asks the configuration object itself, which answers
+with the absolute path of every nested object there really is, and with the
+object at it. That also tells the truth where a `factory_function` answered
+with a subclass, and it distinguishes an `OPTIONAL_MEMBER` that holds an object
+from one that holds none. The `'['` selector keeps its meaning where it is
+still the right question, which is the description mapping of section 4.3.
+
+**Ownership is the rule for everything inside such a node.** A converter
+belongs to the class that owns the subtree, exactly as `serialize_converters()`
+does on the way out; which members may be left out of a file is that class's to
+say; and the members are ordered as that class declares them and not as the
+sorted dictionary it writes. What does *not* stop at the boundary is the
+description mapping, for the reason section 4.3 gives.
+
+**A declared member that holds no object is a row that says so**, where the
+class writes `null` for it rather than leaving it out. It says which class is
+missing, and it cannot be edited, because no text typed into a field becomes a
+configuration object; making one is adding, and belongs with adding an element
+of a list. A class that lists such a member in `_omit_none_from_json()` writes
+nothing for it and it then has no row at all, which is what any omitted member
+already does.
+
+**What a validator inside a nested object refuses is not yet attributed to the
+member it is about.** Such an object validates itself while the whole
+configuration is parsed, so the object that could say which member was refused
+is one the editor never holds — the same problem section 6.3 solved at the top
+level, and the same answer does not reach inside, because the nested objects
+are constructed by `parse_json` and not by the editor. Validating each subtree
+on its own is what answers it, and that is section 6.2, built at step 12. Until
+then such a refusal reaches the user in the block below the members, which is
+less helpful and is never wrong. A value whose *text* means nothing is a
+different question and is already answered at the member, inside a nested
+object as anywhere else, because it is asked of the member alone.
 
 A trivial configuration has scalar values, or maybe individual nested
 `Config`s. A realistic configuration has a number of lists and dicts
@@ -395,6 +425,23 @@ Two complementary, independently optional sources of explanatory text:
   broken is a fact about the width of a source file and not about the text,
   and a label of one row has one line.
 
+  **Which of the two a nested node shows is decided by its fold**, settled at
+  step 11: the whole docstring while the node is open, the summary while it is
+  folded, and both of them under the explain toggle of section 4.4 like every
+  other explanation. An object that is showing less of itself says less about
+  itself, which is the same thing folding already does to the values. The root
+  configuration is the one that is never folded, so its summary stays on its
+  label line and its docstring is what the toggle covers.
+
+  A consequence worth stating, because it is what a backend has to do about it:
+  what is said below a nested node **changes when it is folded**, so a backend
+  writes that text again on every fold and not only when the toggle is pressed.
+  It is put together by `row_description` rather than carried by the row, since
+  what a row says about itself cannot depend on a fold state that is stamped
+  onto it afterwards; `row_describes` is what a backend asks before it creates
+  the widget at all, because the description a row carries is no longer the
+  whole of what appears below it.
+
   Use `cls.__doc__`, **not** `inspect.getdoc(cls)`. `getdoc()` inherits
   from base classes, so a nested config class without its own docstring
   would silently display `Config`'s docstring — actively misleading in
@@ -414,18 +461,20 @@ Two complementary, independently optional sources of explanatory text:
   Where it holds anything else, what is said is **what kind of value it is** —
   text, a whole number, a number, or true or false — read from the value the
   member held when the file was last agreed with, which section 4.2 already
-  keeps as the only type information there is. A member the class may leave out
-  of the file says that as well, from `_omit_none_from_json()`, which section
-  4.1 lists as a source and nothing else uses. Added at step 9, after a review
-  found a program that had been told a class and no description mapping showing
-  its members with nothing under them at all, when the editor did know
-  something about each of them.
+  keeps as the only type information there is. A member that may be left out of
+  the file says that as well, from the `_omit_none_from_json()` of the class
+  that owns it, which section 4.1 lists as a source and nothing else uses.
+  Added at step 9, after a review found a program that had been told a class
+  and no description mapping showing its members with nothing under them at
+  all, when the editor did know something about each of them.
 
   It is the least that can be said and it is worth saying, because it answers
   the one question a value cannot answer about itself: whether `10` in a field
-  is the number or the text. A member the editor cannot edit yet says nothing
-  here, because its row already says which kind of container it is where its
-  value would be.
+  is the number or the text. A node that is not a value says nothing here,
+  because its row already says what it is — which kind of container, or which
+  class — where its value would be. What it may still say is that the class
+  above it can leave it out of the file, which is true of a nested object as of
+  any other member.
 
   What a validator would have added — a range, a set of allowed values — stays
   out, permanently, for the reason section 11 gives. That is the difference
@@ -606,16 +655,19 @@ canvas asks for, the line width a label follows — and one test that maps a rea
 window and measures the lot belongs to category 3 of section 10.2, deselected
 by the build and run by hand.
 
-### 4.7 Folding a list or a dict away
+### 4.7 Folding a node away
 
 A configuration of any size does not fit a window (section 4.6), and a list of
-two hundred elements fills one on its own. So a container can be folded to its
-one summary line and opened again, and **which containers are folded belongs to
-the model**, by the same rule as the explain toggle of section 4.4 and for the
-same reason: two user interfaces of one application that were folded
-differently would be worse than either behaviour. Every row carries whether it
-is folded and whether it is shown, which is where a backend reads it, so that
-neither of them works out for itself what folding hides. Settled at step 10.
+two hundred elements fills one on its own. So a node that holds rows can be
+folded to its one summary line and opened again, and **which of them are folded
+belongs to the model**, by the same rule as the explain toggle of section 4.4
+and for the same reason: two user interfaces of one application that were
+folded differently would be worse than either behaviour. Every row carries
+whether it is folded and whether it is shown, which is where a backend reads
+it, so that neither of them works out for itself what folding hides. Settled at
+step 10 for a list and a dict, and step 11 made a nested configuration object
+one of them without changing anything here — which is what settling it as "a
+node that holds rows" rather than "a container" bought.
 
 **The editor opens with a container open unless opening it would flood the
 window.** That is the same decision as section 4.4's, made once more where it

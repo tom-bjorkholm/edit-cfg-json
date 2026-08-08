@@ -543,16 +543,19 @@ class EditorApp(App[None]):
                              row: core.MemberRow) -> ComposeResult:
         """Create the widget that says what one node is for, if anything.
 
-        A node the application said nothing about gets no widget, because
-        there is nothing that could ever appear in it. A widget that is
-        created starts out shown or hidden as the model says, which is not the
-        same as shown: a model can have been told to hide the explanations
-        before the editor was started.
+        A node that nothing can ever be said about gets no widget, because
+        there is nothing that could ever appear in it. Whether anything can be
+        is asked of the core, because the description the row carries is not
+        the whole of what is said below a nested configuration object.
+
+        A widget that is created starts out shown or hidden as the model says,
+        which is not the same as shown: a model can have been told to hide the
+        explanations before the editor was started.
         """
-        if row.description:
-            widget = plain_widget(row.description, description_id(index),
-                                  DESCRIPTION_CLASS, core.EXPLANATION)
+        if core.row_describes(row):
             shown = core.row_description(model=self._model, row=row)
+            widget = plain_widget(shown, description_id(index),
+                                  DESCRIPTION_CLASS, core.EXPLANATION)
             widget.display = bool(shown)
             yield widget
 
@@ -575,9 +578,9 @@ class EditorApp(App[None]):
         """Return the widget that shows the value of one node.
 
         A node that the model cannot edit gets a widget that only shows text,
-        because there is nothing the user could do to it: a list or a dict is
-        edited through the rows below it, and a declared nested configuration
-        object is not edited by this version at all.
+        because there is nothing the user could do to it: a list, a dict and a
+        nested configuration object are each edited through the rows below
+        them, and a declared member that holds no object holds no text either.
         """
         if not row.editable:
             return plain_widget(core.row_value_text(row), value_id(index),
@@ -672,6 +675,10 @@ class EditorApp(App[None]):
     def _show_folding(self) -> None:
         """Show which containers are folded and what each control now does.
 
+        What is said below the nodes is shown again as well, because folding a
+        nested configuration object changes it: an object that is showing less
+        of itself says less about itself.
+
         This is not part of `_show_state`, which runs on every key the user
         types: nothing typed into a field folds anything.
         """
@@ -681,6 +688,7 @@ class EditorApp(App[None]):
             if row.foldable:
                 self.query_one(f'#{fold_id(index)}',
                                Button).label = fold_glyph(row)
+        self._show_descriptions()
         self._bind_fold()
 
     def _show_explanations(self) -> None:
@@ -697,11 +705,17 @@ class EditorApp(App[None]):
         if self._model.docstring:
             self.query_one(f'#{DOCSTRING_ID}',
                            Static).update(core.docstring_text(self._model))
+        self._show_descriptions()
+
+    def _show_descriptions(self) -> None:
+        """Show what belongs below every node, as the model says it now."""
         for index, row in enumerate(self._model.rows):
-            if row.description:
-                description = core.row_description(model=self._model, row=row)
-                self.query_one(f'#{description_id(index)}',
-                               Static).display = bool(description)
+            if not core.row_describes(row):
+                continue
+            description = core.row_description(model=self._model, row=row)
+            widget = self.query_one(f'#{description_id(index)}', Static)
+            widget.update(description)
+            widget.display = bool(description)
 
     def action_save_as(self) -> None:
         """Ask which file to write, and write it when one was named."""

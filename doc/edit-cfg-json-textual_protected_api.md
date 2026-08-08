@@ -76,6 +76,7 @@
     * [on\_button\_pressed](#edit_cfg_json_textual.textual_editor.EditorApp.on_button_pressed)
     * [\_show\_folding](#edit_cfg_json_textual.textual_editor.EditorApp._show_folding)
     * [\_show\_explanations](#edit_cfg_json_textual.textual_editor.EditorApp._show_explanations)
+    * [\_show\_descriptions](#edit_cfg_json_textual.textual_editor.EditorApp._show_descriptions)
     * [action\_save\_as](#edit_cfg_json_textual.textual_editor.EditorApp.action_save_as)
     * [check\_action](#edit_cfg_json_textual.textual_editor.EditorApp.check_action)
     * [\_out\_file\_text](#edit_cfg_json_textual.textual_editor.EditorApp._out_file_text)
@@ -799,11 +800,14 @@ def _description_widgets(index: int, row: core.MemberRow) -> ComposeResult
 
 Create the widget that says what one node is for, if anything.
 
-A node the application said nothing about gets no widget, because
-there is nothing that could ever appear in it. A widget that is
-created starts out shown or hidden as the model says, which is not the
-same as shown: a model can have been told to hide the explanations
-before the editor was started.
+A node that nothing can ever be said about gets no widget, because
+there is nothing that could ever appear in it. Whether anything can be
+is asked of the core, because the description the row carries is not
+the whole of what is said below a nested configuration object.
+
+A widget that is created starts out shown or hidden as the model says,
+which is not the same as shown: a model can have been told to hide the
+explanations before the editor was started.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp._diagnostic_widget"></a>
 
@@ -832,9 +836,9 @@ def _value_widget(index: int, row: core.MemberRow) -> Widget
 Return the widget that shows the value of one node.
 
 A node that the model cannot edit gets a widget that only shows text,
-because there is nothing the user could do to it: a list or a dict is
-edited through the rows below it, and a declared nested configuration
-object is not edited by this version at all.
+because there is nothing the user could do to it: a list, a dict and a
+nested configuration object are each edited through the rows below
+them, and a declared member that holds no object holds no text either.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.on_input_changed"></a>
 
@@ -941,6 +945,10 @@ def _show_folding() -> None
 
 Show which containers are folded and what each control now does.
 
+What is said below the nodes is shown again as well, because folding a
+nested configuration object changes it: an object that is showing less
+of itself says less about itself.
+
 This is not part of `_show_state`, which runs on every key the user
 types: nothing typed into a field folds anything.
 
@@ -961,6 +969,16 @@ disagreeing about what hiding the explanations means.
 This is not part of `_show_state`, which runs on every key the user
 types: nothing typed into a field can change what this configuration
 is for or what one of its members means.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._show_descriptions"></a>
+
+#### \_show\_descriptions
+
+```python
+def _show_descriptions() -> None
+```
+
+Show what belongs below every node, as the model says it now.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.action_save_as"></a>
 

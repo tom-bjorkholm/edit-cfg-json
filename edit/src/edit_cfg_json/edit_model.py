@@ -41,11 +41,11 @@ class EditModel:
     a string member holds the string, and the quotes that the file format
     puts around it are added when the file is written and nowhere else.
 
-    A member that holds a list or a dict is a tree of rows rather than one
-    row, because ordinary JSON structure inside a configuration is edited a
-    value at a time. Each of those rows is addressed by its own path, and a
-    container can be folded away, which is state of this model so that two
-    backends cannot fold different things.
+    A member that holds a list, a dict or a nested configuration object is a
+    tree of rows rather than one row, because what is inside one of those is
+    edited a value at a time. Each of those rows is addressed by its own path,
+    and every one of those nodes can be folded away, which is state of this
+    model so that two backends cannot fold different things.
 
     The buffer is validated by running the application's own configuration
     class over it rather than by any rule of the editor's own, so the user
@@ -60,10 +60,12 @@ class EditModel:
     description mapping labels the individual members. Both are optional, and
     whether they are shown is state of this model rather than of a backend.
 
-    A member that `nested_configs()` declares is one row that cannot be
-    edited yet. It is a configuration object with a class and a validity
-    state of its own, and showing it as the dict it serializes to would be
-    showing it as something it is not.
+    A member that `nested_configs()` declares is a node with a class and a
+    docstring of its own, and its members are the rows below it. It is not
+    shown as the dict it serializes to, because that would be showing it as
+    something it is not, and everything inside it belongs to its own class:
+    the parse converters that say what a value there means, and the members
+    that class may leave out of a file.
     """
 
     # Every argument after the configuration object is an optional keyword,
@@ -463,12 +465,19 @@ class EditModel:
         return self._record(outcome)
 
     def _validation_pass(self) -> ValidationPass:
-        """Validate the buffer, refresh it, and keep what the pass found."""
+        """Validate the buffer, refresh it, and keep what the pass found.
+
+        The buffer is refreshed from the object the pass built and not from
+        the object of the session, because that is where the accepted values
+        are and because the nested configuration objects inside it are the
+        ones that own them.
+        """
         self._buffer.check_all()
         outcome = validate_buffer(config=self._source.config,
                                   members=self._buffer.values())
         if outcome.verdict.valid:
-            self._buffer.take_validated(config=self._source.config,
+            assert outcome.candidate is not None
+            self._buffer.take_validated(config=outcome.candidate,
                                         members=outcome.members)
         self._verdict = outcome.verdict
         return outcome

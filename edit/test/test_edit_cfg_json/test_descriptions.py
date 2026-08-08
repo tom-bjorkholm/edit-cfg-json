@@ -14,11 +14,13 @@ from config_as_json import ConfigPath, JsonType, ParseConverter
 import pytest
 from edit_cfg_json import Descriptions
 from edit_cfg_json.converting import member_converters
-from edit_cfg_json.descriptions import OPTIONAL_TEXT, class_docstring, \
-    class_summary, enum_text, member_description, optional_members, \
-    path_description
+from edit_cfg_json.descriptions import MemberFacts, OPTIONAL_TEXT, \
+    class_docstring, class_summary, enum_text, member_description, \
+    optional_members, optional_paths, path_description
 from edit_cfg_json.leaf_value import BOOL_KIND, NO_KIND, NUMBER_KIND, \
     TEXT_KIND, WHOLE_NUMBER_KIND, value_kind
+from edit_cfg_json.tree import config_nodes
+from .container_cfg import OwnedOptionCfg
 from .sample_cfg import DocumentedCfg, EnumCfg, FlatCfg, HexCfg, IntEnumCfg, \
     NoDocCfg, OmitCfg, PlainEnumCfg, SampleCfg, WrappedDocCfg
 
@@ -210,17 +212,19 @@ def test_description_appended() -> None:
     explains what its members mean should not have to list the names too.
     """
     descriptions: Descriptions = {('colour',): ABOUT_COLOUR}
+    converter = _converter(EnumCfg(), 'colour')
+    facts = MemberFacts(value='RED', converter=converter)
     assert member_description(descriptions=descriptions, path=('colour',),
-                              converter=_converter(EnumCfg(), 'colour'),
-                              value='RED', optional=False) == \
+                              facts=facts) == \
         f'{ABOUT_COLOUR}\n{COLOUR_SUMMARY}\nOne of: RED, GREEN.'
 
 
 def test_type_describes_alone() -> None:
     """Test a member the application says nothing about is still explained."""
+    converter = _converter(EnumCfg(), 'colour')
+    facts = MemberFacts(value='RED', converter=converter)
     assert member_description(descriptions={}, path=('colour',),
-                              converter=_converter(EnumCfg(), 'colour'),
-                              value='RED', optional=False) == \
+                              facts=facts) == \
         f'{COLOUR_SUMMARY}\nOne of: RED, GREEN.'
 
 
@@ -231,8 +235,8 @@ def test_kind_describes_alone() -> None:
     configuration, and it is what a program that is told a class and no
     description mapping shows.
     """
-    assert member_description(descriptions={}, path=('name',), converter=None,
-                              value='text', optional=False) == TEXT_KIND
+    assert member_description(descriptions={}, path=('name',),
+                              facts=MemberFacts(value='text')) == TEXT_KIND
 
 
 @pytest.mark.parametrize('value,expected',
@@ -258,7 +262,7 @@ def test_optional_is_said() -> None:
     that has to hold something.
     """
     said = member_description(descriptions={}, path=('optional',),
-                              converter=None, value=None, optional=True)
+                              facts=MemberFacts(value=None, optional=True))
     assert said == f'{NO_KIND} {OPTIONAL_TEXT}'
 
 
@@ -268,6 +272,31 @@ def test_optional_asked() -> None:
     assert optional_members(FlatCfg()) == frozenset()
 
 
+def test_optional_by_path() -> None:
+    """Test each object of a tree says which of its own members it omits.
+
+    The nested object leaves `note` out of its own JSON and the class holding
+    it does not leave out the member of that name, which is what says that
+    `_omit_none_from_json()` belongs to the class that owns the subtree.
+    """
+    assert optional_paths(config_nodes(OwnedOptionCfg())) == \
+        frozenset({('inner', 'note')})
+
+
+def test_nested_says_no_kind() -> None:
+    """Test a nested configuration object says no kind of value.
+
+    It holds no value of its own: its class is on its row and its docstring
+    is below it, and calling it text or a number would be untrue.
+    """
+    facts = MemberFacts(value={'width': 4}, nested=True)
+    assert member_description(descriptions={}, path=('inner',),
+                              facts=facts) == ''
+    assert member_description(descriptions={}, path=('inner',),
+                              facts=facts._replace(optional=True)) == \
+        OPTIONAL_TEXT
+
+
 def test_nothing_to_describe() -> None:
     """Test a member whose kind is said elsewhere is described by nothing.
 
@@ -275,5 +304,5 @@ def test_nothing_to_describe() -> None:
     of them it is where its value would be, and saying it twice would be
     worse than saying it once.
     """
-    assert member_description(descriptions={}, path=('tags',), converter=None,
-                              value=['one'], optional=False) == ''
+    assert member_description(descriptions={}, path=('tags',),
+                              facts=MemberFacts(value=['one'])) == ''

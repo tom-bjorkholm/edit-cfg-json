@@ -4,18 +4,11 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from edit_cfg_json.descriptions import class_docstring, class_summary
 from edit_cfg_json.edit_model import EditModel
 from edit_cfg_json.rows import MemberRow
 from edit_cfg_json.tree import path_text
 from edit_cfg_json.validation import ValidationVerdict
-
-NESTED_TEXT = '<nested configuration, not editable yet>'
-"""Value text of a member that holds a declared nested configuration.
-
-It serializes as a dict and it is not one, so it is neither shown as a value
-nor taken apart into rows. Step 11 of the delivery plan is what makes it the
-first-class node that section 4.1 of `doc/design.md` describes.
-"""
 
 FOLDED_MARK = ' (folded)'
 """What follows a container whose rows are hidden.
@@ -104,20 +97,24 @@ LEAF_FORM = '{indent}{name} = {value}{marks}'
 """Form of the line that shows one value of the configuration."""
 
 CONTAINER_FORM = '{indent}{name}: {value}{folded}{marks}'
-"""Form of the line that shows one list or dict of the configuration.
+"""Form of the line that shows one node that is not edited in a field.
 
-A colon and not an equals sign, because what follows is not the value: the
-value is on the rows below, and this says how many of them there are.
+A colon and not an equals sign, because what follows is not the value: for a
+list, a dict or a nested configuration object the value is on the rows below,
+and this says how many of them there are or which class they belong to.
 """
 
 
 def row_value_text(row: MemberRow) -> str:
     """Return the value of one node as the text a field would show.
 
-    A container says how much it holds, because its value is on the rows
-    below it, and a member holding a declared nested configuration says that
-    this version cannot edit it. Every other node shows the text of the value
-    it holds.
+    A nested configuration object says its class, a list or a dict says how
+    much it holds because its value is on the rows below it, and a declared
+    member holding no object says which class is missing. Every other node
+    shows the text of the value it holds.
+
+    Both backends read it from here, so that neither of them decides on its
+    own what a node that is not a value looks like.
 
     Args:
         row: Node to render.
@@ -125,8 +122,6 @@ def row_value_text(row: MemberRow) -> str:
     Returns:
         The value text of one node.
     """
-    if not row.editable and not row.foldable:
-        return NESTED_TEXT
     return row.value_text
 
 
@@ -178,22 +173,75 @@ def docstring_text(model: EditModel) -> str:
     return model.docstring if model.explanations_shown else model.summary
 
 
-def row_description(model: EditModel, row: MemberRow) -> str:
-    """Return what the application says about one member, as it is shown.
+def _class_text(row: MemberRow) -> str:
+    """Return what the class of one nested configuration object says.
 
-    It is the description of the member while the explanations are shown, and
-    nothing while they are hidden. Which of the two it is belongs to the
-    model, so that the two backends cannot hide different things.
+    The whole docstring while the object is open and the summary while it is
+    folded, which is the same thing folding does to the values: a node that is
+    showing less of itself says less about itself. A declared member that holds
+    no object is never open, so it says the summary of the class it is missing.
 
     Args:
-        model: Model that the member belongs to.
-        row: Member to describe.
+        row: Node to describe.
 
     Returns:
-        The description of one member, empty while it is not being shown or
-        when the application said nothing about that member.
+        What that class says about itself, and nothing for a node that is no
+        configuration object and for a class with no docstring of its own.
     """
-    return row.description if model.explanations_shown else ''
+    if row.config_type is None:
+        return ''
+    if row.foldable and not row.folded:
+        return class_docstring(row.config_type)
+    return class_summary(row.config_type)
+
+
+def row_describes(row: MemberRow) -> bool:
+    """Return whether anything can ever be said below one node.
+
+    A backend asks this before it creates the widget that says it, because a
+    widget which could never hold anything is a line of the window spent on
+    nothing. It is asked of the core rather than worked out by each backend,
+    since what is said below a node is the core's to decide: the description
+    the row carries is not the whole of it once a nested configuration object
+    has a class docstring of its own.
+
+    Args:
+        row: Node to ask about.
+
+    Returns:
+        Whether the application, the type of the node or the class of the
+        object at it has anything to say.
+    """
+    return bool(row.description) or bool(
+        row.config_type is not None and class_docstring(row.config_type))
+
+
+def row_description(model: EditModel, row: MemberRow) -> str:
+    """Return what is said about one node, as it is shown.
+
+    It is what the application said about the node and what the type of the
+    node says, while the explanations are shown, and nothing while they are
+    hidden. Which of the two it is belongs to the model, so that the two
+    backends cannot hide different things.
+
+    A nested configuration object says what its own class says as well, and
+    how much of that is said depends on whether the node is open. That is why
+    it is put together here rather than carried by the row: what a row says
+    about itself cannot depend on the fold state that is stamped onto it
+    afterwards.
+
+    Args:
+        model: Model that the node belongs to.
+        row: Node to describe.
+
+    Returns:
+        What is said below that node, empty while it is not being shown or
+        when there is nothing to say about it.
+    """
+    if not model.explanations_shown:
+        return ''
+    said = [row.description, _class_text(row)]
+    return '\n'.join(line for line in said if line)
 
 
 def row_fold_text(row: MemberRow) -> str:
@@ -286,8 +334,13 @@ def _indented(text: str, indent: str) -> str:
 
 
 def _row_line(row: MemberRow, indent: str) -> str:
-    """Return the one line that shows one node and what is true of it."""
-    shape = CONTAINER_FORM if row.foldable else LEAF_FORM
+    """Return the one line that shows one node and what is true of it.
+
+    A node that is not edited in a field has no value of its own, whether it
+    is a list, a dict, a nested configuration object or a member that holds no
+    object at all, so it is written with the colon that says as much.
+    """
+    shape = LEAF_FORM if row.editable else CONTAINER_FORM
     return shape.format(indent=indent, name=row.name,
                         value=row_value_text(row), marks=row_marks(row),
                         folded=row_fold_text(row))

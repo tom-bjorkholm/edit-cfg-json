@@ -16,18 +16,17 @@ therefore report one failure and never say whose it was.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from io import StringIO
 from types import MappingProxyType
 from typing import NamedTuple, Optional, TextIO
 import json
 from config_as_json import Config, ConfigPath, JsonType, \
-    MemberValidationStep, MemberValidator, ParseConverter, ValidationPlan, \
-    ValidationStep
+    MemberValidationStep, MemberValidator, ValidationPlan, ValidationStep
 from edit_cfg_json.constructing import parsed_config
-from edit_cfg_json.converting import convert_member, member_converters, \
+from edit_cfg_json.converting import convert_member, node_converters, \
     refusal_text
-from edit_cfg_json.tree import dict_nodes, nested_selectors
+from edit_cfg_json.tree import config_nodes, flat_values
 
 BUFFER_ERRORS = (KeyError, TypeError, ValueError)
 """Every way in which a configuration class refuses an edit buffer.
@@ -190,27 +189,30 @@ def _probe(config: Config, members: dict[str, JsonType]) -> Optional[Config]:
         return None
 
 
-def _unconverted(converters: Mapping[str, ParseConverter],
-                 nodes: Sequence[tuple[ConfigPath, JsonType]]) \
-        -> dict[ConfigPath, str]:
+def _unconverted(config: Config,
+                 members: dict[str, JsonType]) -> dict[ConfigPath, str]:
     """Return why each value of the buffer means no value of its node.
 
-    Only the nodes a parse converter can reach are asked, which is every
-    value of a dictionary and no element of a list: that is where
-    `config_as_json` applies one while it decodes.
+    Every node is asked, and the converter that answers for it is the one its
+    own owning class declares: a value inside a nested configuration object is
+    parsed by that object and not by the one above it. A node that no
+    converter reaches is asked with none, which nothing can refuse.
 
     Args:
-        converters: One converter per member that has one.
-        nodes: The path and the value of every node that a converter of this
-            class can reach.
+        config: Configuration object of this session, which says which nodes
+            are configuration objects of their own. It is not modified.
+        members: The edit buffer, as one JSON space value per member.
 
     Returns:
         One message per node whose text means no value of it, and nothing
         at all for a buffer every value of which means something.
     """
-    refused = {path: convert_member(converter=converters.get(path[-1]),
+    nodes = config_nodes(config)
+    flat = flat_values(members=members, nodes=nodes)
+    converters = node_converters(nodes=nodes, flat=flat)
+    refused = {path: convert_member(converter=converters.get(path),
                                     value=value).message
-               for path, value in nodes}
+               for path, value in flat}
     return {path: message for path, message in refused.items() if message}
 
 
@@ -413,10 +415,7 @@ def validate_buffer(config: Config,
         What the pass found, and the members of the configuration object it
         built. The members are empty when the buffer was refused.
     """
-    nested = nested_selectors(config)
-    unconverted = _unconverted(converters=member_converters(config),
-                               nodes=dict_nodes(members=members,
-                                                nested=nested))
+    unconverted = _unconverted(config=config, members=members)
     if unconverted:
         return _no_pass(ValidationVerdict(valid=False, diagnostics='',
                                           refused=unconverted))

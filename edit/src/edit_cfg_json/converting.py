@@ -15,13 +15,20 @@ as `config_as_json` runs it while it parses. That is the same rule that
 validation follows and for the same reason: an application may declare any
 converter it likes, and running the real one is right for every converter that
 exists or ever will.
+
+Which class declared it is a question of its own once there are nested
+configuration objects, and `node_converters` is where it is answered: a nested
+object parses its own JSON, so what is inside it is answered by its own class
+and not by the class above it.
 """
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Mapping, Sequence
 from typing import NamedTuple, Optional
-from config_as_json import Config, JsonType, ParseConverter
+from config_as_json import Config, ConfigPath, JsonType, ParseConverter
+from edit_cfg_json.tree import ConfigNode, owner_path, under_dict
 
 CONVERSION_ERRORS = (AssertionError, AttributeError, KeyError, TypeError,
                      ValueError)
@@ -73,6 +80,37 @@ def member_converters(config: Config) -> dict[str, ParseConverter]:
     return {name: converter
             for name, converter in (config.parse_converters() or {}).items()
             if name in declared}
+
+
+def node_converters(nodes: Mapping[ConfigPath, ConfigNode],
+                    flat: Sequence[tuple[ConfigPath, JsonType]]) \
+        -> dict[ConfigPath, ParseConverter]:
+    """Return the parse converter of every node of one tree that has one.
+
+    Two things decide it, and each of them is a rule of `config_as_json`
+    rather than of this editor. A converter is applied while an object is
+    decoded, so it reaches the value of a dictionary key at any depth and
+    never an element of a list. And a converter belongs to the class that owns
+    the subtree, exactly as a write-side converter does: a nested
+    configuration object parses its own JSON and applies its own converters,
+    so the converters of the class above it are not the ones that answer for
+    what is inside it.
+
+    Args:
+        nodes: Every configuration object of the tree, by its path.
+        flat: The path and the value of every node, in row order.
+
+    Returns:
+        One converter per node that has one, by the path of that node.
+    """
+    owned = {path: member_converters(node.config)
+             for path, node in nodes.items() if node.config is not None}
+    values = dict(flat)
+    found = ((path, owned.get(owner_path(path=path, nodes=nodes), {})
+              .get(path[-1]))
+             for path, _ in flat if under_dict(path=path, values=values))
+    return {path: converter for path, converter in found
+            if converter is not None}
 
 
 def convert_member(converter: Optional[ParseConverter],

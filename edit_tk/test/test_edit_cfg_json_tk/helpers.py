@@ -23,7 +23,7 @@ import json
 import tkinter
 from edit_cfg_json import Descriptions, EditModel, LoadReport
 from edit_cfg_json_tk.tk_editor import CLOSE_TEXT, EditorWidgets, \
-    EXPLAIN_TEXT, SAVE_AS_TEXT, SAVE_TEXT, VALIDATE_TEXT
+    EXPLAIN_TEXT, FOLD_OPEN_TEXT, SAVE_AS_TEXT, SAVE_TEXT, VALIDATE_TEXT
 from example.e01_flat_config import FlatConfig
 
 UNKNOWN_VERDICT = 'validation: not validated'
@@ -387,6 +387,22 @@ def stub_press(button_text: str) -> None:
     buttons[0].invoke()
 
 
+def stub_fold(text: str = FOLD_OPEN_TEXT) -> None:
+    """Press the first stub fold control that shows one text.
+
+    There is one per node that holds rows, so the one to press is named by
+    its place among them and not by its text: what a control says is what the
+    next press of it does, so several of them say the same thing.
+
+    Args:
+        text: What that control shows now.
+    """
+    controls = [widget for widget in FakeWidget.created
+                if widget.packed and widget.options.get('text') == text]
+    assert controls
+    controls[0].invoke()
+
+
 def _shows_text(widget: tkinter.Misc, packed_only: bool) -> bool:
     """Return whether one real Tk widget counts as showing text.
 
@@ -467,6 +483,19 @@ def real_press(widget: tkinter.Misc, button_text: str) -> None:
                if str(button.cget('text')) == button_text]
     assert len(buttons) == 1
     buttons[0].invoke()
+
+
+def real_fold(parent: tkinter.Misc, text: str = FOLD_OPEN_TEXT) -> None:
+    """Press the first real Tk fold control that shows one text.
+
+    Args:
+        parent: Widget whose descendants are looked through.
+        text: What that control shows now.
+    """
+    controls = [button for button in real_buttons(parent)
+                if str(button.cget('text')) == text]
+    assert controls
+    controls[0].invoke()
 
 
 def retype(field: tkinter.Entry, text: str) -> None:

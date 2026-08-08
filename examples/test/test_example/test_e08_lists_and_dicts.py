@@ -202,7 +202,7 @@ def test_fold_needs_a_list(capsys: pytest.CaptureFixture[str]) -> None:
 def test_container_not_edited(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a container cannot be typed into, because it holds no value."""
     error = _refused(capsys, '--ui', 'dump', '--set', 'ports={}')
-    assert 'ports cannot be edited yet' in error
+    assert 'ports is not a value that can be edited' in error
 
 
 def test_undescribed_member(capsys: pytest.CaptureFixture[str]) -> None:

@@ -98,6 +98,15 @@ or a dict of values, which the editor shows as a tree of rows.
 | [e08_complete.json](e08_complete.json) | Opens with every value from the file. `many_labels` holds two elements here rather than the twelve the class declares, so it opens unfolded: how many rows a container would add is what decides that, and not which member it is. |
 | [e08_short_list.json](e08_short_list.json) | Opens with the declared values of every member but `many_labels`, which holds one element. It is the file to try `--fold` and `--toggle-fold` against, because nothing in it starts folded. |
 
+## Files for `e09_nested_config.py`
+
+`CourseExportConfig` holds one plain member and two nested `Config` objects of
+the same class, one of which may be absent altogether.
+
+| File | What happens |
+| --- | --- |
+| [e09_with_audit.json](e09_with_audit.json) | Opens with both nested objects present, so the optional one is a node with rows of its own rather than the `no TableOutputConfig` that the declared defaults show. Its format and its encoding differ from the other output's, which is what two objects of one class are for. |
+
 ## Why a file with a bad value cannot be opened
 
 An editor that refused to open the very file that has to be repaired would

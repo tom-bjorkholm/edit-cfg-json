@@ -41,6 +41,9 @@ plan says only *when* that decision gets built.
 - [Step 10](#step-10--lists-and-dicts-of-scalars) — lists and dicts as a tree
   of rows with a field at every value, folding, and the rows being built again
   when a validator changes how many of them there are.
+- [Step 11](#step-11--nested-config-objects) — a nested `Config` object as a
+  node with a class, a docstring and members of its own, and the ownership of
+  everything inside it.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -75,10 +78,11 @@ file only says *when* that decision gets built.
   `edit_cfg_json_textual` never drift apart by more than one review.
 - Steps 1 to 9 are built, and each is written up in
   [steps_001-009_done.md](steps_001-009_done.md) as what it decided, what it
-  found while building it and what came of its review. Step 10 is built and is
-  written up here, in the same way. Steps 11 onwards are named steps with their
-  observable outcome and their main risks; they are detailed just before they
-  are started, when the core API is real rather than imagined.
+  found while building it and what came of its review. Steps 10 and 11 are
+  built and are written up here, in the same way. Steps 12 onwards are named
+  steps with their observable outcome and their main risks; they are detailed
+  just before they are started, when the core API is real rather than
+  imagined.
 
 ### 1.1 Definition of done for one step
 
@@ -109,7 +113,7 @@ version. Record which one, because the next step's fast iteration with
 | --- | --- | --- | --- |
 | M1 Flat round trip | 1 to 5 | Both backends edit a `Config` with one `str` and one `int`, validate it and save it | done |
 | M2 Flat, fully explained | 6 to 9 | Descriptions, docstrings, field-level diagnostics, automatic-change visibility, explicit loader | done |
-| M3 Structure and folding | 10 to 12 | Lists, dicts, nested `Config` objects, folding with per-subtree badges | step 10 done |
+| M3 Structure and folding | 10 to 12 | Lists, dicts, nested `Config` objects, folding with per-subtree badges | steps 10 and 11 done |
 | M4 Configs in containers | 13 to 14 | `LIST_ELEMENT` and `DICT_VALUE` nesting, adding and removing elements | to do |
 | M5 Release readiness | 15 to 17 | v1 documented, classified and published | to do |
 
@@ -215,41 +219,122 @@ Design section 9.7.
 
 #### Step 11 — Nested `Config` objects
 
-`nested_configs()` becomes the first-authority source it is in design
-section 4.1. A nested config is a first-class node with its own type,
-docstring and validity state, and it segments the tree. A new example
-`e09_nested_config.py`, modelled on `e33_nested_configs.py`. Open question
-to settle when this step starts: `ConfigNestingKind` also has
-`OPTIONAL_MEMBER`, which design section 11 neither includes nor excludes.
-Decide it explicitly rather than by accident.
+Status: **Implemented and committed.**
 
-Step 10 left this step less to do than the plan expected. *Where* a nested
-object is is already asked as a selector over paths, so a `MEMBER`, a
-`LIST_ELEMENT` and a `DICT_VALUE` nesting are already found the same way and
-each object is already one node with a row of its own. What is left is what
-such a node *is*: its class and docstring, its own members as rows below it,
-and the ownership that comes with them — `parse_converters()`,
-`_omit_none_from_json()` and the descriptions of a subtree belong to the class
-that owns it, and the root's are what the editor uses today because nothing
-inside a nested object is a row yet.
+**Observable outcome.** A new example `e09_nested_config.py`, modelled on
+`e33_nested_configs.py`, whose configuration holds two nested `Config` objects
+of one class. `python3 examples/src/example/e09_nested_config.py --ui dump`
+shows each of them as a row saying its class with its own members below it,
+`--set participant_output.encoding=latin-1` edits one of those members,
+`--fold participant_output` folds the object away and leaves the summary of its
+class, and `-i ../../data/e09_with_audit.json` fills the optional object that
+the defaults leave empty. `--ui tk` and `--ui textual` show the same tree.
 
-#### Step 12 — Folding and subtree validation
+**What it decided.** Four things, decided before the work started.
 
-Fold state in the model, and folding a nested config validates that subtree
-by constructing its `config_type` from that subtree's JSON. Show
-*subtree-valid* and *config-valid* as the two distinct states they are; a
-subtree can be valid while the root is not, and both should be shown.
-`e09_nested_config.py` gains the badges. Risk: a `WholeConfigValidator` on a
-parent relates members across a nesting boundary, so a green subtree badge
-must never be allowed to read as "the file can be saved".
+- **`OPTIONAL_MEMBER` is in scope**, as it falls out. A member holding an
+  object is a node like any other; one holding none has no row where the class
+  omits it from JSON, and a row saying which class is missing where the class
+  writes `null`. That row cannot be edited, because no text becomes a
+  configuration object; making one is adding, and stays with step 14. This is
+  the open question the plan asked to settle explicitly. Design section 4.1.
+- **A nested node shows the summary of its class while it is folded and the
+  whole docstring while it is open**, both under the explain toggle. Design
+  section 4.3 read literally, and it makes folding do one thing rather than
+  two: a node showing less of itself says less about itself.
+- **The validity state stays with step 12**, which is what that step is named
+  after. This step delivers the class, the docstring, the members and the
+  ownership.
+- **The mechanism is general**, so `LIST_ELEMENT`, `DICT_VALUE` and
+  `DICT_VALUE_BY_KEY` became editable subtrees at the same time as `MEMBER`.
+  Refusing them would have cost code rather than saved any. Step 13 is
+  therefore smaller than planned: it is its own example, the `'['` descriptions
+  across repeated objects, and the tests for them.
+
+**Core.** `tree.config_nodes` walks the configuration object and answers with
+every configuration object of the tree by its absolute path, the root under the
+empty path; `tree.owner_path` finds the object that owns any node; `flat_values`
+walks into a nested object by that object's own declared member order.
+`converting.node_converters` and `descriptions.optional_paths` are the
+ownership those two questions needed. `rows.built_rows` takes the configuration
+object and builds its own `RowContext`, because a validation pass hands back
+the object it accepted and the nested objects of *that* one are what own its
+values.
+
+The public names it settled:
+
+| Name | Kind |
+| --- | --- |
+| `MemberRow.config_type` | the class of the object at this node, or None |
+| `row_describes` | whether anything can ever be said below one node |
+
+**What building it found.**
+
+- **Ownership is asked of an object, not of a declaration.** Step 10 found
+  nested nodes by turning each declaration into a `'['` selector, which was
+  right while such a node was one row. `parse_converters()`,
+  `_omit_none_from_json()` and the declaration order of the members are all of
+  an *instance*, so the declarations are now walked over the real object. That
+  also tells the truth where a `factory_function` answered with a subclass, and
+  it is what distinguishes an `OPTIONAL_MEMBER` holding an object from one
+  holding none. The selector keeps its meaning where it is still the right
+  question, which is the description mapping.
+- **What is said below a nested node changes when it is folded**, so both
+  backends had to write that text again on every fold and not only when the
+  explain toggle is pressed. Neither of them did, because until now nothing
+  below a row ever changed by itself. `row_describes` came out of the same
+  finding: a backend creates no widget where nothing can ever appear, and the
+  description a row carries is no longer the whole of what appears.
+- **A refusal from inside a nested object is not attributed to its member.**
+  Such an object validates itself while the whole configuration is parsed, so
+  the object that could be asked which member was refused is one the editor
+  never holds — the probe of design section 6.3 subtracts one method from one
+  copy, and the nested objects are constructed inside `parse_json` where that
+  cannot reach. Validating each subtree on its own is what answers it, which is
+  exactly step 12. Until then the message is in the block below the members. A
+  value whose *text* means nothing is unaffected and is attributed at the
+  member as before, because that is asked of the member alone.
+- **`config_as_json` does not scope its parse converters the way it scopes its
+  serialize converters.** `Config.parse_json` passes its own object hook to
+  `json.loads`, so the root's converters run over every decoded object,
+  including the JSON of a nested object, while `serialize_converters()`
+  explicitly stops at a child-owned subtree. The editor follows the design and
+  asks the owning class. The case where the two differ — an ancestor declaring
+  a converter for a key name that a nested class holds unconverted — is a class
+  that cannot read back what it writes at all, so the application meets it on
+  its own first load and not through the editor.
+- **The row helpers of the model tests were factored out** into
+  `model_helpers.py`, because a second module asking the same four questions of
+  a model tripped the duplicate-code check, which is the check working.
+
+#### Step 12 — Subtree validation
+
+Fold state is in the model already, so what is left is the validation: folding
+a nested config validates that subtree by constructing its `config_type` from
+that subtree's JSON. Show *subtree-valid* and *config-valid* as the two
+distinct states they are; a subtree can be valid while the root is not, and
+both should be shown. `e09_nested_config.py` gains the badges. Risk: a
+`WholeConfigValidator` on a parent relates members across a nesting boundary,
+so a green subtree badge must never be allowed to read as "the file can be
+saved".
+
+Step 11 left this step one thing more, and it is the more useful half: **what
+a validator inside a nested object refuses is not attributed to the member it
+is about**, because such an object validates itself inside `parse_json` and the
+probe of design section 6.3 cannot reach it. Constructing each subtree on its
+own is exactly what does reach it, so the badge and the attribution are the
+same mechanism and should be built together. Design sections 4.1 and 6.2.
 
 ### Milestone 4 — configs in containers
 
 #### Step 13 — `LIST_ELEMENT` and `DICT_VALUE` nesting
 
-Repeated nested configs, and the `'['` step in description paths meaning
-"every list element or every dictionary value at this point", which is what
-stops the application repeating itself per index or per key. A new example
+Step 11 built these along with `MEMBER`, because one walk over the declarations
+answers for all of them, so what is left here is smaller than the plan
+expected: the `'['` step in description paths meaning "every list element or
+every dictionary value at this point", which is what stops the application
+repeating itself per index or per key, and the tests and the example that show
+repeated nested configs being edited. A new example
 `e10_config_containers.py`, modelled on `e34_list_nested_configs.py` and
 `e35_dict_nested_configs.py`.
 
@@ -369,7 +454,7 @@ step that needs it. They are listed here so they are not forgotten.
 | --- | --- |
 | ~~When does a field report that its text means no value at all, and is that on focus loss?~~ Answered at step 7: it does, on focus loss, through `EditModel.check_field`. See `doc/design.md` sections 4.2 and 6.5. | done |
 | ~~Does `Config.write()` validate, making the editor's gate belt and braces?~~ | step 5 done |
-| Is `ConfigNestingKind.OPTIONAL_MEMBER` in v1 scope? | step 11 |
+| ~~Is `ConfigNestingKind.OPTIONAL_MEMBER` in v1 scope?~~ Answered at step 11: it is. A member holding an object is a node like any other, one the class omits from JSON has no row, and one written as `null` has a row that says which class is missing and cannot be edited. | done |
 | ~~Does the Textual headless driver in the pinned 8.2.8 behave as the design assumes?~~ | step 1 done |
 | ~~Will the README test summary stop updating on a headless machine, per design section 10.2?~~ | step 1, as a known consequence |
 | Which widget does the Tk backend bind its keys on when it shares a window? See `doc/design.md` section 8.2.7. | step 18 |

@@ -22,12 +22,17 @@ from edit_cfg_json.converting import convert_member
 from edit_cfg_json.descriptions import Descriptions
 from edit_cfg_json.leaf_value import text_as_value
 from edit_cfg_json.loading import LoadReport
-from edit_cfg_json.rows import MemberRow, built_rows, member_values, \
-    ordered_names, row_context, stamped
+from edit_cfg_json.rows import MemberRow, built_rows, member_values, stamped
 from edit_cfg_json.tree import assembled, starts_folded
 
-NOT_EDITABLE_ERROR = 'Member {name} cannot be edited by this version.'
-"""Message of the error raised when a member cannot be edited."""
+NOT_EDITABLE_ERROR = 'Member {name} is not a value that can be edited.'
+"""Message of the error raised when a node is not a value.
+
+A list, a dict and a nested configuration object are all structure rather than
+a value, and each of them is edited through the rows below it. A declared
+member that holds no configuration object is refused as well, because no text
+becomes one.
+"""
 
 NOT_A_CONTAINER = 'Member {name} is not a list or a dict.'
 """Message of the error raised when a node that holds none is folded."""
@@ -42,10 +47,11 @@ class EditBuffer:
     a string member holds the string, and the quotes that the file format
     puts around it are added when the file is written and nowhere else.
 
-    A member that holds a list or a dict is a tree of rows rather than one
-    row, because ordinary JSON structure inside a configuration is edited a
-    value at a time. Every container holds what its own rows hold, which is
-    kept true as they are edited, so a folded container cannot hide a change.
+    A member that holds a list, a dict or a nested configuration object is a
+    tree of rows rather than one row, because what is inside one of those is
+    edited a value at a time. Every one of them holds what its own rows hold,
+    which is kept true as they are edited, so a folded node cannot hide a
+    change.
     """
 
     def __init__(self, config: Config, report: LoadReport,
@@ -64,8 +70,8 @@ class EditBuffer:
             InvalidConfigurationValue: A member of the configuration object
                 does not hold a valid value.
         """
-        self._context = row_context(config=config, report=report,
-                                    descriptions=descriptions)
+        self._report = report
+        self._descriptions = descriptions
         self._folded: set[ConfigPath] = set()
         self._rows: dict[ConfigPath, MemberRow] = {}
         self._rebuild(config=config, previous={},
@@ -75,7 +81,7 @@ class EditBuffer:
     @property
     def report(self) -> LoadReport:
         """Return what reading the input file did beyond reading values."""
-        return self._context.report
+        return self._report
 
     @property
     def rows(self) -> Sequence[MemberRow]:
@@ -211,8 +217,11 @@ class EditBuffer:
         is still there knew is carried over, so the rebuild is a refresh.
 
         Args:
-            config: Configuration object of this session, which is what says
-                in which order the members are shown. It is not modified.
+            config: Configuration object that the pass accepted, which is
+                what says in which order the members are shown and which of
+                the nodes are configuration objects of their own. It is the
+                object these values were read from, so it is what answers for
+                them. It is not modified.
             members: One JSON space value per member of the accepted object.
         """
         self._rebuild(config=config, members=members, previous=self._rows)
@@ -222,14 +231,14 @@ class EditBuffer:
         """Build the rows from one set of values, keeping what was known.
 
         Args:
-            config: Configuration object of this session. It is not modified.
+            config: Configuration object holding these values. It is not
+                modified.
             members: One JSON space value per serialized member.
             previous: The rows as they were before, empty for the first build.
         """
-        whole = dict(members)
-        self._rows = built_rows(members=whole, context=self._context,
-                                order=ordered_names(config=config,
-                                                    members=whole),
+        self._rows = built_rows(config=config, members=dict(members),
+                                report=self._report,
+                                descriptions=self._descriptions,
                                 previous=previous)
         self._fold_new(previous)
         self._stamp()

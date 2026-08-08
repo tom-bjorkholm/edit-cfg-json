@@ -154,8 +154,13 @@ SET_FORM_MESSAGE = '--set needs member=value, and got {setting}.'
 NO_MEMBER_MESSAGE = '{name} is not part of this configuration.'
 """Message used to refuse a path that addresses nothing in the model."""
 
-NOT_EDITABLE_MESSAGE = '{name} cannot be edited yet.'
-"""Message used to refuse a `--set` of a member the editor cannot edit."""
+NOT_EDITABLE_MESSAGE = '{name} is not a value that can be edited.'
+"""Message used to refuse a `--set` of a node that is not a value.
+
+A list, a dict and a nested configuration object are each edited through the
+values inside them, so the path of one of those is not a path `--set` can be
+given. Neither is a declared member that holds no configuration object.
+"""
 
 NOT_A_CONTAINER_MESSAGE = '{name} is not a list or a dict.'
 """Message used to refuse a `--fold` of something that holds nothing."""

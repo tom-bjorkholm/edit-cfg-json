@@ -17,26 +17,26 @@ over, which is what makes the second build a refresh rather than a new session.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Container, Mapping, Sequence
+from collections.abc import Container, Mapping
 from typing import NamedTuple, Optional, TextIO
 import json
 from config_as_json import Config, ConfigPath, JsonType, ParseConverter
-from edit_cfg_json.converting import member_converters
-from edit_cfg_json.descriptions import Descriptions, member_description, \
-    optional_members
+from edit_cfg_json.converting import node_converters
+from edit_cfg_json.descriptions import Descriptions, MemberFacts, \
+    member_description, optional_paths
 from edit_cfg_json.leaf_value import value_as_text, values_differ
 from edit_cfg_json.loading import LoadReport
-from edit_cfg_json.tree import child_values, container_text, flat_values, \
-    is_container, is_nested, nested_selectors, under_dict
+from edit_cfg_json.tree import ConfigNode, NO_OBJECT_FORM, child_values, \
+    config_nodes, container_text, flat_values, is_container, ordered_names
 
 NOT_A_MEMBER = ''
 """What a node that is not a member of the configuration is named by.
 
-The declared defaults, the records of a load and the optional members are all
-about a member of the configuration and never about one value inside one, so
-a node inside a list or a dict is looked up under this. No member has it for a
-name, so it cannot collide with one, and the lookups are then one form rather
-than a condition each.
+The declared defaults and the records of a load are both about a member of the
+configuration and never about one value inside one, so every node below a
+member is looked up under this. No member has it for a name, so it cannot
+collide with one, and the lookups are then one form rather than a condition
+each.
 """
 
 
@@ -86,10 +86,21 @@ class MemberRow(NamedTuple):
     different thing from a value: it can be folded, it says how much it holds,
     and this version of the editor cannot put anything into it.
 
-    It is None for a declared nested configuration object as well, which
-    serializes as a dict and is not one. Step 11 of the delivery plan is what
-    makes it the first-class node that section 4.1 of `doc/design.md`
-    describes; until then it is one row that says it cannot be edited yet.
+    A declared nested configuration object has the paths of its own members
+    here, in the order its own class declares them, because it is a node with
+    members and not the dictionary it happens to serialize as. It is None for
+    such a member that holds no object at all, which an `OPTIONAL_MEMBER` does.
+    """
+
+    config_type: Optional[type[Config]] = None
+    """Class of the nested object here, None for every other node.
+
+    It is what makes a nested configuration object something other than the
+    dict it serializes as: the row says the class instead of how many entries
+    there are, and the docstring of that class is what is said below the row.
+
+    It is set for a member that holds no object as well, because the class it
+    would hold is worth saying and is the whole of what is known about it.
     """
 
     folded: bool = False
@@ -163,14 +174,18 @@ class MemberRow(NamedTuple):
 
     The application says most of it, in the description mapping, and the type
     of the node says the rest: the names an enum accepts, or what kind of
-    value it holds, and whether the class may leave the member out of the file.
-    It is read whenever the rows are built, because it says what the node is
-    for and that does not change while it is edited.
+    value it holds, and whether the class that owns it may leave it out of the
+    file. It is read whenever the rows are built, because it says what the node
+    is for and that does not change while it is edited.
 
     A container is described by the application or not at all: the row of a
     container already says how much it holds, and the rows below it say what
-    each of them is. So is a member the editor cannot edit yet, whose row says
-    which kind of container it is where its value would be.
+    each of them is.
+
+    The docstring of a nested configuration object is deliberately not here.
+    How much of it is shown depends on whether that node is open, and what a
+    row says about itself cannot depend on that: `row_description` is where
+    the two are put together.
     """
 
     converter: Optional[ParseConverter] = None
@@ -212,11 +227,11 @@ class MemberRow(NamedTuple):
 
     @property
     def foldable(self) -> bool:
-        """Return whether this node is a container that can be folded.
+        """Return whether this node holds rows that can be folded away.
 
-        A list or a dict that this version takes apart is one. A declared
-        nested configuration object is not, because it is one row until step
-        11 of the delivery plan makes it more than one.
+        A list, a dict and a nested configuration object are all one. A
+        declared member that holds no object is not: there is nothing below it
+        for folding to hide.
         """
         return self.children is not None
 
@@ -224,13 +239,13 @@ class MemberRow(NamedTuple):
     def editable(self) -> bool:
         """Return whether this node is a value that can be edited.
 
-        A list, a dict and a declared nested configuration object are all
-        structure rather than a value, so none of them is edited in a field.
-        A container is edited through the rows below it; a nested
-        configuration object cannot be edited at all yet, and its row says so
-        rather than letting it go missing.
+        A list, a dict and a nested configuration object are all structure
+        rather than a value, so none of them is edited in a field: each of
+        them is edited through the rows below it. A declared member that holds
+        no object is not edited either, because no text typed into a field
+        becomes a configuration object.
         """
-        return not is_container(self.original)
+        return not is_container(self.original) and self.config_type is None
 
     @property
     def is_text(self) -> bool:
@@ -263,12 +278,16 @@ class MemberRow(NamedTuple):
     def value_text(self) -> str:
         """Return the value of this node as the text a field would show.
 
-        A container says how much it holds instead, because its value is on
-        the rows below it. Every other node shows the text of the value it
-        holds, including the declared nested configuration object that this
-        version cannot edit: what it serializes to is more than its row can
-        show, so its row says how much it holds as well.
+        A nested configuration object says its class, because that is what it
+        is: showing how many entries it serializes to would be showing it as
+        the dictionary it is not. A member that holds no object says which
+        class is missing. A list or a dict says how much it holds, because its
+        value is on the rows below it. Every other node shows the text of the
+        value it holds.
         """
+        if self.config_type is not None:
+            return self.config_type.__name__ if self.foldable else \
+                NO_OBJECT_FORM.format(name=self.config_type.__name__)
         if is_container(self.value):
             return container_text(self.value)
         return value_as_text(self.value)
@@ -279,6 +298,11 @@ class RowContext(NamedTuple):
 
     It is one object rather than one argument each, because every one of them
     is read once per node and none of them changes while the rows are built.
+
+    The last three are by path and not by name, because the class that answers
+    for a node is the class that owns it: a nested configuration object parses
+    its own JSON, applies its own parse converters and decides for itself which
+    of its members it may leave out of a file.
     """
 
     report: LoadReport
@@ -287,39 +311,19 @@ class RowContext(NamedTuple):
     descriptions: Descriptions
     """What the application says about the members it declares."""
 
-    converters: Mapping[str, ParseConverter]
-    """One parse converter per member of the configuration that has one."""
+    nodes: Mapping[ConfigPath, ConfigNode]
+    """Every configuration object of the tree, by its path.
 
-    optional: frozenset[str]
-    """Names of the members the class may leave out of the file."""
-
-    nested: frozenset[ConfigPath]
-    """Selectors saying which nodes are declared configuration objects.
-
-    A member that holds one is addressed by its own path, and a member that
-    holds a list or a dict of them is addressed by that path and the step that
-    means every element of it: a list of configuration objects is what a real
-    configuration is made of, and the member that holds them is an ordinary
-    container of the tree.
+    The configuration itself is one of them, under the empty path, so a node
+    is answered the same way whether it is a member of the configuration or a
+    member of something nested inside it.
     """
 
+    converters: Mapping[ConfigPath, ParseConverter]
+    """One parse converter per node of the tree that has one."""
 
-def row_context(config: Config, report: LoadReport,
-                descriptions: Descriptions) -> RowContext:
-    """Return what the rows of one configuration are built from.
-
-    Args:
-        config: Configuration object being edited. It is not modified.
-        report: What reading the input file did beyond reading the values.
-        descriptions: What the application says about its members.
-
-    Returns:
-        Everything about that configuration that building its rows needs.
-    """
-    return RowContext(report=report, descriptions=descriptions,
-                      converters=member_converters(config),
-                      optional=optional_members(config),
-                      nested=nested_selectors(config))
+    optional: frozenset[ConfigPath]
+    """Every member that the object holding it may leave out of the file."""
 
 
 def member_values(config: Config, stderr_file: TextIO) -> dict[str, JsonType]:
@@ -342,75 +346,31 @@ def member_values(config: Config, stderr_file: TextIO) -> dict[str, JsonType]:
     return members
 
 
-def ordered_names(config: Config,
-                  members: Mapping[str, JsonType]) -> list[str]:
-    """Return the serialized member names in the order they are declared.
-
-    The declaration order is the order in which the configuration class
-    assigns its members, which `vars()` preserves. That is the order the
-    application thinks about its configuration in, so it is the order the
-    editor shows. The JSON document cannot supply it, because
-    `config_as_json` writes its keys sorted.
-
-    A member that the class omits from JSON while its value is `None` is
-    not serialized and so gets no row. A serialized name that is not an
-    attribute of the object is appended instead of dropped, so that no
-    member can go missing whatever a validator or a converter did.
-
-    Only the members are ordered this way. What is inside a list is in the
-    order that list holds it, and what is inside a dict is in the order the
-    file has it, which is the sorted one: a dictionary key has no declaration
-    to be read from, and the order a save writes is the order that is shown.
-
-    Args:
-        config: Configuration object being edited. It is not modified.
-        members: One JSON space value per serialized member.
-
-    Returns:
-        The names of those members, in the order they are shown.
-    """
-    declared = [name for name in vars(config) if name in members]
-    return declared + [name for name in members if name not in declared]
-
-
-def _converter(path: ConfigPath, context: RowContext,
-               values: Mapping[ConfigPath, JsonType]) \
-        -> Optional[ParseConverter]:
-    """Return how the text of one node becomes the value it holds, if at all.
-
-    `config_as_json` applies a parse converter while it decodes an object, so
-    a converter reaches the value of a dictionary key of that name and never
-    an element of a list. The configuration itself is the outermost of those
-    dictionaries, which is why a member is answered by the same rule as a
-    value inside one of its dicts.
-
-    Args:
-        path: Path of the node.
-        context: What the rows of this configuration are built from.
-        values: The value of every node, by path.
-
-    Returns:
-        The converter of that node, or None when it has none.
-    """
-    if not under_dict(path=path, values=values):
-        return None
-    return context.converters.get(path[-1])
-
-
 def _children_of(path: ConfigPath, value: JsonType,
-                 nested: bool) -> Optional[tuple[ConfigPath, ...]]:
+                 node: Optional[ConfigNode]) -> Optional[tuple[ConfigPath,
+                                                               ...]]:
     """Return the paths inside one node, or None for a node with none.
+
+    A nested configuration object holds its own members, in the order its own
+    class declares them, and not the sorted keys of the dictionary it writes.
+    A member that holds no object holds nothing.
 
     Args:
         path: Path that addresses the node.
         value: JSON space value that the node holds.
-        nested: Whether this node is a declared configuration object.
+        node: What is at that path where a configuration object is declared,
+            and None for every ordinary node.
 
     Returns:
         The path of every child of that node, and None for a value and for a
-        declared nested configuration object.
+        declared member that holds no object.
     """
-    if nested or not is_container(value):
+    if node is not None:
+        if node.config is None or not isinstance(value, dict):
+            return None
+        return tuple((*path, name) for name in
+                     ordered_names(config=node.config, members=value))
+    if not is_container(value):
         return None
     return tuple(child for child, _ in child_values(path=path, value=value))
 
@@ -438,42 +398,47 @@ def _rewritten(was: Optional[MemberRow], value: JsonType,
 
 
 def _row_of(path: ConfigPath, value: JsonType, context: RowContext,
-            values: Mapping[ConfigPath, JsonType],
             previous: Mapping[ConfigPath, MemberRow]) -> MemberRow:
     """Return the row of one node of one configuration.
+
+    What the load did is looked up by the name of a member of the
+    configuration, because that is what the load recorded it for: a record
+    about a value inside a member is a record about that member, and a member
+    of a nested configuration object is inside the member that holds it.
 
     Args:
         path: Path that addresses the node.
         value: JSON space value that the node holds.
         context: What the rows of this configuration are built from.
-        values: The value of every node, by path.
         previous: The rows as they were before, empty for the first build.
 
     Returns:
         The row of that node, with what an earlier row knew carried over.
     """
     member = path[0] if len(path) == 1 else NOT_A_MEMBER
-    converter = _converter(path=path, context=context, values=values)
+    node = context.nodes.get(path)
+    converter = context.converters.get(path)
     was = previous.get(path)
     return MemberRow(
         path=path, value=value,
         original=value if was is None else was.original,
-        children=_children_of(path=path, value=value,
-                              nested=is_nested(path=path,
-                                               nested=context.nested)),
+        children=_children_of(path=path, value=value, node=node),
+        config_type=None if node is None else node.config_type,
         changed_by_validator=_rewritten(was=was, value=value,
                                         refreshing=bool(previous)),
         filled_from_default=member in context.report.filled,
         load_reason=context.report.reasons.get(member, ''),
-        description=member_description(descriptions=context.descriptions,
-                                       path=path, converter=converter,
-                                       value=value,
-                                       optional=member in context.optional),
+        description=member_description(
+            descriptions=context.descriptions, path=path,
+            facts=MemberFacts(value=value, converter=converter,
+                              optional=path in context.optional,
+                              nested=node is not None)),
         converter=converter, conversion='' if was is None else was.conversion)
 
 
-def built_rows(members: Mapping[str, JsonType], order: Sequence[str],
-               context: RowContext, previous: Mapping[ConfigPath, MemberRow]
+def built_rows(config: Config, members: Mapping[str, JsonType],
+               report: LoadReport, descriptions: Descriptions,
+               previous: Mapping[ConfigPath, MemberRow]
                ) -> dict[ConfigPath, MemberRow]:
     """Return one row per node of one configuration, in the order shown.
 
@@ -482,10 +447,17 @@ def built_rows(members: Mapping[str, JsonType], order: Sequence[str],
     keeps the order it was built in, so the order the rows are shown in
     survives being a mapping.
 
+    The configuration object is asked again at every build rather than once,
+    because a validation pass hands back the object it accepted and the nested
+    configuration objects of that one are the objects that own its values.
+
     Args:
+        config: Configuration object whose values these are. It is not
+            modified, and it is what says which nodes are configuration
+            objects and in which order each of them declares its members.
         members: One JSON space value per serialized member.
-        order: The member names in the order they are shown.
-        context: What the rows of this configuration are built from.
+        report: What reading the input file did beyond reading the values.
+        descriptions: What the application says about its members.
         previous: The rows as they were before, empty for the first build.
             A node that had a row keeps what that row was compared against
             and is marked when a validation pass changed it; a node that had
@@ -494,10 +466,13 @@ def built_rows(members: Mapping[str, JsonType], order: Sequence[str],
     Returns:
         The rows of that configuration, by path.
     """
-    flat = flat_values(members=members, order=order, nested=context.nested)
-    values = dict(flat)
+    nodes = config_nodes(config)
+    flat = flat_values(members=members, nodes=nodes)
+    context = RowContext(report=report, descriptions=descriptions, nodes=nodes,
+                         converters=node_converters(nodes=nodes, flat=flat),
+                         optional=optional_paths(nodes))
     return {path: _row_of(path=path, value=value, context=context,
-                          values=values, previous=previous)
+                          previous=previous)
             for path, value in flat}
 
 

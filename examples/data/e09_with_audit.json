@@ -1,0 +1,13 @@
+{
+    "audit_output": {
+        "encoding": "latin-1",
+        "file_name": "advanced-audit.txt",
+        "output_format": "TXT"
+    },
+    "course_name": "python-advanced",
+    "participant_output": {
+        "encoding": "utf-8",
+        "file_name": "advanced-participants.csv",
+        "output_format": "CSV"
+    }
+}
