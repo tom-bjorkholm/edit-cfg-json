@@ -88,6 +88,16 @@ decide which of the two a file holds.
 | [e07_drawing.json](e07_drawing.json) | Opens as `Cad2DConfig`, on a grid finer than a model may use. Editing `mode` to `3D` and saving is refused, because the model class would not read this grid back. |
 | [e07_model.json](e07_model.json) | Opens as `Cad3DConfig`. Editing `mode` to `2D` and saving is refused as well, and for the other reason: that file would be read as the drawing class, which is not the class this session is about. |
 
+## Files for `e08_lists_and_dicts.py`
+
+`ContainerConfig` declares one text member and four members that hold a list
+or a dict of values, which the editor shows as a tree of rows.
+
+| File | What happens |
+| --- | --- |
+| [e08_complete.json](e08_complete.json) | Opens with every value from the file. `many_labels` holds two elements here rather than the twelve the class declares, so it opens unfolded: how many rows a container would add is what decides that, and not which member it is. |
+| [e08_short_list.json](e08_short_list.json) | Opens with the declared values of every member but `many_labels`, which holds one element. It is the file to try `--fold` and `--toggle-fold` against, because nothing in it starts folded. |
+
 ## Why a file with a bad value cannot be opened
 
 An editor that refused to open the very file that has to be repaired would

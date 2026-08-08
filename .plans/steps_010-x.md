@@ -38,6 +38,9 @@ plan says only *when* that decision gets built.
 - [Step 9][s9] — the explicit loader: `ConfigLoader`, `derived_loader`, and
   a save that refuses a file the loader would not read back as the same
   class.
+- [Step 10](#step-10--lists-and-dicts-of-scalars) — lists and dicts as a tree
+  of rows with a field at every value, folding, and the rows being built again
+  when a validator changes how many of them there are.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -72,10 +75,10 @@ file only says *when* that decision gets built.
   `edit_cfg_json_textual` never drift apart by more than one review.
 - Steps 1 to 9 are built, and each is written up in
   [steps_001-009_done.md](steps_001-009_done.md) as what it decided, what it
-  found while building it and what came of its review. Steps 10 onwards are
-  named steps with their observable outcome and their main risks; they are
-  detailed just before they are started, when the core API is real rather
-  than imagined.
+  found while building it and what came of its review. Step 10 is built and is
+  written up here, in the same way. Steps 11 onwards are named steps with their
+  observable outcome and their main risks; they are detailed just before they
+  are started, when the core API is real rather than imagined.
 
 ### 1.1 Definition of done for one step
 
@@ -106,7 +109,7 @@ version. Record which one, because the next step's fast iteration with
 | --- | --- | --- | --- |
 | M1 Flat round trip | 1 to 5 | Both backends edit a `Config` with one `str` and one `int`, validate it and save it | done |
 | M2 Flat, fully explained | 6 to 9 | Descriptions, docstrings, field-level diagnostics, automatic-change visibility, explicit loader | done |
-| M3 Structure and folding | 10 to 12 | Lists, dicts, nested `Config` objects, folding with per-subtree badges | to do |
+| M3 Structure and folding | 10 to 12 | Lists, dicts, nested `Config` objects, folding with per-subtree badges | step 10 done |
 | M4 Configs in containers | 13 to 14 | `LIST_ELEMENT` and `DICT_VALUE` nesting, adding and removing elements | to do |
 | M5 Release readiness | 15 to 17 | v1 documented, classified and published | to do |
 
@@ -119,12 +122,86 @@ the order, the observable outcome and the main risk.
 
 #### Step 10 — Lists and dicts of scalars
 
-Ordinary JSON structure inside one config's ownership region: render as an
-indented tree and edit the leaves. No adding, no removing, no nested
-configs. A new example `e08_lists_and_dicts.py`. A dict or list can be
-folded to single line, or opended to view all elements. Risk: this is where
-`model_as_text` and the two backends stop being trivially parallel; expect
-to move tree flattening into the core.
+Status: **Implemented**
+
+**Observable outcome.** A new example `e08_lists_and_dicts.py` whose members
+hold lists and dicts of values.
+`python3 examples/src/example/e08_lists_and_dicts.py --ui dump` prints them as
+a tree with a row per value, `--set retry_delays.0=2` edits one of those
+values, `--fold ports` folds one container away and `--toggle-fold` folds all
+of them. `--ui tk` and `--ui textual` show the same tree with a control on
+every container row and one key that folds or opens all of them.
+
+**What it decided.** Four things, decided before the work started and recorded
+in `doc/design.md` where each of them belongs.
+
+- **A container opens open unless opening it would flood the window**, which
+  is `OPEN_AT_MOST` rows counting everything inside it. Design section 4.7.
+- **Two ways of folding**: a control on the row and one new `ActionSettings`
+  attribute for all of them at once. Design sections 4.7 and 9.1.
+- **A nested `Config` object stays one row** that says the editor cannot edit
+  it yet, rather than being shown as the dict it serializes to. Step 11 makes
+  it a node of its own. Design section 4.1.
+- **Where those objects are is asked as a path and not as a member name.**
+  A configuration worth editing is not a handful of scalars, and a *list* of
+  nested objects each holding a dict of more of them is the ordinary shape
+  rather than a special case. So a nesting declaration becomes a selector,
+  `('outputs', '[')` for a list of them, the member that holds them is an
+  ordinary container of the tree, and each object inside it is one node.
+  Steps 11, 13 and 14 then change what a nested node *is* and not how the
+  tree is built. Design section 4.1.
+- **A value inside a container is written with a dot between the path
+  steps**, which is what `--set` and `--fold` take and what the verdict line
+  writes. Design sections 4.1 and 6.5.
+
+**Core.** `tree` takes a configuration apart into nodes and puts it back
+together; `rows` owns `MemberRow` and builds the rows of one configuration,
+carrying over what an earlier row knew; `buffer` holds the rows, the fold
+state and the editing, so that `EditModel` stays the session it always was.
+`ValidationVerdict.refused` is keyed by `ConfigPath` rather than by name,
+because two values inside two different dicts can share a name.
+
+The public names it settled:
+
+| Name | Kind |
+| --- | --- |
+| `MemberRow.children` | the paths inside one node, None for a value |
+| `MemberRow.depth` | how far inside a member of the configuration it is |
+| `MemberRow.foldable` | whether it is a container that can be folded |
+| `MemberRow.folded` | whether its rows are hidden |
+| `MemberRow.shown` | whether it is on the screen |
+| `MemberRow.value_text` | the value as a field shows it |
+| `EditModel.toggle_fold` | fold one container, or open it |
+| `EditModel.toggle_fold_all` | fold every one of them, or open every one |
+| `can_fold` | whether the configuration has anything to fold |
+| `fold_hides` | what the next press of the fold action will do |
+| `row_fold_text` | what says that one container is folded |
+| `path_text`, `text_path` | one path as text, and back |
+| `ActionSettings.fold` | the keys of the fold action |
+
+**What building it found.**
+
+- **A validation pass can change how many rows there are.** A
+  `ListOrderingValidator` that removes duplicates removes a row, so the model
+  builds its rows again after every pass and both backends build their widgets
+  again when the paths differ. Design section 4.8. This is also the machinery
+  that step 14 needs, so it was built here rather than worked around.
+- **A parse converter reaches a dictionary key at any depth.**
+  `Config._json_parse_obj_hook` runs over every decoded object, so a key named
+  after a converted member is converted too, and the editor answers the same
+  way: the value of a dictionary key can have a converter and a list element
+  never can.
+- **A dictionary is shown in the sorted order the file has**, because a
+  dictionary key has no declaration order to be read from. Design section 4.1.
+- **Both backend modules had to be split**, at 1000 lines each: `tk_look` and
+  `textual_look` now hold the sizes, the colours and the widget helpers, and
+  `bind_key` moved to `key_names`. `EditorWidgets` builds its rows before the
+  part that does not scroll is packed, so that the widgets are still created in
+  the order they are read in.
+- **The Tk stub had drifted.** A widget inside a frame that is out of the
+  layout is still packed itself, so the stubbed tests and `real_texts` both
+  reported a folded value as shown until they were taught to stop at a
+  container that is not on the window.
 
 #### Step 11 — Nested `Config` objects
 
@@ -135,6 +212,16 @@ docstring and validity state, and it segments the tree. A new example
 to settle when this step starts: `ConfigNestingKind` also has
 `OPTIONAL_MEMBER`, which design section 11 neither includes nor excludes.
 Decide it explicitly rather than by accident.
+
+Step 10 left this step less to do than the plan expected. *Where* a nested
+object is is already asked as a selector over paths, so a `MEMBER`, a
+`LIST_ELEMENT` and a `DICT_VALUE` nesting are already found the same way and
+each object is already one node with a row of its own. What is left is what
+such a node *is*: its class and docstring, its own members as rows below it,
+and the ownership that comes with them — `parse_converters()`,
+`_omit_none_from_json()` and the descriptions of a subtree belong to the class
+that owns it, and the root's are what the editor uses today because nothing
+inside a nested object is a row yet.
 
 #### Step 12 — Folding and subtree validation
 

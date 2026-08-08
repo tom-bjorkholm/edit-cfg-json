@@ -213,7 +213,7 @@ def test_unknown_member(capsys: pytest.CaptureFixture[str]) -> None:
     """Test setting a member that this configuration does not have."""
     error = refused(e05_old_format_config.main, capsys, '--ui', 'dump',
                     '--set', 'title=an older key')
-    assert 'title is not a member' in error
+    assert 'title is not part of' in error
 
 
 def test_tk_ui_opens(monkeypatch: pytest.MonkeyPatch) -> None:

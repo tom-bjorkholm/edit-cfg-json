@@ -23,8 +23,9 @@ deselected by the build and run by hand with `pytest -m focus_sensitive`.
 import tkinter
 import pytest
 from edit_cfg_json import EditModel, Emphasis
-from edit_cfg_json_tk.tk_editor import EMPHASIS_COLOURS, EditorWidgets, \
-    EXPLAIN_TEXT, VALIDATE_TEXT
+from edit_cfg_json_tk.tk_editor import EditorWidgets, EXPLAIN_TEXT, \
+    VALIDATE_TEXT
+from edit_cfg_json_tk.tk_look import EMPHASIS_COLOURS
 from example.e02_enum_config import EnumConfig
 from example.e04_validated_config import DESCRIPTIONS, ValidatedConfig
 from .helpers import FakeVar, FakeWidget, real_fields, real_press, \

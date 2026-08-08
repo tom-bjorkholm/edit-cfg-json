@@ -15,6 +15,7 @@ setup(
   package_data={'edit_cfg_json': ['py.typed']},
   install_requires=[
     'config-as-json >= 1.5',
-    'argcomplete >= 3.7.2'
+    'argcomplete >= 3.7.2',
+    'wizard-ui-bridge >= 1.3'
   ]
 )

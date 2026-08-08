@@ -17,12 +17,22 @@ moves it and the editor is really told about it, which is what these tests do.
 
 from pathlib import Path
 import asyncio
+from textual.containers import Vertical
 from edit_cfg_json import EditModel
 from edit_cfg_json_textual.textual_editor import EditorApp
+from edit_cfg_json_textual.textual_look import description_id, \
+    diagnostic_id, member_id
 from example.e02_enum_config import EnumConfig
 from example.e04_validated_config import DESCRIPTIONS, ValidatedConfig
 from .helpers import EXPLAIN_KEY, SAVE_AS_KEY, VALIDATE_KEY, description_of, \
-    field_of, save_as, verdict_of, wrong_of
+    field_of, index_of, save_as, verdict_of, wrong_of
+
+RETRIES_INDEX = 1
+"""Place among the rows of the number member of the validated example.
+
+The widgets of a node are identified by where it is among the rows, and that
+example declares its enum member first and its number member second.
+"""
 
 NO_MEMBER = 'MIDDLE is not one of: MECHANICAL, ELECTRICAL, ELECTRONIC'
 """What the converter of the example says about a name no member has."""
@@ -166,9 +176,9 @@ async def _wrong_order(app: EditorApp) -> list[str]:
         await pilot.pause()
         await pilot.press(VALIDATE_KEY)
         await pilot.pause()
-        member = field_of(app, 'retries').parent
-        assert member is not None and member.parent is not None
-        return [str(child.id) for child in member.parent.children]
+        index = index_of(app, 'retries')
+        member = app.query_one(f'#{member_id(index)}', Vertical)
+        return [str(child.id) for child in member.children]
 
 
 def test_description_first() -> None:
@@ -178,7 +188,7 @@ def test_description_first() -> None:
     line that appears at the bottom moves nothing that is above it.
     """
     assert asyncio.run(_wrong_order(_described())) == \
-        ['None', 'about_retries', 'wrong_retries']
+        ['None', description_id(RETRIES_INDEX), diagnostic_id(RETRIES_INDEX)]
 
 
 def test_save_as_field(tmp_path: Path) -> None:

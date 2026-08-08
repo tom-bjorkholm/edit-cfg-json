@@ -15,8 +15,9 @@ import tkinter
 import pytest
 from edit_cfg_json import Emphasis, EditModel
 from edit_cfg_json_tk.scrolling import BODY_HEIGHT, BODY_WIDTH
-from edit_cfg_json_tk.tk_editor import EMPHASIS_COLOURS, EditorWidgets, \
-    EXPLAIN_TEXT, FIELD_BACKGROUND, FIELD_FOREGROUND, LEAST_WRAP_WIDTH
+from edit_cfg_json_tk.tk_editor import EditorWidgets, EXPLAIN_TEXT
+from edit_cfg_json_tk.tk_look import EMPHASIS_COLOURS, FIELD_BACKGROUND, \
+    FIELD_FOREGROUND, LEAST_WRAP_WIDTH
 from example.e01_flat_config import FlatConfig
 from .helpers import ABOUT_NAME, DESCRIPTIONS, FakeWidget, FILLED_REPORT, \
     FLAT_DOCSTRING, FLAT_SUMMARY, real_press, real_ticks, stub_editor, \

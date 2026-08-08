@@ -13,14 +13,15 @@ from textual.geometry import Region
 from textual.widgets import Static
 from edit_cfg_json import EditModel, LoadReport
 from edit_cfg_json_textual.textual_editor import BODY_ID, EditorApp, \
-    LEAST_VALUE_WIDTH, LOAD_ID, MARK_ID_PREFIX, SAVE_ID, VALUE_ID_PREFIX, \
-    plain_widget
+    LEAST_VALUE_WIDTH, LOAD_ID, SAVE_ID
+from edit_cfg_json_textual.textual_look import mark_id, plain_widget, \
+    value_id
 from example.e01_flat_config import FlatConfig
-from .helpers import DESCRIPTIONS, EXPECTED_VALUES, FILLED_MARK, \
-    FILLED_REPORT, LOAD_MESSAGE, NARROW_SIZE, QUIT_KEY, REWRITTEN_MARK, \
-    REFUSED_VERDICT, ROOMY_SIZE, SHORT_SIZE, UNKNOWN_VERDICT, \
-    VALIDATE_ALT_KEY, VALIDATE_KEY, VALID_VERDICT, field_of, mark_of, \
-    model_value, verdict_of
+from .helpers import ANSWER_INDEX, DESCRIPTIONS, EXPECTED_VALUES, \
+    FILLED_MARK, FILLED_REPORT, LOAD_MESSAGE, NAME_INDEX, NARROW_SIZE, \
+    QUIT_KEY, REWRITTEN_MARK, REFUSED_VERDICT, ROOMY_SIZE, SHORT_SIZE, \
+    UNKNOWN_VERDICT, VALIDATE_ALT_KEY, VALIDATE_KEY, VALID_VERDICT, \
+    field_of, mark_of, model_value, verdict_of
 
 LOAD_REASON = 'supplied for a file of an older format'
 """What the model of the test below says the load did to one member.
@@ -344,8 +345,8 @@ def test_no_scroll_if_fits() -> None:
 def test_mark_width() -> None:
     """Test a mark is given the width of the mark it has to show."""
     placed, _ = asyncio.run(_laid_out(ROOMY_SIZE))
-    assert placed[f'{MARK_ID_PREFIX}answer'].width == len(FILLED_MARK)
-    assert placed[f'{MARK_ID_PREFIX}name'].width == 0
+    assert placed[mark_id(ANSWER_INDEX)].width == len(FILLED_MARK)
+    assert placed[mark_id(NAME_INDEX)].width == 0
 
 
 def test_narrow_keepsfield_of() -> None:
@@ -355,7 +356,7 @@ def test_narrow_keepsfield_of() -> None:
     in full whatever the terminal does to them.
     """
     placed, _ = asyncio.run(_laid_out(NARROW_SIZE))
-    assert placed[f'{VALUE_ID_PREFIX}answer'].width == LEAST_VALUE_WIDTH
+    assert placed[value_id(ANSWER_INDEX)].width == LEAST_VALUE_WIDTH
 
 
 async def _shown_markup() -> str:

@@ -16,16 +16,18 @@ therefore report one failure and never say whose it was.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from io import StringIO
 from types import MappingProxyType
 from typing import NamedTuple, Optional, TextIO
 import json
-from config_as_json import Config, JsonType, MemberValidationStep, \
-    MemberValidator, ParseConverter, ValidationPlan, ValidationStep
+from config_as_json import Config, ConfigPath, JsonType, \
+    MemberValidationStep, MemberValidator, ParseConverter, ValidationPlan, \
+    ValidationStep
 from edit_cfg_json.constructing import parsed_config
 from edit_cfg_json.converting import convert_member, member_converters, \
     refusal_text
+from edit_cfg_json.tree import dict_nodes, nested_selectors
 
 BUFFER_ERRORS = (KeyError, TypeError, ValueError)
 """Every way in which a configuration class refuses an edit buffer.
@@ -42,7 +44,7 @@ no edit of the buffer can put right, and hiding it in a verdict would send
 the user looking for a mistake that is not theirs.
 """
 
-NOTHING_REFUSED: Mapping[str, str] = MappingProxyType({})
+NOTHING_REFUSED: Mapping[ConfigPath, str] = MappingProxyType({})
 """What a pass that refused no individual member reports.
 
 It cannot be written to, because every verdict that names no member shares
@@ -69,13 +71,19 @@ class ValidationVerdict(NamedTuple):
     remark on a value without refusing it.
     """
 
-    refused: Mapping[str, str] = NOTHING_REFUSED
-    """What the application refused about each member, by member name.
+    refused: Mapping[ConfigPath, str] = NOTHING_REFUSED
+    """What the application refused about each node, by the path of that node.
 
     Empty for a buffer that was accepted, and empty for one that was refused
-    for a reason that is about no single member. A member is named here when
-    its own text means no value of it at all, or when its own validators
-    refused the value it holds.
+    for a reason that is about no single member. A node is named here when
+    its own text means no value of it at all, or when the validators of its
+    member refused the value it holds.
+
+    A path and not a name, because a value inside a list or a dict is a node
+    of its own and two of them can share a name. What a member validator
+    refused is about the whole member, since that is what it is given, so it
+    is under the one step path of that member and never under a value inside
+    it.
     """
 
 
@@ -107,8 +115,8 @@ class ValidationPass(NamedTuple):
 class Attribution(NamedTuple):
     """What the individual validators of one configuration refused."""
 
-    refused: dict[str, str]
-    """What each member's own validators said, by member name."""
+    refused: dict[ConfigPath, str]
+    """What the validators of each member said, by the path of that member."""
 
     remaining: str
     """What a step that is about no single member said, empty when none."""
@@ -183,25 +191,31 @@ def _probe(config: Config, members: dict[str, JsonType]) -> Optional[Config]:
 
 
 def _unconverted(converters: Mapping[str, ParseConverter],
-                 members: dict[str, JsonType]) -> dict[str, str]:
-    """Return why each value of the buffer means no value of its member.
+                 nodes: Sequence[tuple[ConfigPath, JsonType]]) \
+        -> dict[ConfigPath, str]:
+    """Return why each value of the buffer means no value of its node.
+
+    Only the nodes a parse converter can reach are asked, which is every
+    value of a dictionary and no element of a list: that is where
+    `config_as_json` applies one while it decodes.
 
     Args:
         converters: One converter per member that has one.
-        members: The edit buffer, as one JSON space value per member.
+        nodes: The path and the value of every node that a converter of this
+            class can reach.
 
     Returns:
-        One message per member whose text means no value of it, and nothing
+        One message per node whose text means no value of it, and nothing
         at all for a buffer every value of which means something.
     """
-    refused = {name: convert_member(converter=converters.get(name),
+    refused = {path: convert_member(converter=converters.get(path[-1]),
                                     value=value).message
-               for name, value in members.items()}
-    return {name: message for name, message in refused.items() if message}
+               for path, value in nodes}
+    return {path: message for path, message in refused.items() if message}
 
 
 def _attribute_member(validator: MemberValidator, probe: Config, name: str,
-                      refused: dict[str, str]) -> None:
+                      refused: dict[ConfigPath, str]) -> None:
     """Run one validator over one member, keeping what it refused.
 
     The value the validator returns is stored back into the member, because
@@ -220,13 +234,13 @@ def _attribute_member(validator: MemberValidator, probe: Config, name: str,
                                           member_value=getattr(probe, name),
                                           stderr_file=captured)
     except BUFFER_ERRORS as error:
-        refused[name] = _told(captured=captured.getvalue(), error=error)
+        refused[(name,)] = _told(captured=captured.getvalue(), error=error)
         return
     setattr(probe, name, value)
 
 
 def _attribute_step(step: MemberValidationStep, probe: Config,
-                    refused: dict[str, str]) -> None:
+                    refused: dict[ConfigPath, str]) -> None:
     """Run one member validator over each of the members that step names.
 
     A member that has already been refused is left alone, so that what is
@@ -239,7 +253,7 @@ def _attribute_step(step: MemberValidationStep, probe: Config,
         refused: What each member has been refused for so far, added to.
     """
     for name in step.member_names:
-        if not hasattr(probe, name) or name in refused:
+        if not hasattr(probe, name) or (name,) in refused:
             continue
         _attribute_member(validator=step.validator, probe=probe, name=name,
                           refused=refused)
@@ -296,7 +310,7 @@ def _plan_failures(probe: Config) -> Attribution:
         What each member was refused for, and what could not be attributed to
         any member at all.
     """
-    refused: dict[str, str] = {}
+    refused: dict[ConfigPath, str] = {}
     plan = type(probe).get_validation_plan(probe, stderr_file=StringIO())
     for step in plan:
         if isinstance(step, MemberValidationStep):
@@ -399,8 +413,10 @@ def validate_buffer(config: Config,
         What the pass found, and the members of the configuration object it
         built. The members are empty when the buffer was refused.
     """
+    nested = nested_selectors(config)
     unconverted = _unconverted(converters=member_converters(config),
-                               members=members)
+                               nodes=dict_nodes(members=members,
+                                                nested=nested))
     if unconverted:
         return _no_pass(ValidationVerdict(valid=False, diagnostics='',
                                           refused=unconverted))

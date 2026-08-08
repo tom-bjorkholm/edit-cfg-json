@@ -38,6 +38,18 @@ command line, and `--ui dump` then prints the edited buffer. A member the user
 changed is marked, so the edit is visible even when the new value looks like
 the old one.
 
+A value inside a list or a dict is named by the whole path to it, with a dot
+between the steps: `--set retry_delays.0=3` and `--set ports.http=8080`. A
+member of the configuration has one step and is written as its own name,
+which is what every example before the lists and dicts one does. The one
+thing this notation cannot address is a dictionary key that holds a dot; such
+a key is edited in the editor like any other.
+
+`--fold PATH` folds one list or dict away, or opens it again if it is folded
+already, in the same way that pressing its control in a window does.
+`--toggle-fold` stands in for the key that folds every one of them, and is
+repeatable because a key is.
+
 `-i/--input` names the file that the values are read from, and `--policy`
 says what to do about a declared value that the file does not hold. There is
 a file for every case in [examples/data/](../../data/), including the ones
@@ -113,7 +125,7 @@ from typing import Optional
 from config_as_json import Config
 from edit_cfg_json import ActionSettings, ConfigLoadError, ConfigLoader, \
     Descriptions, DumpEditor, EditModel, EditorBackend, Settings, \
-    add_file_options, edit, named_policy
+    add_file_options, edit, named_policy, text_path
 
 UI_DUMP = 'dump'
 """Value of `--ui` that prints the model instead of opening a window."""
@@ -139,11 +151,14 @@ NOTHING_MESSAGE = 'edit() returned None, so nothing was saved.'
 SET_FORM_MESSAGE = '--set needs member=value, and got {setting}.'
 """Message used to refuse a `--set` value that names no member."""
 
-NO_MEMBER_MESSAGE = '{name} is not a member of this configuration.'
-"""Message used to refuse a `--set` of a member that does not exist."""
+NO_MEMBER_MESSAGE = '{name} is not part of this configuration.'
+"""Message used to refuse a path that addresses nothing in the model."""
 
 NOT_EDITABLE_MESSAGE = '{name} cannot be edited yet.'
-"""Message used to refuse a `--set` of a list member or a dict member."""
+"""Message used to refuse a `--set` of a member the editor cannot edit."""
+
+NOT_A_CONTAINER_MESSAGE = '{name} is not a list or a dict.'
+"""Message used to refuse a `--fold` of something that holds nothing."""
 
 KEY_FORM_MESSAGE = ('--key needs one of {names} followed by =combinations, '
                     'and got {value}.')
@@ -173,6 +188,11 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
     parser.add_argument('--toggle-explain', action='count', default=0,
                         help='Press the explain key. Repeatable, as a key '
                              'is.')
+    parser.add_argument('--toggle-fold', action='count', default=0,
+                        help='Press the fold key. Repeatable, as a key is.')
+    parser.add_argument('--fold', action='append', dest='folds',
+                        metavar='PATH',
+                        help='Fold or open one list or dict. Repeatable.')
     parser.add_argument('--extension', default=None,
                         help='File name extension this application uses.')
     parser.add_argument('--enforce-extension', action='store_true',
@@ -203,25 +223,27 @@ def _refuse_save(parser: argparse.ArgumentParser,
 
 def _set_member(parser: argparse.ArgumentParser, model: EditModel, name: str,
                 text: str) -> None:
-    """Edit one member of the buffer, or say why it cannot be edited.
+    """Edit one value of the buffer, or say why it cannot be edited.
 
-    The model is addressed by the path of a member and not by its name, and
-    every path of a flat configuration has exactly one step. The further
-    steps arrive with the members that need them, which are the ones inside
-    lists, dicts and nested configuration objects.
+    The model is addressed by the path of a node, and a value inside a list
+    or a dict is named by the whole path to it, with a dot between the steps:
+    `retry_delays.0` is the first element of that list and `ports.http` is
+    that key of that dict. A member of the configuration is one step and is
+    therefore written as its own name, exactly as it was before there were
+    lists and dicts to address.
 
-    The model tells the two failures apart, and so does this: a name that is
-    not a member at all is a different mistake from a member that this
-    version of the editor cannot edit yet.
+    The model tells the two failures apart, and so does this: a name that
+    addresses nothing at all is a different mistake from one that addresses
+    something this version of the editor cannot edit.
 
     Args:
         parser: Parser used to report the error and exit.
         model: Model whose buffer is edited.
-        name: Name of the member to edit.
-        text: Text to set the member to, exactly as a field would hold it.
+        name: Path of the value to edit, with a dot between its steps.
+        text: Text to set the value to, exactly as a field would hold it.
     """
     try:
-        model.set_text(path=(name,), text=text)
+        model.set_text(path=text_path(name), text=text)
     except KeyError:
         parser.error(NO_MEMBER_MESSAGE.format(name=name))
     except ValueError:
@@ -242,6 +264,24 @@ def _apply_edits(parser: argparse.ArgumentParser, model: EditModel,
         if not separator:
             parser.error(SET_FORM_MESSAGE.format(setting=setting))
         _set_member(parser=parser, model=model, name=name, text=text)
+
+
+def _apply_folds(parser: argparse.ArgumentParser, model: EditModel,
+                 folds: Optional[list[str]]) -> None:
+    """Fold away every container that one command line names.
+
+    Args:
+        parser: Parser used to report the error and exit.
+        model: Model whose containers are folded.
+        folds: The `--fold` values, or None when the option was not used.
+    """
+    for name in folds or []:
+        try:
+            model.toggle_fold(text_path(name))
+        except KeyError:
+            parser.error(NO_MEMBER_MESSAGE.format(name=name))
+        except ValueError:
+            parser.error(NOT_A_CONTAINER_MESSAGE.format(name=name))
 
 
 def _action_keys(parser: argparse.ArgumentParser,
@@ -343,6 +383,10 @@ class StandInUser:  # pylint: disable=too-few-public-methods
                      edits=self._parsed.edits)
         for _ in range(self._parsed.toggle_explain):
             model.toggle_explanations()
+        for _ in range(self._parsed.toggle_fold):
+            model.toggle_fold_all()
+        _apply_folds(parser=self._parser, model=model,
+                     folds=self._parsed.folds)
         if self._parsed.save:
             model.save()
         self._inner.run_editor(model)

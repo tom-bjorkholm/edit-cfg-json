@@ -9,14 +9,15 @@ import asyncio
 import pytest
 from textual.widgets import Static
 from edit_cfg_json import EditModel, Emphasis
-from edit_cfg_json_textual.textual_editor import DESCRIPTION_ID_PREFIX, \
-    DOCSTRING_ID, EditorApp, EMPHASIS_CLASSES, EXPLAIN_COMMAND, \
-    HIDE_COMMAND, LOAD_ID, MARK_ID_PREFIX, SAVE_ID, VALUE_ID_PREFIX, \
-    VERDICT_ID
+from edit_cfg_json_textual.textual_editor import DOCSTRING_ID, EditorApp, \
+    EXPLAIN_COMMAND, HIDE_COMMAND, LOAD_ID, SAVE_ID, VERDICT_ID
+from edit_cfg_json_textual.textual_look import EMPHASIS_CLASSES, \
+    description_id, mark_id, value_id
 from example.e01_flat_config import FlatConfig
-from .helpers import ABOUT_NAME, DESCRIPTIONS, EXPLAIN_ALT_KEY, EXPLAIN_KEY, \
-    FILLED_REPORT, NoDocConfig, SAVE_KEY, TEXT_KIND, VALIDATE_KEY, \
-    WHOLE_KIND, described_app, description_of, docstring_of, field_of
+from .helpers import ABOUT_NAME, ANSWER_INDEX, DESCRIPTIONS, \
+    EXPLAIN_ALT_KEY, EXPLAIN_KEY, FILLED_REPORT, NAME_INDEX, NoDocConfig, \
+    SAVE_KEY, TEXT_KIND, VALIDATE_KEY, WHOLE_KIND, described_app, \
+    description_of, docstring_of, field_of
 
 
 async def _explained(*keys: str) -> tuple[str, bool, str]:
@@ -191,14 +192,14 @@ def test_explanations_muted() -> None:
     """Test the text about the values is shown as the secondary text it is."""
     shown = asyncio.run(_emphasis())
     assert shown[DOCSTRING_ID] == {EMPHASIS_CLASSES[Emphasis.MUTED]}
-    assert shown[f'{DESCRIPTION_ID_PREFIX}name'] == \
+    assert shown[description_id(NAME_INDEX)] == \
         {EMPHASIS_CLASSES[Emphasis.MUTED]}
 
 
 def test_marks_coloured() -> None:
     """Test a mark and a remark about the file are told apart by colour."""
     shown = asyncio.run(_emphasis())
-    assert shown[f'{MARK_ID_PREFIX}answer'] == \
+    assert shown[mark_id(ANSWER_INDEX)] == \
         {EMPHASIS_CLASSES[Emphasis.ATTENTION]}
     assert shown[LOAD_ID] == {EMPHASIS_CLASSES[Emphasis.WARNING]}
 
@@ -210,7 +211,7 @@ def test_values_left_alone() -> None:
     thing on the screen because nothing has been done to them.
     """
     shown = asyncio.run(_emphasis())
-    assert shown[f'{VALUE_ID_PREFIX}name'] == set()
+    assert shown[value_id(NAME_INDEX)] == set()
 
 
 @pytest.mark.parametrize('keys, emphasis',

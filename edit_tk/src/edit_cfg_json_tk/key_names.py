@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-"""Translating a key combination into the notation that Tk binds by.
+"""Binding one key combination, in the notation that Tk binds by.
 
 The application writes its key combinations once, in the notation that
 `edit_cfg_json.ActionSettings` documents, and each backend translates them
@@ -15,7 +15,9 @@ well.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Callable
 from typing import Optional
+import tkinter
 
 MODIFIERS = {'ctrl': 'Control', 'shift': 'Shift', 'alt': 'Alt',
              'meta': 'Meta'}
@@ -79,3 +81,45 @@ def tk_sequence(combination: str) -> Optional[str]:
         return None
     named = [MODIFIERS[modifier] for modifier in modifiers] + [keysym]
     return f'<{"-".join(named)}>'
+
+
+def _key_handler(command: Callable[[], None]) -> Callable[..., str]:
+    """Return the callback that runs one command for one key event.
+
+    Args:
+        command: What that key does.
+
+    Returns:
+        A callback that Tk can bind, which stops the event from being
+        handled a second time by whatever else the window is bound to.
+    """
+    def run_command(*event: object) -> str:
+        """Run the command, and keep the event from being handled again."""
+        _ = event
+        command()
+        return 'break'
+    return run_command
+
+
+def bind_key(window: tkinter.Misc, key: str,
+             command: Callable[[], None]) -> None:
+    """Bind one key combination of one action, if Tk can bind it.
+
+    A combination that the translation does not know, or that Tk refuses,
+    leaves that action without that key rather than without an editor: every
+    action of this backend has a button as well.
+
+    Args:
+        window: Window that the binding is made on.
+        key: One key combination, as `ActionSettings` writes them.
+        command: What that key does.
+    """
+    sequence = tk_sequence(key)
+    if sequence is None:
+        return
+    try:
+        window.bind(sequence, _key_handler(command))
+    except tkinter.TclError:
+        # Tk refuses an event sequence it cannot parse, and a key the
+        # application named is not worth an editor that does not open.
+        pass

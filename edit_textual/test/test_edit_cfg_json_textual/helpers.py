@@ -22,11 +22,12 @@ backends and by the example itself.
 from pathlib import Path
 import json
 from config_as_json import JsonType
-from textual.widgets import Input, Static
+from textual.widgets import Input, Label, Static
 from edit_cfg_json import ActionSettings, Descriptions, EditModel, LoadReport
-from edit_cfg_json_textual.textual_editor import DESCRIPTION_ID_PREFIX, \
-    DIAGNOSTIC_ID_PREFIX, DOCSTRING_ID, EditorApp, MARK_ID_PREFIX, \
-    SAVE_AS_ID, SAVE_ID, VALUE_ID_PREFIX, VERDICT_ID
+from edit_cfg_json_textual.textual_editor import DOCSTRING_ID, EditorApp, \
+    NAME_CLASS, SAVE_AS_ID, SAVE_ID, VERDICT_ID
+from edit_cfg_json_textual.textual_look import description_id, \
+    diagnostic_id, mark_id, value_id
 from example.e01_flat_config import FlatConfig
 
 DEFAULT_ACTIONS = ActionSettings()
@@ -80,6 +81,18 @@ DESCRIPTIONS: Descriptions = {('name',): ABOUT_NAME}
 EXPECTED_VALUES = {'name': 'Flat example', 'answer': '42'}
 """Value text that the application is expected to show for each member."""
 
+NAME_INDEX = 0
+"""Place among the rows of the text member of the example.
+
+The widgets of a node are identified by where it is among the rows, so a test
+that looks one up by identifier needs the place and not the name. The example
+declares its text member first and its number member second, and declaration
+order is the order the editor shows.
+"""
+
+ANSWER_INDEX = 1
+"""Place among the rows of the number member of the example."""
+
 LOAD_MESSAGE = 'the file left something out'
 """Message of the load in the tests that show one."""
 
@@ -125,14 +138,34 @@ ESCAPE_KEY = 'escape'
 """Key that leaves the question about the output file unanswered."""
 
 
+def index_of(app: EditorApp, member_name: str) -> int:
+    """Return where among the rows the application shows one member.
+
+    Every widget of a node is identified by that place and not by the name of
+    the node, because two values inside two different dicts can have one name.
+    The tests still name a member, and this is what turns one into the other:
+    the name labels are in the order the rows are.
+
+    Args:
+        app: Application that is showing the model.
+        member_name: Name of the node, which is the last step of its path.
+
+    Returns:
+        The place of that node among the rows.
+    """
+    names = [str(label.content) for label in app.query(Label)
+             if label.has_class(NAME_CLASS)]
+    return names.index(member_name)
+
+
 def field_of(app: EditorApp, member_name: str) -> Input:
     """Return the field that the application shows for one member."""
-    return app.query_one(f'#{VALUE_ID_PREFIX}{member_name}', Input)
+    return app.query_one(f'#{value_id(index_of(app, member_name))}', Input)
 
 
 def mark_of(app: EditorApp, member_name: str) -> str:
     """Return the mark that the application shows for one member."""
-    widget = app.query_one(f'#{MARK_ID_PREFIX}{member_name}', Static)
+    widget = app.query_one(f'#{mark_id(index_of(app, member_name))}', Static)
     return str(widget.content)
 
 
@@ -173,12 +206,14 @@ def docstring_of(app: EditorApp) -> str:
 
 def description_of(app: EditorApp, member_name: str) -> Static:
     """Return the widget that the application shows about one member."""
-    return app.query_one(f'#{DESCRIPTION_ID_PREFIX}{member_name}', Static)
+    return app.query_one(f'#{description_id(index_of(app, member_name))}',
+                         Static)
 
 
 def wrong_widget(app: EditorApp, member_name: str) -> Static:
     """Return the widget that says what is wrong with one member."""
-    return app.query_one(f'#{DIAGNOSTIC_ID_PREFIX}{member_name}', Static)
+    return app.query_one(f'#{diagnostic_id(index_of(app, member_name))}',
+                         Static)
 
 
 def wrong_of(app: EditorApp, member_name: str) -> str:

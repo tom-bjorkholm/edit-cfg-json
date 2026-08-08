@@ -62,7 +62,8 @@ def test_declaration_order() -> None:
     the file would show these three members as answer, limits, tags.
     """
     model = EditModel(ListCfg())
-    assert [row.name for row in model.rows] == ['tags', 'limits', 'answer']
+    assert [row.name for row in model.rows if row.depth == 0] == \
+        ['tags', 'limits', 'answer']
 
 
 def test_omitted_none_no_row() -> None:
@@ -85,12 +86,20 @@ def test_none_is_a_value() -> None:
 
 
 def test_containers_reported() -> None:
-    """Test a list member and a dict member are rows that are not editable."""
+    """Test a list member and a dict member are trees of rows.
+
+    The member itself is a row that is not edited in a field, because what it
+    holds is on the rows below it, and each of those is edited like any other
+    value.
+    """
     model = EditModel(ListCfg())
-    assert {row.name for row in model.rows} == {'answer', 'limits', 'tags'}
+    assert [row.path for row in model.rows] == \
+        [('tags',), ('tags', '0'), ('tags', '1'), ('limits',),
+         ('limits', 'high'), ('limits', 'low'), ('answer',)]
     assert not _row(model, 'tags').editable
     assert not _row(model, 'limits').editable
     assert _row(model, 'answer').editable
+    assert all(model.rows[index].editable for index in (1, 2, 4, 5))
 
 
 def test_text_kept_as_text() -> None:
@@ -427,7 +436,7 @@ def test_validate_refuses() -> None:
     model.set_text(path=('answer',), text='500')
     verdict = model.validate()
     assert not verdict.valid
-    assert 'greater than maximum 100' in verdict.refused['answer']
+    assert 'greater than maximum 100' in verdict.refused[('answer',)]
 
 
 def test_refused_keeps_typed() -> None:
@@ -519,7 +528,7 @@ def test_no_stderr_output(capsys: pytest.CaptureFixture[str]) -> None:
     model = EditModel(RangeCfg())
     model.set_text(path=('answer',), text='500')
     verdict = model.validate()
-    assert 'greater than maximum 100' in verdict.refused['answer']
+    assert 'greater than maximum 100' in verdict.refused[('answer',)]
     assert capsys.readouterr().err == ''
 
 
@@ -598,7 +607,7 @@ def test_save_refuses_invalid(tmp_path: Path) -> None:
     assert model.saved_config is None
     verdict = model.verdict
     assert verdict is not None
-    assert 'greater than maximum 100' in verdict.refused['answer']
+    assert 'greater than maximum 100' in verdict.refused[('answer',)]
 
 
 def test_save_keeps_old_file(tmp_path: Path) -> None:

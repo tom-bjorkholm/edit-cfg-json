@@ -1,15 +1,12 @@
 # Table of Contents
 
 * [edit\_cfg\_json\_textual.textual\_editor](#edit_cfg_json_textual.textual_editor)
-  * [VALUE\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.VALUE_ID_PREFIX)
-  * [MARK\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.MARK_ID_PREFIX)
-  * [DESCRIPTION\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.DESCRIPTION_ID_PREFIX)
-  * [DIAGNOSTIC\_ID\_PREFIX](#edit_cfg_json_textual.textual_editor.DIAGNOSTIC_ID_PREFIX)
   * [DOCSTRING\_ID](#edit_cfg_json_textual.textual_editor.DOCSTRING_ID)
   * [VERDICT\_ID](#edit_cfg_json_textual.textual_editor.VERDICT_ID)
   * [SAVE\_ID](#edit_cfg_json_textual.textual_editor.SAVE_ID)
   * [LOAD\_ID](#edit_cfg_json_textual.textual_editor.LOAD_ID)
   * [BODY\_ID](#edit_cfg_json_textual.textual_editor.BODY_ID)
+  * [MEMBERS\_ID](#edit_cfg_json_textual.textual_editor.MEMBERS_ID)
   * [SAVE\_AS\_BOX\_ID](#edit_cfg_json_textual.textual_editor.SAVE_AS_BOX_ID)
   * [SAVE\_AS\_ID](#edit_cfg_json_textual.textual_editor.SAVE_AS_ID)
   * [NAME\_CLASS](#edit_cfg_json_textual.textual_editor.NAME_CLASS)
@@ -19,7 +16,10 @@
   * [MEMBER\_CLASS](#edit_cfg_json_textual.textual_editor.MEMBER_CLASS)
   * [DESCRIPTION\_CLASS](#edit_cfg_json_textual.textual_editor.DESCRIPTION_CLASS)
   * [DIAGNOSTIC\_CLASS](#edit_cfg_json_textual.textual_editor.DIAGNOSTIC_CLASS)
+  * [FOLD\_CLASS](#edit_cfg_json_textual.textual_editor.FOLD_CLASS)
   * [NAME\_WIDTH](#edit_cfg_json_textual.textual_editor.NAME_WIDTH)
+  * [FOLD\_WIDTH](#edit_cfg_json_textual.textual_editor.FOLD_WIDTH)
+  * [TREE\_INDENT](#edit_cfg_json_textual.textual_editor.TREE_INDENT)
   * [DESCRIPTION\_INDENT](#edit_cfg_json_textual.textual_editor.DESCRIPTION_INDENT)
   * [LEAST\_VALUE\_WIDTH](#edit_cfg_json_textual.textual_editor.LEAST_VALUE_WIDTH)
   * [QUIT\_COMMAND](#edit_cfg_json_textual.textual_editor.QUIT_COMMAND)
@@ -33,19 +33,13 @@
   * [SAVE\_HELP](#edit_cfg_json_textual.textual_editor.SAVE_HELP)
   * [SAVE\_AS\_HELP](#edit_cfg_json_textual.textual_editor.SAVE_AS_HELP)
   * [EXPLAIN\_HELP](#edit_cfg_json_textual.textual_editor.EXPLAIN_HELP)
-  * [EMPHASIS\_CLASSES](#edit_cfg_json_textual.textual_editor.EMPHASIS_CLASSES)
+  * [FOLD\_COMMAND](#edit_cfg_json_textual.textual_editor.FOLD_COMMAND)
+  * [OPEN\_COMMAND](#edit_cfg_json_textual.textual_editor.OPEN_COMMAND)
+  * [FOLD\_HELP](#edit_cfg_json_textual.textual_editor.FOLD_HELP)
   * [SAVE\_AS\_PROMPT](#edit_cfg_json_textual.textual_editor.SAVE_AS_PROMPT)
   * [SAVE\_AS\_LEAVE](#edit_cfg_json_textual.textual_editor.SAVE_AS_LEAVE)
   * [EDITOR\_ACTIONS](#edit_cfg_json_textual.textual_editor.EDITOR_ACTIONS)
-  * [COLOUR\_RULES](#edit_cfg_json_textual.textual_editor.COLOUR_RULES)
   * [CSS\_RULES](#edit_cfg_json_textual.textual_editor.CSS_RULES)
-  * [\_value\_id](#edit_cfg_json_textual.textual_editor._value_id)
-  * [\_mark\_id](#edit_cfg_json_textual.textual_editor._mark_id)
-  * [\_description\_id](#edit_cfg_json_textual.textual_editor._description_id)
-  * [\_diagnostic\_id](#edit_cfg_json_textual.textual_editor._diagnostic_id)
-  * [plain\_widget](#edit_cfg_json_textual.textual_editor.plain_widget)
-  * [show\_emphasis](#edit_cfg_json_textual.textual_editor.show_emphasis)
-  * [bind\_action](#edit_cfg_json_textual.textual_editor.bind_action)
   * [SaveAsScreen](#edit_cfg_json_textual.textual_editor.SaveAsScreen)
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_editor.SaveAsScreen.__init__)
     * [compose](#edit_cfg_json_textual.textual_editor.SaveAsScreen.compose)
@@ -59,8 +53,14 @@
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_editor.EditorApp.__init__)
     * [\_bind\_editor\_keys](#edit_cfg_json_textual.textual_editor.EditorApp._bind_editor_keys)
     * [\_bind\_explain](#edit_cfg_json_textual.textual_editor.EditorApp._bind_explain)
+    * [\_bind\_fold](#edit_cfg_json_textual.textual_editor.EditorApp._bind_fold)
+    * [\_rebind](#edit_cfg_json_textual.textual_editor.EditorApp._rebind)
     * [\_explain\_name](#edit_cfg_json_textual.textual_editor.EditorApp._explain_name)
+    * [\_fold\_name](#edit_cfg_json_textual.textual_editor.EditorApp._fold_name)
     * [compose](#edit_cfg_json_textual.textual_editor.EditorApp.compose)
+    * [\_row\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._row_widgets)
+    * [\_member\_widget](#edit_cfg_json_textual.textual_editor.EditorApp._member_widget)
+    * [\_fold\_widget](#edit_cfg_json_textual.textual_editor.EditorApp._fold_widget)
     * [get\_system\_commands](#edit_cfg_json_textual.textual_editor.EditorApp.get_system_commands)
     * [\_load\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._load_widgets)
     * [\_docstring\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._docstring_widgets)
@@ -72,12 +72,16 @@
     * [action\_validate](#edit_cfg_json_textual.textual_editor.EditorApp.action_validate)
     * [action\_save](#edit_cfg_json_textual.textual_editor.EditorApp.action_save)
     * [action\_explain](#edit_cfg_json_textual.textual_editor.EditorApp.action_explain)
+    * [action\_fold](#edit_cfg_json_textual.textual_editor.EditorApp.action_fold)
+    * [on\_button\_pressed](#edit_cfg_json_textual.textual_editor.EditorApp.on_button_pressed)
+    * [\_show\_folding](#edit_cfg_json_textual.textual_editor.EditorApp._show_folding)
     * [\_show\_explanations](#edit_cfg_json_textual.textual_editor.EditorApp._show_explanations)
     * [action\_save\_as](#edit_cfg_json_textual.textual_editor.EditorApp.action_save_as)
     * [check\_action](#edit_cfg_json_textual.textual_editor.EditorApp.check_action)
     * [\_out\_file\_text](#edit_cfg_json_textual.textual_editor.EditorApp._out_file_text)
     * [\_save\_to](#edit_cfg_json_textual.textual_editor.EditorApp._save_to)
     * [\_refresh](#edit_cfg_json_textual.textual_editor.EditorApp._refresh)
+    * [\_rebuild\_rows](#edit_cfg_json_textual.textual_editor.EditorApp._rebuild_rows)
     * [\_field](#edit_cfg_json_textual.textual_editor.EditorApp._field)
     * [\_show\_state](#edit_cfg_json_textual.textual_editor.EditorApp._show_state)
     * [\_show\_diagnostic](#edit_cfg_json_textual.textual_editor.EditorApp._show_diagnostic)
@@ -85,6 +89,27 @@
   * [TextualEditor](#edit_cfg_json_textual.textual_editor.TextualEditor)
     * [run\_editor](#edit_cfg_json_textual.textual_editor.TextualEditor.run_editor)
   * [edit](#edit_cfg_json_textual.textual_editor.edit)
+* [edit\_cfg\_json\_textual.textual\_look](#edit_cfg_json_textual.textual_look)
+  * [VALUE\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.VALUE_ID_PREFIX)
+  * [MARK\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.MARK_ID_PREFIX)
+  * [DESCRIPTION\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.DESCRIPTION_ID_PREFIX)
+  * [DIAGNOSTIC\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.DIAGNOSTIC_ID_PREFIX)
+  * [FOLD\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.FOLD_ID_PREFIX)
+  * [MEMBER\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.MEMBER_ID_PREFIX)
+  * [FOLD\_SHUT\_TEXT](#edit_cfg_json_textual.textual_look.FOLD_SHUT_TEXT)
+  * [FOLD\_OPEN\_TEXT](#edit_cfg_json_textual.textual_look.FOLD_OPEN_TEXT)
+  * [EMPHASIS\_CLASSES](#edit_cfg_json_textual.textual_look.EMPHASIS_CLASSES)
+  * [COLOUR\_RULES](#edit_cfg_json_textual.textual_look.COLOUR_RULES)
+  * [value\_id](#edit_cfg_json_textual.textual_look.value_id)
+  * [mark\_id](#edit_cfg_json_textual.textual_look.mark_id)
+  * [description\_id](#edit_cfg_json_textual.textual_look.description_id)
+  * [diagnostic\_id](#edit_cfg_json_textual.textual_look.diagnostic_id)
+  * [fold\_id](#edit_cfg_json_textual.textual_look.fold_id)
+  * [member\_id](#edit_cfg_json_textual.textual_look.member_id)
+  * [fold\_glyph](#edit_cfg_json_textual.textual_look.fold_glyph)
+  * [plain\_widget](#edit_cfg_json_textual.textual_look.plain_widget)
+  * [show\_emphasis](#edit_cfg_json_textual.textual_look.show_emphasis)
+  * [bind\_action](#edit_cfg_json_textual.textual_look.bind_action)
 * [edit\_cfg\_json\_textual.\_\_main\_\_](#edit_cfg_json_textual.__main__)
   * [PROGRAM](#edit_cfg_json_textual.__main__.PROGRAM)
   * [main](#edit_cfg_json_textual.__main__.main)
@@ -101,30 +126,6 @@ nothing else, and naming it at every call site is what makes that visible; it
 also keeps the two backends from each holding the same block of twenty
 imported names, which is a duplication with nothing to factor out, since
 neither backend may import the other.
-
-<a id="edit_cfg_json_textual.textual_editor.VALUE_ID_PREFIX"></a>
-
-#### VALUE\_ID\_PREFIX
-
-Prefix of the identifier of the widget that shows one member value.
-
-<a id="edit_cfg_json_textual.textual_editor.MARK_ID_PREFIX"></a>
-
-#### MARK\_ID\_PREFIX
-
-Prefix of the identifier of the widget that marks one member.
-
-<a id="edit_cfg_json_textual.textual_editor.DESCRIPTION_ID_PREFIX"></a>
-
-#### DESCRIPTION\_ID\_PREFIX
-
-Prefix of the identifier of the widget that describes one member.
-
-<a id="edit_cfg_json_textual.textual_editor.DIAGNOSTIC_ID_PREFIX"></a>
-
-#### DIAGNOSTIC\_ID\_PREFIX
-
-Prefix of the identifier of the widget that refuses one member.
 
 <a id="edit_cfg_json_textual.textual_editor.DOCSTRING_ID"></a>
 
@@ -155,6 +156,16 @@ Identifier of the widget that shows what reading the file did.
 #### BODY\_ID
 
 Identifier of the part of the screen that scrolls.
+
+<a id="edit_cfg_json_textual.textual_editor.MEMBERS_ID"></a>
+
+#### MEMBERS\_ID
+
+Identifier of the part of the body that holds the nodes.
+
+They have a container of their own inside the part that scrolls, because a
+validation pass can leave the model with other rows than it had and they are
+then mounted afresh. What is above them is not, so it is not in here.
 
 <a id="edit_cfg_json_textual.textual_editor.SAVE_AS_BOX_ID"></a>
 
@@ -210,11 +221,37 @@ Style class of the widget that says what one member is for.
 
 Style class of the widget that says what is wrong with one member.
 
+<a id="edit_cfg_json_textual.textual_editor.FOLD_CLASS"></a>
+
+#### FOLD\_CLASS
+
+Style class of the control that folds one container.
+
 <a id="edit_cfg_json_textual.textual_editor.NAME_WIDTH"></a>
 
 #### NAME\_WIDTH
 
 Width in cells of the column that holds the member names.
+
+<a id="edit_cfg_json_textual.textual_editor.FOLD_WIDTH"></a>
+
+#### FOLD\_WIDTH
+
+Width in cells of the control that folds one container.
+
+Every row has one that wide, and the rows that hold nothing to fold have an
+empty one, so that the names of a container and of a value beside it line up.
+
+<a id="edit_cfg_json_textual.textual_editor.TREE_INDENT"></a>
+
+#### TREE\_INDENT
+
+Indentation in cells of each step inside a list or a dict.
+
+The whole node is indented and not only its name, so that a name inside a
+container is never cut off by the column that the names share. What that costs
+is a value column that steps to the right with the tree, which is what a tree
+looks like. The Tk backend indents by the same amount and for the same reason.
 
 <a id="edit_cfg_json_textual.textual_editor.DESCRIPTION_INDENT"></a>
 
@@ -306,17 +343,26 @@ What the command palette says the save as entry does.
 
 What the command palette says the explain entry does.
 
-<a id="edit_cfg_json_textual.textual_editor.EMPHASIS_CLASSES"></a>
+<a id="edit_cfg_json_textual.textual_editor.FOLD_COMMAND"></a>
 
-#### EMPHASIS\_CLASSES
+#### FOLD\_COMMAND
 
-The style class of every reason the core has to show something differently.
+What the fold action is called while at least one container is open.
 
-One class per member of `edit_cfg_json.Emphasis`, and the style sheet gives
-each of them a theme colour, so that the editor follows the terminal into its
-light or dark
-mode instead of naming colours of its own. What each kind of text is comes
-from the core, so the two backends cannot colour one thing two ways.
+<a id="edit_cfg_json_textual.textual_editor.OPEN_COMMAND"></a>
+
+#### OPEN\_COMMAND
+
+What it is called once every container is folded.
+
+The name says what the next press does, exactly as the explain action above
+is named. The Tk backend answers the same question by renaming its button.
+
+<a id="edit_cfg_json_textual.textual_editor.FOLD_HELP"></a>
+
+#### FOLD\_HELP
+
+What the command palette says the fold entry does.
 
 <a id="edit_cfg_json_textual.textual_editor.SAVE_AS_PROMPT"></a>
 
@@ -345,20 +391,6 @@ that has the focus, and it goes on doing that while a modal screen is up: the
 dispatch of a priority binding walks the whole chain and not the part of it
 above the last modal screen. So a modal screen is only really modal if the
 application says that its own actions do not apply while it is there.
-
-<a id="edit_cfg_json_textual.textual_editor.COLOUR_RULES"></a>
-
-#### COLOUR\_RULES
-
-What each reason to stand out looks like, as a colour of the theme.
-
-Theme colours and not colours of this backend's own: they are what follows the
-terminal into its light or dark mode, and an editor that named colours itself
-would be legible in one of the two and a guess in the other.
-
-The values and their names are left alone, so the thing the user came to edit
-is the most legible thing on the screen. Everything else is either secondary
-text or a state to act on, which is what `edit_cfg_json.Emphasis` names.
 
 <a id="edit_cfg_json_textual.textual_editor.CSS_RULES"></a>
 
@@ -392,130 +424,6 @@ The question about the output file sits in the middle of the screen and takes
 most of its width, so that a long path is still readable in a narrow
 terminal. Its own field is untouched by the rule above, which reaches only
 the fields inside a member row.
-
-<a id="edit_cfg_json_textual.textual_editor._value_id"></a>
-
-#### \_value\_id
-
-```python
-def _value_id(row: core.MemberRow) -> str
-```
-
-Return the identifier of the widget that shows one member value.
-
-<a id="edit_cfg_json_textual.textual_editor._mark_id"></a>
-
-#### \_mark\_id
-
-```python
-def _mark_id(row: core.MemberRow) -> str
-```
-
-Return the identifier of the widget that marks one member.
-
-<a id="edit_cfg_json_textual.textual_editor._description_id"></a>
-
-#### \_description\_id
-
-```python
-def _description_id(row: core.MemberRow) -> str
-```
-
-Return the identifier of the widget that describes one member.
-
-<a id="edit_cfg_json_textual.textual_editor._diagnostic_id"></a>
-
-#### \_diagnostic\_id
-
-```python
-def _diagnostic_id(row: core.MemberRow) -> str
-```
-
-Return the identifier of the widget that refuses one member.
-
-<a id="edit_cfg_json_textual.textual_editor.plain_widget"></a>
-
-#### plain\_widget
-
-```python
-def plain_widget(text: str,
-                 widget_id: str,
-                 classes: Optional[str] = None,
-                 emphasis: Optional[core.Emphasis] = None) -> Static
-```
-
-Return a widget that shows text of the configuration as it is.
-
-Textual reads console markup in the text of a widget, so a square
-bracket in a configuration value or in a diagnostic would be taken for
-the beginning of a style and the text between brackets would silently
-disappear. Nothing here is written by this editor, so nothing here is
-markup.
-
-**Arguments**:
-
-- `text` - Text to show exactly as it is.
-- `widget_id` - Identifier the application finds this widget by.
-- `classes` - Style classes of the widget, or None for a widget that the
-  style sheet does not have to reach.
-- `emphasis` - Why this text stands out from the values, or None for a
-  widget that is shown in the ordinary text colour.
-  
-
-**Returns**:
-
-  A widget showing that text.
-
-<a id="edit_cfg_json_textual.textual_editor.show_emphasis"></a>
-
-#### show\_emphasis
-
-```python
-def show_emphasis(widget: Widget, emphasis: Optional[core.Emphasis]) -> None
-```
-
-Show one widget in the way that one reason to stand out asks for.
-
-Every class of `EMPHASIS_CLASSES` is set or unset, so that a widget whose
-emphasis changes as the model changes cannot end up carrying two of them
-at once.
-
-**Arguments**:
-
-- `widget` - Widget to show.
-- `emphasis` - Why the text of that widget stands out from the values, or
-  None for the ordinary text colour.
-
-<a id="edit_cfg_json_textual.textual_editor.bind_action"></a>
-
-#### bind\_action
-
-```python
-def bind_action(bindings: BindingsMap, keys: Sequence[str], action: str,
-                description: str) -> None
-```
-
-Bind every key combination that the application gave one action.
-
-The first combination is the one the footer names and the rest work
-without being named, because a footer that named one action twice would
-suggest that they were two actions. An action the application gave no
-combination at all is bound to nothing and stays reachable through the
-command palette.
-
-Every binding is a priority binding, so that it is acted on before the
-field that has the focus is offered the key. That is also why the
-bindings cannot be made with `App.bind`, which cannot make one and which
-says of itself that it may be removed.
-
-**Arguments**:
-
-- `bindings` - The bindings of the application or of the screen that the
-  action belongs to.
-- `keys` - Key combinations that run the action, in the order that
-  decides which of them is named.
-- `action` - Name of the action, without its `action_` prefix.
-- `description` - What the footer and the key panel call the action.
 
 <a id="edit_cfg_json_textual.textual_editor.SaveAsScreen"></a>
 
@@ -690,6 +598,40 @@ bindings are made again whenever that state changes. A `Binding` cannot
 be renamed, so the bindings of these keys are dropped and made afresh;
 `refresh_bindings` is then what tells the footer to read them again.
 
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._bind_fold"></a>
+
+#### \_bind\_fold
+
+```python
+def _bind_fold() -> None
+```
+
+Bind the fold keys, named for what the next press will do.
+
+Nothing at all is bound for a configuration with no list and no dict
+in it, because there would be nothing for the action to do and a
+footer that offered it would be offering something that is not there.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._rebind"></a>
+
+#### \_rebind
+
+```python
+def _rebind(keys: Sequence[str], action: str, name: str) -> None
+```
+
+Bind one action that is named for what the next press will do.
+
+A `Binding` cannot be renamed, so the bindings of these keys are
+dropped and made afresh; `refresh_bindings` is then what tells the
+footer to read them again.
+
+**Arguments**:
+
+- `keys` - Key combinations that run the action.
+- `action` - Name of the action, without its `action_` prefix.
+- `name` - What the footer and the palette call it as things stand.
+
 <a id="edit_cfg_json_textual.textual_editor.EditorApp._explain_name"></a>
 
 #### \_explain\_name
@@ -699,6 +641,16 @@ def _explain_name() -> str
 ```
 
 Return what the explain action is called as things stand now.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._fold_name"></a>
+
+#### \_fold\_name
+
+```python
+def _fold_name() -> str
+```
+
+Return what the fold action is called as things stand now.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.compose"></a>
 
@@ -724,6 +676,72 @@ part that a configuration of any size makes as tall as it likes. What
 the application makes of the values and where they would be written
 stay below it, where a user who has just edited something looks for
 them.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._row_widgets"></a>
+
+#### \_row\_widgets
+
+```python
+def _row_widgets() -> list[Widget]
+```
+
+Return the widgets of every node, and forget the ones before.
+
+**Returns**:
+
+  One widget per node of the model, in the order it reports them.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._member_widget"></a>
+
+#### \_member\_widget
+
+```python
+def _member_widget(index: int, row: core.MemberRow) -> Widget
+```
+
+Return everything one node owns, as one widget.
+
+The node is indented once for every container it is inside, which is
+what makes the rows a tree, and it is hidden while any of those
+containers is folded away.
+
+**Arguments**:
+
+- `index` - Place of the node among the rows, which its widgets are
+  identified by.
+- `row` - Node to show.
+  
+
+**Returns**:
+
+  A widget holding the line of that node and what is said below it.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._fold_widget"></a>
+
+#### \_fold\_widget
+
+```python
+def _fold_widget(index: int, row: core.MemberRow) -> Optional[Widget]
+```
+
+Return the control that folds one container, or an empty space.
+
+A node that holds nothing gets a widget of the same width rather than
+no widget at all, so that the names of a container and of a value
+beside it begin in the same column. A configuration with nothing to
+fold anywhere gets no column at all, because a column that could never
+hold anything is width taken from the values for nothing.
+
+**Arguments**:
+
+- `index` - Place of the node among the rows.
+- `row` - Node to create the control for.
+  
+
+**Returns**:
+
+  A button for a container, a label for every other node of a
+  configuration that has one, and None for one that has none.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.get_system_commands"></a>
 
@@ -776,12 +794,12 @@ Create the widget that says what the configuration class says.
 #### \_description\_widgets
 
 ```python
-def _description_widgets(row: core.MemberRow) -> ComposeResult
+def _description_widgets(index: int, row: core.MemberRow) -> ComposeResult
 ```
 
-Create the widget that says what one member is for, if anything.
+Create the widget that says what one node is for, if anything.
 
-A member the application said nothing about gets no widget, because
+A node the application said nothing about gets no widget, because
 there is nothing that could ever appear in it. A widget that is
 created starts out shown or hidden as the model says, which is not the
 same as shown: a model can have been told to hide the explanations
@@ -792,15 +810,15 @@ before the editor was started.
 #### \_diagnostic\_widget
 
 ```python
-def _diagnostic_widget(row: core.MemberRow) -> Static
+def _diagnostic_widget(index: int, row: core.MemberRow) -> Static
 ```
 
-Create the widget that says what is wrong with one member.
+Create the widget that says what is wrong with one node.
 
-Every member gets one, unlike the description above it: any member
-can be refused, so there is no member for which this could never say
+Every node gets one, unlike the description above it: any node
+can be refused, so there is no node for which this could never say
 anything. It starts out hidden unless the model already has something
-to say about that member, which it has when a model that has been
+to say about that node, which it has when a model that has been
 validated already reaches this backend.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp._value_widget"></a>
@@ -808,13 +826,15 @@ validated already reaches this backend.
 #### \_value\_widget
 
 ```python
-def _value_widget(row: core.MemberRow) -> Widget
+def _value_widget(index: int, row: core.MemberRow) -> Widget
 ```
 
-Return the widget that shows the value of one member.
+Return the widget that shows the value of one node.
 
-A member that the model cannot edit yet gets a widget that only
-shows text, because there is nothing the user could do to it.
+A node that the model cannot edit gets a widget that only shows text,
+because there is nothing the user could do to it: a list or a dict is
+edited through the rows below it, and a declared nested configuration
+object is not edited by this version at all.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.on_input_changed"></a>
 
@@ -887,6 +907,42 @@ Show or hide what the application says about these values.
 The action is renamed as well, because what it is called says what the
 next press will do: "Explain" beside explanations that are already
 there would read as an offer to do something that has been done.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp.action_fold"></a>
+
+#### action\_fold
+
+```python
+def action_fold() -> None
+```
+
+Fold every container away, or open every one of them.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp.on_button_pressed"></a>
+
+#### on\_button\_pressed
+
+```python
+def on_button_pressed(event: Button.Pressed) -> None
+```
+
+Fold the one container whose control the user pressed.
+
+The only buttons this editor has are the fold controls, and the
+message is stopped here because nothing above them has any use for it.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._show_folding"></a>
+
+#### \_show\_folding
+
+```python
+def _show_folding() -> None
+```
+
+Show which containers are folded and what each control now does.
+
+This is not part of `_show_state`, which runs on every key the user
+types: nothing typed into a field folds anything.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp._show_explanations"></a>
 
@@ -985,15 +1041,32 @@ different from the one the user typed. Writing the text the model
 already holds into a field is not an edit, so this refresh does not
 undo the marks that the pass has just set.
 
+A pass can also leave the model with other rows than it had, which a
+validator that normalizes a list does, and the widgets are then
+mounted afresh rather than written into. That is done after this
+message rather than inside it, because taking a widget out of the
+screen and putting another one in its place is awaited and this is
+not.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._rebuild_rows"></a>
+
+#### \_rebuild\_rows
+
+```python
+async def _rebuild_rows() -> None
+```
+
+Show the rows the model has now instead of the ones it had.
+
 <a id="edit_cfg_json_textual.textual_editor.EditorApp._field"></a>
 
 #### \_field
 
 ```python
-def _field(row: core.MemberRow) -> Input
+def _field(index: int) -> Input
 ```
 
-Return the field that this application shows for one member.
+Return the field that this application shows for one node.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp._show_state"></a>
 
@@ -1003,15 +1076,15 @@ Return the field that this application shows for one member.
 def _show_state() -> None
 ```
 
-Show the title, the verdict, the saving and every member.
+Show the title, the verdict, the saving and every node.
 
 The verdict and the saving change colour as well as text, because what
 they say is either what the application accepted, what it refused, or
 what has not been asked of it yet, and a user who has to read three
 lines to tell those apart is reading too much.
 
-What is wrong with a member is shown here too, and not with the
-explanations: a description says what a member is for and stays until
+What is wrong with a node is shown here too, and not with the
+explanations: a description says what a node is for and stays until
 the user asks for it to go, while a refusal is answered afresh by
 every pass and by every field that is left.
 
@@ -1020,10 +1093,10 @@ every pass and by every field that is left.
 #### \_show\_diagnostic
 
 ```python
-def _show_diagnostic(row: core.MemberRow) -> None
+def _show_diagnostic(index: int, row: core.MemberRow) -> None
 ```
 
-Show what is wrong with one member, or nothing when nothing is.
+Show what is wrong with one node, or nothing when nothing is.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp._told"></a>
 
@@ -1114,6 +1187,258 @@ documented there.
 **Raises**:
 
 - `ConfigLoadError` - The input file cannot be opened for editing.
+
+<a id="edit_cfg_json_textual.textual_look"></a>
+
+# edit\_cfg\_json\_textual.textual\_look
+
+How the Textual backend names, styles and identifies its widgets.
+
+The identifiers, the style classes and the colours of this backend are here
+rather than in the module that builds the screen, because they are what one
+has to look at to know how the editor will look. Nothing here knows what an
+edit model is beyond the row it is given.
+
+What each kind of text is stays in the core, as `edit_cfg_json.Emphasis`, and
+what a kind looks like belongs here: a colour of the terminal's own theme, so
+that the editor follows it into a light or a dark mode instead of naming
+colours of its own.
+
+<a id="edit_cfg_json_textual.textual_look.VALUE_ID_PREFIX"></a>
+
+#### VALUE\_ID\_PREFIX
+
+Prefix of the identifier of the widget that shows one node value.
+
+Every identifier of a node is that prefix and the place of the node among the
+rows, and not the name of the node: two values inside two different dicts can
+have one name, and a path holds whatever a dictionary key holds, which is not
+always something Textual accepts as an identifier.
+
+<a id="edit_cfg_json_textual.textual_look.MARK_ID_PREFIX"></a>
+
+#### MARK\_ID\_PREFIX
+
+Prefix of the identifier of the widget that marks one node.
+
+<a id="edit_cfg_json_textual.textual_look.DESCRIPTION_ID_PREFIX"></a>
+
+#### DESCRIPTION\_ID\_PREFIX
+
+Prefix of the identifier of the widget that describes one node.
+
+<a id="edit_cfg_json_textual.textual_look.DIAGNOSTIC_ID_PREFIX"></a>
+
+#### DIAGNOSTIC\_ID\_PREFIX
+
+Prefix of the identifier of the widget that refuses one node.
+
+<a id="edit_cfg_json_textual.textual_look.FOLD_ID_PREFIX"></a>
+
+#### FOLD\_ID\_PREFIX
+
+Prefix of the identifier of the control that folds one container.
+
+<a id="edit_cfg_json_textual.textual_look.MEMBER_ID_PREFIX"></a>
+
+#### MEMBER\_ID\_PREFIX
+
+Prefix of the identifier of everything that one node owns.
+
+<a id="edit_cfg_json_textual.textual_look.FOLD_SHUT_TEXT"></a>
+
+#### FOLD\_SHUT\_TEXT
+
+Label of the control of a container that is folded away.
+
+<a id="edit_cfg_json_textual.textual_look.FOLD_OPEN_TEXT"></a>
+
+#### FOLD\_OPEN\_TEXT
+
+Label of the control of a container that is open.
+
+The two are what a tree has always used for this, and they are one cell wide
+in every terminal, which the arrows that a modern tree draws are not.
+
+<a id="edit_cfg_json_textual.textual_look.EMPHASIS_CLASSES"></a>
+
+#### EMPHASIS\_CLASSES
+
+The style class of every reason the core has to show something differently.
+
+One class per member of `edit_cfg_json.Emphasis`, and the style sheet gives
+each of them a theme colour, so that the editor follows the terminal into its
+light or dark mode instead of naming colours of its own. What each kind of
+text is comes from the core, so the two backends cannot colour one thing two
+ways.
+
+<a id="edit_cfg_json_textual.textual_look.COLOUR_RULES"></a>
+
+#### COLOUR\_RULES
+
+What each reason to stand out looks like, as a colour of the theme.
+
+Theme colours and not colours of this backend's own: they are what follows the
+terminal into its light or dark mode, and an editor that named colours itself
+would be legible in one of the two and a guess in the other.
+
+The values and their names are left alone, so the thing the user came to edit
+is the most legible thing on the screen. Everything else is either secondary
+text or a state to act on, which is what `edit_cfg_json.Emphasis` names.
+
+<a id="edit_cfg_json_textual.textual_look.value_id"></a>
+
+#### value\_id
+
+```python
+def value_id(index: int) -> str
+```
+
+Return the identifier of the widget that shows one node value.
+
+<a id="edit_cfg_json_textual.textual_look.mark_id"></a>
+
+#### mark\_id
+
+```python
+def mark_id(index: int) -> str
+```
+
+Return the identifier of the widget that marks one node.
+
+<a id="edit_cfg_json_textual.textual_look.description_id"></a>
+
+#### description\_id
+
+```python
+def description_id(index: int) -> str
+```
+
+Return the identifier of the widget that describes one node.
+
+<a id="edit_cfg_json_textual.textual_look.diagnostic_id"></a>
+
+#### diagnostic\_id
+
+```python
+def diagnostic_id(index: int) -> str
+```
+
+Return the identifier of the widget that refuses one node.
+
+<a id="edit_cfg_json_textual.textual_look.fold_id"></a>
+
+#### fold\_id
+
+```python
+def fold_id(index: int) -> str
+```
+
+Return the identifier of the control that folds one container.
+
+<a id="edit_cfg_json_textual.textual_look.member_id"></a>
+
+#### member\_id
+
+```python
+def member_id(index: int) -> str
+```
+
+Return the identifier of everything that one node owns.
+
+<a id="edit_cfg_json_textual.textual_look.fold_glyph"></a>
+
+#### fold\_glyph
+
+```python
+def fold_glyph(row: core.MemberRow) -> str
+```
+
+Return what the control of one container shows as things stand.
+
+<a id="edit_cfg_json_textual.textual_look.plain_widget"></a>
+
+#### plain\_widget
+
+```python
+def plain_widget(text: str,
+                 widget_id: str,
+                 classes: Optional[str] = None,
+                 emphasis: Optional[core.Emphasis] = None) -> Static
+```
+
+Return a widget that shows text of the configuration as it is.
+
+Textual reads console markup in the text of a widget, so a square
+bracket in a configuration value or in a diagnostic would be taken for
+the beginning of a style and the text between brackets would silently
+disappear. Nothing here is written by this editor, so nothing here is
+markup.
+
+**Arguments**:
+
+- `text` - Text to show exactly as it is.
+- `widget_id` - Identifier the application finds this widget by.
+- `classes` - Style classes of the widget, or None for a widget that the
+  style sheet does not have to reach.
+- `emphasis` - Why this text stands out from the values, or None for a
+  widget that is shown in the ordinary text colour.
+  
+
+**Returns**:
+
+  A widget showing that text.
+
+<a id="edit_cfg_json_textual.textual_look.show_emphasis"></a>
+
+#### show\_emphasis
+
+```python
+def show_emphasis(widget: Widget, emphasis: Optional[core.Emphasis]) -> None
+```
+
+Show one widget in the way that one reason to stand out asks for.
+
+Every class of `EMPHASIS_CLASSES` is set or unset, so that a widget whose
+emphasis changes as the model changes cannot end up carrying two of them
+at once.
+
+**Arguments**:
+
+- `widget` - Widget to show.
+- `emphasis` - Why the text of that widget stands out from the values, or
+  None for the ordinary text colour.
+
+<a id="edit_cfg_json_textual.textual_look.bind_action"></a>
+
+#### bind\_action
+
+```python
+def bind_action(bindings: BindingsMap, keys: Sequence[str], action: str,
+                description: str) -> None
+```
+
+Bind every key combination that the application gave one action.
+
+The first combination is the one the footer names and the rest work
+without being named, because a footer that named one action twice would
+suggest that they were two actions. An action the application gave no
+combination at all is bound to nothing and stays reachable through the
+command palette.
+
+Every binding is a priority binding, so that it is acted on before the
+field that has the focus is offered the key. That is also why the
+bindings cannot be made with `App.bind`, which cannot make one and which
+says of itself that it may be removed.
+
+**Arguments**:
+
+- `bindings` - The bindings of the application or of the screen that the
+  action belongs to.
+- `keys` - Key combinations that run the action, in the order that
+  decides which of them is named.
+- `action` - Name of the action, without its `action_` prefix.
+- `description` - What the footer and the key panel call the action.
 
 <a id="edit_cfg_json_textual.__main__"></a>
 

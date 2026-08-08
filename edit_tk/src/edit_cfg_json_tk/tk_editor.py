@@ -17,80 +17,13 @@ from typing import NamedTuple, Optional, TextIO
 import sys
 import tkinter
 from tkinter import filedialog
-from config_as_json import Config, PathOrStr
+from config_as_json import Config, ConfigPath, PathOrStr
 import edit_cfg_json as core
-from edit_cfg_json_tk.key_names import tk_sequence
+from edit_cfg_json_tk.key_names import bind_key
 from edit_cfg_json_tk.scrolling import scrolling_body
-
-NAME_COLUMN_WIDTH = 24
-"""Width in characters of the column that holds the member names."""
-
-LEAST_FIELD_WIDTH = 8
-"""Width in characters that a field asks for, and can be squeezed to.
-
-A field takes every bit of the width that the name and the marks of its member
-leave over, so this is not how wide a field is: it is how far a field gives way
-when the window is too narrow for all three. The marks are what a narrow window
-would otherwise cut off, and a mark that is there and cannot be read is worse
-than a field with fewer characters in view. The Textual backend gives way in
-the same direction and for the same reason.
-"""
-
-PADDING = 4
-"""Padding in pixels around the widgets of the editor."""
-
-DESCRIPTION_INDENT = 24
-"""Indentation in pixels of what is written below one member.
-
-The indentation is what says that the line belongs to the member above it
-rather than being a member of its own.
-"""
-
-LEAST_WRAP_WIDTH = 200
-"""Narrowest line in pixels that a paragraph of the editor is wrapped to.
-
-A window can be made narrower than any text is readable in, and wrapping to
-what is left of it would leave one word per line. Below this the text is cut
-off by the window instead, which is the lesser of the two.
-"""
-
-EMPHASIS_COLOURS = {core.Emphasis.MUTED: '#4b5563',
-                    core.Emphasis.ATTENTION: '#0969da',
-                    core.Emphasis.WARNING: '#8a6100',
-                    core.Emphasis.GOOD: '#1a7f37',
-                    core.Emphasis.BAD: '#cf222e'}
-"""The colour of every reason the core has to show something differently.
-
-One colour per member of `edit_cfg_json.Emphasis`, chosen to be read on the
-light window that Tk gives this editor: a grey that is dark enough for a
-paragraph of explanation to be comfortable rather than faint, and a blue, an
-amber, a green and a red that carry on a light background.
-
-Tk has no theme to ask, unlike the Textual backend, which names colours of its
-terminal's theme and follows it into a dark mode. A Tk that has been put into
-a dark mode by its platform would want other values here, and that belongs
-with the rest of what an application decides rather than in the middle of a
-backend; see section 9 of `doc/design.md`.
-"""
-
-FIELD_BACKGROUND = '#eef1f5'
-"""Background of a field the user can edit.
-
-The window is white, so a field that kept the white background of its own
-accord could not be told from a label: the values were there to be edited and
-nothing said so. The tint plus the border below are what say it.
-"""
-
-FIELD_FOREGROUND = '#111827'
-"""Colour of the text inside a field.
-
-It is stated rather than inherited, because the background above is stated:
-a platform that decided the text of a field should be white would otherwise
-put white text on a light field.
-"""
-
-FIELD_BORDER = '#9aa5b1'
-"""Colour of the line around a field the user can edit."""
+from edit_cfg_json_tk.tk_look import FIELD_BACKGROUND, FIELD_BORDER, \
+    FIELD_FOREGROUND, FOLD_WIDTH, LEAST_FIELD_WIDTH, NAME_COLUMN_WIDTH, \
+    PADDING, TREE_INDENT, label_text, place_text, shown_text, told
 
 VALIDATE_TEXT = 'Validate'
 """Text of the button that runs the validation of the application."""
@@ -109,6 +42,28 @@ called Explain that hides the explanations reads as the wrong thing entirely.
 The tick says which of the two states the editor is in, so one text is true in
 both. The Textual backend has no button row to put one in and renames its own
 action instead.
+"""
+
+FOLD_ALL_TEXT = 'Fold all'
+"""Text of the button while at least one list or dict is open.
+
+A button and not a tick-box, unlike the explanations beside it, because its
+two states are not the two states of one thing: a configuration can be partly
+folded, and what the button says is what the next press will do to all of it.
+That is the same answer the Textual backend gives, which renames its action.
+"""
+
+OPEN_ALL_TEXT = 'Unfold all'
+"""Text of the same button once every list and dict is folded."""
+
+FOLD_SHUT_TEXT = '+'
+"""Text of the control of a container that is folded away."""
+
+FOLD_OPEN_TEXT = '-'
+"""Text of the control of a container that is open.
+
+The two are what a tree has always used for this, and they are one character
+wide in every font, which the arrows that a modern tree draws are not.
 """
 
 CLOSE_TEXT = 'Close'
@@ -156,157 +111,6 @@ def _file_types(settings: core.Settings) -> list[tuple[str, str]]:
     return [named, (ALL_FILES, '*')]
 
 
-def _key_handler(command: Callable[[], None]) -> Callable[..., str]:
-    """Return the callback that runs one command for one key event.
-
-    Args:
-        command: What that key does.
-
-    Returns:
-        A callback that Tk can bind, which stops the event from being
-        handled a second time by whatever else the window is bound to.
-    """
-    def run_command(*event: object) -> str:
-        """Run the command, and keep the event from being handled again."""
-        _ = event
-        command()
-        return 'break'
-    return run_command
-
-
-def _bind_key(window: tkinter.Misc, key: str,
-              command: Callable[[], None]) -> None:
-    """Bind one key combination of one action, if Tk can bind it.
-
-    A combination that the translation does not know, or that Tk refuses,
-    leaves that action without that key rather than without an editor: every
-    action of this backend has a button as well.
-
-    Args:
-        window: Window that the binding is made on.
-        key: One key combination, as `ActionSettings` writes them.
-        command: What that key does.
-    """
-    sequence = tk_sequence(key)
-    if sequence is None:
-        return
-    try:
-        window.bind(sequence, _key_handler(command))
-    except tkinter.TclError:
-        # Tk refuses an event sequence it cannot parse, and a key the
-        # application named is not worth an editor that does not open.
-        pass
-
-
-def _shown_text(parent: tkinter.Misc, text: str,
-                emphasis: Optional[core.Emphasis] = None,
-                wrapping: bool = True) -> tkinter.Label:
-    """Return a label of the editor, in the colour its kind asks for.
-
-    Args:
-        parent: Widget that becomes the parent of the created label.
-        text: Text to show, left aligned as every text of the editor is.
-        emphasis: Why this text stands out from the values, or None for the
-            ordinary text colour of the platform.
-        wrapping: Whether the text is a paragraph, which wraps to the width
-            of the window. The mark of a member is the one text of the editor
-            that is not: it belongs beside its field on one line.
-
-    Returns:
-        A label showing that text.
-    """
-    label = tkinter.Label(parent, text=text, anchor='w', justify='left')
-    _show_emphasis(label, emphasis)
-    if wrapping:
-        _wrap_to_width(label)
-    return label
-
-
-def _told(label: tkinter.Label, text: str, emphasis: core.Emphasis) -> None:
-    """Show one text of the editor, in the colour its state asks for.
-
-    Args:
-        label: Label that shows it.
-        text: Text to show.
-        emphasis: Why that text stands out from the values.
-    """
-    label.config(text=text)
-    _show_emphasis(label, emphasis)
-
-
-def _show_emphasis(label: tkinter.Label,
-                   emphasis: Optional[core.Emphasis]) -> None:
-    """Colour one label in the way one reason to stand out asks for.
-
-    A label with no emphasis is left in the colour of the platform, which is
-    what the values and their names are shown in: they are what the user came
-    to change, and they are the most legible thing on the screen because
-    nothing has been done to them.
-
-    Args:
-        label: Label to colour.
-        emphasis: Why the text of that label stands out, or None for the
-            ordinary text colour.
-    """
-    if emphasis is not None:
-        label.config(foreground=EMPHASIS_COLOURS[emphasis])
-
-
-def _wrap_to_width(label: tkinter.Label) -> None:
-    """Make one label wrap its text to the width it is given.
-
-    A Tk label does not wrap at all unless it is told how wide a line may be,
-    and it does not shrink its text either: a paragraph wider than the window
-    is simply cut off, which is how a description lost its last words. The
-    width to wrap at is not known until the window has been laid out, and it
-    changes whenever the user resizes it, so it is followed rather than set.
-
-    Args:
-        label: Label that holds text which may be longer than a line.
-    """
-    def wrapped(event: 'tkinter.Event[tkinter.Misc]') -> None:
-        """Wrap the text of the label at the width it now has."""
-        label.configure(wraplength=max(event.width, LEAST_WRAP_WIDTH))
-    label.bind('<Configure>', wrapped)
-
-
-def _label_text(label: Optional[tkinter.Label]) -> str:
-    """Return the text one label is showing, empty when it is showing none.
-
-    A label that is out of the layout holds no text, because that is how this
-    backend hides one, so this answers what is on the window and not what a
-    widget happens to remember.
-
-    Args:
-        label: Widget to read, or None for a widget that was never created.
-
-    Returns:
-        The text that widget shows.
-    """
-    return '' if label is None else str(label.cget('text'))
-
-
-def _place_text(label: Optional[tkinter.Label], text: str) -> None:
-    """Put one text below a member into the layout, or take it out again.
-
-    Hiding is taking the widget out of the layout and emptying it, because a
-    label with text still takes the height of a line and a window with a
-    blank line under every member would have hidden nothing.
-
-    Args:
-        label: Widget that shows one text below a member, or None for a text
-            that this member can never have.
-        text: Text to show, empty when there is nothing to show.
-    """
-    if label is None:
-        return
-    label.config(text=text)
-    if not text:
-        label.pack_forget()
-        return
-    label.pack(fill='x', padx=(DESCRIPTION_INDENT, PADDING))
-
-
 class StateWidgets(NamedTuple):
     """The widgets that say what is true of the whole model.
 
@@ -338,12 +142,31 @@ class StateWidgets(NamedTuple):
     its Tcl variable when it is collected.
     """
 
+    folding: Optional[tkinter.Button]
+    """The button that folds every container away, or opens every one.
+
+    It is None for a configuration with no list and no dict in it, because a
+    button that could never do anything would be offering something that is
+    not there.
+    """
+
 
 class RowWidgets(NamedTuple):
-    """The widgets that one configuration member owns."""
+    """The widgets that one node of the configuration owns."""
+
+    frame: tkinter.Frame
+    """The widget that holds the whole node, which is what folding hides.
+
+    It is packed and unpacked rather than created and destroyed, so that a
+    field the user is typing into survives its container being folded and
+    opened again.
+    """
+
+    fold: Optional[tkinter.Button]
+    """The control that folds this container, None for a node with none."""
 
     field: Optional[tkinter.StringVar]
-    """The field of an editable member, and None for every other member."""
+    """The field of an editable node, and None for every other node."""
 
     mark: tkinter.Label
     """The widget that says what has happened to this member."""
@@ -379,13 +202,13 @@ def _show_below(widgets: RowWidgets, description: str,
         description: What the member is for, empty while that is hidden.
         diagnostic: What is wrong with the member, empty when nothing is.
     """
-    if _label_text(widgets.description) == description and \
-            _label_text(widgets.diagnostic) == diagnostic:
+    if label_text(widgets.description) == description and \
+            label_text(widgets.diagnostic) == diagnostic:
         return
     for label in (widgets.description, widgets.diagnostic):
-        _place_text(label, '')
-    _place_text(widgets.description, description)
-    _place_text(widgets.diagnostic, diagnostic)
+        place_text(label, '')
+    place_text(widgets.description, description)
+    place_text(widgets.diagnostic, diagnostic)
 
 
 class EditorWidgets:  # pylint: disable=too-few-public-methods
@@ -398,10 +221,13 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
     an application that mounts these widgets in a window of its own a single
     object to hold on to.
 
-    The widgets of the members are kept in the order the model reports its
-    rows in, which is the order they were created in. This version of the
-    model neither adds nor removes a row, so the two orders stay the same
-    one and the pairing is checked rather than assumed.
+    The widgets of the nodes are kept in the order the model reports its rows
+    in, which is the order they were created in. A validation pass can change
+    how many rows there are, because a validator that normalizes a list
+    changes how many values it holds, so the paths that were built are kept
+    and the widgets are made again when they no longer match. Every other
+    refresh leaves them alone, which is what keeps the focus in the field the
+    user is typing into.
     """
 
     def __init__(self, parent: tkinter.Misc, model: core.EditModel, *,
@@ -438,15 +264,20 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         title.pack(pady=PADDING)
         docstring = self._add_docstring(body)
         self._add_load_message(body)
-        self._rows = [self._add_row(parent=body, row=row)
-                      for row in model.rows]
+        self._members = tkinter.Frame(body)
+        self._members.pack(fill='x')
+        self._rows: list[RowWidgets] = []
+        self._paths: tuple[ConfigPath, ...] = ()
+        self._create_rows()
+        verdict = self._add_verdict(fixed)
+        saving = self._add_saving(fixed)
         explained = tkinter.BooleanVar(master=parent,
                                        value=model.explanations_shown)
         self._state = StateWidgets(title=title, docstring=docstring,
-                                   verdict=self._add_verdict(fixed),
-                                   saving=self._add_saving(fixed),
-                                   explained=explained)
-        self._add_buttons(fixed)
+                                   verdict=verdict, saving=saving,
+                                   explained=explained,
+                                   folding=self._add_buttons(fixed, explained))
+        self._show_rows()
         self._bind_keys(parent.winfo_toplevel())
 
     @property
@@ -471,7 +302,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         A member that nothing is known to be wrong with says nothing, so most
         of these are empty most of the time.
         """
-        return [_label_text(row.diagnostic) for row in self._rows]
+        return [label_text(row.diagnostic) for row in self._rows]
 
     @property
     def docstring_shown(self) -> str:
@@ -497,8 +328,8 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         """
         if not self._model.docstring:
             return None
-        label = _shown_text(parent, core.docstring_text(self._model),
-                            core.EXPLANATION)
+        label = shown_text(parent, core.docstring_text(self._model),
+                           core.EXPLANATION)
         label.pack(fill='x', padx=PADDING)
         return label
 
@@ -512,8 +343,8 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         """
         message = core.load_text(self._model)
         if message:
-            _shown_text(parent, message,
-                        core.LOAD_REMARK).pack(fill='x', padx=PADDING)
+            shown_text(parent, message,
+                       core.LOAD_REMARK).pack(fill='x', padx=PADDING)
 
     def _add_verdict(self, parent: tkinter.Misc) -> tkinter.Label:
         """Create the label that says what the application makes of these.
@@ -522,27 +353,38 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         that it cannot scroll away: a user who has just asked what the
         application makes of these values is looking at it.
         """
-        label = _shown_text(parent, core.verdict_text(self._model),
-                            core.verdict_emphasis(self._model))
+        label = shown_text(parent, core.verdict_text(self._model),
+                           core.verdict_emphasis(self._model))
         label.pack(side='top', fill='x', padx=PADDING, pady=PADDING)
         return label
 
     def _add_saving(self, parent: tkinter.Misc) -> tkinter.Label:
         """Create the label that says what saving did, or where it would."""
-        label = _shown_text(parent, core.save_text(self._model),
-                            core.save_emphasis(self._model))
+        label = shown_text(parent, core.save_text(self._model),
+                           core.save_emphasis(self._model))
         label.pack(side='top', fill='x', padx=PADDING)
         return label
 
-    def _add_buttons(self, parent: tkinter.Misc) -> None:
+    def _add_buttons(self, parent: tkinter.Misc, explained: tkinter.BooleanVar
+                     ) -> Optional[tkinter.Button]:
         """Create the buttons, the tick-box and the one that ends the run.
 
-        They share one row, because five of them stacked above each other
+        They share one row, because six of them stacked above each other
         would push the values of a real configuration off the window.
 
         The explanations get a tick-box rather than a button, because the
         action is a toggle: a button saying Explain beside explanations that
-        are already there would be offering something that has been done.
+        are already there would be offering something that has been done. The
+        folding gets a button that is renamed instead, because a partly
+        folded configuration is neither of the two states a tick could show.
+
+        Args:
+            parent: Widget that becomes the parent of the button row.
+            explained: Whether the tick-box of the explanations is ticked.
+
+        Returns:
+            The button that folds everything, or None for a configuration
+            that has nothing to fold.
         """
         line = tkinter.Frame(parent)
         line.pack(side='top', pady=PADDING)
@@ -552,10 +394,28 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
             tkinter.Button(line, text=text, command=command).pack(side='left',
                                                                   padx=PADDING)
         tkinter.Checkbutton(line, text=EXPLAIN_TEXT, command=self._explain,
-                            variable=self._state.explained).pack(side='left',
-                                                                 padx=PADDING)
+                            variable=explained).pack(side='left', padx=PADDING)
+        folding = self._add_fold_all(line)
         tkinter.Button(line, text=CLOSE_TEXT,
                        command=self._close).pack(side='left', padx=PADDING)
+        return folding
+
+    def _add_fold_all(self, parent: tkinter.Misc) -> Optional[tkinter.Button]:
+        """Create the button that folds or opens every container, if any.
+
+        Args:
+            parent: Widget that becomes the parent of the created button.
+
+        Returns:
+            That button, or None for a configuration with no list and no
+            dict in it, which has nothing for the action to do.
+        """
+        if not core.can_fold(self._model):
+            return None
+        button = tkinter.Button(parent, text=FOLD_ALL_TEXT,
+                                command=self._fold_all)
+        button.pack(side='left', padx=PADDING)
+        return button
 
     def _bind_keys(self, window: tkinter.Misc) -> None:
         """Bind the key combinations that the application chose.
@@ -564,7 +424,8 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         a key that a field does not use for itself reaches the window that
         the field is in. Nothing is bound for the cancel action: the only
         question this backend asks is the toolkit's own file dialog, which
-        answers that key itself.
+        answers that key itself. Nothing is bound for the folding either
+        where there is nothing to fold, for the same reason as the button.
 
         The keys are read once, here, which is the whole of what a later
         answer from a settings callable cannot change.
@@ -573,42 +434,145 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
             window: Window that the bindings are made on.
         """
         actions = self._model.settings.actions
+        folding = actions.fold if core.can_fold(self._model) else ()
         for keys, command in ((actions.quit, self._close),
                               (actions.validate, self._validate),
                               (actions.save, self._save),
                               (actions.save_as, self._save_as),
-                              (actions.explain, self._explain)):
+                              (actions.explain, self._explain),
+                              (folding, self._fold_all)):
             for key in keys:
-                _bind_key(window=window, key=key, command=command)
+                bind_key(window=window, key=key, command=command)
+
+    def _create_rows(self) -> None:
+        """Create the widgets of every node, replacing the ones there are.
+
+        Nothing is put into the layout here, because which of the rows are
+        shown is what `_show_rows` decides, and because the widgets that do
+        not scroll have to be packed before these whatever order they are
+        created in.
+        """
+        for child in self._members.winfo_children():
+            child.destroy()
+        self._rows = [self._add_row(parent=self._members, row=row)
+                      for row in self._model.rows]
+        self._paths = tuple(row.path for row in self._model.rows)
+
+    def _build_rows(self) -> None:
+        """Make the widgets of every node again and put them on the window.
+
+        A validation pass can change how many rows the model has, because a
+        validator that normalizes a list changes how many values it holds. So
+        the widgets are made again whenever the paths no longer match, and
+        left exactly as they are whenever they do, which is every ordinary
+        refresh and is what keeps the focus where the user put it.
+        """
+        self._create_rows()
+        self._show_rows()
 
     def _add_row(self, parent: tkinter.Misc,
                  row: core.MemberRow) -> RowWidgets:
-        """Create the widgets of one member, and its description below them.
+        """Create the widgets of one node, and its description below them.
 
-        The member gets a frame of its own, holding the line that is edited
+        The node gets a frame of its own, holding the line that is edited
         and the texts under it, so that hiding one of those and showing it
-        again cannot move it away from the member it belongs to.
+        again cannot move it away from the node it belongs to. That frame is
+        also what folding takes out of the layout, which is why it is not
+        packed here but by `_show_rows`.
         """
         frame = tkinter.Frame(parent)
-        frame.pack(fill='x', padx=PADDING)
         line = tkinter.Frame(frame)
         line.pack(fill='x')
+        fold = self._add_fold(parent=line, row=row)
         tkinter.Label(line, text=row.name, width=NAME_COLUMN_WIDTH,
                       anchor='w').pack(side='left')
         field = self._add_value(parent=line, row=row)
-        mark = _shown_text(line, core.row_marks(row), core.MEMBER_MARK,
-                           wrapping=False)
+        mark = shown_text(line, core.row_marks(row), core.MEMBER_MARK,
+                          wrapping=False)
         mark.pack(side='left')
         widgets = RowWidgets(
-            field=field, mark=mark,
+            frame=frame, fold=fold, field=field, mark=mark,
             description=self._add_description(parent=frame, row=row),
-            diagnostic=_shown_text(frame, '', core.MEMBER_DIAGNOSTIC))
+            diagnostic=shown_text(frame, '', core.MEMBER_DIAGNOSTIC))
         self._show_row_texts(row=row, widgets=widgets)
         return widgets
 
+    def _add_fold(self, parent: tkinter.Misc,
+                  row: core.MemberRow) -> Optional[tkinter.Button]:
+        """Create the control that folds one container, if it is one.
+
+        A node that holds nothing gets a label of the same width instead of
+        no widget at all, so that the names of a container and of a value
+        beside it begin in the same column. A configuration with nothing to
+        fold anywhere gets no column at all, because a column that could
+        never hold anything is width taken from the values for nothing.
+
+        Args:
+            parent: Line of the node that is being shown.
+            row: Node to create the control for.
+
+        Returns:
+            The control that folds that container, or None for a node that
+            is not one.
+        """
+        if not core.can_fold(self._model):
+            return None
+        if not row.foldable:
+            tkinter.Label(parent, text='', width=FOLD_WIDTH).pack(side='left')
+            return None
+        button = tkinter.Button(parent, width=FOLD_WIDTH, relief='flat',
+                                borderwidth=0, highlightthickness=0, padx=0,
+                                pady=0, command=self._folder(row.path))
+        button.pack(side='left')
+        return button
+
+    def _folder(self, path: ConfigPath) -> Callable[[], None]:
+        """Return the command that folds one container or opens it again."""
+        def fold_row() -> None:
+            """Fold that container, and show what the model says now."""
+            self._model.toggle_fold(path)
+            self._show_rows()
+        return fold_row
+
+    def _fold_all(self) -> None:
+        """Fold every container away, or open every one of them."""
+        self._model.toggle_fold_all()
+        self._show_rows()
+
+    def _show_rows(self) -> None:
+        """Put every node that is shown into the layout, in its order.
+
+        Every one of them is taken out first and put back afterwards, because
+        Tk packs a widget after the ones that are already there: a node that
+        came back would otherwise land below the ones below it. Nothing here
+        is created or destroyed, so a field the user was typing into keeps
+        what is in it while its container is folded and opened again.
+        """
+        for widgets in self._rows:
+            widgets.frame.pack_forget()
+        for row, widgets in zip(self._model.rows, self._rows, strict=True):
+            if widgets.fold is not None:
+                widgets.fold.config(text=FOLD_SHUT_TEXT if row.folded
+                                    else FOLD_OPEN_TEXT)
+            if row.shown:
+                widgets.frame.pack(fill='x', padx=(self._indent(row), PADDING))
+        self._show_fold_all()
+
+    @staticmethod
+    def _indent(row: core.MemberRow) -> int:
+        """Return how far from the left edge one node begins, in pixels."""
+        return PADDING + row.depth * TREE_INDENT
+
+    def _show_fold_all(self) -> None:
+        """Say what the next press of the fold button will do."""
+        if self._state.folding is not None:
+            self._state.folding.config(
+                text=FOLD_ALL_TEXT if core.fold_hides(self._model)
+                else OPEN_ALL_TEXT)
+
     def _show_row_texts(self, row: core.MemberRow,
                         widgets: RowWidgets) -> None:
-        """Show what the model says belongs below one member."""
+        """Show what the model says belongs below one node."""
         _show_below(widgets,
                     description=core.row_description(model=self._model,
                                                      row=row),
@@ -631,7 +595,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         """
         if not row.description:
             return None
-        return _shown_text(parent, '', core.EXPLANATION)
+        return shown_text(parent, '', core.EXPLANATION)
 
     def _add_value(self, parent: tkinter.Misc,
                    row: core.MemberRow) -> Optional[tkinter.StringVar]:
@@ -765,7 +729,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._show_member_texts()
 
     def _show_member_texts(self) -> None:
-        """Show what belongs below every member, as the model says it now."""
+        """Show what belongs below every node, as the model says it now."""
         for row, widgets in zip(self._model.rows, self._rows, strict=True):
             self._show_row_texts(row=row, widgets=widgets)
 
@@ -777,7 +741,13 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         different from the one the user typed. Writing the text the model
         already holds into a field is not an edit, so this refresh does not
         undo the marks that the pass has just set.
+
+        A pass can also leave the model with other rows than it had, which a
+        validator that normalizes a list does, and the widgets are then made
+        again rather than written into.
         """
+        if self._paths != tuple(row.path for row in self._model.rows):
+            self._build_rows()
         for row, widgets in zip(self._model.rows, self._rows, strict=True):
             if widgets.field is not None:
                 widgets.field.set(core.row_value_text(row))
@@ -797,10 +767,10 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         every pass and by every field that is left.
         """
         self._state.title.config(text=core.model_title(self._model))
-        _told(self._state.verdict, text=core.verdict_text(self._model),
-              emphasis=core.verdict_emphasis(self._model))
-        _told(self._state.saving, text=core.save_text(self._model),
-              emphasis=core.save_emphasis(self._model))
+        told(self._state.verdict, text=core.verdict_text(self._model),
+             emphasis=core.verdict_emphasis(self._model))
+        told(self._state.saving, text=core.save_text(self._model),
+             emphasis=core.save_emphasis(self._model))
         for row, widgets in zip(self._model.rows, self._rows, strict=True):
             widgets.mark.config(text=core.row_marks(row))
         self._show_member_texts()

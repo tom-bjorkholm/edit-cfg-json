@@ -174,8 +174,29 @@ class FakeWidget:
         self.options = options
         self.bindings: dict[str, Callable[..., object]] = {}
         self.packed = False
+        self.packing: dict[str, object] = {}
         self.scrolled = 0
         FakeWidget.created.append(self)
+
+    @property
+    def shown(self) -> bool:
+        """Return whether this widget is really on the window.
+
+        A widget inside a frame that has been taken out of the layout is not
+        on the window, whatever the widget itself was told: that is how the
+        editor folds a container away, and a stub that answered only for the
+        widget would say that a folded value is shown.
+
+        The widget the editor was built below is the one this stops at. It is
+        the test's own stand-in for a window, so it is never packed and
+        everything inside it would otherwise be hidden.
+        """
+        if self is FakeWidget.created[0]:
+            return True
+        if not self.packed:
+            return False
+        parent = self.parent
+        return not isinstance(parent, FakeWidget) or parent.shown
 
     def bind(self, sequence: str, callback: Callable[..., object]) -> str:
         """Record one key binding, as a real Tk widget accepts one."""
@@ -183,14 +204,16 @@ class FakeWidget:
         return 'stub binding'
 
     def pack(self, **options: object) -> None:
-        """Record that this widget is in the layout, and nothing else.
+        """Record that this widget is in the layout, and how it was put there.
 
-        Where a widget ends up is what the real Tk tests are for. Whether it
-        is in the layout at all is what tells a hidden description from a
-        shown one, and that a stub can answer.
+        Where a widget ends up on the screen is what the real Tk tests are
+        for. Whether it is in the layout at all is what tells a hidden
+        description from a shown one, and how far from the left edge it was
+        asked to be is what tells a value inside a container from a member,
+        and a stub can answer both of those.
         """
-        _ = options
         self.packed = True
+        self.packing = dict(options)
 
     def pack_forget(self) -> None:
         """Record that this widget is out of the layout."""
@@ -212,6 +235,11 @@ class FakeWidget:
         """Return this widget, standing in for the enclosing window."""
         return self
 
+    def winfo_children(self) -> list['FakeWidget']:
+        """Return the stub widgets that were created below this one."""
+        return [widget for widget in FakeWidget.created
+                if widget.parent is self]
+
     def winfo_reqheight(self) -> int:
         """Return a height, standing in for one that Tk would have laid out."""
         return STUB_BODY_HEIGHT
@@ -221,8 +249,17 @@ class FakeWidget:
         return STUB_BODY_WIDTH
 
     def create_window(self, *place: int, **options: object) -> int:
-        """Put a widget on this canvas, as a real Tk canvas does."""
-        _ = (place, options)
+        """Put a widget on this canvas, as a real Tk canvas does.
+
+        The widget counts as being in the layout afterwards, because that is
+        what a canvas item is: the scrolling part of the editor is on a
+        canvas and not packed, and everything in it would otherwise be
+        reported as hidden.
+        """
+        _ = place
+        window = options.get('window')
+        if isinstance(window, FakeWidget):
+            window.packed = True
         return STUB_CANVAS_ITEM
 
     def itemconfigure(self, item: int, **options: object) -> None:
@@ -248,7 +285,16 @@ class FakeWidget:
         _ = fractions
 
     def destroy(self) -> None:
-        """Ignore window destruction, which the stubbed tests do not need."""
+        """Forget this widget and everything below it, as Tk does.
+
+        The editor destroys the rows it built when a validation pass leaves
+        the model with other rows than it had, and a stub that remembered the
+        destroyed ones would let a test read a window that is not there.
+        """
+        for child in self.winfo_children():
+            child.destroy()
+        if self in FakeWidget.created:
+            FakeWidget.created.remove(self)
 
     def invoke(self) -> None:
         """Call the command of this widget, as a real Tk button does."""
@@ -330,7 +376,7 @@ def stub_texts(packed_only: bool = False) -> list[str]:
         The text of every stub widget that has one.
     """
     return [str(widget.options['text']) for widget in FakeWidget.created
-            if 'text' in widget.options and (widget.packed or not packed_only)]
+            if 'text' in widget.options and (widget.shown or not packed_only)]
 
 
 def stub_press(button_text: str) -> None:
@@ -379,6 +425,11 @@ def real_texts(widget: tkinter.Misc, packed_only: bool = False) -> list[str]:
     """
     texts: list[str] = []
     for child in widget.winfo_children():
+        if packed_only and not child.winfo_manager():
+            # A widget inside a frame that is out of the layout is not on the
+            # window either, and it still has a geometry manager of its own.
+            # That is how the editor folds a container away.
+            continue
         if _shows_text(child, packed_only=packed_only):
             texts.append(str(child.cget('text')))
         texts.extend(real_texts(child, packed_only=packed_only))

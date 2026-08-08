@@ -166,7 +166,7 @@ def test_dump_rewritten_value(capsys: pytest.CaptureFixture[str]) -> None:
 def test_set_unknown_member(capsys: pytest.CaptureFixture[str]) -> None:
     """Test setting a member that does not exist is refused."""
     error = _refused(capsys, '--ui', 'dump', '--set', 'missing=1')
-    assert 'missing is not a member' in error
+    assert 'missing is not part of' in error
 
 
 def test_set_without_value(capsys: pytest.CaptureFixture[str]) -> None:
@@ -390,7 +390,7 @@ def test_shared_key_refused(capsys: pytest.CaptureFixture[str]) -> None:
 def test_unknown_action(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a --key that names no action of the editor is refused."""
     assert 'save_as' in _refused(capsys, '--ui', 'dump', '--key',
-                                 'fold=ctrl+f')
+                                 'wobble=ctrl+f')
 
 
 def test_textual_key_chosen(monkeypatch: pytest.MonkeyPatch) -> None:

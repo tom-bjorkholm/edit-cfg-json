@@ -200,7 +200,7 @@ def test_read_file(capsys: pytest.CaptureFixture[str]) -> None:
 def test_unknown_member(capsys: pytest.CaptureFixture[str]) -> None:
     """Test setting a member that does not exist is still refused."""
     error = _refused(capsys, '--ui', 'dump', '--set', 'missing=1')
-    assert 'missing is not a member' in error
+    assert 'missing is not part of' in error
 
 
 def test_tk_ui_opens(monkeypatch: pytest.MonkeyPatch) -> None:

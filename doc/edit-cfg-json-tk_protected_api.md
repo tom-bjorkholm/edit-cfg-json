@@ -1,39 +1,29 @@
 # Table of Contents
 
 * [edit\_cfg\_json\_tk.tk\_editor](#edit_cfg_json_tk.tk_editor)
-  * [NAME\_COLUMN\_WIDTH](#edit_cfg_json_tk.tk_editor.NAME_COLUMN_WIDTH)
-  * [LEAST\_FIELD\_WIDTH](#edit_cfg_json_tk.tk_editor.LEAST_FIELD_WIDTH)
-  * [PADDING](#edit_cfg_json_tk.tk_editor.PADDING)
-  * [DESCRIPTION\_INDENT](#edit_cfg_json_tk.tk_editor.DESCRIPTION_INDENT)
-  * [LEAST\_WRAP\_WIDTH](#edit_cfg_json_tk.tk_editor.LEAST_WRAP_WIDTH)
-  * [EMPHASIS\_COLOURS](#edit_cfg_json_tk.tk_editor.EMPHASIS_COLOURS)
-  * [FIELD\_BACKGROUND](#edit_cfg_json_tk.tk_editor.FIELD_BACKGROUND)
-  * [FIELD\_FOREGROUND](#edit_cfg_json_tk.tk_editor.FIELD_FOREGROUND)
-  * [FIELD\_BORDER](#edit_cfg_json_tk.tk_editor.FIELD_BORDER)
   * [VALIDATE\_TEXT](#edit_cfg_json_tk.tk_editor.VALIDATE_TEXT)
   * [SAVE\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_TEXT)
   * [SAVE\_AS\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_AS_TEXT)
   * [EXPLAIN\_TEXT](#edit_cfg_json_tk.tk_editor.EXPLAIN_TEXT)
+  * [FOLD\_ALL\_TEXT](#edit_cfg_json_tk.tk_editor.FOLD_ALL_TEXT)
+  * [OPEN\_ALL\_TEXT](#edit_cfg_json_tk.tk_editor.OPEN_ALL_TEXT)
+  * [FOLD\_SHUT\_TEXT](#edit_cfg_json_tk.tk_editor.FOLD_SHUT_TEXT)
+  * [FOLD\_OPEN\_TEXT](#edit_cfg_json_tk.tk_editor.FOLD_OPEN_TEXT)
   * [CLOSE\_TEXT](#edit_cfg_json_tk.tk_editor.CLOSE_TEXT)
   * [SAVE\_AS\_TITLE](#edit_cfg_json_tk.tk_editor.SAVE_AS_TITLE)
   * [CONFIG\_FILES](#edit_cfg_json_tk.tk_editor.CONFIG_FILES)
   * [ALL\_FILES](#edit_cfg_json_tk.tk_editor.ALL_FILES)
   * [\_file\_types](#edit_cfg_json_tk.tk_editor._file_types)
-  * [\_key\_handler](#edit_cfg_json_tk.tk_editor._key_handler)
-  * [\_bind\_key](#edit_cfg_json_tk.tk_editor._bind_key)
-  * [\_shown\_text](#edit_cfg_json_tk.tk_editor._shown_text)
-  * [\_told](#edit_cfg_json_tk.tk_editor._told)
-  * [\_show\_emphasis](#edit_cfg_json_tk.tk_editor._show_emphasis)
-  * [\_wrap\_to\_width](#edit_cfg_json_tk.tk_editor._wrap_to_width)
-  * [\_label\_text](#edit_cfg_json_tk.tk_editor._label_text)
-  * [\_place\_text](#edit_cfg_json_tk.tk_editor._place_text)
   * [StateWidgets](#edit_cfg_json_tk.tk_editor.StateWidgets)
     * [title](#edit_cfg_json_tk.tk_editor.StateWidgets.title)
     * [docstring](#edit_cfg_json_tk.tk_editor.StateWidgets.docstring)
     * [verdict](#edit_cfg_json_tk.tk_editor.StateWidgets.verdict)
     * [saving](#edit_cfg_json_tk.tk_editor.StateWidgets.saving)
     * [explained](#edit_cfg_json_tk.tk_editor.StateWidgets.explained)
+    * [folding](#edit_cfg_json_tk.tk_editor.StateWidgets.folding)
   * [RowWidgets](#edit_cfg_json_tk.tk_editor.RowWidgets)
+    * [frame](#edit_cfg_json_tk.tk_editor.RowWidgets.frame)
+    * [fold](#edit_cfg_json_tk.tk_editor.RowWidgets.fold)
     * [field](#edit_cfg_json_tk.tk_editor.RowWidgets.field)
     * [mark](#edit_cfg_json_tk.tk_editor.RowWidgets.mark)
     * [description](#edit_cfg_json_tk.tk_editor.RowWidgets.description)
@@ -51,8 +41,17 @@
     * [\_add\_verdict](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_verdict)
     * [\_add\_saving](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_saving)
     * [\_add\_buttons](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_buttons)
+    * [\_add\_fold\_all](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_fold_all)
     * [\_bind\_keys](#edit_cfg_json_tk.tk_editor.EditorWidgets._bind_keys)
+    * [\_create\_rows](#edit_cfg_json_tk.tk_editor.EditorWidgets._create_rows)
+    * [\_build\_rows](#edit_cfg_json_tk.tk_editor.EditorWidgets._build_rows)
     * [\_add\_row](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_row)
+    * [\_add\_fold](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_fold)
+    * [\_folder](#edit_cfg_json_tk.tk_editor.EditorWidgets._folder)
+    * [\_fold\_all](#edit_cfg_json_tk.tk_editor.EditorWidgets._fold_all)
+    * [\_show\_rows](#edit_cfg_json_tk.tk_editor.EditorWidgets._show_rows)
+    * [\_indent](#edit_cfg_json_tk.tk_editor.EditorWidgets._indent)
+    * [\_show\_fold\_all](#edit_cfg_json_tk.tk_editor.EditorWidgets._show_fold_all)
     * [\_show\_row\_texts](#edit_cfg_json_tk.tk_editor.EditorWidgets._show_row_texts)
     * [\_add\_description](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_description)
     * [\_add\_value](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_value)
@@ -75,6 +74,26 @@
   * [KEY\_NAMES](#edit_cfg_json_tk.key_names.KEY_NAMES)
   * [\_tk\_key](#edit_cfg_json_tk.key_names._tk_key)
   * [tk\_sequence](#edit_cfg_json_tk.key_names.tk_sequence)
+  * [\_key\_handler](#edit_cfg_json_tk.key_names._key_handler)
+  * [bind\_key](#edit_cfg_json_tk.key_names.bind_key)
+* [edit\_cfg\_json\_tk.tk\_look](#edit_cfg_json_tk.tk_look)
+  * [NAME\_COLUMN\_WIDTH](#edit_cfg_json_tk.tk_look.NAME_COLUMN_WIDTH)
+  * [LEAST\_FIELD\_WIDTH](#edit_cfg_json_tk.tk_look.LEAST_FIELD_WIDTH)
+  * [PADDING](#edit_cfg_json_tk.tk_look.PADDING)
+  * [DESCRIPTION\_INDENT](#edit_cfg_json_tk.tk_look.DESCRIPTION_INDENT)
+  * [TREE\_INDENT](#edit_cfg_json_tk.tk_look.TREE_INDENT)
+  * [FOLD\_WIDTH](#edit_cfg_json_tk.tk_look.FOLD_WIDTH)
+  * [LEAST\_WRAP\_WIDTH](#edit_cfg_json_tk.tk_look.LEAST_WRAP_WIDTH)
+  * [EMPHASIS\_COLOURS](#edit_cfg_json_tk.tk_look.EMPHASIS_COLOURS)
+  * [FIELD\_BACKGROUND](#edit_cfg_json_tk.tk_look.FIELD_BACKGROUND)
+  * [FIELD\_FOREGROUND](#edit_cfg_json_tk.tk_look.FIELD_FOREGROUND)
+  * [FIELD\_BORDER](#edit_cfg_json_tk.tk_look.FIELD_BORDER)
+  * [shown\_text](#edit_cfg_json_tk.tk_look.shown_text)
+  * [told](#edit_cfg_json_tk.tk_look.told)
+  * [show\_emphasis](#edit_cfg_json_tk.tk_look.show_emphasis)
+  * [wrap\_to\_width](#edit_cfg_json_tk.tk_look.wrap_to_width)
+  * [label\_text](#edit_cfg_json_tk.tk_look.label_text)
+  * [place\_text](#edit_cfg_json_tk.tk_look.place_text)
 * [edit\_cfg\_json\_tk.scrolling](#edit_cfg_json_tk.scrolling)
   * [BODY\_HEIGHT](#edit_cfg_json_tk.scrolling.BODY_HEIGHT)
   * [BODY\_WIDTH](#edit_cfg_json_tk.scrolling.BODY_WIDTH)
@@ -103,93 +122,6 @@ nothing else, and naming it at every call site is what makes that visible; it
 also keeps the two backends from each holding the same block of twenty
 imported names, which is a duplication with nothing to factor out, since
 neither backend may import the other.
-
-<a id="edit_cfg_json_tk.tk_editor.NAME_COLUMN_WIDTH"></a>
-
-#### NAME\_COLUMN\_WIDTH
-
-Width in characters of the column that holds the member names.
-
-<a id="edit_cfg_json_tk.tk_editor.LEAST_FIELD_WIDTH"></a>
-
-#### LEAST\_FIELD\_WIDTH
-
-Width in characters that a field asks for, and can be squeezed to.
-
-A field takes every bit of the width that the name and the marks of its member
-leave over, so this is not how wide a field is: it is how far a field gives way
-when the window is too narrow for all three. The marks are what a narrow window
-would otherwise cut off, and a mark that is there and cannot be read is worse
-than a field with fewer characters in view. The Textual backend gives way in
-the same direction and for the same reason.
-
-<a id="edit_cfg_json_tk.tk_editor.PADDING"></a>
-
-#### PADDING
-
-Padding in pixels around the widgets of the editor.
-
-<a id="edit_cfg_json_tk.tk_editor.DESCRIPTION_INDENT"></a>
-
-#### DESCRIPTION\_INDENT
-
-Indentation in pixels of what is written below one member.
-
-The indentation is what says that the line belongs to the member above it
-rather than being a member of its own.
-
-<a id="edit_cfg_json_tk.tk_editor.LEAST_WRAP_WIDTH"></a>
-
-#### LEAST\_WRAP\_WIDTH
-
-Narrowest line in pixels that a paragraph of the editor is wrapped to.
-
-A window can be made narrower than any text is readable in, and wrapping to
-what is left of it would leave one word per line. Below this the text is cut
-off by the window instead, which is the lesser of the two.
-
-<a id="edit_cfg_json_tk.tk_editor.EMPHASIS_COLOURS"></a>
-
-#### EMPHASIS\_COLOURS
-
-The colour of every reason the core has to show something differently.
-
-One colour per member of `edit_cfg_json.Emphasis`, chosen to be read on the
-light window that Tk gives this editor: a grey that is dark enough for a
-paragraph of explanation to be comfortable rather than faint, and a blue, an
-amber, a green and a red that carry on a light background.
-
-Tk has no theme to ask, unlike the Textual backend, which names colours of its
-terminal's theme and follows it into a dark mode. A Tk that has been put into
-a dark mode by its platform would want other values here, and that belongs
-with the rest of what an application decides rather than in the middle of a
-backend; see section 9 of `doc/design.md`.
-
-<a id="edit_cfg_json_tk.tk_editor.FIELD_BACKGROUND"></a>
-
-#### FIELD\_BACKGROUND
-
-Background of a field the user can edit.
-
-The window is white, so a field that kept the white background of its own
-accord could not be told from a label: the values were there to be edited and
-nothing said so. The tint plus the border below are what say it.
-
-<a id="edit_cfg_json_tk.tk_editor.FIELD_FOREGROUND"></a>
-
-#### FIELD\_FOREGROUND
-
-Colour of the text inside a field.
-
-It is stated rather than inherited, because the background above is stated:
-a platform that decided the text of a field should be white would otherwise
-put white text on a light field.
-
-<a id="edit_cfg_json_tk.tk_editor.FIELD_BORDER"></a>
-
-#### FIELD\_BORDER
-
-Colour of the line around a field the user can edit.
 
 <a id="edit_cfg_json_tk.tk_editor.VALIDATE_TEXT"></a>
 
@@ -220,6 +152,38 @@ called Explain that hides the explanations reads as the wrong thing entirely.
 The tick says which of the two states the editor is in, so one text is true in
 both. The Textual backend has no button row to put one in and renames its own
 action instead.
+
+<a id="edit_cfg_json_tk.tk_editor.FOLD_ALL_TEXT"></a>
+
+#### FOLD\_ALL\_TEXT
+
+Text of the button while at least one list or dict is open.
+
+A button and not a tick-box, unlike the explanations beside it, because its
+two states are not the two states of one thing: a configuration can be partly
+folded, and what the button says is what the next press will do to all of it.
+That is the same answer the Textual backend gives, which renames its action.
+
+<a id="edit_cfg_json_tk.tk_editor.OPEN_ALL_TEXT"></a>
+
+#### OPEN\_ALL\_TEXT
+
+Text of the same button once every list and dict is folded.
+
+<a id="edit_cfg_json_tk.tk_editor.FOLD_SHUT_TEXT"></a>
+
+#### FOLD\_SHUT\_TEXT
+
+Text of the control of a container that is folded away.
+
+<a id="edit_cfg_json_tk.tk_editor.FOLD_OPEN_TEXT"></a>
+
+#### FOLD\_OPEN\_TEXT
+
+Text of the control of a container that is open.
+
+The two are what a tree has always used for this, and they are one character
+wide in every font, which the arrows that a modern tree draws are not.
 
 <a id="edit_cfg_json_tk.tk_editor.CLOSE_TEXT"></a>
 
@@ -277,176 +241,6 @@ did before there were settings at all.
 
   The file types of the dialog, empty when it has no opinion.
 
-<a id="edit_cfg_json_tk.tk_editor._key_handler"></a>
-
-#### \_key\_handler
-
-```python
-def _key_handler(command: Callable[[], None]) -> Callable[..., str]
-```
-
-Return the callback that runs one command for one key event.
-
-**Arguments**:
-
-- `command` - What that key does.
-  
-
-**Returns**:
-
-  A callback that Tk can bind, which stops the event from being
-  handled a second time by whatever else the window is bound to.
-
-<a id="edit_cfg_json_tk.tk_editor._bind_key"></a>
-
-#### \_bind\_key
-
-```python
-def _bind_key(window: tkinter.Misc, key: str, command: Callable[[],
-                                                                None]) -> None
-```
-
-Bind one key combination of one action, if Tk can bind it.
-
-A combination that the translation does not know, or that Tk refuses,
-leaves that action without that key rather than without an editor: every
-action of this backend has a button as well.
-
-**Arguments**:
-
-- `window` - Window that the binding is made on.
-- `key` - One key combination, as `ActionSettings` writes them.
-- `command` - What that key does.
-
-<a id="edit_cfg_json_tk.tk_editor._shown_text"></a>
-
-#### \_shown\_text
-
-```python
-def _shown_text(parent: tkinter.Misc,
-                text: str,
-                emphasis: Optional[core.Emphasis] = None,
-                wrapping: bool = True) -> tkinter.Label
-```
-
-Return a label of the editor, in the colour its kind asks for.
-
-**Arguments**:
-
-- `parent` - Widget that becomes the parent of the created label.
-- `text` - Text to show, left aligned as every text of the editor is.
-- `emphasis` - Why this text stands out from the values, or None for the
-  ordinary text colour of the platform.
-- `wrapping` - Whether the text is a paragraph, which wraps to the width
-  of the window. The mark of a member is the one text of the editor
-  that is not: it belongs beside its field on one line.
-  
-
-**Returns**:
-
-  A label showing that text.
-
-<a id="edit_cfg_json_tk.tk_editor._told"></a>
-
-#### \_told
-
-```python
-def _told(label: tkinter.Label, text: str, emphasis: core.Emphasis) -> None
-```
-
-Show one text of the editor, in the colour its state asks for.
-
-**Arguments**:
-
-- `label` - Label that shows it.
-- `text` - Text to show.
-- `emphasis` - Why that text stands out from the values.
-
-<a id="edit_cfg_json_tk.tk_editor._show_emphasis"></a>
-
-#### \_show\_emphasis
-
-```python
-def _show_emphasis(label: tkinter.Label,
-                   emphasis: Optional[core.Emphasis]) -> None
-```
-
-Colour one label in the way one reason to stand out asks for.
-
-A label with no emphasis is left in the colour of the platform, which is
-what the values and their names are shown in: they are what the user came
-to change, and they are the most legible thing on the screen because
-nothing has been done to them.
-
-**Arguments**:
-
-- `label` - Label to colour.
-- `emphasis` - Why the text of that label stands out, or None for the
-  ordinary text colour.
-
-<a id="edit_cfg_json_tk.tk_editor._wrap_to_width"></a>
-
-#### \_wrap\_to\_width
-
-```python
-def _wrap_to_width(label: tkinter.Label) -> None
-```
-
-Make one label wrap its text to the width it is given.
-
-A Tk label does not wrap at all unless it is told how wide a line may be,
-and it does not shrink its text either: a paragraph wider than the window
-is simply cut off, which is how a description lost its last words. The
-width to wrap at is not known until the window has been laid out, and it
-changes whenever the user resizes it, so it is followed rather than set.
-
-**Arguments**:
-
-- `label` - Label that holds text which may be longer than a line.
-
-<a id="edit_cfg_json_tk.tk_editor._label_text"></a>
-
-#### \_label\_text
-
-```python
-def _label_text(label: Optional[tkinter.Label]) -> str
-```
-
-Return the text one label is showing, empty when it is showing none.
-
-A label that is out of the layout holds no text, because that is how this
-backend hides one, so this answers what is on the window and not what a
-widget happens to remember.
-
-**Arguments**:
-
-- `label` - Widget to read, or None for a widget that was never created.
-  
-
-**Returns**:
-
-  The text that widget shows.
-
-<a id="edit_cfg_json_tk.tk_editor._place_text"></a>
-
-#### \_place\_text
-
-```python
-def _place_text(label: Optional[tkinter.Label], text: str) -> None
-```
-
-Put one text below a member into the layout, or take it out again.
-
-Hiding is taking the widget out of the layout and emptying it, because a
-label with text still takes the height of a line and a window with a
-blank line under every member would have hidden nothing.
-
-**Arguments**:
-
-- `label` - Widget that shows one text below a member, or None for a text
-  that this member can never have.
-- `text` - Text to show, empty when there is nothing to show.
-
 <a id="edit_cfg_json_tk.tk_editor.StateWidgets"></a>
 
 ## StateWidgets Objects
@@ -497,6 +291,16 @@ The variable is what a `Checkbutton` shows its state through, and it has
 to be kept for as long as the tick-box lives: a `tkinter.Variable` unsets
 its Tcl variable when it is collected.
 
+<a id="edit_cfg_json_tk.tk_editor.StateWidgets.folding"></a>
+
+#### folding
+
+The button that folds every container away, or opens every one.
+
+It is None for a configuration with no list and no dict in it, because a
+button that could never do anything would be offering something that is
+not there.
+
 <a id="edit_cfg_json_tk.tk_editor.RowWidgets"></a>
 
 ## RowWidgets Objects
@@ -505,13 +309,29 @@ its Tcl variable when it is collected.
 class RowWidgets(NamedTuple)
 ```
 
-The widgets that one configuration member owns.
+The widgets that one node of the configuration owns.
+
+<a id="edit_cfg_json_tk.tk_editor.RowWidgets.frame"></a>
+
+#### frame
+
+The widget that holds the whole node, which is what folding hides.
+
+It is packed and unpacked rather than created and destroyed, so that a
+field the user is typing into survives its container being folded and
+opened again.
+
+<a id="edit_cfg_json_tk.tk_editor.RowWidgets.fold"></a>
+
+#### fold
+
+The control that folds this container, None for a node with none.
 
 <a id="edit_cfg_json_tk.tk_editor.RowWidgets.field"></a>
 
 #### field
 
-The field of an editable member, and None for every other member.
+The field of an editable node, and None for every other node.
 
 <a id="edit_cfg_json_tk.tk_editor.RowWidgets.mark"></a>
 
@@ -578,10 +398,13 @@ callback that writes it into the model. Keeping them together also gives
 an application that mounts these widgets in a window of its own a single
 object to hold on to.
 
-The widgets of the members are kept in the order the model reports its
-rows in, which is the order they were created in. This version of the
-model neither adds nor removes a row, so the two orders stay the same
-one and the pairing is checked rather than assumed.
+The widgets of the nodes are kept in the order the model reports its rows
+in, which is the order they were created in. A validation pass can change
+how many rows there are, because a validator that normalizes a list
+changes how many values it holds, so the paths that were built are kept
+and the widgets are made again when they no longer match. Every other
+refresh leaves them alone, which is what keeps the focus in the field the
+user is typing into.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets.__init__"></a>
 
@@ -737,17 +560,51 @@ Create the label that says what saving did, or where it would.
 #### \_add\_buttons
 
 ```python
-def _add_buttons(parent: tkinter.Misc) -> None
+def _add_buttons(parent: tkinter.Misc,
+                 explained: tkinter.BooleanVar) -> Optional[tkinter.Button]
 ```
 
 Create the buttons, the tick-box and the one that ends the run.
 
-They share one row, because five of them stacked above each other
+They share one row, because six of them stacked above each other
 would push the values of a real configuration off the window.
 
 The explanations get a tick-box rather than a button, because the
 action is a toggle: a button saying Explain beside explanations that
-are already there would be offering something that has been done.
+are already there would be offering something that has been done. The
+folding gets a button that is renamed instead, because a partly
+folded configuration is neither of the two states a tick could show.
+
+**Arguments**:
+
+- `parent` - Widget that becomes the parent of the button row.
+- `explained` - Whether the tick-box of the explanations is ticked.
+  
+
+**Returns**:
+
+  The button that folds everything, or None for a configuration
+  that has nothing to fold.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_fold_all"></a>
+
+#### \_add\_fold\_all
+
+```python
+def _add_fold_all(parent: tkinter.Misc) -> Optional[tkinter.Button]
+```
+
+Create the button that folds or opens every container, if any.
+
+**Arguments**:
+
+- `parent` - Widget that becomes the parent of the created button.
+  
+
+**Returns**:
+
+  That button, or None for a configuration with no list and no
+  dict in it, which has nothing for the action to do.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._bind_keys"></a>
 
@@ -763,7 +620,8 @@ The bindings are made on the window and not on each field, because
 a key that a field does not use for itself reaches the window that
 the field is in. Nothing is bound for the cancel action: the only
 question this backend asks is the toolkit's own file dialog, which
-answers that key itself.
+answers that key itself. Nothing is bound for the folding either
+where there is nothing to fold, for the same reason as the button.
 
 The keys are read once, here, which is the whole of what a later
 answer from a settings callable cannot change.
@@ -771,6 +629,37 @@ answer from a settings callable cannot change.
 **Arguments**:
 
 - `window` - Window that the bindings are made on.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._create_rows"></a>
+
+#### \_create\_rows
+
+```python
+def _create_rows() -> None
+```
+
+Create the widgets of every node, replacing the ones there are.
+
+Nothing is put into the layout here, because which of the rows are
+shown is what `_show_rows` decides, and because the widgets that do
+not scroll have to be packed before these whatever order they are
+created in.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._build_rows"></a>
+
+#### \_build\_rows
+
+```python
+def _build_rows() -> None
+```
+
+Make the widgets of every node again and put them on the window.
+
+A validation pass can change how many rows the model has, because a
+validator that normalizes a list changes how many values it holds. So
+the widgets are made again whenever the paths no longer match, and
+left exactly as they are whenever they do, which is every ordinary
+refresh and is what keeps the focus where the user put it.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_row"></a>
 
@@ -780,11 +669,98 @@ answer from a settings callable cannot change.
 def _add_row(parent: tkinter.Misc, row: core.MemberRow) -> RowWidgets
 ```
 
-Create the widgets of one member, and its description below them.
+Create the widgets of one node, and its description below them.
 
-The member gets a frame of its own, holding the line that is edited
+The node gets a frame of its own, holding the line that is edited
 and the texts under it, so that hiding one of those and showing it
-again cannot move it away from the member it belongs to.
+again cannot move it away from the node it belongs to. That frame is
+also what folding takes out of the layout, which is why it is not
+packed here but by `_show_rows`.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_fold"></a>
+
+#### \_add\_fold
+
+```python
+def _add_fold(parent: tkinter.Misc,
+              row: core.MemberRow) -> Optional[tkinter.Button]
+```
+
+Create the control that folds one container, if it is one.
+
+A node that holds nothing gets a label of the same width instead of
+no widget at all, so that the names of a container and of a value
+beside it begin in the same column. A configuration with nothing to
+fold anywhere gets no column at all, because a column that could
+never hold anything is width taken from the values for nothing.
+
+**Arguments**:
+
+- `parent` - Line of the node that is being shown.
+- `row` - Node to create the control for.
+  
+
+**Returns**:
+
+  The control that folds that container, or None for a node that
+  is not one.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._folder"></a>
+
+#### \_folder
+
+```python
+def _folder(path: ConfigPath) -> Callable[[], None]
+```
+
+Return the command that folds one container or opens it again.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._fold_all"></a>
+
+#### \_fold\_all
+
+```python
+def _fold_all() -> None
+```
+
+Fold every container away, or open every one of them.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._show_rows"></a>
+
+#### \_show\_rows
+
+```python
+def _show_rows() -> None
+```
+
+Put every node that is shown into the layout, in its order.
+
+Every one of them is taken out first and put back afterwards, because
+Tk packs a widget after the ones that are already there: a node that
+came back would otherwise land below the ones below it. Nothing here
+is created or destroyed, so a field the user was typing into keeps
+what is in it while its container is folded and opened again.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._indent"></a>
+
+#### \_indent
+
+```python
+@staticmethod
+def _indent(row: core.MemberRow) -> int
+```
+
+Return how far from the left edge one node begins, in pixels.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._show_fold_all"></a>
+
+#### \_show\_fold\_all
+
+```python
+def _show_fold_all() -> None
+```
+
+Say what the next press of the fold button will do.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._show_row_texts"></a>
 
@@ -794,7 +770,7 @@ again cannot move it away from the member it belongs to.
 def _show_row_texts(row: core.MemberRow, widgets: RowWidgets) -> None
 ```
 
-Show what the model says belongs below one member.
+Show what the model says belongs below one node.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_description"></a>
 
@@ -958,7 +934,7 @@ configuration is for or what one of its members means.
 def _show_member_texts() -> None
 ```
 
-Show what belongs below every member, as the model says it now.
+Show what belongs below every node, as the model says it now.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._refresh"></a>
 
@@ -975,6 +951,10 @@ the value that is stored back into the member, so a value can end up
 different from the one the user typed. Writing the text the model
 already holds into a field is not an edit, so this refresh does not
 undo the marks that the pass has just set.
+
+A pass can also leave the model with other rows than it had, which a
+validator that normalizes a list does, and the widgets are then made
+again rather than written into.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._show_state"></a>
 
@@ -1094,7 +1074,7 @@ documented there.
 
 # edit\_cfg\_json\_tk.key\_names
 
-Translating a key combination into the notation that Tk binds by.
+Binding one key combination, in the notation that Tk binds by.
 
 The application writes its key combinations once, in the notation that
 `edit_cfg_json.ActionSettings` documents, and each backend translates them
@@ -1168,6 +1148,300 @@ Return one key combination as the event sequence that Tk binds by.
   modifier or a key that this module does not know. None is not an
 - `error` - the action it belongs to keeps its button and loses only
   this way of reaching it.
+
+<a id="edit_cfg_json_tk.key_names._key_handler"></a>
+
+#### \_key\_handler
+
+```python
+def _key_handler(command: Callable[[], None]) -> Callable[..., str]
+```
+
+Return the callback that runs one command for one key event.
+
+**Arguments**:
+
+- `command` - What that key does.
+  
+
+**Returns**:
+
+  A callback that Tk can bind, which stops the event from being
+  handled a second time by whatever else the window is bound to.
+
+<a id="edit_cfg_json_tk.key_names.bind_key"></a>
+
+#### bind\_key
+
+```python
+def bind_key(window: tkinter.Misc, key: str, command: Callable[[],
+                                                               None]) -> None
+```
+
+Bind one key combination of one action, if Tk can bind it.
+
+A combination that the translation does not know, or that Tk refuses,
+leaves that action without that key rather than without an editor: every
+action of this backend has a button as well.
+
+**Arguments**:
+
+- `window` - Window that the binding is made on.
+- `key` - One key combination, as `ActionSettings` writes them.
+- `command` - What that key does.
+
+<a id="edit_cfg_json_tk.tk_look"></a>
+
+# edit\_cfg\_json\_tk.tk\_look
+
+How the Tk backend measures and colours the parts of its window.
+
+The sizes, the colours and the labels of this backend are here rather than in
+the module that builds the window, because they are what one has to look at
+to know how the editor will look and they are what a later theming decision
+will change. Nothing here knows what an edit model is: it is given a text, a
+reason for that text to stand out, and a widget to put it in.
+
+What each kind of text is stays in the core, as `edit_cfg_json.Emphasis`, and
+what colour a kind is belongs here. Tk has no theme to ask, unlike the Textual
+backend, which names colours of its terminal's theme and follows it into a
+dark mode.
+
+<a id="edit_cfg_json_tk.tk_look.NAME_COLUMN_WIDTH"></a>
+
+#### NAME\_COLUMN\_WIDTH
+
+Width in characters of the column that holds the member names.
+
+<a id="edit_cfg_json_tk.tk_look.LEAST_FIELD_WIDTH"></a>
+
+#### LEAST\_FIELD\_WIDTH
+
+Width in characters that a field asks for, and can be squeezed to.
+
+A field takes every bit of the width that the name and the marks of its member
+leave over, so this is not how wide a field is: it is how far a field gives way
+when the window is too narrow for all three. The marks are what a narrow window
+would otherwise cut off, and a mark that is there and cannot be read is worse
+than a field with fewer characters in view. The Textual backend gives way in
+the same direction and for the same reason.
+
+<a id="edit_cfg_json_tk.tk_look.PADDING"></a>
+
+#### PADDING
+
+Padding in pixels around the widgets of the editor.
+
+<a id="edit_cfg_json_tk.tk_look.DESCRIPTION_INDENT"></a>
+
+#### DESCRIPTION\_INDENT
+
+Indentation in pixels of what is written below one member.
+
+The indentation is what says that the line belongs to the member above it
+rather than being a member of its own.
+
+<a id="edit_cfg_json_tk.tk_look.TREE_INDENT"></a>
+
+#### TREE\_INDENT
+
+Indentation in pixels of each step inside a list or a dict.
+
+The whole member is indented and not only its name, so that a name inside a
+container is never cut off by the column that the names share. What that costs
+is a value column that steps to the right with the tree, which is what a tree
+looks like.
+
+<a id="edit_cfg_json_tk.tk_look.FOLD_WIDTH"></a>
+
+#### FOLD\_WIDTH
+
+Width in characters of the control that folds one container.
+
+Every row has one that wide, and the rows that hold nothing to fold have an
+empty one, so that the names of a container and of a value beside it line up.
+
+<a id="edit_cfg_json_tk.tk_look.LEAST_WRAP_WIDTH"></a>
+
+#### LEAST\_WRAP\_WIDTH
+
+Narrowest line in pixels that a paragraph of the editor is wrapped to.
+
+A window can be made narrower than any text is readable in, and wrapping to
+what is left of it would leave one word per line. Below this the text is cut
+off by the window instead, which is the lesser of the two.
+
+<a id="edit_cfg_json_tk.tk_look.EMPHASIS_COLOURS"></a>
+
+#### EMPHASIS\_COLOURS
+
+The colour of every reason the core has to show something differently.
+
+One colour per member of `edit_cfg_json.Emphasis`, chosen to be read on the
+light window that Tk gives this editor: a grey that is dark enough for a
+paragraph of explanation to be comfortable rather than faint, and a blue, an
+amber, a green and a red that carry on a light background.
+
+Tk has no theme to ask, unlike the Textual backend, which names colours of its
+terminal's theme and follows it into a dark mode. A Tk that has been put into
+a dark mode by its platform would want other values here, and that belongs
+with the rest of what an application decides rather than in the middle of a
+backend; see section 9 of `doc/design.md`.
+
+<a id="edit_cfg_json_tk.tk_look.FIELD_BACKGROUND"></a>
+
+#### FIELD\_BACKGROUND
+
+Background of a field the user can edit.
+
+The window is white, so a field that kept the white background of its own
+accord could not be told from a label: the values were there to be edited and
+nothing said so. The tint plus the border below are what say it.
+
+<a id="edit_cfg_json_tk.tk_look.FIELD_FOREGROUND"></a>
+
+#### FIELD\_FOREGROUND
+
+Colour of the text inside a field.
+
+It is stated rather than inherited, because the background above is stated:
+a platform that decided the text of a field should be white would otherwise
+put white text on a light field.
+
+<a id="edit_cfg_json_tk.tk_look.FIELD_BORDER"></a>
+
+#### FIELD\_BORDER
+
+Colour of the line around a field the user can edit.
+
+<a id="edit_cfg_json_tk.tk_look.shown_text"></a>
+
+#### shown\_text
+
+```python
+def shown_text(parent: tkinter.Misc,
+               text: str,
+               emphasis: Optional[core.Emphasis] = None,
+               wrapping: bool = True) -> tkinter.Label
+```
+
+Return a label of the editor, in the colour its kind asks for.
+
+**Arguments**:
+
+- `parent` - Widget that becomes the parent of the created label.
+- `text` - Text to show, left aligned as every text of the editor is.
+- `emphasis` - Why this text stands out from the values, or None for the
+  ordinary text colour of the platform.
+- `wrapping` - Whether the text is a paragraph, which wraps to the width
+  of the window. The mark of a member is the one text of the editor
+  that is not: it belongs beside its field on one line.
+  
+
+**Returns**:
+
+  A label showing that text.
+
+<a id="edit_cfg_json_tk.tk_look.told"></a>
+
+#### told
+
+```python
+def told(label: tkinter.Label, text: str, emphasis: core.Emphasis) -> None
+```
+
+Show one text of the editor, in the colour its state asks for.
+
+**Arguments**:
+
+- `label` - Label that shows it.
+- `text` - Text to show.
+- `emphasis` - Why that text stands out from the values.
+
+<a id="edit_cfg_json_tk.tk_look.show_emphasis"></a>
+
+#### show\_emphasis
+
+```python
+def show_emphasis(label: tkinter.Label,
+                  emphasis: Optional[core.Emphasis]) -> None
+```
+
+Colour one label in the way one reason to stand out asks for.
+
+A label with no emphasis is left in the colour of the platform, which is
+what the values and their names are shown in: they are what the user came
+to change, and they are the most legible thing on the screen because
+nothing has been done to them.
+
+**Arguments**:
+
+- `label` - Label to colour.
+- `emphasis` - Why the text of that label stands out, or None for the
+  ordinary text colour.
+
+<a id="edit_cfg_json_tk.tk_look.wrap_to_width"></a>
+
+#### wrap\_to\_width
+
+```python
+def wrap_to_width(label: tkinter.Label) -> None
+```
+
+Make one label wrap its text to the width it is given.
+
+A Tk label does not wrap at all unless it is told how wide a line may be,
+and it does not shrink its text either: a paragraph wider than the window
+is simply cut off, which is how a description lost its last words. The
+width to wrap at is not known until the window has been laid out, and it
+changes whenever the user resizes it, so it is followed rather than set.
+
+**Arguments**:
+
+- `label` - Label that holds text which may be longer than a line.
+
+<a id="edit_cfg_json_tk.tk_look.label_text"></a>
+
+#### label\_text
+
+```python
+def label_text(label: Optional[tkinter.Label]) -> str
+```
+
+Return the text one label is showing, empty when it is showing none.
+
+A label that is out of the layout holds no text, because that is how this
+backend hides one, so this answers what is on the window and not what a
+widget happens to remember.
+
+**Arguments**:
+
+- `label` - Widget to read, or None for a widget that was never created.
+  
+
+**Returns**:
+
+  The text that widget shows.
+
+<a id="edit_cfg_json_tk.tk_look.place_text"></a>
+
+#### place\_text
+
+```python
+def place_text(label: Optional[tkinter.Label], text: str) -> None
+```
+
+Put one text below a member into the layout, or take it out again.
+
+Hiding is taking the widget out of the layout and emptying it, because a
+label with text still takes the height of a line and a window with a
+blank line under every member would have hidden nothing.
+
+**Arguments**:
+
+- `label` - Widget that shows one text below a member, or None for a text
+  that this member can never have.
+- `text` - Text to show, empty when there is nothing to show.
 
 <a id="edit_cfg_json_tk.scrolling"></a>
 

@@ -10,6 +10,7 @@ from config_as_json import JsonType
 from edit_cfg_json import Descriptions, EditModel, LoadReport, MemberRow, \
     docstring_text, load_text, model_as_text, model_title, row_description, \
     row_diagnostic, row_marks, row_value_text, save_text, verdict_text
+from .container_cfg import KeyedEnumCfg, TreeCfg
 from .sample_cfg import HIGHEST, TOO_LARGE_MESSAGE, DocumentedCfg, FlatCfg, \
     IntEnumCfg, ListCfg, NoDocCfg, NoneCfg, RangeCfg, RewriteCfg, RulesCfg
 
@@ -87,10 +88,15 @@ def test_none_text() -> None:
 
 
 def test_container_text() -> None:
-    """Test a list member and a dict member are named as not editable."""
+    """Test a list member and a dict member are shown as trees of rows.
+
+    A container says how much it holds and uses a colon rather than an equals
+    sign, because it has no value of its own: its value is the rows below it,
+    which are indented once for each container they are inside.
+    """
     text = model_as_text(EditModel(ListCfg()))
-    assert 'tags = <not editable yet: list>' in text
-    assert 'limits = <not editable yet: dict>' in text
+    assert 'tags: 2 elements\n    0 = first\n' in text
+    assert 'limits: 2 entries\n    high = 9\n' in text
     assert 'answer = 3' in text
 
 
@@ -462,3 +468,53 @@ def test_edit_drops_it() -> None:
     assert row_diagnostic(model=model, row=_row(model, 'first')) != ''
     model.set_text(path=('second',), text='3')
     assert row_diagnostic(model=model, row=_row(model, 'first')) == ''
+
+
+def test_tree_is_indented() -> None:
+    """Test a value is indented once for each container it is inside."""
+    text = model_as_text(EditModel(TreeCfg()))
+    assert 'rules: 2 elements\n    0: 1 entry\n        low = 1\n' in text
+
+
+def test_folded_says_so() -> None:
+    """Test a folded container says so and shows nothing below it.
+
+    This rendering has no control for the user to press, so it says in words
+    what the two backends say with one, and a reader who was not told would
+    read the values it hides as all there are.
+    """
+    model = EditModel(TreeCfg())
+    model.toggle_fold(('rules',))
+    text = model_as_text(model)
+    assert 'rules: 2 elements (folded)\n' in text
+    assert 'low = 1' not in text
+    assert 'answer = 3' in text
+
+
+def test_leaf_marked_at_depth() -> None:
+    """Test a value inside a container carries its own marks."""
+    model = EditModel(TreeCfg())
+    model.set_text(path=('rules', '0', 'low'), text='5')
+    assert '        low = 5 (edited)' in model_as_text(model)
+    assert 'rules: 2 elements (edited)' in model_as_text(model)
+
+
+def test_refused_path_named() -> None:
+    """Test the verdict names a refused node by the whole path to it."""
+    model = EditModel(KeyedEnumCfg())
+    model.set_text(path=('shades', 'colour'), text='PURPLE')
+    model.validate()
+    assert 'validation: invalid, see shades.colour' in model_as_text(model)
+
+
+def test_described_element() -> None:
+    """Test one description reaches every element of a list.
+
+    The `'['` step is what `config_as_json` gives that meaning to, and a
+    description written per index would be untrue as soon as the list grew.
+    """
+    about = 'One of the tags of this configuration.'
+    model = EditModel(ListCfg(), descriptions={('tags', '['): about})
+    text = model_as_text(model)
+    assert f'    0 = first\n        {about}\n' in text
+    assert f'    1 = second\n        {about}\n' in text

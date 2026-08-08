@@ -4,12 +4,27 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from edit_cfg_json.edit_model import EditModel, MemberRow
-from edit_cfg_json.leaf_value import value_as_text
+from edit_cfg_json.edit_model import EditModel
+from edit_cfg_json.rows import MemberRow
+from edit_cfg_json.tree import path_text
 from edit_cfg_json.validation import ValidationVerdict
 
-NOT_EDITABLE_FORM = '<not editable yet: {kind}>'
-"""Form of the value text of a member this version cannot edit."""
+NESTED_TEXT = '<nested configuration, not editable yet>'
+"""Value text of a member that holds a declared nested configuration.
+
+It serializes as a dict and it is not one, so it is neither shown as a value
+nor taken apart into rows. Step 11 of the delivery plan is what makes it the
+first-class node that section 4.1 of `doc/design.md` describes.
+"""
+
+FOLDED_MARK = ' (folded)'
+"""What follows a container whose rows are hidden.
+
+The two backends say this with a control that the user presses instead, which
+is the wording each of them owns. This rendering has nowhere to put a control,
+so it says it in words: a container that is folded is showing less than it
+holds, and a reader who is not told that would read the values as all of them.
+"""
 
 EDITED_MARK = ' (edited)'
 """Mark that follows the value of a member the user has changed."""
@@ -46,12 +61,13 @@ UNKNOWN_STATE = 'not validated'
 """State of a buffer that has not been validated since it last changed."""
 
 REFUSED_FORM = 'validation: invalid, see {names}'
-"""Form of the line that names the members the application refused.
+"""Form of the line that names the nodes the application refused.
 
 They are named here as well as marked below, because a configuration of any
 size does not fit a window: a user who has just asked what the application
 makes of these values should be told where to look rather than have to go
-looking.
+looking. A value inside a list or a dict is named by its whole path, because
+its own name says nothing about where it is.
 """
 
 SAVE_TO_FORM = 'save to: {name}'
@@ -68,30 +84,50 @@ one line for the whole configuration and hiding it would save nothing.
 """
 
 DESCRIPTION_INDENT = '    '
-"""What is written below a member is indented by this much.
+"""What is written below a node is indented by this much.
 
-The indentation is what says that the line belongs to the member above it
-rather than being a member of its own. Every line of it gets one, because
-what the type of a member says about it runs to more than one line.
+The indentation is what says that the line belongs to the node above it
+rather than being a node of its own. Every line of it gets one, because
+what the type of a node says about it runs to more than one line.
+"""
+
+TREE_INDENT = '    '
+"""What each step further inside a list or a dict is indented by.
+
+It is the same width as the indentation of the explanatory text, so that a
+value inside a container and a sentence about the container line up. They are
+told apart by their shape rather than by their place: a row has a name and a
+value, and a sentence has neither.
+"""
+
+LEAF_FORM = '{indent}{name} = {value}{marks}'
+"""Form of the line that shows one value of the configuration."""
+
+CONTAINER_FORM = '{indent}{name}: {value}{folded}{marks}'
+"""Form of the line that shows one list or dict of the configuration.
+
+A colon and not an equals sign, because what follows is not the value: the
+value is on the rows below, and this says how many of them there are.
 """
 
 
 def row_value_text(row: MemberRow) -> str:
-    """Return the value of one member as the text a field would show.
+    """Return the value of one node as the text a field would show.
 
-    A member that this version of the model cannot edit is named by its kind
-    instead of by its value, because a list or a dict needs more than one
-    field. Every other member shows the text of the value it holds.
+    A container says how much it holds, because its value is on the rows
+    below it, and a member holding a declared nested configuration says that
+    this version cannot edit it. Every other node shows the text of the value
+    it holds.
 
     Args:
-        row: Member to render.
+        row: Node to render.
 
     Returns:
-        The value text of one member.
+        The value text of one node.
     """
-    if not row.editable:
-        return NOT_EDITABLE_FORM.format(kind=type(row.original).__name__)
-    return value_as_text(row.value)
+    if not row.editable and not row.foldable:
+        return NESTED_TEXT
+    return row.value_text
 
 
 def row_marks(row: MemberRow) -> str:
@@ -160,54 +196,119 @@ def row_description(model: EditModel, row: MemberRow) -> str:
     return row.description if model.explanations_shown else ''
 
 
+def row_fold_text(row: MemberRow) -> str:
+    """Return what says that one container is folded, empty when it is not.
+
+    Args:
+        row: Node to render.
+
+    Returns:
+        The mark of a folded container, and nothing for every other node.
+    """
+    return FOLDED_MARK if row.folded else ''
+
+
+def can_fold(model: EditModel) -> bool:
+    """Return whether anything in this configuration can be folded.
+
+    A configuration of scalar members alone has nothing to fold, and a
+    backend asks this before it offers the action at all: an editor that
+    showed a control which could never do anything would be offering
+    something that is not there.
+
+    Args:
+        model: Model to ask about.
+
+    Returns:
+        Whether the configuration holds a list or a dict.
+    """
+    return any(row.foldable for row in model.rows)
+
+
+def fold_hides(model: EditModel) -> bool:
+    """Return whether folding everything would hide anything.
+
+    It is what the one action that folds everything does next, so a backend
+    that names its actions after what the next press does reads the name
+    from here. The action folds while anything is open and opens everything
+    once nothing is, so a press always changes something.
+
+    Args:
+        model: Model to ask about.
+
+    Returns:
+        Whether at least one container is open.
+    """
+    return any(row.foldable and not row.folded for row in model.rows)
+
+
 def row_diagnostic(model: EditModel, row: MemberRow) -> str:
     """Return what is wrong with one member, and nothing when nothing is.
 
-    Two things can be wrong with a member and they are not the same thing.
-    Its text may mean no value of that member at all, which is answered by
-    the member alone and stays true until the member is edited again; or the
+    Two things can be wrong with a node and they are not the same thing.
+    Its text may mean no value of that node at all, which is answered by
+    the node alone and stays true until the node is edited again; or the
     application may have refused the value it holds, which is answered by the
     whole configuration and is only known for as long as the rest of the
     buffer stands still. The first is preferred when both are there, because
     a value that does not exist yet is what has to be corrected first.
 
+    What a member validator refused is about the whole member, because that
+    is what the validator is given, so it is shown at the member and not at
+    one of the values inside it. Both are addressed by their path, which is
+    what keeps a value called `cpu` inside a dict from being told what the
+    application said about a member of that name.
+
     Both backends read this from here, so that neither of them decides on its
-    own what a refused member is told.
+    own what a refused node is told.
 
     Args:
-        model: Model that the member belongs to.
-        row: Member to report.
+        model: Model that the node belongs to.
+        row: Node to report.
 
     Returns:
-        What is wrong with that member, empty when nothing is known to be.
+        What is wrong with that node, empty when nothing is known to be.
     """
     if row.conversion:
         return row.conversion
     verdict = model.verdict
-    return '' if verdict is None else verdict.refused.get(row.name, '')
+    return '' if verdict is None else verdict.refused.get(row.path, '')
 
 
-def _indented(text: str) -> str:
-    """Return one text that belongs to a member, with every line indented.
+def _indented(text: str, indent: str) -> str:
+    """Return one text that belongs to a node, with every line indented.
 
     A line with nothing on it is left alone, because indenting it would put
     blank space where there is nothing to line up.
     """
-    return '\n'.join(DESCRIPTION_INDENT + line if line else line
+    return '\n'.join(indent + line if line else line
                      for line in text.split('\n'))
 
 
-def _row_as_text(model: EditModel, row: MemberRow) -> str:
-    """Return the line that shows one member, and what is said below it.
+def _row_line(row: MemberRow, indent: str) -> str:
+    """Return the one line that shows one node and what is true of it."""
+    shape = CONTAINER_FORM if row.foldable else LEAF_FORM
+    return shape.format(indent=indent, name=row.name,
+                        value=row_value_text(row), marks=row_marks(row),
+                        folded=row_fold_text(row))
 
-    The description comes before what is wrong with the member, because the
-    description is part of the member and what is wrong comes and goes: a
+
+def _row_as_text(model: EditModel, row: MemberRow) -> str:
+    """Return the line that shows one node, and what is said below it.
+
+    The description comes before what is wrong with the node, because the
+    description is part of the node and what is wrong comes and goes: a
     line that appears below everything moves nothing that is above it.
+
+    A node inside a list or a dict is indented once for every container it is
+    inside, which is what makes the rendering a tree.
     """
+    indent = TREE_INDENT * row.depth
     below = [row_description(model=model, row=row),
              row_diagnostic(model=model, row=row)]
-    lines = [f'{row.name} = {row_value_text(row)}{row_marks(row)}']
-    lines += [_indented(text) for text in below if text]
+    lines = [_row_line(row=row, indent=indent)]
+    lines += [_indented(text, indent + DESCRIPTION_INDENT)
+              for text in below if text]
     return '\n'.join(lines)
 
 
@@ -218,10 +319,11 @@ def _state_line(verdict: ValidationVerdict) -> str:
         verdict: What the last validation pass found.
 
     Returns:
-        The state of the buffer, naming the members that were refused.
+        The state of the buffer, naming the nodes that were refused.
     """
     if verdict.refused:
-        return REFUSED_FORM.format(names=', '.join(verdict.refused))
+        return REFUSED_FORM.format(
+            names=', '.join(path_text(path) for path in verdict.refused))
     state = VALID_STATE if verdict.valid else INVALID_STATE
     return VERDICT_FORM.format(state=state)
 
@@ -314,7 +416,7 @@ def _head_text(model: EditModel) -> str:
 
 
 def model_as_text(model: EditModel) -> str:
-    """Return the whole model as text, one line per configuration member.
+    """Return the whole model as text, one line per node of it.
 
     The configuration object labels itself first, because what the whole
     configuration is for is what the members below it are read in the light
@@ -331,13 +433,18 @@ def model_as_text(model: EditModel) -> str:
     Args:
         model: Model to render.
 
+    A container that is folded away is one line saying so, and what is inside
+    it is not shown at all, which is the same thing the two backends do with
+    it. What is inside a list or a dict is indented below it.
+
     Returns:
         The label of the configuration and what its class says about itself,
-        what the load did, one line per member with its description and
+        what the load did, one line per shown node with its description and
         anything wrong with it below it, and then the validation state and
         the saving, without a trailing line break.
     """
-    rows = [_row_as_text(model=model, row=row) for row in model.rows]
+    rows = [_row_as_text(model=model, row=row) for row in model.rows
+            if row.shown]
     lines = [_head_text(model), load_text(model)] + rows + \
         [verdict_text(model), save_text(model)]
     return '\n'.join(line for line in lines if line)

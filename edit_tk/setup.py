@@ -15,6 +15,8 @@ setup(
   package_data={'edit_cfg_json_tk': ['py.typed']},
   install_requires=[
     'edit-cfg-json >= 0.0.1, == 0.0.*',
-    'argcomplete >= 3.7.2'
+    'argcomplete >= 3.7.2',
+    'wizard-tk-bridge >= 1.3',
+    'wizard-ui-bridge >= 1.3'
   ]
 )

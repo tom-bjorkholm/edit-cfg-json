@@ -176,6 +176,69 @@ Sources of structural information, in order of authority:
 | `_unchecked_dicts` | Which dict members have relaxed key policy |
 | `_omit_none_from_json()` | Which members are genuinely optional |
 
+**Ordinary JSON structure is a tree of rows**, built at step 10. A member that
+holds a list or a dict is one row, and every value inside it is a row of its
+own, indented once for each container it is inside, with a field at every
+value. The container row has no field, because it has no value of its own:
+its value is what its rows hold, and it says how many of them there are
+instead. Every value it holds is kept as its rows hold it, so a change inside
+a container is a change of the member whether the container is folded or not.
+
+**A value inside a container is addressed by the path to it**, which is what
+section 4.2 already asks of every leaf. A list element is addressed by its
+index written out, so `('retry_delays', '0')` is a path and
+`('retry_delays', '[')` is the selector that describes every element of that
+list. `config_as_json` has no notation for one specific element — `'['` is its
+step for all of them — so this is the editor's own, and it is the reason a
+dictionary key that begins with `'['` is reserved there and never a path step
+here.
+
+**What a container holds is shown in the order the file has it**, which is the
+order a list holds its elements and the sorted order of a dictionary's keys.
+Section 4.1's declaration order is about the members, because a member has a
+declaration to be read from; a dictionary key has none, and the order that a
+save writes is the order that is shown.
+
+**A nested configuration object is left as one row** until step 11. It
+serializes as a dict and it is not one: it has a class, a docstring and a
+validity state of its own, and showing it as the dict it writes would be
+showing it as something it is not. Its row says that this version cannot edit
+it, which is principle 4 of section 3 and is what keeps step 11 an addition
+rather than a correction.
+
+**Where those objects are is asked as a path and not as a member name**, and
+that is the decision this section exists to record, because a configuration
+worth editing is not a handful of scalars. A member that holds one nested
+object is the least interesting shape there is. The ordinary shape is a
+*list* of nested objects, each of which holds a dict of more of them, and
+`ConfigNestingKind` says exactly that: `LIST_ELEMENT` and `DICT_VALUE` declare
+that every value *inside* a member is an object, and `DICT_VALUE_BY_KEY`
+declares one named key of it.
+
+So a nesting declaration becomes a **selector over paths**, written the way
+`config_as_json` writes one: `('inner',)` for `MEMBER`, `('outputs', '[')` for
+`LIST_ELEMENT` and `DICT_VALUE`, and `('modes', 'http')` for
+`DICT_VALUE_BY_KEY`. The member that holds them is then an ordinary container
+of the tree — it folds, it says how much it holds, and its rows are its
+elements — and each object inside it is one node. That is the same `'['` step
+and the same matching that a description of every element already uses, so
+there is one answer in the library to "does this selector address this node?"
+
+What this buys is that steps 11, 13 and 14 change **what a nested node is**
+and never **how the tree is built**: the paths, the fold state, the rebuild of
+section 4.8 and the addressing of every description are already the shape a
+list of nested objects needs. What step 11 does have to add is the ownership
+of `parse_converters()`: a converter belongs to the class that owns the
+subtree, and while the objects are one node each nothing inside them is
+reached, so the root's converters are correct today and would not be once
+their members become rows.
+
+A trivial configuration has scalar values, or maybe individual nested
+`Config`s. A realistic configuration has a number of lists and dicts
+of nested `Config`s. We should keep this in mind during design.
+A configuration with a list of nested `Config`s, each having a dict of
+nested `Config`s is the normal case, not a special case.
+
 **Runtime type information caveat.** `self.story_points: int = 5` inside
 `__init__` is a PEP 526 annotation on an instance attribute, and Python
 records it nowhere at runtime. `typing.get_type_hints()` therefore
@@ -542,6 +605,61 @@ therefore tested where they are decided — the packing order, the size the
 canvas asks for, the line width a label follows — and one test that maps a real
 window and measures the lot belongs to category 3 of section 10.2, deselected
 by the build and run by hand.
+
+### 4.7 Folding a list or a dict away
+
+A configuration of any size does not fit a window (section 4.6), and a list of
+two hundred elements fills one on its own. So a container can be folded to its
+one summary line and opened again, and **which containers are folded belongs to
+the model**, by the same rule as the explain toggle of section 4.4 and for the
+same reason: two user interfaces of one application that were folded
+differently would be worse than either behaviour. Every row carries whether it
+is folded and whether it is shown, which is where a backend reads it, so that
+neither of them works out for itself what folding hides. Settled at step 10.
+
+**The editor opens with a container open unless opening it would flood the
+window.** That is the same decision as section 4.4's, made once more where it
+stops being obvious: what an application put in its configuration was put there
+to be read, and a list that fills the window before the user has seen the
+members below it is where that stops being true. So a container is folded at
+the start when the rows it would add are more than `OPEN_AT_MOST`, counting
+everything inside it and not only its direct children, because that is what
+fills a window. It is a number the editor chooses for itself and not a setting,
+by section 9.6: it is not something the application knows and the editor
+cannot.
+
+**Two ways of asking for it, and they answer different questions.** A control
+on the row of each container folds that one, which is what a tree has always
+offered; and one action of `Settings` folds or opens all of them at once, which
+is what a key is worth. The action folds while anything is open and opens
+everything once nothing is, so a press always changes something, and each
+backend names it for what the next press will do — the Textual backend by
+renaming the action, as it already does for the explanations, and the Tk
+backend by renaming a button rather than by a tick-box, because a partly folded
+configuration is neither of the two states a tick could show.
+
+**A configuration with nothing to fold is offered nothing**: no action, no key
+and no column for the controls. A control that could never do anything would be
+offering something that is not there, and the column would be width taken from
+the values for nothing.
+
+### 4.8 A validation pass can change how many rows there are
+
+`ListOrderingValidator` sorts a list and removes its duplicates, and a member
+validator returns the value that is stored back into the member (section 6.4).
+So a pass can leave the model with other rows than it had: the value the user
+typed into may be gone. The model therefore **builds its rows again** from the
+values the pass accepted rather than writing into the ones it had, carrying
+over what each row that is still there knew — what it is compared against, what
+a validator did to it, and whether its container is folded.
+
+**Both backends check the paths and build their widgets again when they
+differ.** Neither of them can write into a widget for a value that is not in
+the buffer any more, and neither may keep one. They leave the widgets alone
+whenever the paths match, which is every ordinary refresh, and that is what
+keeps the focus in the field the user is typing into. It is also the machinery
+that step 14 needs when the user adds and removes elements, so it is built once
+and here.
 
 ## 5. Loading
 
@@ -912,6 +1030,19 @@ refused about no single member stays in the block below them. The verdict line
 names the members it was about, because a configuration of any size does not
 fit a window (section 4.6) and a user who has just asked what is wrong should
 be told where to look rather than have to go looking. Settled at step 7.
+
+**What is refused is addressed by a path and not by a name**, settled at step
+10, because a value inside a list or a dict is a node of its own and two of
+them can share a name: a dictionary key called `cpu` must not be told what the
+application said about a member of that name. The verdict line writes the whole
+path of each of them, so a value the user has to correct can be found.
+
+**What a member validator refused is about the whole member**, because the
+whole member is what it is given, so it is shown at the member and never at one
+value inside it. That is not a limitation of the editor: `validate_member`
+receives one member name, and an editor that guessed which value inside it the
+validator meant would be inventing. What one *value* can be refused for on its
+own is the conversion of section 4.2, and that is shown where it was typed.
 
 The same sentence is therefore not on the screen twice: what the attribution
 explained is taken out of the block, and the block keeps what it could not
@@ -1366,6 +1497,7 @@ class ActionSettings:
     save_as: tuple[str, ...] = ('ctrl+shift+s', 'f12')
     cancel: tuple[str, ...] = ('escape',)
     explain: tuple[str, ...] = ('f1', 'ctrl+g')
+    fold: tuple[str, ...] = ('f2', 'ctrl+f')
 
 
 @dataclass(frozen=True)
@@ -1395,6 +1527,14 @@ function key is what asks for help everywhere else and because a field claims
 most of the control letters, and `ctrl+g`, because a terminal or a keyboard
 that does not deliver a function key would otherwise leave the action to the
 button and the command palette.
+
+`fold` is the attribute that step 10 added, and it makes the same point a
+second time. Its keys are `f2`, the function key beside the one that explains,
+because the two actions are the same kind of thing — both of them decide how
+much of the configuration is on the screen — and `ctrl+f`, for the reason
+`explain` has a control letter as well. A configuration with no list and no
+dict in it is never offered the action at all (section 4.7), so those keys are
+free wherever there would be nothing to fold.
 
 ### 9.2 Key combinations
 
@@ -1582,6 +1722,7 @@ confirmed against the pinned `textual` version rather than assumed.
 In scope:
 
 - read, edit and save with full validation
+- lists and dicts as a tree of rows, with a field at every value
 - folding with per-subtree validation badges
 - add and remove elements of uniform lists and dicts
 - descriptions, class docstrings, and a docstring visibility toggle

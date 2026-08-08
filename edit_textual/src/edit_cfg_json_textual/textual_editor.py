@@ -15,26 +15,16 @@ neither backend may import the other.
 from collections.abc import Iterable, Sequence
 from typing import ClassVar, Optional, TextIO
 import sys
-from config_as_json import Config, PathOrStr
+from config_as_json import Config, ConfigPath, PathOrStr
 from textual.app import App, ComposeResult, SystemCommand
-from textual.binding import BindingsMap
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen, Screen
 from textual.widget import Widget
-from textual.widgets import Footer, Header, Input, Label, Static
+from textual.widgets import Button, Footer, Header, Input, Label, Static
 import edit_cfg_json as core
-
-VALUE_ID_PREFIX = 'value_'
-"""Prefix of the identifier of the widget that shows one member value."""
-
-MARK_ID_PREFIX = 'mark_'
-"""Prefix of the identifier of the widget that marks one member."""
-
-DESCRIPTION_ID_PREFIX = 'about_'
-"""Prefix of the identifier of the widget that describes one member."""
-
-DIAGNOSTIC_ID_PREFIX = 'wrong_'
-"""Prefix of the identifier of the widget that refuses one member."""
+from edit_cfg_json_textual.textual_look import COLOUR_RULES, bind_action, \
+    description_id, diagnostic_id, fold_glyph, fold_id, mark_id, \
+    member_id, plain_widget, show_emphasis, value_id
 
 DOCSTRING_ID = 'docstring'
 """Identifier of the widget that shows what the configuration class says."""
@@ -50,6 +40,14 @@ LOAD_ID = 'load'
 
 BODY_ID = 'body'
 """Identifier of the part of the screen that scrolls."""
+
+MEMBERS_ID = 'members'
+"""Identifier of the part of the body that holds the nodes.
+
+They have a container of their own inside the part that scrolls, because a
+validation pass can leave the model with other rows than it had and they are
+then mounted afresh. What is above them is not, so it is not in here.
+"""
 
 SAVE_AS_BOX_ID = 'save_as_box'
 """Identifier of the box that asks which file to write."""
@@ -78,8 +76,27 @@ DESCRIPTION_CLASS = 'member_about'
 DIAGNOSTIC_CLASS = 'member_wrong'
 """Style class of the widget that says what is wrong with one member."""
 
+FOLD_CLASS = 'member_fold'
+"""Style class of the control that folds one container."""
+
 NAME_WIDTH = 24
 """Width in cells of the column that holds the member names."""
+
+FOLD_WIDTH = 3
+"""Width in cells of the control that folds one container.
+
+Every row has one that wide, and the rows that hold nothing to fold have an
+empty one, so that the names of a container and of a value beside it line up.
+"""
+
+TREE_INDENT = 4
+"""Indentation in cells of each step inside a list or a dict.
+
+The whole node is indented and not only its name, so that a name inside a
+container is never cut off by the column that the names share. What that costs
+is a value column that steps to the right with the tree, which is what a tree
+looks like. The Tk backend indents by the same amount and for the same reason.
+"""
 
 DESCRIPTION_INDENT = 4
 """Indentation in cells of the description of one member.
@@ -135,19 +152,18 @@ SAVE_AS_HELP = 'Choose the file to write, and write it'
 EXPLAIN_HELP = 'Show or hide what the application says about these values'
 """What the command palette says the explain entry does."""
 
-EMPHASIS_CLASSES = {core.Emphasis.MUTED: 'muted',
-                    core.Emphasis.ATTENTION: 'attention',
-                    core.Emphasis.WARNING: 'warning',
-                    core.Emphasis.GOOD: 'good',
-                    core.Emphasis.BAD: 'bad'}
-"""The style class of every reason the core has to show something differently.
+FOLD_COMMAND = 'Fold all'
+"""What the fold action is called while at least one container is open."""
 
-One class per member of `edit_cfg_json.Emphasis`, and the style sheet gives
-each of them a theme colour, so that the editor follows the terminal into its
-light or dark
-mode instead of naming colours of its own. What each kind of text is comes
-from the core, so the two backends cannot colour one thing two ways.
+OPEN_COMMAND = 'Unfold all'
+"""What it is called once every container is folded.
+
+The name says what the next press does, exactly as the explain action above
+is named. The Tk backend answers the same question by renaming its button.
 """
+
+FOLD_HELP = 'Fold every list and dict away, or open every one of them'
+"""What the command palette says the fold entry does."""
 
 SAVE_AS_PROMPT = 'Save as (Enter writes the file):'
 """What the screen that asks for the output file says."""
@@ -160,7 +176,7 @@ because an application that took `escape` for itself would otherwise be
 telling its users to press a key that does nothing.
 """
 
-EDITOR_ACTIONS = ('quit', 'validate', 'save', 'save_as', 'explain')
+EDITOR_ACTIONS = ('quit', 'validate', 'save', 'save_as', 'explain', 'fold')
 """The actions of the editor, which a question of its own turns off.
 
 Textual offers a priority binding of an application the key before the screen
@@ -171,30 +187,17 @@ application says that its own actions do not apply while it is there.
 """
 
 
-COLOUR_RULES = ('.muted { color: $text-muted; }',
-                '.attention { color: $text-accent; }',
-                '.warning { color: $text-warning; }',
-                '.good { color: $text-success; }',
-                '.bad { color: $text-error; }')
-"""What each reason to stand out looks like, as a colour of the theme.
-
-Theme colours and not colours of this backend's own: they are what follows the
-terminal into its light or dark mode, and an editor that named colours itself
-would be legible in one of the two and a guess in the other.
-
-The values and their names are left alone, so the thing the user came to edit
-is the most legible thing on the screen. Everything else is either secondary
-text or a state to act on, which is what `edit_cfg_json.Emphasis` names.
-"""
-
-
 CSS_RULES = COLOUR_RULES + (
     f'#{BODY_ID} {{ height: 1fr; }}',
+    f'#{MEMBERS_ID} {{ height: auto; }}',
     f'.{MEMBER_CLASS} {{ height: auto; }}',
     f'.{ROW_CLASS} {{ height: 1; }}',
     f'.{NAME_CLASS} {{ width: {NAME_WIDTH}; }}',
     f'.{VALUE_CLASS} {{ width: 1fr; min-width: {LEAST_VALUE_WIDTH}; }}',
     f'.{MARK_CLASS} {{ width: auto; }}',
+    f'.{FOLD_CLASS} {{ width: {FOLD_WIDTH}; min-width: {FOLD_WIDTH};'
+    ' height: 1; border: none; padding: 0; margin: 0;'
+    ' text-align: center; }',
     f'.{DESCRIPTION_CLASS}, .{DIAGNOSTIC_CLASS} {{ width: 1fr; height: auto;'
     f' padding-left: {DESCRIPTION_INDENT}; }}',
     f'#{DOCSTRING_ID} {{ width: 1fr; height: auto; }}',
@@ -231,96 +234,6 @@ most of its width, so that a long path is still readable in a narrow
 terminal. Its own field is untouched by the rule above, which reaches only
 the fields inside a member row.
 """
-
-
-def _value_id(row: core.MemberRow) -> str:
-    """Return the identifier of the widget that shows one member value."""
-    return f'{VALUE_ID_PREFIX}{row.name}'
-
-
-def _mark_id(row: core.MemberRow) -> str:
-    """Return the identifier of the widget that marks one member."""
-    return f'{MARK_ID_PREFIX}{row.name}'
-
-
-def _description_id(row: core.MemberRow) -> str:
-    """Return the identifier of the widget that describes one member."""
-    return f'{DESCRIPTION_ID_PREFIX}{row.name}'
-
-
-def _diagnostic_id(row: core.MemberRow) -> str:
-    """Return the identifier of the widget that refuses one member."""
-    return f'{DIAGNOSTIC_ID_PREFIX}{row.name}'
-
-
-def plain_widget(text: str, widget_id: str, classes: Optional[str] = None,
-                 emphasis: Optional[core.Emphasis] = None) -> Static:
-    """Return a widget that shows text of the configuration as it is.
-
-    Textual reads console markup in the text of a widget, so a square
-    bracket in a configuration value or in a diagnostic would be taken for
-    the beginning of a style and the text between brackets would silently
-    disappear. Nothing here is written by this editor, so nothing here is
-    markup.
-
-    Args:
-        text: Text to show exactly as it is.
-        widget_id: Identifier the application finds this widget by.
-        classes: Style classes of the widget, or None for a widget that the
-            style sheet does not have to reach.
-        emphasis: Why this text stands out from the values, or None for a
-            widget that is shown in the ordinary text colour.
-
-    Returns:
-        A widget showing that text.
-    """
-    widget = Static(text, id=widget_id, markup=False, classes=classes)
-    show_emphasis(widget, emphasis)
-    return widget
-
-
-def show_emphasis(widget: Widget, emphasis: Optional[core.Emphasis]) -> None:
-    """Show one widget in the way that one reason to stand out asks for.
-
-    Every class of `EMPHASIS_CLASSES` is set or unset, so that a widget whose
-    emphasis changes as the model changes cannot end up carrying two of them
-    at once.
-
-    Args:
-        widget: Widget to show.
-        emphasis: Why the text of that widget stands out from the values, or
-            None for the ordinary text colour.
-    """
-    for kind, name in EMPHASIS_CLASSES.items():
-        widget.set_class(kind is emphasis, name)
-
-
-def bind_action(bindings: BindingsMap, keys: Sequence[str], action: str,
-                description: str) -> None:
-    """Bind every key combination that the application gave one action.
-
-    The first combination is the one the footer names and the rest work
-    without being named, because a footer that named one action twice would
-    suggest that they were two actions. An action the application gave no
-    combination at all is bound to nothing and stays reachable through the
-    command palette.
-
-    Every binding is a priority binding, so that it is acted on before the
-    field that has the focus is offered the key. That is also why the
-    bindings cannot be made with `App.bind`, which cannot make one and which
-    says of itself that it may be removed.
-
-    Args:
-        bindings: The bindings of the application or of the screen that the
-            action belongs to.
-        keys: Key combinations that run the action, in the order that
-            decides which of them is named.
-        action: Name of the action, without its `action_` prefix.
-        description: What the footer and the key panel call the action.
-    """
-    for index, key in enumerate(keys):
-        shown = index == 0
-        bindings.bind(key, action, description, show=shown, priority=True)
 
 
 class SaveAsScreen(ModalScreen[Optional[str]]):
@@ -411,6 +324,8 @@ class EditorApp(App[None]):
         super().__init__()
         self._model = model
         self._member_rows: dict[str, core.MemberRow] = {}
+        self._fold_rows: dict[str, core.MemberRow] = {}
+        self._built: tuple[ConfigPath, ...] = ()
         self.title = core.model_title(model)
         self._bind_editor_keys()
 
@@ -437,6 +352,7 @@ class EditorApp(App[None]):
             bind_action(self._bindings, keys=keys, action=action,
                         description=name)
         self._bind_explain()
+        self._bind_fold()
 
     def _bind_explain(self) -> None:
         """Bind the explain keys, named for what the next press will do.
@@ -446,11 +362,35 @@ class EditorApp(App[None]):
         be renamed, so the bindings of these keys are dropped and made afresh;
         `refresh_bindings` is then what tells the footer to read them again.
         """
-        keys = self._model.settings.actions.explain
+        self._rebind(keys=self._model.settings.actions.explain,
+                     action='explain', name=self._explain_name())
+
+    def _bind_fold(self) -> None:
+        """Bind the fold keys, named for what the next press will do.
+
+        Nothing at all is bound for a configuration with no list and no dict
+        in it, because there would be nothing for the action to do and a
+        footer that offered it would be offering something that is not there.
+        """
+        keys = self._model.settings.actions.fold \
+            if core.can_fold(self._model) else ()
+        self._rebind(keys=keys, action='fold', name=self._fold_name())
+
+    def _rebind(self, keys: Sequence[str], action: str, name: str) -> None:
+        """Bind one action that is named for what the next press will do.
+
+        A `Binding` cannot be renamed, so the bindings of these keys are
+        dropped and made afresh; `refresh_bindings` is then what tells the
+        footer to read them again.
+
+        Args:
+            keys: Key combinations that run the action.
+            action: Name of the action, without its `action_` prefix.
+            name: What the footer and the palette call it as things stand.
+        """
         for key in keys:
             self._bindings.key_to_bindings.pop(key, None)
-        bind_action(self._bindings, keys=keys, action='explain',
-                    description=self._explain_name())
+        bind_action(self._bindings, keys=keys, action=action, description=name)
         self.refresh_bindings()
 
     def _explain_name(self) -> str:
@@ -458,6 +398,10 @@ class EditorApp(App[None]):
         if self._model.explanations_shown:
             return HIDE_COMMAND
         return EXPLAIN_COMMAND
+
+    def _fold_name(self) -> str:
+        """Return what the fold action is called as things stand now."""
+        return FOLD_COMMAND if core.fold_hides(self._model) else OPEN_COMMAND
 
     def compose(self) -> ComposeResult:
         """Create one row per member, the verdict, a header and a footer.
@@ -481,20 +425,80 @@ class EditorApp(App[None]):
         with VerticalScroll(id=BODY_ID):
             yield from self._docstring_widgets()
             yield from self._load_widgets()
-            for row in self._model.rows:
-                with Vertical(classes=MEMBER_CLASS):
-                    with Horizontal(classes=ROW_CLASS):
-                        yield Label(row.name, classes=NAME_CLASS)
-                        yield self._value_widget(row)
-                        yield plain_widget(core.row_marks(row), _mark_id(row),
-                                           MARK_CLASS, core.MEMBER_MARK)
-                    yield from self._description_widgets(row)
-                    yield self._diagnostic_widget(row)
+            yield Vertical(*self._row_widgets(), id=MEMBERS_ID)
         yield plain_widget(core.verdict_text(self._model), VERDICT_ID,
                            emphasis=core.verdict_emphasis(self._model))
         yield plain_widget(core.save_text(self._model), SAVE_ID,
                            emphasis=core.save_emphasis(self._model))
         yield Footer()
+
+    def _row_widgets(self) -> list[Widget]:
+        """Return the widgets of every node, and forget the ones before.
+
+        Returns:
+            One widget per node of the model, in the order it reports them.
+        """
+        self._member_rows = {}
+        self._fold_rows = {}
+        self._built = tuple(row.path for row in self._model.rows)
+        return [self._member_widget(index=index, row=row)
+                for index, row in enumerate(self._model.rows)]
+
+    def _member_widget(self, index: int, row: core.MemberRow) -> Widget:
+        """Return everything one node owns, as one widget.
+
+        The node is indented once for every container it is inside, which is
+        what makes the rows a tree, and it is hidden while any of those
+        containers is folded away.
+
+        Args:
+            index: Place of the node among the rows, which its widgets are
+                identified by.
+            row: Node to show.
+
+        Returns:
+            A widget holding the line of that node and what is said below it.
+        """
+        marks = plain_widget(core.row_marks(row), mark_id(index), MARK_CLASS,
+                             core.MEMBER_MARK)
+        beside = [Label(row.name, classes=NAME_CLASS),
+                  self._value_widget(index=index, row=row), marks]
+        folding = self._fold_widget(index=index, row=row)
+        line = Horizontal(*([folding] if folding is not None else []), *beside,
+                          classes=ROW_CLASS)
+        below = list(self._description_widgets(index=index, row=row))
+        below.append(self._diagnostic_widget(index=index, row=row))
+        member = Vertical(line, *below, id=member_id(index),
+                          classes=MEMBER_CLASS)
+        member.styles.padding = (0, 0, 0, row.depth * TREE_INDENT)
+        member.display = row.shown
+        return member
+
+    def _fold_widget(self, index: int,
+                     row: core.MemberRow) -> Optional[Widget]:
+        """Return the control that folds one container, or an empty space.
+
+        A node that holds nothing gets a widget of the same width rather than
+        no widget at all, so that the names of a container and of a value
+        beside it begin in the same column. A configuration with nothing to
+        fold anywhere gets no column at all, because a column that could never
+        hold anything is width taken from the values for nothing.
+
+        Args:
+            index: Place of the node among the rows.
+            row: Node to create the control for.
+
+        Returns:
+            A button for a container, a label for every other node of a
+            configuration that has one, and None for one that has none.
+        """
+        if not core.can_fold(self._model):
+            return None
+        if not row.foldable:
+            return Label('', classes=FOLD_CLASS)
+        widget_id = fold_id(index)
+        self._fold_rows[widget_id] = row
+        return Button(fold_glyph(row), id=widget_id, classes=FOLD_CLASS)
 
     def get_system_commands(self, screen: Screen[object]
                             ) -> Iterable[SystemCommand]:
@@ -520,6 +524,8 @@ class EditorApp(App[None]):
         yield SystemCommand(SAVE_AS_COMMAND, SAVE_AS_HELP, self.action_save_as)
         yield SystemCommand(self._explain_name(), EXPLAIN_HELP,
                             self.action_explain)
+        if core.can_fold(self._model):
+            yield SystemCommand(self._fold_name(), FOLD_HELP, self.action_fold)
 
     def _load_widgets(self) -> ComposeResult:
         """Create the widget that says what reading the input file did."""
@@ -533,54 +539,57 @@ class EditorApp(App[None]):
             yield plain_widget(core.docstring_text(self._model), DOCSTRING_ID,
                                emphasis=core.EXPLANATION)
 
-    def _description_widgets(self, row: core.MemberRow) -> ComposeResult:
-        """Create the widget that says what one member is for, if anything.
+    def _description_widgets(self, index: int,
+                             row: core.MemberRow) -> ComposeResult:
+        """Create the widget that says what one node is for, if anything.
 
-        A member the application said nothing about gets no widget, because
+        A node the application said nothing about gets no widget, because
         there is nothing that could ever appear in it. A widget that is
         created starts out shown or hidden as the model says, which is not the
         same as shown: a model can have been told to hide the explanations
         before the editor was started.
         """
         if row.description:
-            widget = plain_widget(row.description, _description_id(row),
+            widget = plain_widget(row.description, description_id(index),
                                   DESCRIPTION_CLASS, core.EXPLANATION)
             shown = core.row_description(model=self._model, row=row)
             widget.display = bool(shown)
             yield widget
 
-    def _diagnostic_widget(self, row: core.MemberRow) -> Static:
-        """Create the widget that says what is wrong with one member.
+    def _diagnostic_widget(self, index: int, row: core.MemberRow) -> Static:
+        """Create the widget that says what is wrong with one node.
 
-        Every member gets one, unlike the description above it: any member
-        can be refused, so there is no member for which this could never say
+        Every node gets one, unlike the description above it: any node
+        can be refused, so there is no node for which this could never say
         anything. It starts out hidden unless the model already has something
-        to say about that member, which it has when a model that has been
+        to say about that node, which it has when a model that has been
         validated already reaches this backend.
         """
         wrong = core.row_diagnostic(model=self._model, row=row)
-        widget = plain_widget(wrong, _diagnostic_id(row), DIAGNOSTIC_CLASS,
+        widget = plain_widget(wrong, diagnostic_id(index), DIAGNOSTIC_CLASS,
                               core.MEMBER_DIAGNOSTIC)
         widget.display = bool(wrong)
         return widget
 
-    def _value_widget(self, row: core.MemberRow) -> Widget:
-        """Return the widget that shows the value of one member.
+    def _value_widget(self, index: int, row: core.MemberRow) -> Widget:
+        """Return the widget that shows the value of one node.
 
-        A member that the model cannot edit yet gets a widget that only
-        shows text, because there is nothing the user could do to it.
+        A node that the model cannot edit gets a widget that only shows text,
+        because there is nothing the user could do to it: a list or a dict is
+        edited through the rows below it, and a declared nested configuration
+        object is not edited by this version at all.
         """
         if not row.editable:
-            return plain_widget(core.row_value_text(row), _value_id(row),
+            return plain_widget(core.row_value_text(row), value_id(index),
                                 VALUE_CLASS)
-        self._member_rows[_value_id(row)] = row
+        self._member_rows[value_id(index)] = row
         # A field of its own accord selects all of its text when it is given
         # the focus, so that the first key typed replaces the whole value.
         # That is turned off here, because the two backends would otherwise
         # behave differently: a Tk field puts the cursor in the text and
         # keeps what is there, which is what an editor of existing values
         # should do.
-        return Input(value=core.row_value_text(row), id=_value_id(row),
+        return Input(value=core.row_value_text(row), id=value_id(index),
                      select_on_focus=False, classes=VALUE_CLASS)
 
     def on_input_changed(self, event: Input.Changed) -> None:
@@ -643,6 +652,37 @@ class EditorApp(App[None]):
         self._show_explanations()
         self._bind_explain()
 
+    def action_fold(self) -> None:
+        """Fold every container away, or open every one of them."""
+        self._model.toggle_fold_all()
+        self._show_folding()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Fold the one container whose control the user pressed.
+
+        The only buttons this editor has are the fold controls, and the
+        message is stopped here because nothing above them has any use for it.
+        """
+        widget_id = event.button.id
+        assert widget_id is not None
+        event.stop()
+        self._model.toggle_fold(self._fold_rows[widget_id].path)
+        self._show_folding()
+
+    def _show_folding(self) -> None:
+        """Show which containers are folded and what each control now does.
+
+        This is not part of `_show_state`, which runs on every key the user
+        types: nothing typed into a field folds anything.
+        """
+        for index, row in enumerate(self._model.rows):
+            self.query_one(f'#{member_id(index)}',
+                           Vertical).display = row.shown
+            if row.foldable:
+                self.query_one(f'#{fold_id(index)}',
+                               Button).label = fold_glyph(row)
+        self._bind_fold()
+
     def _show_explanations(self) -> None:
         """Show as much of the explanatory text as the model says to show.
 
@@ -657,10 +697,10 @@ class EditorApp(App[None]):
         if self._model.docstring:
             self.query_one(f'#{DOCSTRING_ID}',
                            Static).update(core.docstring_text(self._model))
-        for row in self._model.rows:
+        for index, row in enumerate(self._model.rows):
             if row.description:
                 description = core.row_description(model=self._model, row=row)
-                self.query_one(f'#{_description_id(row)}',
+                self.query_one(f'#{description_id(index)}',
                                Static).display = bool(description)
 
     def action_save_as(self) -> None:
@@ -717,26 +757,44 @@ class EditorApp(App[None]):
         different from the one the user typed. Writing the text the model
         already holds into a field is not an edit, so this refresh does not
         undo the marks that the pass has just set.
+
+        A pass can also leave the model with other rows than it had, which a
+        validator that normalizes a list does, and the widgets are then
+        mounted afresh rather than written into. That is done after this
+        message rather than inside it, because taking a widget out of the
+        screen and putting another one in its place is awaited and this is
+        not.
         """
-        for row in self._model.rows:
-            if _value_id(row) in self._member_rows:
-                self._field(row).value = core.row_value_text(row)
+        if self._built != tuple(row.path for row in self._model.rows):
+            self.call_next(self._rebuild_rows)
+            return
+        for index, row in enumerate(self._model.rows):
+            if value_id(index) in self._member_rows:
+                self._field(index).value = core.row_value_text(row)
         self._show_state()
 
-    def _field(self, row: core.MemberRow) -> Input:
-        """Return the field that this application shows for one member."""
-        return self.query_one(f'#{_value_id(row)}', Input)
+    async def _rebuild_rows(self) -> None:
+        """Show the rows the model has now instead of the ones it had."""
+        members = self.query_one(f'#{MEMBERS_ID}', Vertical)
+        await members.remove_children()
+        await members.mount_all(self._row_widgets())
+        self._bind_fold()
+        self._show_state()
+
+    def _field(self, index: int) -> Input:
+        """Return the field that this application shows for one node."""
+        return self.query_one(f'#{value_id(index)}', Input)
 
     def _show_state(self) -> None:
-        """Show the title, the verdict, the saving and every member.
+        """Show the title, the verdict, the saving and every node.
 
         The verdict and the saving change colour as well as text, because what
         they say is either what the application accepted, what it refused, or
         what has not been asked of it yet, and a user who has to read three
         lines to tell those apart is reading too much.
 
-        What is wrong with a member is shown here too, and not with the
-        explanations: a description says what a member is for and stays until
+        What is wrong with a node is shown here too, and not with the
+        explanations: a description says what a node is for and stays until
         the user asks for it to go, while a refusal is answered afresh by
         every pass and by every field that is left.
         """
@@ -745,15 +803,15 @@ class EditorApp(App[None]):
                    emphasis=core.verdict_emphasis(self._model))
         self._told(SAVE_ID, text=core.save_text(self._model),
                    emphasis=core.save_emphasis(self._model))
-        for row in self._model.rows:
-            self.query_one(f'#{_mark_id(row)}',
+        for index, row in enumerate(self._model.rows):
+            self.query_one(f'#{mark_id(index)}',
                            Static).update(core.row_marks(row))
-            self._show_diagnostic(row)
+            self._show_diagnostic(index=index, row=row)
 
-    def _show_diagnostic(self, row: core.MemberRow) -> None:
-        """Show what is wrong with one member, or nothing when nothing is."""
+    def _show_diagnostic(self, index: int, row: core.MemberRow) -> None:
+        """Show what is wrong with one node, or nothing when nothing is."""
         wrong = core.row_diagnostic(model=self._model, row=row)
-        widget = self.query_one(f'#{_diagnostic_id(row)}', Static)
+        widget = self.query_one(f'#{diagnostic_id(index)}', Static)
         widget.update(wrong)
         widget.display = bool(wrong)
 

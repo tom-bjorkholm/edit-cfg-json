@@ -11,8 +11,8 @@ itself would test nothing about the editor.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Callable
-from config_as_json import Config, JsonType
+from collections.abc import Callable, Mapping
+from config_as_json import Config, ConfigPath, JsonType
 import pytest
 from edit_cfg_json.validation import validate_buffer
 from .sample_cfg import HIGHEST, REFUSAL_MESSAGE, SUM_LIMIT, \
@@ -53,12 +53,12 @@ fourth one says it does.
 """
 
 
-def _refusal_text(outcome_refused: dict[str, str], diagnostics: str,
+def _refusal_text(outcome_refused: Mapping[ConfigPath, str], diagnostics: str,
                   member: str) -> str:
     """Return the text of one refusal, from wherever it belongs.
 
     Args:
-        outcome_refused: What the pass said about each member.
+        outcome_refused: What the pass said about each node, by path.
         diagnostics: What it said that is about no single member.
         member: Member the refusal is about, empty when it is about none.
 
@@ -68,8 +68,8 @@ def _refusal_text(outcome_refused: dict[str, str], diagnostics: str,
     if not member:
         assert not outcome_refused
         return diagnostics
-    assert set(outcome_refused) == {member}
-    return outcome_refused[member]
+    assert set(outcome_refused) == {(member,)}
+    return outcome_refused[(member,)]
 
 
 @pytest.mark.parametrize('name, config_type, members, member, expected',
@@ -101,16 +101,16 @@ def test_every_bad_member() -> None:
     """
     outcome = validate_buffer(config=RulesCfg(),
                               members={'first': 500, 'second': 700})
-    assert set(outcome.verdict.refused) == {'first', 'second'}
-    assert '500' in outcome.verdict.refused['first']
-    assert '700' in outcome.verdict.refused['second']
+    assert set(outcome.verdict.refused) == {('first',), ('second',)}
+    assert '500' in outcome.verdict.refused[('first',)]
+    assert '700' in outcome.verdict.refused[('second',)]
 
 
 def test_good_member_silent() -> None:
     """Test a member the application accepted is not named."""
     outcome = validate_buffer(config=RulesCfg(),
                               members={'first': 500, 'second': 2})
-    assert set(outcome.verdict.refused) == {'first'}
+    assert set(outcome.verdict.refused) == {('first',)}
 
 
 def test_whole_rule_skipped() -> None:
@@ -148,7 +148,7 @@ def test_silent_refusal_told() -> None:
     reaching the member.
     """
     outcome = validate_buffer(config=RefuseCfg(), members={'name': 'x'})
-    assert outcome.verdict.refused['name'].startswith('ValueError: ')
+    assert outcome.verdict.refused[('name',)].startswith('ValueError: ')
 
 
 def test_unbuildable_valid() -> None:

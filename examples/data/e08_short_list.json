@@ -1,0 +1,7 @@
+{
+    "many_labels": ["only-one"],
+    "ports": {"http": 80, "https": 443},
+    "project_name": "A short list",
+    "report_formats": ["html", "json"],
+    "retry_delays": [1, 5, 15]
+}

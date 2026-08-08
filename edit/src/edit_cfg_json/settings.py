@@ -144,6 +144,23 @@ class ActionSettings:
     does not read for itself.
     """
 
+    fold: tuple[str, ...] = ('f2', 'ctrl+f')
+    """Keys that fold every list and dict away, or open every one of them.
+
+    One action for all of them and not one per container: a container is
+    folded and opened where it is, with a control on its own row, and what a
+    key is worth is getting the whole configuration back at once.
+
+    `f2` because it is the function key beside the one that explains, and the
+    two actions are the same kind of thing: both of them decide how much of
+    the configuration is on the screen. `ctrl+f` for the same reason `explain`
+    has a control letter as well, and because Textual's own field does not
+    read it.
+
+    An application whose configuration has no list and no dict in it is never
+    offered this action at all, because there would be nothing for it to do.
+    """
+
     def __post_init__(self) -> None:
         """Refuse one key combination that two actions would both run.
 

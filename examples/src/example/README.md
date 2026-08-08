@@ -21,9 +21,11 @@ repository only.
 | [e05_old_format_config.py](e05_old_format_config.py) | Saying that reading the file changed it. An application that renamed a member between versions reads its older files with `ReadOldConfiguration`, and the values then on the screen are not the values in the file. How the editor finds that out for every configuration class — by writing the loaded values back and comparing them with the file — and what a class that declares `auto_ch_hook` can add to it, which is the names of the older keys. Two classes, one of each kind, over the same file. |
 | [e06_factory_config.py](e06_factory_config.py) | A configuration class that the editor cannot construct, because it is told which teams exist and only the application knows that. `edit_cfg_json.ConfigLoader` is how an application says how its class is built, `derived_loader` is the one line that says it for a class plus a bound argument, and the same file without a loader is refused with the message that names the class. Also what a loader is *not* needed for: editing, validating and saving work on the object it made. |
 | [e07_chosen_class.py](e07_chosen_class.py) | A loader that chooses its class by looking at the JSON, written out by hand, for an application with two modes whose files have the same shape and different rules. The two rules that make it work: the class is chosen when the file is loaded and the session then edits that class, and a value that would select the other class is refused by the save rather than followed. |
+| [e08_lists_and_dicts.py](e08_lists_and_dicts.py) | A member that holds a list or a dict, shown as a tree of rows with a field at every value. How a value inside one is addressed, by the whole path to it, which is also how one description can reach every element of a list. Folding a container away and opening it again, and why a long one opens folded. What a validator that sorts and de-duplicates a list does to the rows, and why what a validator of a container refuses is shown at the container and not at one value inside it. |
 
-More examples arrive with the steps that they demonstrate: lists and dicts,
-nested `Config` objects, folding, and adding and removing elements.
+More examples arrive with the steps that they demonstrate: nested `Config`
+objects, folding a nested configuration with its own validity, and adding and
+removing elements.
 
 ## Shared command line handling
 
@@ -37,8 +39,10 @@ takes the same options:
 | `--ui dump` | Print the model as text. Needs neither a window nor a terminal. |
 | `--ui tk` | Open the editor in a Tkinter window. |
 | `--ui textual` | Open the editor in the terminal, with Textual. |
-| `--set member=value` | Edit one member before showing it. Repeatable. |
+| `--set member=value` | Edit one value before showing it. Repeatable. A value inside a list or a dict is named by the whole path to it, with a dot between the steps. |
 | `--toggle-explain` | Hide the explanations, as the explain key does. |
+| `--toggle-fold` | Fold every list and dict away, as the fold key does. |
+| `--fold PATH` | Fold one list or dict away, or open it. Repeatable. |
 | `-i`, `--input` | Configuration file to read. |
 | `--policy` | What to do about a declared value the file does not hold. |
 | `-o`, `--output` | Configuration file to write, or the input file. |

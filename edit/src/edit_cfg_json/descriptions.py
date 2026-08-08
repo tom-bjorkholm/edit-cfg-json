@@ -32,14 +32,7 @@ from typing import Optional
 import inspect
 from config_as_json import Config, ConfigPath, JsonType, ParseConverter
 from edit_cfg_json.leaf_value import value_kind
-
-EVERY_ELEMENT = '['
-"""The path step that means every list element or dictionary value here.
-
-It is the step that `config_as_json` gives this meaning to, and it keeps it
-here, which is what stops an application from having to repeat one
-description once per list index or once per dictionary key.
-"""
+from edit_cfg_json.tree import EVERY_ELEMENT, selects
 
 CHOICES_FORM = 'One of: {names}.'
 """What the editor says about the names one enum member accepts."""
@@ -73,21 +66,6 @@ Converters stop at a child owned subtree because each nested object
 serializes itself; an application explaining its own members should not have
 to know where its nesting boundaries fall.
 """
-
-
-def _selects(selector: ConfigPath, path: ConfigPath) -> bool:
-    """Return whether one selector of the mapping addresses one member.
-
-    Args:
-        selector: One key of the description mapping.
-        path: Path of the member that is being described.
-
-    Returns:
-        Whether that selector is about that member.
-    """
-    return len(selector) == len(path) and \
-        all(step in (EVERY_ELEMENT, named)
-            for step, named in zip(selector, path))
 
 
 def _named_steps(selector: ConfigPath) -> tuple[bool, ...]:
@@ -125,7 +103,7 @@ def path_description(descriptions: Descriptions, path: ConfigPath) -> str:
         application said nothing about it.
     """
     selectors = [selector for selector in descriptions
-                 if _selects(selector=selector, path=path)]
+                 if selects(selector=selector, path=path)]
     if not selectors:
         return ''
     return descriptions[max(selectors, key=_named_steps)]

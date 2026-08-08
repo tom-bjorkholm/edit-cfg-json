@@ -1,0 +1,7 @@
+{
+    "many_labels": ["from-a-file-1", "from-a-file-2"],
+    "ports": {"http": 8080, "https": 8443},
+    "project_name": "From a file",
+    "report_formats": ["csv", "html"],
+    "retry_delays": [2, 4, 8]
+}

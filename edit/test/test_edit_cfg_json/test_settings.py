@@ -46,10 +46,10 @@ def test_every_action_named() -> None:
     """Test every action of the editor is an attribute of its own."""
     names = {field.name for field in fields(ActionSettings)}
     assert names == {'quit', 'validate', 'save', 'save_as', 'cancel',
-                     'explain'}
+                     'explain', 'fold'}
 
 
-@pytest.mark.parametrize('keys', [('ctrl+w',), (), ('ctrl+w', 'f2')])
+@pytest.mark.parametrize('keys', [('ctrl+w',), (), ('ctrl+w', 'f9')])
 def test_one_action_set(keys: tuple[str, ...]) -> None:
     """Test one action can be changed while the others keep their keys."""
     actions = ActionSettings(save=keys)
