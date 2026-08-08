@@ -1497,7 +1497,7 @@ class ActionSettings:
     save_as: tuple[str, ...] = ('ctrl+shift+s', 'f12')
     cancel: tuple[str, ...] = ('escape',)
     explain: tuple[str, ...] = ('f1', 'ctrl+g')
-    fold: tuple[str, ...] = ('f2', 'ctrl+f')
+    fold: tuple[str, ...] = ('f2', 'ctrl+t')
 
 
 @dataclass(frozen=True)
@@ -1531,10 +1531,18 @@ button and the command palette.
 `fold` is the attribute that step 10 added, and it makes the same point a
 second time. Its keys are `f2`, the function key beside the one that explains,
 because the two actions are the same kind of thing — both of them decide how
-much of the configuration is on the screen — and `ctrl+f`, for the reason
-`explain` has a control letter as well. A configuration with no list and no
-dict in it is never offered the action at all (section 4.7), so those keys are
-free wherever there would be nothing to fold.
+much of the configuration is on the screen — and `ctrl+t`, for the reason
+`explain` has a control letter as well and because the tree is what the action
+is about. A configuration with no list and no dict in it is never offered the
+action at all (section 4.7), so those keys are free wherever there would be
+nothing to fold.
+
+**It is deliberately not `ctrl+f`**, which was its second key until the review
+of step 10 asked why the editor was spending the one combination that means
+find everywhere. `ctrl+shift+f` was considered and rejected for the reason
+`save_as` already records above: a terminal that encodes a control letter as a
+single byte has nowhere to put the shift, so that combination would arrive as
+`ctrl+f` and the fold key would run the search. See section 9.7.
 
 ### 9.2 Key combinations
 
@@ -1653,6 +1661,25 @@ backends from binding different keys or offering different file names.
 Room is deliberately left here for step 16 of the delivery plan, where
 whether an overwritten file keeps a backup, and whether overwriting is
 confirmed, become application decisions of exactly this kind.
+
+### 9.7 Keys that are kept free
+
+`RESERVED_KEYS` is `('ctrl+f', 'f3')`, and no default of this editor takes
+either of them. Finding a member of a configuration that does not fit a window
+(section 4.6) is something this editor is likely to be asked for, `ctrl+f`
+opens a search everywhere and `f3` finds the next one.
+
+The promise of section 9.1 — that an action added later is an added attribute
+and breaks no application — is about the *attribute*. A **key** that moved
+would break every user who had learnt it, and no version number protects a
+habit. So the two combinations a search will want are kept free from the start
+rather than taken back afterwards, and a test says so about the defaults.
+
+Nothing here refuses these keys to an application. Which combinations its own
+user interface has already taken is the application's to say, and this whole
+section exists so that the editor does not overrule it; an application that
+has no search of its own is welcome to give `ctrl+f` to Save. What is reserved
+is what the editor itself may take.
 
 ## 10. Testing strategy
 

@@ -13,8 +13,8 @@ from dataclasses import FrozenInstanceError, fields
 from typing import Optional
 import pytest
 from edit_cfg_json import ActionSettings, Settings
-from edit_cfg_json.settings import checked_file, chosen_file, \
-    current_settings
+from edit_cfg_json.settings import RESERVED_KEYS, checked_file, \
+    chosen_file, current_settings
 
 CFG = Settings(file_extension='.cfg')
 """Settings of an application whose extension is a default."""
@@ -47,6 +47,21 @@ def test_every_action_named() -> None:
     names = {field.name for field in fields(ActionSettings)}
     assert names == {'quit', 'validate', 'save', 'save_as', 'cancel',
                      'explain', 'fold'}
+
+
+def test_reserved_keys_free() -> None:
+    """Test no default of the editor takes a key that is reserved.
+
+    An action added later is an added attribute and breaks no application,
+    but a key that moved would break every user who had learnt it. So the
+    keys that a search will want are kept free from the start rather than
+    taken back afterwards.
+    """
+    actions = ActionSettings()
+    taken = {key.lower() for field in fields(actions)
+             for key in getattr(actions, field.name)}
+    assert taken.isdisjoint(RESERVED_KEYS)
+    assert 'ctrl+f' in RESERVED_KEYS
 
 
 @pytest.mark.parametrize('keys', [('ctrl+w',), (), ('ctrl+w', 'f9')])

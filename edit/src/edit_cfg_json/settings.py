@@ -30,6 +30,23 @@ WRONG_EXTENSION = ('File {name} does not have the {extension} extension '
                    'that this application uses for its configuration.')
 """Message of the refusal of a file name an enforced extension forbids."""
 
+RESERVED_KEYS = ('ctrl+f', 'f3')
+"""Key combinations that no default of this editor takes, for later use.
+
+Finding a member of a configuration that does not fit a window is something
+this editor is likely to be asked for, and `ctrl+f` opens a search everywhere
+while `f3` finds the next one. An action added later is an added attribute of
+`ActionSettings` and breaks no application, but a *key* that moved would break
+every user who had learnt it, so the two are kept free from the start rather
+than taken back afterwards.
+
+Nothing here refuses these keys to an application: which combinations its own
+user interface has already taken is the application's to say, and section 9 of
+`doc/design.md` is about the editor not overruling that. What this refuses is
+the editor's own defaults taking them, which is what the test of this module
+checks.
+"""
+
 
 def _duplicate(key: str, first: str, second: str) -> ValueError:
     """Return the refusal of one key combination given to two actions.
@@ -144,7 +161,7 @@ class ActionSettings:
     does not read for itself.
     """
 
-    fold: tuple[str, ...] = ('f2', 'ctrl+f')
+    fold: tuple[str, ...] = ('f2', 'ctrl+t')
     """Keys that fold every list and dict away, or open every one of them.
 
     One action for all of them and not one per container: a container is
@@ -153,9 +170,13 @@ class ActionSettings:
 
     `f2` because it is the function key beside the one that explains, and the
     two actions are the same kind of thing: both of them decide how much of
-    the configuration is on the screen. `ctrl+f` for the same reason `explain`
-    has a control letter as well, and because Textual's own field does not
-    read it.
+    the configuration is on the screen.
+
+    `ctrl+t` for the same reason `explain` has a control letter as well, which
+    is a terminal or a keyboard that does not deliver a function key, and `t`
+    because the tree is what this action is about. It is deliberately not
+    `ctrl+f`: that is find everywhere, and this editor is likely to want one.
+    See `RESERVED_KEYS`.
 
     An application whose configuration has no list and no dict in it is never
     offered this action at all, because there would be nothing for it to do.

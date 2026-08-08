@@ -178,6 +178,16 @@ The public names it settled:
 | `row_fold_text` | what says that one container is folded |
 | `path_text`, `text_path` | one path as text, and back |
 | `ActionSettings.fold` | the keys of the fold action |
+| `RESERVED_KEYS` | the combinations no default of the editor takes |
+
+**What its review found.** The fold action had `ctrl+f` as its second key,
+which is find everywhere. It is `ctrl+t` now — the tree is what the action is
+about — and `RESERVED_KEYS` records that `ctrl+f` and `f3` are kept free for
+the search this editor is likely to be asked for, with a test that no default
+takes one of them. `ctrl+shift+f` was considered and rejected for the reason
+design section 9.1 already gives about `save_as`: a terminal that has nowhere
+to put the shift delivers it as `ctrl+f`, so the fold key would run the search.
+Design section 9.7.
 
 **What building it found.**
 

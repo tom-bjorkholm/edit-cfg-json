@@ -51,7 +51,7 @@ A configuration of any size does not fit a window, and a list of a hundred
 elements fills one on its own. So a container can be folded away to its single
 summary line and opened again: the Tk backend puts a `+` or a `-` control at
 the start of the row, the Textual backend puts a button there, and both of
-them have one key that folds or opens all of them at once — `f2`, or `ctrl+f`.
+them have one key that folds or opens all of them at once — `f2`, or `ctrl+t`.
 
 The editor opens with every container open, unless opening it would add more
 rows than a window can spare; a long one starts folded, and its row says so.

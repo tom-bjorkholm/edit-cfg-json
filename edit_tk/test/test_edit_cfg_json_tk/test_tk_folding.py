@@ -31,7 +31,12 @@ PORTS = 'ports'
 """A member of the example that holds a dict of two values."""
 
 FOLD_KEY = '<F2>'
-"""What Tk calls the first key that the fold action is given."""
+"""What Tk calls the first key that the fold action is given.
+
+It is written out here rather than read from the settings, in the same way as
+every other key these tests press: what the defaults are is decided in the
+core and tested there.
+"""
 
 
 def _tree_stub() -> EditorWidgets:

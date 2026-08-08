@@ -170,6 +170,7 @@
   * [DUPLICATE\_KEY](#edit_cfg_json.settings.DUPLICATE_KEY)
   * [NOT\_AN\_EXTENSION](#edit_cfg_json.settings.NOT_AN_EXTENSION)
   * [WRONG\_EXTENSION](#edit_cfg_json.settings.WRONG_EXTENSION)
+  * [RESERVED\_KEYS](#edit_cfg_json.settings.RESERVED_KEYS)
   * [ActionSettings](#edit_cfg_json.settings.ActionSettings)
     * [quit](#edit_cfg_json.settings.ActionSettings.quit)
     * [validate](#edit_cfg_json.settings.ActionSettings.validate)
@@ -2813,6 +2814,25 @@ Message of the refusal of an extension setting that names none.
 
 Message of the refusal of a file name an enforced extension forbids.
 
+<a id="edit_cfg_json.settings.RESERVED_KEYS"></a>
+
+#### RESERVED\_KEYS
+
+Key combinations that no default of this editor takes, for later use.
+
+Finding a member of a configuration that does not fit a window is something
+this editor is likely to be asked for, and `ctrl+f` opens a search everywhere
+while `f3` finds the next one. An action added later is an added attribute of
+`ActionSettings` and breaks no application, but a *key* that moved would break
+every user who had learnt it, so the two are kept free from the start rather
+than taken back afterwards.
+
+Nothing here refuses these keys to an application: which combinations its own
+user interface has already taken is the application's to say, and section 9 of
+`doc/design.md` is about the editor not overruling that. What this refuses is
+the editor's own defaults taking them, which is what the test of this module
+checks.
+
 <a id="edit_cfg_json.settings.ActionSettings"></a>
 
 ## ActionSettings Objects
@@ -2941,9 +2961,13 @@ key is worth is getting the whole configuration back at once.
 
 `f2` because it is the function key beside the one that explains, and the
 two actions are the same kind of thing: both of them decide how much of
-the configuration is on the screen. `ctrl+f` for the same reason `explain`
-has a control letter as well, and because Textual's own field does not
-read it.
+the configuration is on the screen.
+
+`ctrl+t` for the same reason `explain` has a control letter as well, which
+is a terminal or a keyboard that does not deliver a function key, and `t`
+because the tree is what this action is about. It is deliberately not
+`ctrl+f`: that is find everywhere, and this editor is likely to want one.
+See `RESERVED_KEYS`.
 
 An application whose configuration has no list and no dict in it is never
 offered this action at all, because there would be nothing for it to do.
