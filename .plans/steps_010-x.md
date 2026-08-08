@@ -122,7 +122,7 @@ the order, the observable outcome and the main risk.
 
 #### Step 10 — Lists and dicts of scalars
 
-Status: **Implemented**
+Status: **Implemented and committed.**
 
 **Observable outcome.** A new example `e08_lists_and_dicts.py` whose members
 hold lists and dicts of values.
