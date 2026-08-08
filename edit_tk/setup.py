@@ -15,6 +15,6 @@ setup(
   package_data={'edit_cfg_json_tk': ['py.typed']},
   install_requires=[
     'edit-cfg-json >= 0.0.1, == 0.0.*',
-    'argcomplete >= 3.7.0'
+    'argcomplete >= 3.7.2'
   ]
 )

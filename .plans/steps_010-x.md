@@ -251,7 +251,8 @@ is a bigger step than the program it completes — roughly the whole of step
 users who would rather not type a module path. It is the reason step 7B puts
 the loading and the reporting in the core: a wizard replaces the argument
 parsing and nothing else. When we get here investigate if using
-https://pypi.org/project/wizard-ui-bridge/ makes implementing the wizards
+https://pypi.org/project/wizard-ui-bridge/ and
+https://pypi.org/project/wizard-tk-bridge/ makes implementing the wizards
 simpler.
 
 Step 20 also adds version reporting using

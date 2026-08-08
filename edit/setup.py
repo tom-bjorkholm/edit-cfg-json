@@ -14,7 +14,7 @@ setup(
   package_dir={'edit_cfg_json': 'src/edit_cfg_json'},
   package_data={'edit_cfg_json': ['py.typed']},
   install_requires=[
-    'config-as-json >= 1.4',
-    'argcomplete >= 3.7.0'
+    'config-as-json >= 1.5',
+    'argcomplete >= 3.7.2'
   ]
 )

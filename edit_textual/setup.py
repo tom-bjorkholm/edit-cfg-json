@@ -16,6 +16,6 @@ setup(
   install_requires=[
     'edit-cfg-json >= 0.0.1, == 0.0.*',
     'textual >= 8.2.8',
-    'argcomplete >= 3.7.0'
+    'argcomplete >= 3.7.2'
   ]
 )
