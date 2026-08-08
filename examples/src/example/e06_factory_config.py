@@ -14,14 +14,13 @@ class at all.
 
 ## The loader is how an application says how its class is built
 
-`edit_cfg_json.ConfigLoader` is a callable with five keyword arguments, and
-those five are the only things the editor has to give: the JSON text, a file
+`edit_cfg_json.ConfigLoader` is a callable with four keyword arguments, and
+those four are the only things the editor has to give: the JSON text, a file
 name it never uses, whether the declared values may fill in what the text
-leaves out, the hook that reports what reading an old file changed, and the
-stream for diagnostics. **Everything else is bound before the callable reaches
-the editor.** That is what keeps the editor from needing to know what a team
-is, and it is why the protocol never grows a parameter for one more
-application.
+leaves out, and the stream for diagnostics. **Everything else is bound before
+the callable reaches the editor.** That is what keeps the editor from needing
+to know what a team is, and it is why the protocol never grows a parameter for
+one more application.
 
 `edit_cfg_json.derived_loader` is the short way to write one. It is what the
 editor does for a class it is given no loader for, offered with an argument of

@@ -2,10 +2,10 @@
 """Tests for example e05_old_format_config.
 
 What this example adds is saying that reading the file changed it, so what is
-asserted here is which members the editor marks and what it says about the
-file. The class that can report its older keys and the class that cannot are
-both run over the same file, because the point of the example is that the marks
-are the same either way and only the explanation differs.
+asserted here is which members the editor marks, what each mark says and what
+is left for the message. The class that declares the change hook and the class
+that does not are both run over the same file, because the point of the example
+is that the two report the same word for word.
 
 The file in the current shape is asserted as well, and it matters at least as
 much: an editor that remarked on every file would be teaching its user to
@@ -34,30 +34,40 @@ CURRENT_FILE = 'e05_current.json'
 HEAD = head(OldFormatConfig())
 """The lines that every dump of this example begins with."""
 
-LOAD_MARK = ' (changed by the load)'
-"""Mark that follows a value that reading the input file put there."""
+SUPPLIED_MARK = ' (supplied because this file is in an older format)'
+"""Mark of the member that only the rules for an older format put there."""
+
+RENAMED_MARK = ' (read from the older key title)'
+"""Mark of the member that an older key of the file became."""
+
+NORMALIZED_MARK = ' (changed by the load)'
+"""Mark of the member that a validator rewrote while the file was read.
+
+Nothing records that, so this is the one mark that says only that the value is
+not the file's. The two marks above say which rule put the value there, which
+only the records of the load can say.
+"""
 
 CHANGED_LINE = 'Reading this file changed it'
 """Beginning of what the editor says about a file that reading changed."""
 
-OLDER_KEYS_LINE = ('This file is in an older format. It was read with these '
-                   'older keys: debug_trace, title')
-"""What the class that takes the hook says about the keys of that file."""
-
 DROPPED_LINE = ('This file holds keys that this configuration does not use, '
-                'and saving leaves them out: debug_trace, title')
-"""What the class that takes no hook says about the same two keys."""
+                'and saving leaves them out: debug_trace')
+"""What is left for the message: the one key that became no member at all.
 
-SUPPLIED_LINE = ('These values were supplied because this file is in an older '
-                 'format: format_version')
-"""What the class that takes the hook says about the value it supplied."""
+`title` is not here although the file holds it and the configuration does not
+write it, because the member it became says so itself. A key that is reported
+at its member is not also reported as one that nothing holds.
+"""
 
-MIGRATED_ROWS = [f'format_version = {CURRENT_FORMAT}{LOAD_MARK}', WHOLE_LINE,
-                 f'report_name = monthly-summary{LOAD_MARK}', TEXT_LINE,
-                 f'owner = Ada Lovelace{LOAD_MARK}', TEXT_LINE,
+MIGRATED_ROWS = [f'format_version = {CURRENT_FORMAT}{SUPPLIED_MARK}',
+                 WHOLE_LINE,
+                 f'report_name = monthly-summary{RENAMED_MARK}', TEXT_LINE,
+                 f'owner = Ada Lovelace{NORMALIZED_MARK}', TEXT_LINE,
                  'refresh_seconds = 900', WHOLE_LINE]
 """Every row of that file as read, with the mark of each changed member.
 
+Each mark says what happened to that member and not merely that something did.
 The row that matters most is the one for `refresh_seconds`: the file holds that
 value under that name and nothing happened to it, so it carries no mark. What
 each row says below it is the kind of value it holds, which is what the editor
@@ -101,33 +111,37 @@ def test_older_file_marked(capsys: pytest.CaptureFixture[str]) -> None:
     assert CHANGED_LINE in printed
 
 
-def test_older_keys_named(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test the class that takes the hook names the older keys of the file."""
-    printed = _dump(capsys, '-i', data_file(OLD_FILE))
-    assert OLDER_KEYS_LINE in printed
-    assert SUPPLIED_LINE in printed
-    assert DROPPED_LINE not in printed
+def test_message_has_the_rest() -> None:
+    """Test the message keeps only what no member of the file received.
+
+    `debug_trace` is a key of the file that became nothing, so it has no row
+    and the message is the only place it can be named. `title` became a member,
+    whose mark names it, so the message does not name it at all.
+    """
+    said = _text_of(OldFormatConfig, OLD_FILE)
+    assert DROPPED_LINE in said
+    assert 'title' not in said
 
 
 def test_without_the_hook() -> None:
-    """Test the class that takes no hook says what it can see for itself.
+    """Test the class that declares no hook says exactly the same.
 
-    It is the same file and the same rules, so the values and their marks are
-    the same. What it cannot do is say that one of those two keys was renamed
-    and the other removed, and it says the honest less instead.
+    It is the same file and the same rules, and what the load recorded belongs
+    to the object it produced rather than to the constructor of its class. So
+    the two classes say the same thing, which is what this example is now for.
     """
     said = _text_of(NoHookConfig, OLD_FILE)
+    assert said == _text_of(OldFormatConfig, OLD_FILE)
     assert CHANGED_LINE in said
     assert DROPPED_LINE in said
-    assert OLDER_KEYS_LINE not in said
-    assert SUPPLIED_LINE not in said
 
 
 def test_current_file_silent(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a file in the current shape is read without a word about it."""
     printed = _dump(capsys, '-i', data_file(CURRENT_FILE))
     assert 'report_name = monthly-summary\n' in printed
-    assert LOAD_MARK not in printed
+    assert NORMALIZED_MARK not in printed
+    assert RENAMED_MARK not in printed
     assert CHANGED_LINE not in printed
     assert printed.endswith(input_tail(CURRENT_FILE))
 
@@ -176,7 +190,7 @@ def test_strict_reads_older(capsys: pytest.CaptureFixture[str]) -> None:
     defaults, and the report says so by not saying otherwise.
     """
     printed = _dump(capsys, '-i', data_file(OLD_FILE), '--policy', 'strict')
-    assert OLDER_KEYS_LINE in printed
+    assert '\n'.join(MIGRATED_ROWS) in printed
     assert 'filled in from the defaults' not in printed
     assert ' (filled from default)' not in printed
 
@@ -192,7 +206,7 @@ def test_every_policy(policy: str, capsys: pytest.CaptureFixture[str]) -> None:
     """
     printed = _dump(capsys, '-i', data_file(OLD_FILE), '--policy', policy)
     assert '\n'.join(MIGRATED_ROWS) in printed
-    assert OLDER_KEYS_LINE in printed
+    assert DROPPED_LINE in printed
 
 
 def test_unknown_member(capsys: pytest.CaptureFixture[str]) -> None:

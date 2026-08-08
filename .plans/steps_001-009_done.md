@@ -354,7 +354,8 @@ most of the value of this example.
 **Tests.** Parametrized over the three policies crossed with complete,
 incomplete, unknown-key and malformed input files. The
 `inspect.signature()` branch needs a config class that accepts
-`auto_ch_hook` and one that does not.
+`auto_ch_hook` and one that does not. *(That branch is gone: nothing is
+passed for the hook any more. See the correction at the end of step 8.)*
 
 **Code and test additions/changes.** It is likely that adding
 the enum values to config that is loaded and edited will highlight
@@ -969,21 +970,22 @@ Status: **Implemented and committed.**
 
 **Decided while building it.**
 
-- **The hook the editor passes could not report anything at all.**
-  `Config.__init__` stores `deepcopy(auto_ch_hook)` and records into that copy,
-  so a hook that is read afterwards answers with nothing. Confirmed against
-  `./venv`: after a migrating load the editor's own hook was empty.
-  `ConfigAutoChangeHook.auto_changed` writing to a stream is why
-  `MigrateCfgWarnHook` never noticed. The editor's hook is a subclass whose
-  `__deepcopy__` returns itself, which is the one thing that makes the report
-  reach the editor. Recorded in `doc/design.md` section 5.3, and worth telling
-  an application author, so the example says it too.
+- **The hook the editor passed could not report anything at all.** *(Corrected
+  by `config_as_json` 1.5, see the note at the end of this step.)*
+  `Config.__init__` stored `deepcopy(auto_ch_hook)` and recorded into that
+  copy, so a hook that was read afterwards answered with nothing. Confirmed
+  against `./venv` at the time: after a migrating load the editor's own hook
+  was empty. `ConfigAutoChangeHook.auto_changed` writing to a stream is why
+  `MigrateCfgWarnHook` never noticed. The editor's hook was a subclass whose
+  `__deepcopy__` returned itself, which was the one thing that made the report
+  reach the editor.
 - **Three facts, and each of them where it can be seen.** A key of the file
   that the configuration does not write back is in the message alone, because
   it is no member and has no row; a member whose value the file does not hold
   is marked on its row; and the older keys that only the class can name are in
   the message where the hook has spoken, in place of the editor's own reading
-  of the same keys rather than beside it.
+  of the same keys rather than beside it. *(The third of these is now said at
+  the member instead; see the note at the end of this step.)*
 - **The `filled from default` flag became exact.** Computing it from the keys
   of the file said that a member ROCF had renamed into was filled in from a
   default, which is untrue of it, and it was untrue for *every* older file
@@ -1013,14 +1015,15 @@ the one test module of each package that uses it, which is where a constant used
 once belongs anyway. A local suppression was not an option: step 6 already found
 that `duplicate-code` is reported against a module and not against a line.
 
-**Observable outcome.** `e05_old_format_config.py --ui dump -i
+**Observable outcome, as corrected.** `e05_old_format_config.py --ui dump -i
 examples/data/e05_old_format.json` marks the three members that reading the file
-put there or altered, leaves the fourth alone, and says which older keys the
-file was read with and which value the rules supplied. The same file through
-`edit-cfg-json --module example.e05_old_format_config NoHookConfig` marks the
-same three and says instead which keys of the file the configuration does not
-use. `-i examples/data/e05_current.json` says nothing at all. Both graphical
-backends show the same, with no change to either of them.
+put there or altered and leaves the fourth alone, and each mark says what
+happened to that member: supplied for an older file, read from the older key
+`title`, changed by the load. The message keeps the one key that became no
+member, `debug_trace`. The same file through `edit-cfg-json --module
+example.e05_old_format_config --class NoHookConfig` says the same word for word.
+`-i examples/data/e05_current.json` says nothing at all. Both graphical backends
+show the same, with no change to either of them.
 
 **What it was planned to be.** Load the file, re-serialize the resulting config
 and diff that against the raw file text; any difference means the load changed
@@ -1030,6 +1033,34 @@ example `e05_old_format_config.py` carries `ReadOldConfiguration` rules, so
 opening an old-format file visibly reports the migration. Risk: the
 hook-independent diff is the primary mechanism and must be tested with a
 config class that does *not* accept a hook.
+
+**Corrected against `config_as_json` 1.5.** Three of the decisions above no
+longer hold, and each of them because the library now offers something better.
+The re-serialize-and-diff comparison is untouched and is still the mechanism,
+for the reason it always was: a value that a member validator rewrote is
+recorded nowhere.
+
+- **No hook is passed and none is opted into.** `Config.__init__` keeps the
+  hook by reference and creates one where the application named none, and
+  `Config.auto_change_hook()` publishes it. So the `__deepcopy__` work-around
+  is gone, `built_config` and `ConfigSource.made` no longer take a hook, the
+  `auto_ch_hook` parameter is gone from `ConfigLoader` (step 9), and a class
+  that declares nothing is reported on exactly as fully as one that declares
+  the parameter. `NoHookConfig` in `e05` now says the same as `OldFormatConfig`
+  word for word, which is a better teaching point than the old one.
+- **The older keys are said at the member, not in the message.** `hook.changes`
+  holds one `RocfChange` per automatic change, with its kind, the path of the
+  file it consumed and the path it produced, so `report_name` is marked *read
+  from the older key title* and `format_version` *supplied because this file is
+  in an older format*. `LoadReport.changed` became `LoadReport.reasons` and
+  `MemberRow.changed_by_load` became `MemberRow.load_reason` with it. A key
+  that a member received is also taken out of the keys the message says saving
+  leaves out, which the comparison alone had wrong.
+- **A future version of the records degrades to text.**
+  `ConfigAutoChangeHook.check_data_version` is asked first, and a version this
+  editor was not written for falls back to the marks the comparison alone gives
+  plus the text of `print_changes`, which is version independent by contract
+  and is never parsed. Recorded in `doc/design.md` section 5.3.
 
 ### Step 9 — The explicit loader
 
@@ -1090,15 +1121,18 @@ opened a file into an editor that could never validate or save it.
   module `loader.py` holding the protocol, `derived_loader`, `ask_loader` and
   `ConfigSource`, and `saving.reload_refusal`. No type alias was needed.
 
-**Found while building it, and the lesson it carries.** The hook that reports
-the automatic changes of an old format file says that a copy of itself is
-itself, which is the only way its report reaches the editor. Once the probe for
-the *filled from default* flag became a copy of the loaded object rather than a
-fresh subclass, that probe reported into the same hook a second time and every
-older key was named twice. `file_changes` now reads the hook before anything
-parses the file again. The lesson is that a channel back to the editor is
-shared by every copy of the object, so what it holds has to be read before the
-next parse and not after it. Recorded in section 5.3.
+**Found while building it, and the lesson it carries.** *(No longer applies:
+`config_as_json` 1.5 removed the deep copy this is about, so a copy of the
+configuration carries a copy of the hook and no later parse can disturb what
+the load recorded. See the correction at the end of step 8.)* The hook that
+reports the automatic changes of an old format file said that a copy of itself
+was itself, which was the only way its report reached the editor. Once the probe
+for the *filled from default* flag became a copy of the loaded object rather
+than a fresh subclass, that probe reported into the same hook a second time and
+every older key was named twice. `file_changes` therefore read the hook before
+anything parsed the file again. The lesson was that a channel back to the editor
+is shared by every copy of the object, so what it holds has to be read before
+the next parse and not after it.
 
 **Found in review, and what came of it.** Four things, of which the first is
 the one that mattered.

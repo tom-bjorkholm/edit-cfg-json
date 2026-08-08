@@ -308,11 +308,16 @@ two UIs cannot drift:
   value, cleared when the user next edits that field
 - **filled from default** — set when a permissive load supplied a value
   the input file did not contain
-- **changed by the load** — set when reading the input file put this value
-  there or altered it, which is what an older format and a normalization
-  during parsing both do (section 5.3). It is never set together with the mark
-  above it: that one says the same thing more precisely, and one member
-  carrying two marks about one fact would be worse than either alone.
+- **changed by the load** — what reading the input file did to this value,
+  which is what an older format and a normalization during parsing both do
+  (section 5.3). It is text rather than a flag, because the load records which
+  rule put the value there and at which older key it found it, and a member
+  that says it was read from `title` says more than one that says only that
+  something happened to it. A member that only the comparison found says that
+  much and no more, which is all that can be known about it. It is never set
+  together with the mark above it: that one says the same thing more precisely,
+  and one member carrying two marks about one fact would be worse than either
+  alone.
 
 ### 4.3 Descriptions and docstrings
 
@@ -544,7 +549,7 @@ by the build and run by hand.
 
 The application may need to pass constructor arguments this library
 knows nothing about. The loader protocol solves that by having a
-**closed** signature: the editor passes only the five things it owns, all
+**closed** signature: the editor passes only the four things it owns, all
 keyword-only, and anything else is bound before the callable reaches the
 editor, with a closure or `functools.partial`.
 
@@ -555,22 +560,22 @@ class ConfigLoader(Protocol):
     def __call__(self, *, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  ok_to_use_defaults: bool = False,
-                 auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr) -> Config:
         """Construct one Config object from the given JSON source."""
 ```
 
-This is `config_as_json.ConfigFactory` plus the two parameters it lacks.
-Adding them here means factory-constructed configurations get automatic
-change reporting and load-policy control, which they cannot get through
-`ConfigFactory` today.
+This is `config_as_json.ConfigFactory` plus the one parameter it lacks.
+Adding it here means factory-constructed configurations get load-policy
+control, which they cannot get through `ConfigFactory` today. It had a fifth
+parameter for the hook that reports automatic changes until `config_as_json`
+1.5 made that hook something every configuration object has (section 5.3);
+what a loader is never asked for is one parameter less to explain.
 
 When no loader is supplied, the editor derives one from `type(config)`,
-reading `inspect.signature()` to decide what that class can be told. The hook
-is one of those things (see section 5.3) and the name of the JSON text is
-another, because more than one name for it is in use; section 8.3.4 is where
-that was found and why it is answered from the signature rather than from one
-documented shape.
+reading `inspect.signature()` to decide what that class can be told. The name
+of the JSON text is what that is for, because more than one name for it is in
+use; section 8.3.4 is where that was found and why it is answered from the
+signature rather than from one documented shape.
 
 **The derived loader is published**, as `derived_loader`, because an
 application that needs one usually needs exactly this with one argument of its
@@ -616,8 +621,9 @@ implementation in `./venv` at step 4: the parameter belongs to
 with the default `False`. So the derived loader has one path for both
 policies: construct the class with no JSON source, which leaves it holding
 its declared defaults, and then call `parse_json()` with the
-`ok_to_use_defaults` the policy asks for. The hook still reaches the object,
-because it is `__init__` that takes it.
+`ok_to_use_defaults` the policy asks for. What that parse records about an
+older file is on the object afterwards, because the hook it records into is
+the object's own.
 
 The editor also reads the file itself rather than passing a file name on to
 `Config.read()`, which calls `file_must_exist()` and therefore ends the
@@ -710,47 +716,64 @@ Reading an old-format file applies `ReadOldConfiguration` rules, so the
 data presented for editing can differ substantially from the file on
 disk. The user must be told, or the editor looks broken.
 
-`Config.read()` accepts no hook; only `Config.__init__` takes
-`auto_ch_hook`. Worse, the application's class must opt in by declaring
-`auto_ch_hook` in its own `__init__` and forwarding it (see
-`e37_read_old_nested_configuration_file.py`); the standard three-keyword
-constructor shape does not. So the editor must **construct** the
-configuration rather than receive an already-loaded one, and must detect
-hook support with `inspect.signature()`.
-
-Because that support cannot be relied on, the primary mechanism is
-hook-independent: **load the file, re-serialize the resulting config, and
-diff that against the raw file text.** Any difference means the load
-changed something. This single mechanism covers all three sources of
-surprise:
+**The comparison is the mechanism**: load the file, re-serialize the resulting
+config, and diff that against the raw file text. Any difference means the load
+changed something. It needs nothing at all of the configuration class and it
+covers all three sources of surprise:
 
 - ROCF migration of an old-format file
 - normalization during parsing
 - values filled in by a permissive load
 
-The structured `ConfigAutoChangeHook` report is used to *explain* the
-diff when the application's class accepts a hook, and is simply absent
-otherwise.
+It is the mechanism rather than a fallback because the second of those three is
+recorded nowhere: a value a member validator rewrote is not an automatic change
+of the kind `config_as_json` reports, and only a comparison finds it.
 
-Built at step 8, where four things about it had to be settled.
+**What the load recorded says why.** `Config.auto_change_hook()` is the hook of
+the most recent parse, and `hook.changes` holds one `RocfChange` per automatic
+change, saying what kind of change it was, which path of the file it consumed
+and which path of the configuration it produced. That is what no comparison can
+know: a renamed key is simply gone from the file, and nothing in the file says
+what it became.
 
-**The hook has to survive being copied.** `Config.__init__` stores
-`deepcopy(auto_ch_hook)` and records into that copy, so the hook an
-application passes is never the hook that is filled in. A hook that only
-prints, as `MigrateCfgWarnHook` does, cannot notice; a hook that is read
-afterwards has to say that a copy of it is itself, which the editor's own hook
-does with `__deepcopy__`. That is worth knowing outside this library too: an
-application that wants to react to a migration by reading its own hook has the
-same problem.
+The editor must still **construct** the configuration rather than receive an
+already-loaded one, because the load policy of section 5.2 is decided while the
+file is read; but the records reach it whatever it constructs.
 
-**Three things are compared, and three things are reported.** A key of the file
-that the configuration does not write back is reported in the message alone,
-because it is no member and has no row to be marked. A member whose value the
-file does not hold as it stands is marked on its row. What the hook adds is the
-names of the older keys the file was read with, which no comparison can know: a
-renamed key is simply gone, and nothing in the file says what it became. Where
-the hook has spoken the editor does not also report the keys it saw for itself,
-because that would say the same thing with less in it.
+Built at step 8 and rebuilt against `config_as_json` 1.5, which is what settled
+the first two of the five things below.
+
+**Nothing is opted into and nothing is passed.** `Config.__init__` creates a
+hook when the application names none, keeps by reference the one it is given,
+and publishes both through `auto_change_hook()`. So a class that declares
+`auto_ch_hook` and hands it on is reported on exactly as fully as the ordinary
+three-keyword constructor shape that does not, the editor passes no hook
+anywhere, and `ConfigLoader` has no parameter for one (section 5.1). Until 1.5
+`Config.__init__` deep copied the hook it was given and recorded into the copy,
+so the editor's own hook had to say that a copy of it was itself; that
+work-around is gone, and with it the rule that the hook had to be read before
+anything parsed the file again — a copy of the configuration now carries a copy
+of the hook, so a later parse cannot disturb what the load recorded.
+
+**A record reaches a member or it reaches the message.** That one rule places
+all of them. A record that produced a member of this configuration explains
+that member and is shown at it, so the mark says *read from the older key
+`title`* rather than only that something happened. A record that produced no
+member consumed a key of the file that nothing here holds, and joins the keys
+the message says saving leaves out — and a key that a member did receive is
+taken *out* of that list, because the comparison put it there and the record
+knows better. A record that did neither supplied a value this configuration
+does not write, which has no row at all, so the message names it and the value
+it carries.
+
+**The records are versioned, and the fallback is text.** `config_as_json` steps
+`DATA_STRUCTURE_VERSION` whenever what it records changes, and asks a reader of
+the records to declare the version it was written for. A future version that
+records something else is not worth refusing a file over: the comparison still
+finds every changed member, and what the records would have added is taken from
+`print_changes`, the library's own report, which is version independent by
+contract. That text is shown as it stands and is never parsed — parsing it
+would be a second way of depending on the version it exists to avoid.
 
 **The comparison is canonical.** `config_as_json` writes the keys of a
 dictionary sorted while a file is written by hand, so the values are compared
@@ -762,14 +785,6 @@ section 4.2 requires of the *edited* mark.
 what the load would write, so such a class has nothing to compare — and it
 cannot be shown at all, for the same reason. The comparison then reports
 nothing and the refusal stays where section 8.3.4 put it.
-
-**The hook is read before anything parses that file again.** Saying that a copy
-of the hook is the hook is what makes the report reach the editor at all, and it
-also means that every copy of the configuration object reports into the same
-hook. The parse that answers what the defaults filled in is one of those copies,
-so it records the same automatic changes a second time, and a hook read after it
-would name every older key twice. Found at step 9, when that parse stopped being
-a subclass built from nothing and became a copy of the loaded object.
 
 ## 6. Validation
 
@@ -1264,7 +1279,7 @@ for exactly one of two options and not for at least one of them, so the refusal
 of a command line that names neither is the one that is written by hand.
 
 **A loader cannot be finished off from a command line**, and the refusal says
-so: whatever it needs beyond the five keyword arguments of `ConfigLoader` has
+so: whatever it needs beyond the four keyword arguments of `ConfigLoader` has
 to be bound where the loader is written, because a command line cannot supply
 an argument this library knows nothing about. That refusal, a name that cannot
 be called at all, and a loader that answered with the wrong class each have a

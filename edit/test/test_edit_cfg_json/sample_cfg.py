@@ -11,7 +11,8 @@ import sys
 from config_as_json import Config, ConfigAutoChangeHook, ConfigPath, \
     InvalidConfiguration, IntFloatValidator, MemberValidationStep, \
     MemberValidator, ParseConverter, PathOrStr, ReadOldConfiguration, \
-    RocfKeyRename, SerializeConverter, SerializeConverters, \
+    RocfKeyMove, RocfKeyRename, RocfValueMigration, RocfValueWrite, \
+    SerializeConverter, SerializeConverters, \
     StrCaseChangeValidator, StrCaseSpec, StrPositionSpec, \
     StrValidator, ValidationPlan, ValueTypeValidator, \
     WholeConfigValidationStep, WholeConfigValidator
@@ -425,11 +426,11 @@ class RefuseCfg(SampleCfg):
 class HookCfg(Config):
     """A configuration whose constructor declares the change hook.
 
-    `Config.__init__` takes the hook, but a class has to declare it and hand
-    it on for the hook to reach it, and the constructor that
-    `config_as_json` documents does not. This class is the one that does, so
-    that the tests can show the editor forwarding the hook to a class that
-    takes it and dropping it for a class that does not.
+    An application declares `auto_ch_hook` and hands it on when it wants to
+    read the records of a parse from an object of its own. The editor needs
+    none of that and passes none, and this class is what says so: it records
+    what it was constructed with, so a test can see that the editor offered it
+    nothing and that the object still reports its own automatic changes.
     """
 
     def __init__(self, from_json_data_text: Optional[str] = None,
@@ -533,9 +534,9 @@ class MigrateRules(ReadOldConfiguration):
 class OldKeyCfg(SampleCfg):
     """A configuration that reads a file of its own older shape.
 
-    Its constructor takes no hook, so the automatic changes of a load are
-    reported to nothing at all and what the editor says about such a file is
-    what it can see for itself.
+    Its constructor takes no hook, which is what most configuration classes
+    look like and which costs it nothing: `Config` gives every object one of
+    its own, and the editor reads the records from the object.
     """
 
     def declare_members(self) -> None:
@@ -548,13 +549,139 @@ class OldKeyCfg(SampleCfg):
         return MigrateRules()
 
 
+OLDER_DICT_KEY = 'bounds'
+"""Name that the dict member of `DictKeyCfg` had in older files."""
+
+OLDER_COUNT_KEY = 'count'
+"""Name of the older value that the number member of today is derived from."""
+
+
+def doubled(value: object) -> object:
+    """Return twice one older number, as a migration of its meaning.
+
+    An older file counted pairs where the current one counts items, which is
+    the kind of change that needs a value migration rather than a move: the
+    path and the value both change.
+
+    Args:
+        value: The number that the older file held.
+
+    Returns:
+        The number that the current shape holds instead.
+    """
+    assert isinstance(value, int)
+    return 2 * value
+
+
+class DictKeyRules(ReadOldConfiguration):
+    """How an older file of `DictKeyCfg` becomes a file of today.
+
+    Two keys inside one dict member were renamed, and the dict member itself
+    was called something else. Renames are recursive and run before moves, so
+    an older file records the two renames under the older name of the member,
+    which is a path that no member of the current shape has.
+    """
+
+    def get_json_key_renames(self) -> list[RocfKeyRename]:
+        """Return the two keys inside the dict member that were renamed."""
+        return [RocfKeyRename(old='lo', new='low'),
+                RocfKeyRename(old='hi', new='high')]
+
+    def get_json_key_moves(self) -> list[RocfKeyMove]:
+        """Return the older name that the dict member itself had."""
+        return [RocfKeyMove(old_path=(OLDER_DICT_KEY,), new_path=('limits',))]
+
+    def get_value_migrations(self) -> list[RocfValueMigration]:
+        """Return the older value that the number member is derived from."""
+        return [RocfValueMigration(
+            old_path=(OLDER_COUNT_KEY,),
+            writes=[RocfValueWrite(new_path=('answer',),
+                                   transform_value=doubled)])]
+
+
+class DictKeyCfg(ListCfg):
+    """A configuration whose older files differ from it in three ways.
+
+    It is the one class of these tests about which the load records more than
+    one thing for one member, because two keys inside one dict member were
+    renamed. It is the one whose records can name a path that is neither a
+    member nor a key of the file, which is what a rule that runs before another
+    rule moves the member leaves behind. And it is the one whose number member
+    is produced by a value migration rather than moved, which the load records
+    as its own kind of change.
+    """
+
+    def _get_read_old_config(self) -> ReadOldConfiguration:
+        """Return the rules that turn an older file into this shape."""
+        return DictKeyRules()
+
+
+SUPPLIED_NOTE = 'a note that the current version does not keep'
+"""Value that the rules below supply for a member nothing writes back."""
+
+
+class NoteRules(ReadOldConfiguration):
+    """Rules that supply a value which the configuration does not write."""
+
+    def get_missing_path_values(self) -> dict[ConfigPath, object]:
+        """Return the value supplied for the member that is not written."""
+        return {('note',): SUPPLIED_NOTE}
+
+
+# The one method is the whole of what a member validator is.
+# pylint: disable-next=too-few-public-methods
+class EmptyingValidator(MemberValidator):
+    """A member validator that empties the member it is given."""
+
+    # A member validator returns the value that is stored back into the
+    # member, so returning None is the whole of what this one does and the
+    # return is anything but useless.
+    # pylint: disable-next=useless-return
+    def validate_member(self, config: Config, member_name: str,
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
+        """Return None, which is what that member holds from now on."""
+        _ = (config, member_name, member_value, stderr_file)
+        return None
+
+
+class SuppliedNoteCfg(SampleCfg):
+    """A configuration whose supplied value reaches no key of its own file.
+
+    The rules for an older file supply `note`, the validation plan then empties
+    it, and the class leaves it out of JSON while it is None. So the load
+    recorded a value that nothing the configuration writes holds, and there is
+    no row it could be shown at. That is the one thing the editor can report
+    only from the record, and only in the message.
+    """
+
+    def declare_members(self) -> None:
+        """Assign one ordinary member and the one that is not written."""
+        self.name: str = 'noted'
+        self.note: Optional[str] = None
+
+    def _omit_none_from_json(self) -> list[str]:
+        """Return the member that is left out of JSON while it is None."""
+        return ['note']
+
+    def _get_read_old_config(self) -> ReadOldConfiguration:
+        """Return the rules that supply the member that is not written."""
+        return NoteRules()
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return the step that empties what the rules supplied."""
+        _ = stderr_file
+        return [MemberValidationStep(member_names=['note'],
+                                     validator=EmptyingValidator())]
+
+
 class OldKeyHookCfg(HookCfg):
     """The same older shape, by a class whose constructor takes the hook.
 
-    `HookCfg` declares `auto_ch_hook` and hands it on, so this is the class
-    that can report which older keys one file was read with. Everything else
-    about the two of them is the same, which is what makes the difference
-    between what they report the only difference there is.
+    `HookCfg` declares `auto_ch_hook` and hands it on, and `OldKeyCfg` above
+    does not. Everything else about the two of them is the same, so what one
+    of them reports about a file and what the other reports about the same
+    file have to be the same word for word.
     """
 
     def _get_read_old_config(self) -> ReadOldConfiguration:
@@ -675,7 +802,6 @@ class PickedCfg(SampleCfg):
 def picking_loader(*, from_json_data_text: Optional[str] = None,
                    from_json_filename: Optional[PathOrStr] = None,
                    ok_to_use_defaults: bool = False,
-                   auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                    stderr_file: TextIO = sys.stderr) -> Config:
     """Return the class that the values of one JSON text select.
 
@@ -691,13 +817,12 @@ def picking_loader(*, from_json_data_text: Optional[str] = None,
     return chosen(from_json_data_text=from_json_data_text,
                   from_json_filename=from_json_filename,
                   ok_to_use_defaults=ok_to_use_defaults,
-                  auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                  stderr_file=stderr_file)
 
 
 def exiting_loader(*, from_json_data_text: Optional[str] = None,
                    from_json_filename: Optional[PathOrStr] = None,
                    ok_to_use_defaults: bool = False,
-                   auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                    stderr_file: TextIO = sys.stderr) -> Config:
     """End the program instead of refusing, as `config_as_json` itself does.
 
@@ -707,14 +832,13 @@ def exiting_loader(*, from_json_data_text: Optional[str] = None,
     into a refusal like any other.
     """
     _ = (from_json_data_text, from_json_filename, ok_to_use_defaults,
-         auto_ch_hook, stderr_file)
+         stderr_file)
     sys.exit(1)
 
 
 def text_only_loader(*, from_json_data_text: Optional[str] = None,
                      from_json_filename: Optional[PathOrStr] = None,
                      ok_to_use_defaults: bool = False,
-                     auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                      stderr_file: TextIO = sys.stderr) -> Config:
     """Return a configuration, refusing to answer without a JSON text.
 
@@ -723,7 +847,7 @@ def text_only_loader(*, from_json_data_text: Optional[str] = None,
     configuration that does not exist yet, and a loader that answers with
     nothing leaves it with nothing to edit.
     """
-    _ = (from_json_filename, auto_ch_hook, ok_to_use_defaults)
+    _ = (from_json_filename, ok_to_use_defaults)
     if from_json_data_text is None:
         raise ValueError('This loader needs a file.')
     return FlatCfg(from_json_data_text=from_json_data_text,

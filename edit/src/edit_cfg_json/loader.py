@@ -7,11 +7,16 @@ the signature it reads. An application whose class needs an argument this
 library knows nothing about — a folder, a connection, the list of names its own
 validators accept — has to say so, and a loader is how it says it.
 
-**The signature of a loader is closed.** The editor passes the five things it
+**The signature of a loader is closed.** The editor passes the four things it
 owns, all of them keyword arguments, and everything else is bound before the
 callable reaches the editor, with a closure or `functools.partial`. That is
 what keeps this protocol from growing a parameter for every application that
 has one: what the editor does not know about is not the editor's to pass.
+
+What a loader is not asked for is the hook that records what reading an old
+format file changed. `Config` gives every configuration object one of its own,
+and `Config.auto_change_hook` is where the editor reads it, so a loader that
+was never told about it reports exactly as much as one that was.
 
 **A loader answers a call with no JSON source**, with the configuration that
 class uses when there is no file yet. The editor asks for that when it is
@@ -35,7 +40,7 @@ class is caught.
 from collections.abc import Callable
 from typing import NamedTuple, Optional, Protocol, TextIO, runtime_checkable
 import sys
-from config_as_json import Config, ConfigAutoChangeHook, PathOrStr
+from config_as_json import Config, PathOrStr
 from edit_cfg_json.constructing import built_config
 
 NO_FILE_NAME = ('The editor reads its own input files, so this loader takes '
@@ -57,23 +62,21 @@ becomes a refusal like any other.
 class ConfigLoader(Protocol):  # pylint: disable=too-few-public-methods
     """Construct the application's configuration object for the editor.
 
-    This is `config_as_json.ConfigFactory` plus the two parameters it lacks, so
-    a factory an application already has is nearly one of these. The two that
-    are added are the ones a load has to be told: the hook that reports what
-    reading an old format file changed, and whether the declared defaults may
-    fill in what the file leaves out.
+    This is `config_as_json.ConfigFactory` plus the one parameter it lacks, so
+    a factory an application already has is nearly one of these. The one that
+    is added is the thing a load has to be told and a construction does not:
+    whether the declared defaults may fill in what the file leaves out.
 
     It is checkable at runtime because a program of this library is told the
     name of one on a command line, and a name that turns out to be something
     else has to be refused rather than called. What that check can see is that
-    the object can be called at all; whether it takes these five keyword
+    the object can be called at all; whether it takes these four keyword
     arguments is answered by calling it.
     """
 
     def __call__(self, *, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  ok_to_use_defaults: bool = False,
-                 auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr) -> Config:
         """Construct one configuration object from the given JSON source.
 
@@ -85,8 +88,6 @@ class ConfigLoader(Protocol):  # pylint: disable=too-few-public-methods
                 written for `config_as_json` fits without being rewritten.
             ok_to_use_defaults: Whether the declared defaults may fill in the
                 members that the JSON text does not hold.
-            auto_ch_hook: Hook that the class reports its automatic changes
-                through, or None when the caller wants none.
             stderr_file: Stream used for user-facing diagnostics.
 
         Returns:
@@ -124,7 +125,6 @@ def derived_loader(factory: Callable[..., Config]) -> ConfigLoader:
     def load(*, from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
              ok_to_use_defaults: bool = False,
-             auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
              stderr_file: TextIO = sys.stderr) -> Config:
         """Construct the configuration and apply the JSON text to it.
 
@@ -135,7 +135,7 @@ def derived_loader(factory: Callable[..., Config]) -> ConfigLoader:
         """
         if from_json_filename is not None:
             raise ValueError(NO_FILE_NAME)
-        config = built_config(factory, stream=stderr_file, hook=auto_ch_hook)
+        config = built_config(factory, stream=stderr_file)
         if from_json_data_text is not None:
             config.parse_json(from_json_text=from_json_data_text,
                               ok_to_use_defaults=ok_to_use_defaults,
@@ -145,8 +145,8 @@ def derived_loader(factory: Callable[..., Config]) -> ConfigLoader:
 
 
 def ask_loader(loader: ConfigLoader, *, stream: TextIO,
-               text: Optional[str] = None, ok_to_use_defaults: bool = False,
-               hook: Optional[ConfigAutoChangeHook] = None) -> Config:
+               text: Optional[str] = None,
+               ok_to_use_defaults: bool = False) -> Config:
     """Ask one loader for one configuration object of this application.
 
     Every call the editor makes to a loader goes through here, so that a loader
@@ -160,7 +160,6 @@ def ask_loader(loader: ConfigLoader, *, stream: TextIO,
         text: JSON text to apply, or None for the declared values.
         ok_to_use_defaults: Whether the declared defaults may fill in what the
             text does not hold.
-        hook: Hook that reports the automatic changes of an old format file.
 
     Returns:
         The configuration object that the loader made.
@@ -172,7 +171,7 @@ def ask_loader(loader: ConfigLoader, *, stream: TextIO,
         AttributeError: The class declares no public member at all.
     """
     try:
-        return loader(from_json_data_text=text, auto_ch_hook=hook,
+        return loader(from_json_data_text=text,
                       ok_to_use_defaults=ok_to_use_defaults,
                       stderr_file=stream)
     except SystemExit as error:
@@ -207,8 +206,7 @@ class ConfigSource(NamedTuple):
         return type(self.config)
 
     def made(self, *, stream: TextIO, text: Optional[str] = None,
-             ok_to_use_defaults: bool = False,
-             hook: Optional[ConfigAutoChangeHook] = None) -> Config:
+             ok_to_use_defaults: bool = False) -> Config:
         """Return one configuration object of this session's class.
 
         Args:
@@ -216,8 +214,6 @@ class ConfigSource(NamedTuple):
             text: JSON text to apply, or None for the declared values.
             ok_to_use_defaults: Whether the declared defaults may fill in what
                 the text does not hold.
-            hook: Hook that reports the automatic changes of an old format
-                file.
 
         Returns:
             The configuration object that was constructed.
@@ -231,4 +227,4 @@ class ConfigSource(NamedTuple):
         loader = self.loader if self.loader is not None \
             else derived_loader(self.config_type)
         return ask_loader(loader, stream=stream, text=text,
-                          ok_to_use_defaults=ok_to_use_defaults, hook=hook)
+                          ok_to_use_defaults=ok_to_use_defaults)

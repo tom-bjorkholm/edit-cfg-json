@@ -49,19 +49,18 @@ def test_declared_values(config_type: type[Config], name: str,
     assert getattr(config, 'answer', None) == answer
 
 
-def test_hook_reaches_class() -> None:
-    """Test the change hook reaches a class that declares it."""
-    hook = ConfigAutoChangeHook()
-    config = built_config(HookCfg, stream=StringIO(), hook=hook)
+def test_no_hook_is_forced() -> None:
+    """Test a class that declares the change hook is offered none.
+
+    The editor has no hook to offer: it reads what a load recorded from the
+    object the load produced, so a class that declares the parameter is
+    constructed exactly like a class that does not, and the object holds the
+    hook that `Config` gave it.
+    """
+    config = built_config(HookCfg, stream=StringIO())
     assert isinstance(config, HookCfg)
-    assert config.hook_given() is hook
-
-
-@pytest.mark.parametrize('hook', [None, ConfigAutoChangeHook()])
-def test_hook_dropped(hook: Optional[ConfigAutoChangeHook]) -> None:
-    """Test a class that does not declare the hook is built without it."""
-    assert isinstance(built_config(FlatCfg, stream=StringIO(), hook=hook),
-                      FlatCfg)
+    assert config.hook_given() is None
+    assert isinstance(config.auto_change_hook(), ConfigAutoChangeHook)
 
 
 def test_extra_argument() -> None:

@@ -68,12 +68,17 @@ def test_file_name_refused() -> None:
     assert str(error_info.value) == NO_FILE_NAME
 
 
-def test_hook_reaches_class() -> None:
-    """Test a derived loader hands the change hook to a class that takes it."""
-    hook = ConfigAutoChangeHook()
-    config = derived_loader(HookCfg)(auto_ch_hook=hook, stderr_file=StringIO())
+def test_no_hook_is_forced() -> None:
+    """Test a derived loader offers no change hook to a class that takes one.
+
+    There is none to offer: what a load recorded is read from the object it
+    produced, so a loader has no reason to be told about a hook and the
+    protocol does not have one.
+    """
+    config = derived_loader(HookCfg)(stderr_file=StringIO())
     assert isinstance(config, HookCfg)
-    assert config.hook_given() is hook
+    assert config.hook_given() is None
+    assert isinstance(config.auto_change_hook(), ConfigAutoChangeHook)
 
 
 def test_bound_argument() -> None:

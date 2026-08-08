@@ -22,8 +22,13 @@ from .helpers import DESCRIPTIONS, EXPECTED_VALUES, FILLED_MARK, \
     VALIDATE_ALT_KEY, VALIDATE_KEY, VALID_VERDICT, field_of, mark_of, \
     model_value, verdict_of
 
-LOAD_CHANGE_MARK = ' (changed by the load)'
-"""Mark of a member whose value reading the input file changed."""
+LOAD_REASON = 'supplied for a file of an older format'
+"""What the model of the test below says the load did to one member.
+
+It is a text of this test and not one of the core's, because what this backend
+has to do with it is show it. A backend that put a wording of its own around a
+member the load changed would pass a test that used the core's wording.
+"""
 
 MARKUP_TEXT = 'value [red on blue]here[/] is refused'
 """Text of a configuration that happens to look like console markup."""
@@ -205,7 +210,7 @@ async def _change_shown() -> tuple[str, str]:
         The mark of the member the load changed, and the mark of the member it
         left alone.
     """
-    report = LoadReport(message=LOAD_MESSAGE, changed=frozenset({'answer'}))
+    report = LoadReport(message=LOAD_MESSAGE, reasons={'answer': LOAD_REASON})
     app = EditorApp(EditModel(FlatConfig(), report))
     async with app.run_test():
         return mark_of(app, 'answer'), mark_of(app, 'name')
@@ -238,7 +243,7 @@ def test_load_change_shown() -> None:
     exactly where a member the defaults filled in would be.
     """
     changed, held = asyncio.run(_change_shown())
-    assert changed == LOAD_CHANGE_MARK
+    assert changed == f' ({LOAD_REASON})'
     assert held == ''
 
 

@@ -8,19 +8,34 @@ filling in what the file left out. The user has to be told, because the values
 on the screen are then not the values in the file, and an editor that said
 nothing about that would look broken.
 
-**What changed is found by comparing, and not by asking.** The values the load
-produced are written back to JSON and compared with the text of the file, key
-by key. That is exact, it needs nothing of the configuration class, and it
-covers all three directions at once, which is why it is the mechanism rather
-than the fallback: the report below is one that a class has to opt into, and
-most classes do not.
+**What changed is found by comparing.** The values the load produced are
+written back to JSON and compared with the text of the file, key by key. That
+is exact, it needs nothing of the configuration class, and it covers all three
+directions at once. It is the only one of the two mechanisms here that sees a
+value which parsing or a validator normalized, so it stays the mechanism.
 
-**Why it changed is asked of the class, where the class answers.**
-`ConfigAutoChangeHook` is what `config_as_json` reports its own automatic
-changes through, and it reaches a class only where that class declares
-`auto_ch_hook` and hands it on. What it adds is what the comparison cannot
-know: the older keys the file was read with. A key that was renamed is simply
+**Why it changed is asked of the load, which records it.**
+`Config.auto_change_hook()` is the hook that `config_as_json` recorded the
+automatic changes of the most recent parse into, and every configuration object
+has one whether the application asked for it or not. Each record says what kind
+of change it was, which path of the file it consumed and which path of the
+configuration it produced, so the editor can say at the member itself what the
+load did to it — which the comparison cannot: a key that was renamed is simply
 gone from the file, and nothing in the file says which member it became.
+
+**A record reaches a member or it reaches the message.** That one rule places
+all of them. A record that produced a member of this configuration explains
+that member and is shown there. A record that produced no member consumed a key
+of the file that nothing here holds, so it joins the keys that saving leaves
+out. A record that did neither supplied a value this configuration does not
+write, and the message is the only place it can be named.
+
+**The records are versioned, and the fallback is text.** `config_as_json` steps
+`DATA_STRUCTURE_VERSION` whenever what it records changes, so a future version
+records something this module was not written for. That is not worth a refusal:
+the comparison still finds every changed member, and what the records would
+have added is taken from `print_changes`, which is the library's own report and
+is version independent. That text is shown as it stands and is never read.
 
 **What the declared defaults filled in is asked of the parse.** It is the one
 of the three that has a mark of its own, so it has to be exact, and the keys
@@ -34,13 +49,22 @@ into a copy of the loaded object whose key check records and stops.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from io import StringIO
 from typing import NamedTuple, Optional, TextIO
 import json
-from config_as_json import Config, ConfigAutoChangeHook, JsonType
+from config_as_json import Config, ConfigAutoChangeHook, \
+    HookDataVersionError, JsonType, RocfChange, RocfChangeKind
 from edit_cfg_json.constructing import parsed_config
+
+HOOK_DATA_VERSION = 1
+"""Version of the recorded automatic changes that this module reads.
+
+`ConfigAutoChangeHook.DATA_STRUCTURE_VERSION` is stepped whenever the records
+change, including purely additively, so that a reader of them is made to look
+at what is new. This is the version that was looked at.
+"""
 
 WRITE_ERRORS = (TypeError, ValueError)
 """Every way in which writing the values of one load back to JSON can fail.
@@ -68,37 +92,27 @@ KEY_METHOD = 'check_key_match'
 RECORDED = 'The keys of one parse were recorded.'
 """What the exception that carries those keys says for itself."""
 
+NO_MEMBER = ''
+"""What the records that reached no member of this configuration are under.
 
-# Every method that a hook has is inherited, and the one method below is the
-# whole reason this class exists.
-# pylint: disable-next=too-few-public-methods
-class ChangeReport(ConfigAutoChangeHook):
-    """The automatic changes of one load, as the load itself reports them.
+No member has it for a name, so it cannot collide with one, and grouping the
+records that reached a member and the records that did not in one mapping is
+what makes the rule of the module docstring one pass over them.
+"""
 
-    `Config.__init__` deep copies the hook it is given and records into the
-    copy, so a hook that is read afterwards would answer with nothing at all.
-    This one is read afterwards, and `__deepcopy__` is how it says so: the
-    object is a channel back to the editor, and a copy of a channel is the
-    channel.
+REMOVING_KINDS = frozenset({RocfChangeKind.KEY_PRUNED,
+                            RocfChangeKind.PATH_REMOVED,
+                            RocfChangeKind.OLD_VALUE_DISCARDED,
+                            RocfChangeKind.OLD_KEY_HANDLED})
+"""The kinds of record that leave the value of an old path nowhere at all.
 
-    What that costs is that every copy of a configuration object reports into
-    this same hook, so a second parse of the same file records what the first
-    one recorded a second time. `file_changes` reads the hook before it parses
-    anything, which is where that is dealt with.
-    """
-
-    def __deepcopy__(self, memo: dict[int, object]) -> 'ChangeReport':
-        """Return this very hook, so that the load reports to the editor.
-
-        Args:
-            memo: What `copy.deepcopy` has copied already, which a copy that
-                copies nothing has no use for.
-
-        Returns:
-            This object, which is then the one the load records into.
-        """
-        _ = memo
-        return self
+Only these are keys that saving leaves out. The kinds that are not here move a
+value somewhere, and one of those that reached no member moved it to a path
+this configuration does not write directly — a step on the way to a member of
+it, which the rules for an older format take when a whole object moves. Such a
+step is reported at the member the object became and nowhere else, because
+naming it among the keys that are left out would be untrue of it.
+"""
 
 
 class FileChanges(NamedTuple):
@@ -117,38 +131,50 @@ class FileChanges(NamedTuple):
     """
 
     dropped: frozenset[str] = frozenset()
-    """Keys of the file that this configuration does not write back.
+    """Paths of the file that this configuration does not write back.
 
-    A key the rules for an older format renamed or removed is one of these,
-    and so is one whose member the class leaves out of JSON while it is None.
-    None of them has a row, because none of them is a member of this
-    configuration, so the message is the only place they can be reported.
+    A key the rules for an older format removed is one of these, and so is one
+    whose member the class leaves out of JSON while it is None. None of them
+    has a row, because none of them is a member of this configuration, so the
+    message is the only place they can be reported.
     """
 
     changed: frozenset[str] = frozenset()
     """Members whose value the load itself put there or altered.
 
-    A member the declared defaults filled in is deliberately not one of them.
-    It is marked already, by a mark that says more than this one would, and
-    one member carrying two marks about the same thing would be worse than
-    either of them alone.
+    This is what the comparison found, so a member that a validator or the
+    parsing normalized is here and nowhere else. A member the declared defaults
+    filled in is deliberately not one of them: it is marked already, by a mark
+    that says more than this one would, and one member carrying two marks about
+    the same thing would be worse than either of them alone.
     """
 
-    old_keys: tuple[str, ...] = ()
-    """Older keys the load accepted, as the configuration class reported them.
+    reasons: Mapping[str, tuple[RocfChange, ...]] = {}
+    """What the load recorded about each member that it recorded anything for.
 
-    Empty for a class that does not declare the hook, and empty for a file
-    that is in the current format. A key that was moved rather than renamed is
-    reported as `old.path -> new.path`, which is what `config_as_json` puts
-    there.
+    These are the records that produced a member of this configuration, which
+    is what lets the editor say at the member what was done to it rather than
+    only that something was. A member can have more than one when the record is
+    about a value inside it, so the records of one member are kept in the order
+    the rules applied them.
     """
 
-    supplied: tuple[str, ...] = ()
-    """Paths the rules for an older format supplied values for.
+    unplaced: tuple[RocfChange, ...] = ()
+    """Records that neither a member nor a key of the file accounts for.
 
-    These are the values that neither the file nor the declared defaults gave:
-    the configuration class supplied them, because the file is too old to hold
-    them at all.
+    A value that the rules for an older format supplied for something this
+    configuration does not write is what that means in practice. It consumed no
+    key of the file and produced no member, so the message is the only place it
+    can be named, and the record carries the value it supplied.
+    """
+
+    detail: str = ''
+    """What the library says about its records, for a version not read here.
+
+    It is empty whenever the records were read, and it is the report of
+    `ConfigAutoChangeHook.print_changes` when they were not. It is shown as it
+    stands and never read: which version records what is the library's to say,
+    and a text that was parsed would be a second way of depending on it.
     """
 
     @property
@@ -160,8 +186,8 @@ class FileChanges(NamedTuple):
         reported as the incomplete file it is, which is a different thing from
         a file that was read as something other than what it says.
         """
-        return bool(self.dropped or self.changed or self.old_keys
-                    or self.supplied)
+        return bool(self.dropped or self.changed or self.reasons
+                    or self.unplaced or self.detail)
 
 
 def _canonical(value: JsonType) -> str:
@@ -244,6 +270,77 @@ def _altered(written: Mapping[str, JsonType],
                      or _canonical(value) != _canonical(held[name]))
 
 
+def _member(path: Optional[str], written: Mapping[str, JsonType]) -> str:
+    """Return the member of this configuration that one path belongs to.
+
+    A recorded path names a value and not always a member: it is written as
+    `outputs[0][encoding]` for a value inside a nested configuration object,
+    and the member of this configuration is the first step of it. A path inside
+    a member is therefore about that member, which is as near as anything can
+    get to it while the member is one row.
+
+    Args:
+        path: Path that one record produced, or None when it produced none.
+        written: The members that this configuration writes.
+
+    Returns:
+        The member that path belongs to, and `NO_MEMBER` for a path that
+        belongs to none of them.
+    """
+    name = '' if path is None else path.partition('[')[0]
+    return name if name in written else NO_MEMBER
+
+
+def _by_member(changes: Sequence[RocfChange],
+               written: Mapping[str, JsonType]) \
+        -> dict[str, list[RocfChange]]:
+    """Return the records of one load, grouped by the member each produced.
+
+    Args:
+        changes: What the load recorded about the file it read.
+        written: The members that this configuration writes.
+
+    Returns:
+        The records of each member by its name, with the records that produced
+        no member of this configuration under `NO_MEMBER`.
+    """
+    grouped: dict[str, list[RocfChange]] = {}
+    for change in changes:
+        member = _member(change.new_path, written)
+        grouped.setdefault(member, []).append(change)
+    return grouped
+
+
+def _version_read(hook: ConfigAutoChangeHook) -> bool:
+    """Return whether the records of one hook are of the version read here.
+
+    Args:
+        hook: Hook that the load recorded its automatic changes into.
+
+    Returns:
+        Whether what it recorded means what this module reads it as.
+    """
+    try:
+        hook.check_data_version(written_for=HOOK_DATA_VERSION)
+    except HookDataVersionError:
+        return False
+    return True
+
+
+def _printed(hook: ConfigAutoChangeHook) -> str:
+    """Return the report that the library writes about its own records.
+
+    Args:
+        hook: Hook that the load recorded its automatic changes into.
+
+    Returns:
+        That report, and nothing at all when there was nothing to report.
+    """
+    said = StringIO()
+    hook.print_changes(stderr_file=said)
+    return said.getvalue().strip()
+
+
 class _ParsedKeys(Exception):
     """The keys of one parse, carried out of the parse that recorded them.
 
@@ -307,7 +404,9 @@ def _filled(config: Config, text: str) -> frozenset[str]:
     object whose key check records what it was given and stops the parse there.
     Stopping is what keeps this from repeating anything: everything after the
     key check is what the real load has already done, so the application's own
-    validators still run once, on the object that is really being edited.
+    validators still run once, on the object that is really being edited. The
+    copy records into a copy of the hook as well, so what the load recorded is
+    left exactly as the load left it.
 
     Args:
         config: Configuration object that the load produced.
@@ -327,36 +426,99 @@ def _filled(config: Config, text: str) -> frozenset[str]:
     return frozenset()
 
 
-def file_changes(config: Config, text: str, hook: ChangeReport,
-                 permissive: bool) -> FileChanges:
-    """Return what one successful load did to the file that it read.
+def _compared(config: Config, text: str,
+              permissive: bool) -> tuple[FileChanges,
+                                         Mapping[str, JsonType]]:
+    """Return what comparing one load with its file found, and the members.
 
     Args:
         config: Configuration object that the load produced.
         text: The whole text of the input file.
-        hook: Hook the load was given, which a configuration class that
-            declares it has reported its own automatic changes through.
         permissive: Whether the load was allowed to fill in what the file left
             out. A load that was not fills nothing in, so there is nothing to
             ask the parse about.
 
     Returns:
+        What the comparison alone found, and the members that this
+        configuration writes.
+
+    Raises:
+        TypeError: This class cannot write the values it holds.
+        ValueError: This class refuses to write the values it holds.
+    """
+    written = _written(config)
+    held = _held(text)
+    filled = _filled(config=config, text=text) if permissive else frozenset()
+    return FileChanges(filled=filled,
+                       dropped=frozenset(held) - frozenset(written),
+                       changed=_altered(written=written,
+                                        held=held) - filled), written
+
+
+def _consumed(records: Iterable[RocfChange]) -> frozenset[str]:
+    """Return the paths of the file that one set of records took a value from.
+
+    Args:
+        records: Records of what the load did.
+
+    Returns:
+        The old path of each of them that has one.
+    """
+    return frozenset(change.old_path for change in records
+                     if change.old_path is not None)
+
+
+def _recorded(changes: FileChanges, hook: ConfigAutoChangeHook,
+              written: Mapping[str, JsonType]) -> FileChanges:
+    """Return what the comparison found, with what the load recorded added.
+
+    A key of the file that a member received is taken out of the keys that
+    saving leaves out. The comparison puts it there, because the member holds
+    it under another name and the comparison cannot know that; the record can,
+    and a key that is reported at its member is not also reported as one that
+    nothing here holds.
+
+    Args:
+        changes: What comparing the load with its file found.
+        hook: Hook that the load recorded its automatic changes into.
+        written: The members that this configuration writes.
+
+    Returns:
+        The same, with every record placed at the member it produced, among
+        the keys of the file that nothing here holds, or in the message.
+    """
+    if not _version_read(hook):
+        return changes._replace(detail=_printed(hook))
+    grouped = _by_member(hook.changes, written)
+    loose = grouped.pop(NO_MEMBER, [])
+    gone = [change for change in loose if change.kind in REMOVING_KINDS]
+    placed = [change for records in grouped.values() for change in records]
+    return changes._replace(
+        dropped=(changes.dropped | _consumed(gone)) - _consumed(placed),
+        reasons={name: tuple(records) for name, records in grouped.items()},
+        unplaced=tuple(change for change in loose if change.old_path is None))
+
+
+def file_changes(config: Config, text: str, permissive: bool) -> FileChanges:
+    """Return what one successful load did to the file that it read.
+
+    Args:
+        config: Configuration object that the load produced. What the load
+            recorded is read from this object, because every configuration
+            object holds the hook of its own most recent parse whether the
+            application asked for one or not.
+        text: The whole text of the input file.
+        permissive: Whether the load was allowed to fill in what the file left
+            out.
+
+    Returns:
         What the load did, with every field empty for a file that the load
         took exactly as it stood.
     """
-    # The hook is read first, before anything here parses this file again. The
-    # editor's hook says that a copy of it is itself, which is the only way its
-    # report reaches the editor at all, so the probe below would otherwise
-    # record the same automatic changes into it a second time.
-    reported = FileChanges(old_keys=tuple(hook.old_keys),
-                           supplied=tuple(hook.rocf_val_keys))
     try:
-        written = _written(config)
+        changes, written = _compared(config=config, text=text,
+                                     permissive=permissive)
     except WRITE_ERRORS:
         return FileChanges()
-    held = _held(text)
-    filled = _filled(config=config, text=text) if permissive else frozenset()
-    return reported._replace(filled=filled,
-                             dropped=frozenset(held) - frozenset(written),
-                             changed=_altered(written=written,
-                                              held=held) - filled)
+    return _recorded(changes=changes, hook=config.auto_change_hook(),
+                     written=written)

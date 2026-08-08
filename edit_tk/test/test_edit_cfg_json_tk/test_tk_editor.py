@@ -20,8 +20,13 @@ from .helpers import EXPECTED_FIELDS, EXPECTED_LABELS, EXPECTED_LOADED, \
     REWRITTEN_MARK, stub_editor, stub_press, stub_texts, UNKNOWN_VERDICT, \
     VALID_VERDICT
 
-LOAD_CHANGE_MARK = ' (changed by the load)'
-"""Mark of a member whose value reading the input file changed."""
+LOAD_REASON = 'read from the older key count'
+"""What the model of the test below says the load did to one member.
+
+It is a text of this test and not one of the core's, because what this backend
+has to do with it is show it. A backend that put a wording of its own around a
+member the load changed would pass a test that used the core's wording.
+"""
 
 
 def test_stub_widget_texts(stub_tk: None) -> None:
@@ -267,7 +272,7 @@ def _changed_model() -> EditModel:
     mark of it is the model's answer, and this backend shows the marks it is
     given wherever it shows the other marks of a member.
     """
-    report = LoadReport(message=LOAD_MESSAGE, changed=frozenset({'answer'}))
+    report = LoadReport(message=LOAD_MESSAGE, reasons={'answer': LOAD_REASON})
     return EditModel(FlatConfig(), report)
 
 
@@ -276,14 +281,14 @@ def test_stub_load_change(stub_tk: None) -> None:
     _ = stub_tk
     stub_editor(_changed_model())
     shown = stub_texts(packed_only=True)
-    assert shown[shown.index('answer') + 1] == LOAD_CHANGE_MARK
+    assert shown[shown.index('answer') + 1] == f' ({LOAD_REASON})'
 
 
 def test_real_load_change(root_or_skip: tkinter.Tk) -> None:
     """Test the real Tk editor marks that member in exactly the same way."""
     EditorWidgets(parent=root_or_skip, model=_changed_model())
     shown = real_texts(root_or_skip, packed_only=True)
-    assert shown[shown.index('answer') + 1] == LOAD_CHANGE_MARK
+    assert shown[shown.index('answer') + 1] == f' ({LOAD_REASON})'
 
 
 def test_is_editor_backend() -> None:

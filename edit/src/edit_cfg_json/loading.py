@@ -2,10 +2,8 @@
 """Reading the configuration to edit from one input file.
 
 The editor constructs the configuration object rather than receiving one that
-is already loaded. Both of the things a load has to be told are given to a
-constructor and to nothing else: the hook that reports the automatic changes
-of an old format file, and the policy for declared keys the file does not
-contain.
+is already loaded, because the policy for declared keys the file does not
+contain is decided while it is read and cannot be asked afterwards.
 
 How that construction happens is the one thing an application may have to say
 for itself, and `loader` is where it says it. Reading a file is also the only
@@ -34,13 +32,14 @@ beside the words for everything else that one load has to report.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from enum import Enum, auto
 from io import StringIO
 from pathlib import Path
 from typing import NamedTuple, Optional
-from config_as_json import Config, ConfigBadJson, PathOrStr
-from edit_cfg_json.auto_change import ChangeReport, FileChanges, file_changes
+from config_as_json import Config, ConfigBadJson, PathOrStr, RocfChange, \
+    RocfChangeKind
+from edit_cfg_json.auto_change import FileChanges, file_changes
 from edit_cfg_json.constructing import built_config
 from edit_cfg_json.loader import ConfigLoader, ConfigSource
 from edit_cfg_json.settings import Settings, SettingsSource, checked_file, \
@@ -107,21 +106,58 @@ None of them is a member of this configuration, so none of them has a row that
 could be marked, and this line is the only place they can be reported.
 """
 
-OLD_FORMAT_FORM = ('This file is in an older format. It was read with these '
-                   'older keys: {names}')
-"""Form of the line that names the older keys that the load accepted.
-
-It says what the line above it says and says why as well, so the two are never
-both shown: a class that reported its own automatic changes has explained the
-keys of its file, and the editor's own reading of them would only repeat it.
-"""
-
 SUPPLIED_FORM = ('These values were supplied because this file is in an older '
                  'format: {names}')
 """Form of the line naming what the rules for an older format supplied.
 
-Neither the file nor the declared defaults gave these values. The
-configuration class did, because the file is too old to hold them at all.
+It names only what no member of this configuration received, because what a
+member received is said at that member. Neither the file nor the declared
+defaults gave these values: the configuration class did, because the file is
+too old to hold them at all.
+"""
+
+VALUED_FORM = '{path} = {value!r}'
+"""Form naming one supplied value, where the record carries the value.
+
+`config_as_json` records the value it inserted, except for one entry point that
+an application calls itself and that is not given it. The path alone is named
+there, which is less and is still true.
+"""
+
+NORMALIZED_REASON = 'changed by the load'
+"""What is said about a member that only the comparison found.
+
+Parsing and validating are what change a value without any rule for an older
+format being involved, and neither of them is recorded anywhere. So this says
+that the value is not the one the file holds and does not say why, which is
+the whole of what can be known about it.
+"""
+
+REASON_FORMS: Mapping[RocfChangeKind, str] = {
+    RocfChangeKind.KEY_RENAMED: 'read from the older key {old}',
+    RocfChangeKind.PATH_MOVED: 'moved here from the older {old}',
+    RocfChangeKind.VALUE_MIGRATED: 'converted from the older {old}',
+    RocfChangeKind.MISSING_VALUE_ADDED:
+        'supplied because this file is in an older format',
+    RocfChangeKind.OLD_VALUE_DISCARDED:
+        'kept, and the older {old} of this file was dropped'}
+"""What is said about a member, by the kind of record that produced it.
+
+The kinds that are not here are the ones that produce no member at all: a key
+that was pruned, a path that was removed and old data that the application
+handled itself leave nothing behind to say it of, and they are named among the
+keys that saving leaves out instead. A kind that reaches a member without being
+here is said in the one text there is for a member the load changed, which is
+less than it deserves and is never wrong.
+"""
+
+MORE_REASONS_FORM = '{first}, and {count} more'
+"""Form used where the load recorded more than one change about one member.
+
+That happens where the record is about a value inside the member rather than
+about the member itself, which a nested configuration object has. The first is
+named because it is the first rule that ran, and the rest are counted rather
+than listed, because a mark shares its line with the field it belongs to.
 """
 
 
@@ -166,14 +202,15 @@ class LoadReport(NamedTuple):
     the file asked for.
     """
 
-    changed: frozenset[str] = frozenset()
-    """Names of the members whose value the load itself put there or altered.
+    reasons: Mapping[str, str] = {}
+    """What the load did to each member it put a value into or altered.
 
     Reading a file is not always only reading it: the rules a class declares
     for an older format may have supplied a value or renamed a key into a
     member, and parsing or validating may have normalized one. The model marks
-    the row of each of these too, so that a value which is not the one in the
-    file can be seen to be one. A member the declared defaults filled in is
+    the row of each of these, so that a value which is not the one in the file
+    can be seen to be one, and the text says which of those things happened
+    wherever the load recorded it. A member the declared defaults filled in is
     not here but in `filled`, which says the same thing more precisely.
     """
 
@@ -265,13 +302,13 @@ def _type_refusal(source: ConfigSource, said: StringIO,
 
 
 def _attempt(source: ConfigSource, text: str, ok_to_use_defaults: bool,
-             said: StringIO, hook: ChangeReport) -> Config:
+             said: StringIO) -> Config:
     """Try once to build one configuration object from one file text.
 
     The stream is the caller's, because a key that does not match is
-    reported to the caller and what was said about it is needed there. The
-    hook is the caller's for the same reason: what it collects is what the
-    caller reports about the load that succeeded.
+    reported to the caller and what was said about it is needed there. What
+    the load recorded about the file needs no such passing on: it is held by
+    the configuration object that the load produced.
 
     Args:
         source: Configuration being loaded, and how it is constructed.
@@ -279,7 +316,6 @@ def _attempt(source: ConfigSource, text: str, ok_to_use_defaults: bool,
         ok_to_use_defaults: Whether the declared defaults may fill in the
             keys the file does not hold.
         said: Stream that collects what the class says about the file.
-        hook: Hook that collects the automatic changes of this attempt.
 
     Returns:
         A configuration object holding the values of the file.
@@ -289,7 +325,7 @@ def _attempt(source: ConfigSource, text: str, ok_to_use_defaults: bool,
         ConfigLoadError: The file cannot be opened for editing.
     """
     try:
-        return source.made(stream=said, text=text, hook=hook,
+        return source.made(stream=said, text=text,
                            ok_to_use_defaults=ok_to_use_defaults)
     except ConfigBadJson as error:
         raise ConfigLoadError(NOT_CONFIG,
@@ -319,8 +355,27 @@ def _named(names: Iterable[str]) -> str:
     return ', '.join(sorted(names))
 
 
+def _supplied_name(change: RocfChange) -> str:
+    """Return one supplied value as the message names it.
+
+    Args:
+        change: Record of a value that the rules for an older format supplied.
+
+    Returns:
+        The path it was supplied for, with the value where the record has one.
+    """
+    if change.value is None:
+        return str(change.new_path)
+    return VALUED_FORM.format(path=change.new_path, value=change.value)
+
+
 def _change_lines(changes: FileChanges) -> list[str]:
     """Return what a load that changed its file has to say about that.
+
+    What one member of this configuration received is said at that member and
+    not here, so what is left is what has no member to be said at: the keys of
+    the file that saving leaves out, and the values supplied for something this
+    configuration does not write.
 
     Args:
         changes: What the load did to the file it read.
@@ -332,16 +387,54 @@ def _change_lines(changes: FileChanges) -> list[str]:
     if not changes.anything:
         return []
     lines = [AUTO_CHANGED]
-    if changes.old_keys:
-        lines.append(OLD_FORMAT_FORM.format(names=_named(changes.old_keys)))
-    elif changes.dropped:
+    if changes.dropped:
         lines.append(DROPPED_FORM.format(names=_named(changes.dropped)))
-    if changes.supplied:
-        lines.append(SUPPLIED_FORM.format(names=_named(changes.supplied)))
-    return lines
+    if changes.unplaced:
+        lines.append(SUPPLIED_FORM.format(names=_named(
+            _supplied_name(change) for change in changes.unplaced)))
+    return lines + ([changes.detail] if changes.detail else [])
 
 
-def _report(config: Config, text: str, said: str, hook: ChangeReport,
+def _reason(records: Sequence[RocfChange]) -> str:
+    """Return what the load recorded about one member, as one text.
+
+    Args:
+        records: What the load recorded about that one member, in the order
+            the rules applied them.
+
+    Returns:
+        What was done to that member.
+    """
+    first = records[0]
+    text = REASON_FORMS.get(first.kind, NORMALIZED_REASON) \
+        .format(old=first.old_path)
+    if len(records) == 1:
+        return text
+    return MORE_REASONS_FORM.format(first=text, count=len(records) - 1)
+
+
+def _reasons(changes: FileChanges) -> dict[str, str]:
+    """Return what the load did to each member, by the name of that member.
+
+    A member the load recorded something about is said in the words of that
+    record, and a member that only the comparison found is said in the one
+    text there is for it. A member the declared defaults filled in is in
+    neither: that is said by the mark which says it more precisely.
+
+    Args:
+        changes: What the load did to the file it read.
+
+    Returns:
+        One text per member that the load put a value into or altered.
+    """
+    found = {name: NORMALIZED_REASON for name in changes.changed}
+    found.update({name: _reason(records)
+                  for name, records in changes.reasons.items()})
+    return {name: text for name, text in found.items()
+            if name not in changes.filled}
+
+
+def _report(config: Config, text: str, said: str,
             permissive: bool) -> LoadReport:
     """Return what one load did beyond reading the values of its file.
 
@@ -353,19 +446,17 @@ def _report(config: Config, text: str, said: str, hook: ChangeReport,
         config: Configuration object that the load built.
         text: The whole text of the input file.
         said: What the configuration class said about the file.
-        hook: Hook that collected the automatic changes of this load.
         permissive: Whether the load was allowed to fill in what the file
             left out.
 
     Returns:
         The report of one load.
     """
-    changes = file_changes(config=config, text=text, hook=hook,
-                           permissive=permissive)
+    changes = file_changes(config=config, text=text, permissive=permissive)
     lines = [FILLED_MESSAGE if changes.filled else ''] + \
         _change_lines(changes) + [said.strip()]
     return LoadReport(message='\n'.join(line for line in lines if line),
-                      filled=changes.filled, changed=changes.changed)
+                      filled=changes.filled, reasons=_reasons(changes))
 
 
 def _permissive(source: ConfigSource, text: str) -> LoadedConfig:
@@ -387,15 +478,14 @@ def _permissive(source: ConfigSource, text: str) -> LoadedConfig:
         ConfigLoadError: The file cannot be opened for editing.
     """
     said = StringIO()
-    hook = ChangeReport()
     try:
         config = _attempt(source=source, text=text, said=said,
-                          ok_to_use_defaults=True, hook=hook)
+                          ok_to_use_defaults=True)
     except KeyError as error:
         raise ConfigLoadError(UNKNOWN_KEY,
                               _explained(said=said, error=error)) from error
     return LoadedConfig(config=config,
-                        report=_report(config=config, text=text, hook=hook,
+                        report=_report(config=config, text=text,
                                        said=said.getvalue(), permissive=True))
 
 
@@ -446,15 +536,14 @@ def _load_text(source: ConfigSource, text: str,
     if policy is LoadPolicy.DEFAULTS:
         return _permissive(source=source, text=text)
     said = StringIO()
-    hook = ChangeReport()
     try:
         config = _attempt(source=source, text=text, said=said,
-                          ok_to_use_defaults=False, hook=hook)
+                          ok_to_use_defaults=False)
     except KeyError:
         return _rescue(source=source, text=text, policy=policy,
                        said=said.getvalue())
     return LoadedConfig(config=config,
-                        report=_report(config=config, text=text, hook=hook,
+                        report=_report(config=config, text=text,
                                        permissive=False, said=said.getvalue()))
 
 
@@ -468,10 +557,7 @@ def default_config(config_type: type[Config]) -> Config:
 
     It is the same construction that reading an input file starts from, so a
     class the editor cannot construct is refused here in the same words and
-    with the same diagnostics, and the hook that reports the automatic changes
-    of an old format file reaches a class that declares it. Nothing reads that
-    hook here, because there is no file to read and therefore nothing for it to
-    report.
+    with the same diagnostics.
 
     An application whose class needs a constructor argument this library knows
     nothing about has a loader instead, and calls that with no JSON source.
@@ -488,7 +574,7 @@ def default_config(config_type: type[Config]) -> Config:
     """
     said = StringIO()
     try:
-        return built_config(config_type, stream=said, hook=ChangeReport())
+        return built_config(config_type, stream=said)
     except DEFAULTS_ERRORS as error:
         raise ConfigLoadError(NO_DEFAULTS.format(name=config_type.__name__),
                               _explained(said=said, error=error)) from error

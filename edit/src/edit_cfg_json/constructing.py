@@ -36,10 +36,7 @@ from collections.abc import Callable, Mapping
 from copy import deepcopy
 from typing import Optional, TextIO
 import inspect
-from config_as_json import Config, ConfigAutoChangeHook
-
-HOOK_NAME = 'auto_ch_hook'
-"""Name of the constructor parameter that reports automatic changes."""
+from config_as_json import Config
 
 STREAM_NAME = 'stderr_file'
 """Name of the constructor parameter that takes the diagnostics stream."""
@@ -60,20 +57,18 @@ constructed without it.
 """
 
 
-def _arguments(factory: Callable[..., Config], stream: TextIO,
-               hook: Optional[ConfigAutoChangeHook]) -> dict[str, object]:
+def _arguments(factory: Callable[..., Config],
+               stream: TextIO) -> dict[str, object]:
     """Return what to call one configuration class with.
 
-    The values are a stream, a hook and `None`, and which parameter each of
-    them belongs to differs from class to class, so there is no one type that
-    they share.
+    The values are a stream and `None`, and which parameter each of them
+    belongs to differs from class to class, so there is no one type that they
+    share.
 
     Args:
         factory: Class, or callable with its own arguments already bound,
             that constructs the configuration.
         stream: Stream that collects what the class says about itself.
-        hook: Hook that reports the automatic changes of an old format file,
-            or None when the caller wants none.
 
     Returns:
         The keyword arguments for one construction of that class.
@@ -89,14 +84,17 @@ def _arguments(factory: Callable[..., Config], stream: TextIO,
                      None)
     if text_name is not None:
         arguments[text_name] = None
-    if hook is not None and HOOK_NAME in parameters:
-        arguments[HOOK_NAME] = hook
     return arguments
 
 
-def built_config(factory: Callable[..., Config], *, stream: TextIO,
-                 hook: Optional[ConfigAutoChangeHook] = None) -> Config:
+def built_config(factory: Callable[..., Config], *, stream: TextIO) -> Config:
     """Construct one configuration holding the values that its class declares.
+
+    Nothing is passed for the automatic changes of an old format file, and
+    nothing needs to be: `Config` gives every configuration object a hook of
+    its own where the application named none, and `Config.auto_change_hook`
+    is where the load that used it is read afterwards. A class that declares
+    the parameter is constructed exactly like one that does not.
 
     Args:
         factory: Class to construct, or a callable that constructs it with
@@ -105,13 +103,6 @@ def built_config(factory: Callable[..., Config], *, stream: TextIO,
         stream: Stream that collects what the class says about itself. It is
             passed only to a class that declares it; one that does not writes
             wherever it writes, which is less pleasant and not a refusal.
-        hook: Hook that reports the automatic changes of an old format file.
-            It reaches a class that declares the parameter and is dropped for
-            one that does not, which is what `config_as_json` leaves to the
-            application to opt into: a class that collects further keyword
-            arguments could be forwarding them or refusing them, and offering
-            the hook to it would turn a load that works into one that fails,
-            for a report that is a nicety.
 
     Returns:
         A configuration object holding only what the class declares.
@@ -124,7 +115,7 @@ def built_config(factory: Callable[..., Config], *, stream: TextIO,
             refusal of `config_as_json` is a subclass of this.
         AttributeError: The class declares no public member at all.
     """
-    return factory(**_arguments(factory=factory, stream=stream, hook=hook))
+    return factory(**_arguments(factory=factory, stream=stream))
 
 
 def parsed_config(config: Config, text: str, *, stream: TextIO,
@@ -135,7 +126,9 @@ def parsed_config(config: Config, text: str, *, stream: TextIO,
     This is how an edit buffer becomes a configuration object. The copy is what
     keeps the editor from ever modifying the object it was given, and
     `parse_json` is what applies the buffer, with everything the configuration
-    class does while it reads a file.
+    class does while it reads a file. The hook that records the automatic
+    changes of a parse is copied with the object, so what the load of the input
+    file recorded stays as the load left it however often a buffer is parsed.
 
     One method of the copy can be replaced, on the object and not on the class,
     which is how the editor reaches a state that the class does not offer: a

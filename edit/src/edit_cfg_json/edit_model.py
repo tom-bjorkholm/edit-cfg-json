@@ -80,8 +80,8 @@ class MemberRow(NamedTuple):
     the flag above, so that two backends cannot show it differently.
     """
 
-    changed_by_load: bool = False
-    """Whether reading the input file put this value here or altered it.
+    load_reason: str = ''
+    """What reading the input file did to this member, empty when nothing.
 
     Reading a file is not always only reading it. A class that declares rules
     for reading an older format may have supplied this value or renamed a key
@@ -89,10 +89,12 @@ class MemberRow(NamedTuple):
     normalized what the file held. The user has to be told, because the value
     shown is then not the value in the file.
 
-    It stays set for the rest of the session, exactly as the flag above does
-    and for the same reason, and the two are never both set: what the declared
-    defaults filled in is said by that flag, which says more than this one
-    would.
+    It says which of those things happened wherever the load recorded it, and
+    says that the value is not the file's where it did not, which is the whole
+    of what a comparison can know. It stays as it is for the rest of the
+    session, exactly as the flag above does and for the same reason, and the
+    two are never both there: what the declared defaults filled in is said by
+    that flag, which says more than this would.
     """
 
     description: str = ''
@@ -205,8 +207,8 @@ def _row_of(name: str, value: JsonType, report: LoadReport, about: str,
     """
     return MemberRow(path=(name,), value=value, original=value,
                      filled_from_default=name in report.filled,
-                     changed_by_load=name in report.changed, description=about,
-                     converter=converter)
+                     load_reason=report.reasons.get(name, ''),
+                     description=about, converter=converter)
 
 
 def _about(name: str, members: Mapping[str, JsonType],

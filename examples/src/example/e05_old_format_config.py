@@ -28,25 +28,34 @@ nothing at all of the configuration class, which is why it is the mechanism
 and not the fallback, and it is exact, because it compares what would be
 written with what is there.
 
-## What the class can add, and what it costs to be able to add it
+## What the load records, and why every class gets it
 
 The comparison can see that the file has no `report_name` and that the values
 hold one. It cannot see that `report_name` is what `title` became: a key that
 was renamed is simply gone, and nothing in the file says what it turned into.
 
-`ConfigAutoChangeHook` is what `config_as_json` reports that through, and a
-class reaches it only by declaring `auto_ch_hook` in its own `__init__` and
-handing it on, as `OldFormatConfig` below does. `NoHookConfig` below it is the
-same configuration by a class that does not, so the two together show exactly
-what the hook is worth: the same marks on the same members either way, and the
-older keys named only by the class that can name them.
+`config_as_json` records that while it reads. Every automatic change becomes
+one `RocfChange`, saying which kind of change it was, which path of the file it
+consumed and which path of the configuration it produced, and the editor puts
+each of them at the member it produced. So `report_name` says that it was read
+from the older key `title`, `format_version` says that it was supplied because
+the file is older, and `owner` says only that the load changed it, because a
+value a validator normalized is recorded nowhere and the comparison is all
+there is for it.
 
-One thing to know if your own application wants to read such a report:
-`Config.__init__` deep copies the hook it is given, so the object the
-application passed is not the object the load records into. A hook that only
-prints, like `MigrateCfgWarnHook`, does not notice. A hook that is read
-afterwards has to say that a copy of it is itself, which is what this editor's
-own hook does with `__deepcopy__`.
+**Your class needs to do nothing to get this.** The records are read from
+`Config.auto_change_hook()`, and `Config` gives every configuration object one
+of those whether the application asked for one or not. `OldFormatConfig` below
+declares `auto_ch_hook` in its own `__init__` and hands it on, which is what an
+application does when it wants to read the records itself; `NoHookConfig` below
+it is the same configuration by a class that does not. The two report exactly
+the same, which is the point of having both of them here.
+
+One thing to know if your own application wants to read those records:
+`ConfigAutoChangeHook.check_data_version` is how it says which version of them
+it was written for, and a `config_as_json` that records another version then
+says so plainly instead of being misread. An application that only wants them
+printed calls `print_changes` and needs no such check at all.
 
 Run this example with one of:
 
@@ -69,19 +78,19 @@ python3 e05_old_format_config.py --ui dump -i ../../data/e05_old_format.json
 python3 e05_old_format_config.py --ui dump -i ../../data/e05_current.json
 ````
 
-And this is the same old file read by the class that cannot report anything,
-through the program that the core installs, which needs no example at all:
+And this is the same old file read by the class that declares no hook, through
+the program that the core installs, which needs no example at all:
 
 ````sh
 PYTHONPATH=examples/src edit-cfg-json --module example.e05_old_format_config \
     --class NoHookConfig -i examples/data/e05_old_format.json
 ````
 
-The marks are the same, and the line naming the older keys is gone. What is
-left in its place is the editor's own reading of the file: these keys are in
-the file, this configuration does not use them, and saving leaves them out.
-That is less than the other class says and it is enough to keep the editor
-honest, which is the whole reason the comparison is the mechanism.
+Every mark is the same and every word is the same, because what the load
+recorded belongs to the object it loaded and not to the constructor of the
+class. What the message is left with is the one fact that belongs to no member:
+`debug_trace` is in the file, this configuration does not use it, and saving
+leaves it out.
 
 Migrating the file is then one more option on the same program, because a
 program with nobody to press Save is the one that offers `--save`:
@@ -148,9 +157,10 @@ class OldFormatRules(ReadOldConfiguration):
 class OldFormatConfig(Config):
     """A report configuration that can be read from an older file too.
 
-    Its constructor declares `auto_ch_hook` and hands it on, which is the
-    whole of what an application has to do for the editor to be able to name
-    the older keys that a file was read with.
+    Its constructor declares `auto_ch_hook` and hands it on, which is what an
+    application does when it wants to read the records of a load from a hook
+    object of its own. The editor needs none of that: it reads them from the
+    object the load produced, so `NoHookConfig` below reports the same.
     """
 
     def __init__(self, from_json_data_text: Optional[str] = None,
@@ -163,9 +173,11 @@ class OldFormatConfig(Config):
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             auto_ch_hook: Hook notified about what reading an older file did.
-                This is the parameter that the editor looks for. A class
-                without it is read exactly as well and reports less, which is
-                what `NoHookConfig` below is here to show.
+                An application declares this when it wants to read those
+                records from an object of its own. The editor asks the
+                configuration object instead, so a class without this
+                parameter is reported on exactly as well, which is what
+                `NoHookConfig` below is here to show.
             stderr_file: Stream used for user-facing diagnostics.
         """
         self.format_version: int = CURRENT_FORMAT
@@ -212,8 +224,9 @@ class NoHookConfig(OldFormatConfig):
 
     That is on purpose, and it is what most configuration classes look like:
     the three keyword arguments that `config_as_json` documents, and no more.
-    Such a class is edited exactly as well, and the editor then reports what
-    it can see for itself and nothing that only the class could have said.
+    Such a class is edited exactly as well **and reported on exactly as
+    fully**, because `Config` gives it a hook of its own and the editor reads
+    that one. Nothing an application has to opt into is needed for any of this.
     """
 
     def __init__(self, from_json_data_text: Optional[str] = None,
@@ -226,9 +239,10 @@ class NoHookConfig(OldFormatConfig):
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
         """
-        # The editor reads the signature of the class it is given, so leaving
-        # the hook out here is the whole of what makes this class the one that
-        # cannot report the older keys of a file.
+        # Leaving the hook out here used to be what made this class the one
+        # that could not report the older keys of a file. It no longer costs
+        # anything at all, and running the two classes over the same file is
+        # what shows that.
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)

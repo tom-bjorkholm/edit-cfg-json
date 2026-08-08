@@ -238,15 +238,13 @@ def _chosen_class(text: Optional[str]) -> type[CadConfig]:
 def chosen_config(*, from_json_data_text: Optional[str] = None,
                   from_json_filename: Optional[PathOrStr] = None,
                   ok_to_use_defaults: bool = False,
-                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                   stderr_file: TextIO = sys.stderr) -> Config:
     """Construct the configuration class that the JSON selects.
 
-    This is an `edit_cfg_json.ConfigLoader` written out, and the five keyword
-    arguments are the whole of the protocol. Two of them are what make it more
-    than `config_as_json.ConfigFactory`: the hook that reports what reading an
-    older file changed, and the policy for members a file leaves out. The
-    second of those is why a configuration is constructed and the JSON is
+    This is an `edit_cfg_json.ConfigLoader` written out, and the four keyword
+    arguments are the whole of the protocol. One of them is what makes it more
+    than `config_as_json.ConfigFactory`: the policy for members a file leaves
+    out. That is also why a configuration is constructed and the JSON is
     applied to it afterwards rather than being handed to the constructor —
     `Config.__init__` takes no `ok_to_use_defaults`.
 
@@ -257,8 +255,6 @@ def chosen_config(*, from_json_data_text: Optional[str] = None,
             because it reads its own input files.
         ok_to_use_defaults: Whether the declared values may fill in the
             members that the JSON text does not hold.
-        auto_ch_hook: Hook that the class reports its automatic changes
-            through, or None when the caller wants none.
         stderr_file: Stream used for user-facing diagnostics.
 
     Returns:
@@ -278,7 +274,7 @@ def chosen_config(*, from_json_data_text: Optional[str] = None,
     return chosen(from_json_data_text=from_json_data_text,
                   from_json_filename=from_json_filename,
                   ok_to_use_defaults=ok_to_use_defaults,
-                  auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                  stderr_file=stderr_file)
 
 
 DESCRIPTIONS: Descriptions = {

@@ -384,7 +384,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 1054 passed, 3 deselected in 20s
+- Test result: 1058 passed, 3 deselected in 20s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

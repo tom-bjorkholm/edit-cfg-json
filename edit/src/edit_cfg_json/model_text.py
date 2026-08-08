@@ -20,12 +20,14 @@ VALIDATOR_MARK = ' (changed by validator)'
 FILLED_MARK = ' (filled from default)'
 """Mark that follows the value of a member the input file did not hold."""
 
-LOAD_MARK = ' (changed by the load)'
-"""Mark that follows a value that reading the input file put there.
+LOAD_FORM = ' ({reason})'
+"""Form of the mark that follows a value reading the input file put there.
 
 A file in an older format is what puts one there in practice: a key of it was
 renamed into this member, or the rules for that format supplied the value. A
-value that parsing or validating normalized is marked with this too.
+value that parsing or validating normalized is marked with this too. What is
+in it is what the model says the load did to that member, which is the words
+of the record where the load recorded one.
 """
 
 DIRTY_MARK = ' *'
@@ -111,7 +113,8 @@ def row_marks(row: MemberRow) -> str:
         The marks of one member, empty when nothing has happened to it.
     """
     filled = FILLED_MARK if row.filled_from_default else ''
-    loaded = LOAD_MARK if row.changed_by_load else ''
+    loaded = LOAD_FORM.format(reason=row.load_reason) \
+        if row.load_reason else ''
     edited = EDITED_MARK if row.edited else ''
     rewritten = VALIDATOR_MARK if row.changed_by_validator else ''
     return filled + loaded + edited + rewritten

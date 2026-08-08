@@ -280,19 +280,25 @@ def test_loader_that_exits(tmp_path: Path) -> None:
     assert LOADER_EXITED in error.diagnostics
 
 
-def test_hook_forwarded(tmp_path: Path) -> None:
-    """Test the hook reaches a class whose constructor declares it."""
+def test_no_hook_forwarded(tmp_path: Path) -> None:
+    """Test a load offers no hook to a class whose constructor declares one.
+
+    What a load recorded is read from the object it produced, so a class that
+    declares the parameter is constructed exactly like one that does not and
+    the object holds the hook that `Config` gave it.
+    """
     loaded = load_config(config=HookCfg(),
                          in_file=_written(tmp_path, COMPLETE))
-    assert isinstance(_hook_of(loaded.config), ConfigAutoChangeHook)
+    assert _hook_of(loaded.config) is None
+    assert isinstance(loaded.config.auto_change_hook(), ConfigAutoChangeHook)
 
 
-def test_hook_not_forced(tmp_path: Path) -> None:
-    """Test a class that does not declare the hook is loaded without it.
+def test_class_without_hook(tmp_path: Path) -> None:
+    """Test a class that does not declare the hook is loaded as any other.
 
-    Every other test of this module already loads such a class, but this one
-    says why it works: offering the hook to a class that does not take it
-    would make the load fail with a `TypeError`.
+    Every other test of this module already loads such a class, and this one
+    says that it is loaded by the same construction: nothing is passed for the
+    automatic changes, so there is no parameter a class can be refused over.
     """
     loaded = load_config(config=FlatCfg(),
                          in_file=_written(tmp_path, COMPLETE))
@@ -396,14 +402,15 @@ def test_buffer_is_the_file(tmp_path: Path) -> None:
     assert not model.dirty
 
 
-def test_hook_without_file() -> None:
+def test_no_file_keeps_object() -> None:
     """Test the caller's object is used as it is when there is no file.
 
-    Nothing is constructed then, so the hook question does not arise, and
-    the object keeps whatever hook the application gave it.
+    Nothing is constructed then, so the object keeps whatever hook the
+    application gave it, which is none here.
     """
     config = HookCfg()
-    assert _hook_of(load_config(config=config).config) is None
+    assert load_config(config=config).config is config
+    assert _hook_of(config) is None
 
 
 def _named(tmp_path: Path, name: str) -> Path:
