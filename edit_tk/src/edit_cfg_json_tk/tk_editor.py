@@ -16,11 +16,11 @@ from collections.abc import Callable
 from typing import NamedTuple, Optional, TextIO
 import sys
 import tkinter
-from tkinter import filedialog
 from config_as_json import Config, ConfigPath, PathOrStr
 import edit_cfg_json as core
 from edit_cfg_json_tk.key_names import bind_key
 from edit_cfg_json_tk.scrolling import scrolling_body
+from edit_cfg_json_tk.tk_ask import asked_file, may_close
 from edit_cfg_json_tk.tk_elements import element_controls
 from edit_cfg_json_tk.tk_look import FIELD_BACKGROUND, FIELD_BORDER, \
     FIELD_FOREGROUND, FOLD_WIDTH, LEAST_FIELD_WIDTH, NAME_COLUMN_WIDTH, \
@@ -74,42 +74,11 @@ Closing writes nothing of its own. It is the "cancel" of the design, and it
 is called Close because saving leaves the editor open: a button called Cancel
 beside values that have already been written would read as an offer to undo
 the writing, which it is not.
+
+Because it writes nothing, it is asked about while there is something in the
+buffer that has not reached the file. That question is `tk_ask.may_close`, and
+what it asks is the core's.
 """
-
-SAVE_AS_TITLE = 'Save the configuration as'
-"""Title of the dialog that asks which file to write."""
-
-CONFIG_FILES = 'Configuration files ({extension})'
-"""What the dialog calls the files of the extension the application uses."""
-
-ALL_FILES = 'All files'
-"""What the dialog calls every other file."""
-
-
-def _file_types(settings: core.Settings) -> list[tuple[str, str]]:
-    """Return what the dialog that asks for a file offers to filter by.
-
-    An application that enforces its extension has that one filter and no
-    other, because a name with another extension cannot be saved and a
-    dialog that offered to look for one would be inviting a refusal. An
-    application whose extension is a default offers it first and everything
-    else after it, because a name with another extension can be saved. An
-    application with no opinion offers nothing, which is what this dialog
-    did before there were settings at all.
-
-    Args:
-        settings: What the application has decided about file names.
-
-    Returns:
-        The file types of the dialog, empty when it has no opinion.
-    """
-    extension = settings.file_extension
-    if extension is None:
-        return []
-    named = (CONFIG_FILES.format(extension=extension), f'*{extension}')
-    if settings.extension_enforced:
-        return [named]
-    return [named, (ALL_FILES, '*')]
 
 
 class StateWidgets(NamedTuple):
@@ -298,6 +267,21 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._show_rows()
         self._bind_keys(parent.winfo_toplevel())
 
+    def close_editor(self) -> None:
+        """End the session, asking first where there is something to lose.
+
+        This is what every way out of the editor does: the button, the key of
+        the quit action, and the close button of a window that this backend
+        owns. A way out that dropped the changes without a word would be the
+        one thing an editor must not do, and having one method for all of
+        them is what keeps any of them from becoming that.
+
+        What closing itself does is what the caller said it does, which is
+        destroying the window for a caller that owns one.
+        """
+        if may_close(self._model):
+            self._close()
+
     @property
     def label_text(self) -> str:
         """Return the text that the label of the whole model shows."""
@@ -426,8 +410,9 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         tkinter.Checkbutton(line, text=EXPLAIN_TEXT, command=self._explain,
                             variable=explained).pack(side='left', padx=PADDING)
         folding = self._add_fold_all(line)
-        tkinter.Button(line, text=CLOSE_TEXT,
-                       command=self._close).pack(side='left', padx=PADDING)
+        closing = tkinter.Button(line, text=CLOSE_TEXT,
+                                 command=self.close_editor)
+        closing.pack(side='left', padx=PADDING)
         return folding
 
     def _add_fold_all(self, parent: tkinter.Misc) -> Optional[tkinter.Button]:
@@ -465,7 +450,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         """
         actions = self._model.settings.actions
         folding = actions.fold if core.can_fold(self._model) else ()
-        for keys, command in ((actions.quit, self._close),
+        for keys, command in ((actions.quit, self.close_editor),
                               (actions.validate, self._validate),
                               (actions.save, self._save),
                               (actions.save_as, self._save_as),
@@ -785,20 +770,11 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
     def _save_as(self) -> None:
         """Ask which file to write, and write it when one was named.
 
-        What the dialog offers is what the application decided: the
-        extension it uses for its configuration is the one the dialog adds
-        to a name that has none, and the one it offers to filter by. An
-        application with no opinion gets a dialog with none, which is what
-        this dialog had before there were settings at all.
-
         The name that comes back is handed to the model, which is what
         completes it and what refuses it, so that a user of this backend and
         a user of the other one are told the same thing about one name.
         """
-        settings = self._model.settings
-        chosen = filedialog.asksaveasfilename(
-            title=SAVE_AS_TITLE, filetypes=_file_types(settings),
-            defaultextension=settings.file_extension or '')
+        chosen = asked_file(self._model.settings)
         if chosen:
             self._model.set_out_file(chosen)
             self._save()
@@ -893,6 +869,12 @@ class TkEditor:  # pylint: disable=too-few-public-methods
         own the fields that the Tcl variables belong to. The window is this
         backend's own, which is why closing the editor destroys it.
 
+        The close button of the window is made to do what the Close button of
+        the editor does, so that the one way out that is not a widget of the
+        editor cannot be the one way out that drops the changes without
+        asking. It is set on this window and on no other: the editor never
+        touches a window it did not create.
+
         This is for an application that has no Tk of its own yet, because a
         second `tkinter.Tk` is a second Tcl interpreter and nothing can be
         shared between the two. An application that already runs Tk gets the
@@ -905,6 +887,7 @@ class TkEditor:  # pylint: disable=too-few-public-methods
         window = tkinter.Tk()
         window.title(model.config_type_name)
         self._widgets = EditorWidgets(parent=window, model=model)
+        window.protocol('WM_DELETE_WINDOW', self._widgets.close_editor)
         window.mainloop()
 
 

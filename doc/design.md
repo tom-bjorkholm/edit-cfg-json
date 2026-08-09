@@ -1403,6 +1403,63 @@ explicitly not a `config.write()`, explicitly not loadable by the
 application, reopened by the editor on next start. Not a v1 priority, but
 the model must not be designed in a way that rules it out.
 
+### 7.2 Closing with something unsaved
+
+Closing writes nothing (section 9.1: quitting is the cancel of this design), so
+a session closed with something in the buffer that has not reached the file
+loses it. The editor is the only thing that knows there is anything to lose, so
+it asks first.
+
+**Whether the user is asked, and what they are asked, belongs to the core.** It
+is a decision that depends on the state of the model, which is section 4.5's
+rule, and it is the same rule that already places the verdict line, the saving
+line and the marks there: two user interfaces of one application, one of which
+asked and one of which did not, would be worse than either behaviour. **How the
+question is put belongs to each backend**, because that is where the toolkits
+differ — Tk has a message box and Textual has a modal screen — and it is the
+same split as everywhere else.
+
+It is one function and not two. `close_question` answers with the question, and
+with nothing at all when there is nothing to ask about, exactly as `load_text`
+is empty when the load has nothing to say. Closing then reads as one sentence
+in both backends: ask where there is a question, and close where there is not
+or where the answer was to discard.
+
+**What it asks is `dirty`**, which is already "the buffer holds something worth
+saving": a save moves the values the buffer is compared with (section 4.2), so
+a session that saved and typed nothing since is not asked, and a save the
+application refused leaves the buffer dirty and is.
+
+**Every way out asks, including the one that is not a widget of the editor.**
+The button, the key of the quit action and the close button of the window all
+go through one method of the backend, because a way out that dropped the
+changes without a word would be the one thing an editor must not do, and one
+method for all of them is what keeps any one of them from becoming that. The
+window is only ever the one the backend created: the editor never touches a
+window it did not create, which is section 8.2.2 holding here as well.
+
+**Both backends offer the answer that keeps the changes first**, as the answer
+the dialog opens on and as the control the screen puts the focus on, because a
+user who answers without reading should keep what they have. Leaving the
+question — the cancel key of section 9.1 — is the same as keeping them.
+
+**A backend that prints once and returns is asked nothing.** There is no
+session for a user to close and nobody to answer, so `DumpEditor` consults
+none of this; where the core is asked, such a backend's answer is to discard,
+which is the only answer it ever had.
+
+**Two answers and not three.** Saving on the way out was rejected: it would
+have to cope with a save the application refuses, with no destination chosen
+yet, and with the Save-as question opening from inside a confirmation, and all
+three of those belong to saving rather than to closing. The user presses Save
+and then closes, which is one keystroke more and no new state.
+
+**No `Settings` attribute.** Whether there is anything unsaved is something the
+editor knows for itself, and section 9.6 keeps `Settings` for what only the
+application knows. Whether *overwriting* a file is confirmed is a different
+question, because only the application knows how its files are looked after,
+and that one is left where section 9.6 leaves it.
+
 ## 8. The UI backend contract
 
 The end goal is an editor embeddable in an application that already runs
@@ -2031,6 +2088,7 @@ In scope:
   list, and give a declared optional member its object or take it away
 - descriptions, class docstrings, and a docstring visibility toggle
 - automatic-change and filled-default visibility
+- a question before closing drops what has not been saved (section 7.2)
 - modal `edit()` with both backends
 
 Deliberately out of scope for v1:

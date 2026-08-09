@@ -9,9 +9,9 @@ from typing import Optional
 import pytest
 from config_as_json import Config, ConfigPath, JsonType
 from edit_cfg_json import Descriptions, EditModel, LoadReport, MemberRow, \
-    docstring_text, load_text, model_as_text, model_title, row_description, \
-    row_diagnostic, row_marks, row_subtree_text, row_value_text, save_text, \
-    verdict_text
+    close_question, docstring_text, load_text, model_as_text, model_title, \
+    row_description, row_diagnostic, row_marks, row_subtree_text, \
+    row_value_text, save_text, verdict_text
 from .container_cfg import KeyedEnumCfg, TreeCfg
 from .sample_cfg import HIGHEST, TOO_LARGE_MESSAGE, DocumentedCfg, FlatCfg, \
     IntEnumCfg, ListCfg, NoDocCfg, NoneCfg, RangeCfg, RewriteCfg, RulesCfg
@@ -323,6 +323,38 @@ def test_edit_after_save_text(tmp_path: Path) -> None:
     model.save()
     model.set_text(path=('answer',), text='7')
     assert save_text(model) == f'save to: {out_file}'
+
+
+def test_nothing_to_lose() -> None:
+    """Test a buffer nobody has touched is closed without a question."""
+    assert close_question(EditModel(FlatCfg())) == ''
+
+
+def test_close_asks() -> None:
+    """Test a buffer holding an unsaved change is asked about."""
+    model = EditModel(FlatCfg())
+    model.set_text(path=('answer',), text='7')
+    assert 'discard' in close_question(model)
+
+
+def test_close_after_save(tmp_path: Path) -> None:
+    """Test a change that has reached the file is not asked about.
+
+    A save moves the values the buffer is compared with, so there is then
+    nothing left that closing would lose.
+    """
+    model = EditModel(FlatCfg(), out_file=tmp_path / 'out.json')
+    model.set_text(path=('answer',), text='7')
+    model.save()
+    assert close_question(model) == ''
+
+
+def test_close_after_refusal(tmp_path: Path) -> None:
+    """Test a change that a refused save left in the buffer is asked about."""
+    model = EditModel(RangeCfg(), out_file=tmp_path / 'out.json')
+    model.set_text(path=('answer',), text='500')
+    model.save()
+    assert close_question(model) != ''
 
 
 def test_docstring_text() -> None:

@@ -17,8 +17,8 @@ from textual.pilot import Pilot
 from textual.widgets import Button, Input
 from config_as_json import ConfigPath
 from edit_cfg_json import EditModel
-from edit_cfg_json_textual.textual_ask import ASK_BOX_ID
 from edit_cfg_json_textual.textual_editor import EditorApp
+from edit_cfg_json_textual.textual_look import ASK_BOX_ID
 from edit_cfg_json_textual.textual_elements import ADD_ACTION, ADD_LABEL, \
     ASK_KEY_ID, EARLIER_ACTION, LATER_ACTION, LATER_LABEL, REMOVE_ACTION, \
     REMOVE_LABEL, element_id

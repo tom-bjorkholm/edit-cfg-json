@@ -339,6 +339,7 @@
   * [TREE\_INDENT](#edit_cfg_json.model_text.TREE_INDENT)
   * [LEAF\_FORM](#edit_cfg_json.model_text.LEAF_FORM)
   * [CONTAINER\_FORM](#edit_cfg_json.model_text.CONTAINER_FORM)
+  * [CLOSE\_QUESTION](#edit_cfg_json.model_text.CLOSE_QUESTION)
   * [SUBTREE\_VALID\_MARK](#edit_cfg_json.model_text.SUBTREE_VALID_MARK)
   * [SUBTREE\_REFUSED\_MARK](#edit_cfg_json.model_text.SUBTREE_REFUSED_MARK)
   * [INSIDE\_VALID\_MARK](#edit_cfg_json.model_text.INSIDE_VALID_MARK)
@@ -362,6 +363,7 @@
   * [verdict\_text](#edit_cfg_json.model_text.verdict_text)
   * [load\_text](#edit_cfg_json.model_text.load_text)
   * [save\_text](#edit_cfg_json.model_text.save_text)
+  * [close\_question](#edit_cfg_json.model_text.close_question)
   * [\_head\_text](#edit_cfg_json.model_text._head_text)
   * [model\_as\_text](#edit_cfg_json.model_text.model_as_text)
   * [model\_title](#edit_cfg_json.model_text.model_title)
@@ -2050,6 +2052,12 @@ def run_editor(model: EditModel) -> None
 
 Run the user interface for one model until the user is done.
 
+A backend that offers the user a way out asks `close_question` on
+every one of them before it takes it, because closing writes nothing
+and a session that is closed with something in the buffer loses it.
+What is asked is the model's to say and how it is asked is the
+backend's, which is the same split as everything else here.
+
 **Arguments**:
 
 - `model` - Model to show. The backend reads and edits the model, and
@@ -2076,6 +2084,11 @@ returns. So it is the backend of a program that says what a configuration
 file amounts to rather than one that offers to change it, and whoever runs
 such a program has no later moment at which to press Save. Saving is
 therefore the caller's to ask for, before the model is handed over.
+
+For the same reason it asks nothing before it ends. There is no session
+for a user to close and nobody to answer a question, so what a session
+that ends here does with a buffer that was never saved is settled: it
+ends, which is the only thing it could ever have done.
 
 <a id="edit_cfg_json.backend.DumpEditor.run_editor"></a>
 
@@ -6003,6 +6016,16 @@ A colon and not an equals sign, because what follows is not the value: for a
 list, a dict or a nested configuration object the value is on the rows below,
 and this says how many of them there are or which class they belong to.
 
+<a id="edit_cfg_json.model_text.CLOSE_QUESTION"></a>
+
+#### CLOSE\_QUESTION
+
+What the user is asked before closing an editor with unsaved changes.
+
+Closing writes nothing of its own, so a session that is closed with something
+in the buffer loses it. What is lost is the one thing the editor knows and the
+user may not, which is why it is said rather than left to be discovered.
+
 <a id="edit_cfg_json.model_text.SUBTREE_VALID_MARK"></a>
 
 #### SUBTREE\_VALID\_MARK
@@ -6536,6 +6559,38 @@ the user is told about the output file.
 **Returns**:
 
   What the last attempt to save did, or where saving would write.
+
+<a id="edit_cfg_json.model_text.close_question"></a>
+
+#### close\_question
+
+```python
+def close_question(model: EditModel) -> str
+```
+
+Return what to ask before closing, and nothing when there is nothing.
+
+Closing writes nothing, so a session with something in the buffer that has
+not reached the file loses it. Whether that is so and what is asked about
+it belong here rather than to a backend, by the same rule as the verdict
+and the saving: two user interfaces of one application, one of which asked
+and one of which did not, would be worse than either behaviour. How the
+question is put is each backend's own, because that is where the toolkits
+differ.
+
+A backend that prints once and returns is not asking anybody: there is no
+session for a user to close, so it consults nothing here and its answer is
+the one it always had, which is that there is nothing to keep.
+
+**Arguments**:
+
+- `model` - Model that is about to be closed.
+  
+
+**Returns**:
+
+  The question to put to the user, and nothing at all when the buffer
+  holds nothing that closing would lose.
 
 <a id="edit_cfg_json.model_text._head_text"></a>
 

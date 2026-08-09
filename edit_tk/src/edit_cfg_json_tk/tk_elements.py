@@ -3,9 +3,9 @@
 
 They are here rather than in the module that builds the window for the reason
 every other split of this backend was made: one module of a thousand lines is
-one nobody reads to the end. What is here is one row's worth of controls and
-the one question this backend has to ask that the toolkit has no dialog of its
-own for, which is what a new entry of a dict is to be called.
+one nobody reads to the end. What is here is one row's worth of controls, and
+nothing else: the question that one of them has to ask is in `tk_ask`, with
+the other question this backend asks.
 
 Nothing here decides *whether* a node offers anything. That is
 `edit_cfg_json.MemberRow.offer`, which the core works out once so that the two
@@ -16,10 +16,9 @@ backends cannot offer different things.
 # MIT License
 
 from collections.abc import Callable
-from typing import Optional
 import tkinter
-from tkinter import simpledialog
 import edit_cfg_json as core
+from edit_cfg_json_tk.tk_ask import asked_key
 from edit_cfg_json_tk.tk_look import ELEMENT_WIDTH
 
 ADD_TEXT = 'Add'
@@ -39,12 +38,6 @@ EARLIER_TEXT = 'Up'
 
 LATER_TEXT = 'Down'
 """Text of the control that moves one element towards the back."""
-
-ADD_KEY_TITLE = 'Add an entry'
-"""Title of the dialog that asks what a new entry of a dict is called."""
-
-ADD_KEY_PROMPT = 'Key of the new entry of {name}:'
-"""What that dialog asks, naming the member that is about to grow."""
 
 
 def element_controls(parent: tkinter.Misc, row: core.MemberRow,
@@ -118,30 +111,3 @@ def _mover(row: core.MemberRow, model: core.EditModel,
         model.move_element(path=row.path, later=later)
         after()
     return move_element
-
-
-def asked_key(row: core.MemberRow) -> Optional[str]:
-    """Ask what a new entry of one dict is to be called.
-
-    A new entry of a dict has to be called something, and nothing but the
-    person configuring the application knows what. A key the dict already
-    holds is asked about again rather than allowed to take the place of what
-    is there: the model refuses such a key, and an editor that let the
-    question be answered with one would be offering to lose an entry.
-
-    Args:
-        row: Node that is about to be given an entry.
-
-    Returns:
-        The key that was named, and None where the question was left
-        unanswered or answered with nothing.
-    """
-    held = row.value if isinstance(row.value, dict) else {}
-    while True:
-        named = simpledialog.askstring(
-            ADD_KEY_TITLE,
-            ADD_KEY_PROMPT.format(name=core.path_text(row.path)))
-        if not named:
-            return None
-        if named not in held:
-            return named

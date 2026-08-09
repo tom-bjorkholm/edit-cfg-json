@@ -17,6 +17,7 @@ backends cannot offer different things.
 
 from textual.widgets import Button
 import edit_cfg_json as core
+from edit_cfg_json_textual.textual_look import ELEMENT_CLASS
 
 ADD_ACTION = 'add'
 """Name of the action that puts one more element into a node."""
@@ -29,9 +30,6 @@ EARLIER_ACTION = 'up'
 
 LATER_ACTION = 'down'
 """Name of the action that moves one element towards the back."""
-
-ELEMENT_CLASS = 'member_element'
-"""Style class of a control that changes how many elements there are."""
 
 ADD_LABEL = 'Add'
 """Label of the control that puts one more element into a node.

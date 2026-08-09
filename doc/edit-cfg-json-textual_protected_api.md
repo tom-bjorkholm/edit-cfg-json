@@ -5,7 +5,6 @@
   * [REMOVE\_ACTION](#edit_cfg_json_textual.textual_elements.REMOVE_ACTION)
   * [EARLIER\_ACTION](#edit_cfg_json_textual.textual_elements.EARLIER_ACTION)
   * [LATER\_ACTION](#edit_cfg_json_textual.textual_elements.LATER_ACTION)
-  * [ELEMENT\_CLASS](#edit_cfg_json_textual.textual_elements.ELEMENT_CLASS)
   * [ADD\_LABEL](#edit_cfg_json_textual.textual_elements.ADD_LABEL)
   * [REMOVE\_LABEL](#edit_cfg_json_textual.textual_elements.REMOVE_LABEL)
   * [EARLIER\_LABEL](#edit_cfg_json_textual.textual_elements.EARLIER_LABEL)
@@ -18,8 +17,11 @@
   * [element\_id](#edit_cfg_json_textual.textual_elements.element_id)
   * [element\_button](#edit_cfg_json_textual.textual_elements.element_button)
 * [edit\_cfg\_json\_textual.textual\_ask](#edit_cfg_json_textual.textual_ask)
-  * [ASK\_BOX\_ID](#edit_cfg_json_textual.textual_ask.ASK_BOX_ID)
   * [CANCEL\_COMMAND](#edit_cfg_json_textual.textual_ask.CANCEL_COMMAND)
+  * [DISCARD\_ID](#edit_cfg_json_textual.textual_ask.DISCARD_ID)
+  * [KEEP\_ID](#edit_cfg_json_textual.textual_ask.KEEP_ID)
+  * [DISCARD\_LABEL](#edit_cfg_json_textual.textual_ask.DISCARD_LABEL)
+  * [KEEP\_LABEL](#edit_cfg_json_textual.textual_ask.KEEP_LABEL)
   * [AskScreen](#edit_cfg_json_textual.textual_ask.AskScreen)
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_ask.AskScreen.__init__)
     * [compose](#edit_cfg_json_textual.textual_ask.AskScreen.compose)
@@ -27,28 +29,14 @@
     * [on\_input\_blurred](#edit_cfg_json_textual.textual_ask.AskScreen.on_input_blurred)
     * [on\_input\_submitted](#edit_cfg_json_textual.textual_ask.AskScreen.on_input_submitted)
     * [action\_leave](#edit_cfg_json_textual.textual_ask.AskScreen.action_leave)
+  * [ConfirmScreen](#edit_cfg_json_textual.textual_ask.ConfirmScreen)
+    * [AUTO\_FOCUS](#edit_cfg_json_textual.textual_ask.ConfirmScreen.AUTO_FOCUS)
+    * [\_\_init\_\_](#edit_cfg_json_textual.textual_ask.ConfirmScreen.__init__)
+    * [compose](#edit_cfg_json_textual.textual_ask.ConfirmScreen.compose)
+    * [on\_button\_pressed](#edit_cfg_json_textual.textual_ask.ConfirmScreen.on_button_pressed)
+    * [action\_leave](#edit_cfg_json_textual.textual_ask.ConfirmScreen.action_leave)
+  * [QUESTION\_SCREENS](#edit_cfg_json_textual.textual_ask.QUESTION_SCREENS)
 * [edit\_cfg\_json\_textual.textual\_editor](#edit_cfg_json_textual.textual_editor)
-  * [DOCSTRING\_ID](#edit_cfg_json_textual.textual_editor.DOCSTRING_ID)
-  * [VERDICT\_ID](#edit_cfg_json_textual.textual_editor.VERDICT_ID)
-  * [SAVE\_ID](#edit_cfg_json_textual.textual_editor.SAVE_ID)
-  * [LOAD\_ID](#edit_cfg_json_textual.textual_editor.LOAD_ID)
-  * [BODY\_ID](#edit_cfg_json_textual.textual_editor.BODY_ID)
-  * [MEMBERS\_ID](#edit_cfg_json_textual.textual_editor.MEMBERS_ID)
-  * [SAVE\_AS\_ID](#edit_cfg_json_textual.textual_editor.SAVE_AS_ID)
-  * [NAME\_CLASS](#edit_cfg_json_textual.textual_editor.NAME_CLASS)
-  * [VALUE\_CLASS](#edit_cfg_json_textual.textual_editor.VALUE_CLASS)
-  * [MARK\_CLASS](#edit_cfg_json_textual.textual_editor.MARK_CLASS)
-  * [SUBTREE\_CLASS](#edit_cfg_json_textual.textual_editor.SUBTREE_CLASS)
-  * [ROW\_CLASS](#edit_cfg_json_textual.textual_editor.ROW_CLASS)
-  * [MEMBER\_CLASS](#edit_cfg_json_textual.textual_editor.MEMBER_CLASS)
-  * [DESCRIPTION\_CLASS](#edit_cfg_json_textual.textual_editor.DESCRIPTION_CLASS)
-  * [DIAGNOSTIC\_CLASS](#edit_cfg_json_textual.textual_editor.DIAGNOSTIC_CLASS)
-  * [FOLD\_CLASS](#edit_cfg_json_textual.textual_editor.FOLD_CLASS)
-  * [NAME\_WIDTH](#edit_cfg_json_textual.textual_editor.NAME_WIDTH)
-  * [FOLD\_WIDTH](#edit_cfg_json_textual.textual_editor.FOLD_WIDTH)
-  * [TREE\_INDENT](#edit_cfg_json_textual.textual_editor.TREE_INDENT)
-  * [DESCRIPTION\_INDENT](#edit_cfg_json_textual.textual_editor.DESCRIPTION_INDENT)
-  * [LEAST\_VALUE\_WIDTH](#edit_cfg_json_textual.textual_editor.LEAST_VALUE_WIDTH)
   * [QUIT\_COMMAND](#edit_cfg_json_textual.textual_editor.QUIT_COMMAND)
   * [VALIDATE\_COMMAND](#edit_cfg_json_textual.textual_editor.VALIDATE_COMMAND)
   * [SAVE\_COMMAND](#edit_cfg_json_textual.textual_editor.SAVE_COMMAND)
@@ -65,7 +53,6 @@
   * [SAVE\_AS\_PROMPT](#edit_cfg_json_textual.textual_editor.SAVE_AS_PROMPT)
   * [SAVE\_AS\_LEAVE](#edit_cfg_json_textual.textual_editor.SAVE_AS_LEAVE)
   * [EDITOR\_ACTIONS](#edit_cfg_json_textual.textual_editor.EDITOR_ACTIONS)
-  * [CSS\_RULES](#edit_cfg_json_textual.textual_editor.CSS_RULES)
   * [EditorApp](#edit_cfg_json_textual.textual_editor.EditorApp)
     * [CSS](#edit_cfg_json_textual.textual_editor.EditorApp.CSS)
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_editor.EditorApp.__init__)
@@ -89,6 +76,8 @@
     * [\_value\_widget](#edit_cfg_json_textual.textual_editor.EditorApp._value_widget)
     * [on\_input\_changed](#edit_cfg_json_textual.textual_editor.EditorApp.on_input_changed)
     * [on\_input\_blurred](#edit_cfg_json_textual.textual_editor.EditorApp.on_input_blurred)
+    * [action\_quit](#edit_cfg_json_textual.textual_editor.EditorApp.action_quit)
+    * [\_end\_if\_dropped](#edit_cfg_json_textual.textual_editor.EditorApp._end_if_dropped)
     * [action\_validate](#edit_cfg_json_textual.textual_editor.EditorApp.action_validate)
     * [action\_save](#edit_cfg_json_textual.textual_editor.EditorApp.action_save)
     * [action\_explain](#edit_cfg_json_textual.textual_editor.EditorApp.action_explain)
@@ -122,10 +111,36 @@
   * [DIAGNOSTIC\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.DIAGNOSTIC_ID_PREFIX)
   * [FOLD\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.FOLD_ID_PREFIX)
   * [MEMBER\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.MEMBER_ID_PREFIX)
+  * [DOCSTRING\_ID](#edit_cfg_json_textual.textual_look.DOCSTRING_ID)
+  * [VERDICT\_ID](#edit_cfg_json_textual.textual_look.VERDICT_ID)
+  * [SAVE\_ID](#edit_cfg_json_textual.textual_look.SAVE_ID)
+  * [LOAD\_ID](#edit_cfg_json_textual.textual_look.LOAD_ID)
+  * [BODY\_ID](#edit_cfg_json_textual.textual_look.BODY_ID)
+  * [MEMBERS\_ID](#edit_cfg_json_textual.textual_look.MEMBERS_ID)
+  * [SAVE\_AS\_ID](#edit_cfg_json_textual.textual_look.SAVE_AS_ID)
+  * [ASK\_BOX\_ID](#edit_cfg_json_textual.textual_look.ASK_BOX_ID)
+  * [NAME\_CLASS](#edit_cfg_json_textual.textual_look.NAME_CLASS)
+  * [VALUE\_CLASS](#edit_cfg_json_textual.textual_look.VALUE_CLASS)
+  * [MARK\_CLASS](#edit_cfg_json_textual.textual_look.MARK_CLASS)
+  * [SUBTREE\_CLASS](#edit_cfg_json_textual.textual_look.SUBTREE_CLASS)
+  * [ROW\_CLASS](#edit_cfg_json_textual.textual_look.ROW_CLASS)
+  * [MEMBER\_CLASS](#edit_cfg_json_textual.textual_look.MEMBER_CLASS)
+  * [DESCRIPTION\_CLASS](#edit_cfg_json_textual.textual_look.DESCRIPTION_CLASS)
+  * [DIAGNOSTIC\_CLASS](#edit_cfg_json_textual.textual_look.DIAGNOSTIC_CLASS)
+  * [FOLD\_CLASS](#edit_cfg_json_textual.textual_look.FOLD_CLASS)
+  * [ELEMENT\_CLASS](#edit_cfg_json_textual.textual_look.ELEMENT_CLASS)
+  * [QUESTION\_CLASS](#edit_cfg_json_textual.textual_look.QUESTION_CLASS)
+  * [ANSWER\_CLASS](#edit_cfg_json_textual.textual_look.ANSWER_CLASS)
+  * [NAME\_WIDTH](#edit_cfg_json_textual.textual_look.NAME_WIDTH)
+  * [FOLD\_WIDTH](#edit_cfg_json_textual.textual_look.FOLD_WIDTH)
+  * [TREE\_INDENT](#edit_cfg_json_textual.textual_look.TREE_INDENT)
+  * [DESCRIPTION\_INDENT](#edit_cfg_json_textual.textual_look.DESCRIPTION_INDENT)
+  * [LEAST\_VALUE\_WIDTH](#edit_cfg_json_textual.textual_look.LEAST_VALUE_WIDTH)
   * [FOLD\_SHUT\_TEXT](#edit_cfg_json_textual.textual_look.FOLD_SHUT_TEXT)
   * [FOLD\_OPEN\_TEXT](#edit_cfg_json_textual.textual_look.FOLD_OPEN_TEXT)
   * [EMPHASIS\_CLASSES](#edit_cfg_json_textual.textual_look.EMPHASIS_CLASSES)
   * [COLOUR\_RULES](#edit_cfg_json_textual.textual_look.COLOUR_RULES)
+  * [CSS\_RULES](#edit_cfg_json_textual.textual_look.CSS_RULES)
   * [value\_id](#edit_cfg_json_textual.textual_look.value_id)
   * [mark\_id](#edit_cfg_json_textual.textual_look.mark_id)
   * [subtree\_id](#edit_cfg_json_textual.textual_look.subtree_id)
@@ -180,12 +195,6 @@ Name of the action that moves one element towards the front.
 #### LATER\_ACTION
 
 Name of the action that moves one element towards the back.
-
-<a id="edit_cfg_json_textual.textual_elements.ELEMENT_CLASS"></a>
-
-#### ELEMENT\_CLASS
-
-Style class of a control that changes how many elements there are.
 
 <a id="edit_cfg_json_textual.textual_elements.ADD_LABEL"></a>
 
@@ -313,30 +322,60 @@ Return one control that changes how many elements there are.
 
 # edit\_cfg\_json\_textual.textual\_ask
 
-The one screen this backend asks a question of the user with.
+The screens this backend asks the user a question on.
 
-There are two questions so far — which file to write, and what a new entry of
-a dict is to be called — and they are the same shape: a sentence, a field, and
-an answer that may be left ungiven. One screen serves both, because two
-screens differing in a prompt would be the same code twice and the two
+There are two shapes of question. One is answered with text — which file to
+write, and what a new entry of a dict is to be called — and one is answered
+yes or no, which is whether the changes that have not been saved may be
+dropped. Each shape is one screen serving every question of that shape,
+because two screens differing in a prompt would be the same code twice and the
 questions would then be free to drift apart in how they behave.
 
-The question is a screen of its own rather than a field in the editor, because
-it is asked, answered and gone: a field that was always there would be one more
-thing to read on every row of every session, for a question that is asked once
+A question is a screen of its own rather than a field or a row in the editor,
+because it is asked, answered and gone: something that was always there would
+be one more thing to read in every session, for a question that is asked once
 or never.
 
-<a id="edit_cfg_json_textual.textual_ask.ASK_BOX_ID"></a>
-
-#### ASK\_BOX\_ID
-
-Identifier of the box that holds one question and its field.
+Neither screen decides *whether* it is asked. Which file to write is what a
+backend is asked for when the model has no destination, what a new entry is
+called is asked where `edit_cfg_json.MemberRow.offer` says a key is needed,
+and whether there is anything to lose by closing is
+`edit_cfg_json.close_question`. All three are the core's, so that the two
+backends cannot ask one user something and another user nothing.
 
 <a id="edit_cfg_json_textual.textual_ask.CANCEL_COMMAND"></a>
 
 #### CANCEL\_COMMAND
 
 Name of the action that leaves a question of the editor unanswered.
+
+<a id="edit_cfg_json_textual.textual_ask.DISCARD_ID"></a>
+
+#### DISCARD\_ID
+
+Identifier of the control that answers a question with yes.
+
+<a id="edit_cfg_json_textual.textual_ask.KEEP_ID"></a>
+
+#### KEEP\_ID
+
+Identifier of the control that answers it with no.
+
+<a id="edit_cfg_json_textual.textual_ask.DISCARD_LABEL"></a>
+
+#### DISCARD\_LABEL
+
+Label of the control that drops the changes and closes the editor.
+
+<a id="edit_cfg_json_textual.textual_ask.KEEP_LABEL"></a>
+
+#### KEEP\_LABEL
+
+Label of the control that leaves the editor as it was.
+
+It says what happens next rather than answering the question with a word, in
+the same way as the actions this backend renames: a control saying No beside a
+question about closing leaves the user working out what No was about.
 
 <a id="edit_cfg_json_textual.textual_ask.AskScreen"></a>
 
@@ -433,6 +472,93 @@ def action_leave() -> None
 
 Leave the screen without answering the question.
 
+<a id="edit_cfg_json_textual.textual_ask.ConfirmScreen"></a>
+
+## ConfirmScreen Objects
+
+```python
+class ConfirmScreen(ModalScreen[bool])
+```
+
+Ask one question that is answered by one of two controls.
+
+It is a screen and not a field, exactly as the question above it is, and
+it is answered with controls rather than with text because what the user
+is being asked for is a decision and not a value.
+
+<a id="edit_cfg_json_textual.textual_ask.ConfirmScreen.AUTO_FOCUS"></a>
+
+#### AUTO\_FOCUS
+
+The control that the screen opens with, which is the safe one.
+
+A screen that opened on the control which drops the changes would drop
+them for a user who pressed Enter without reading, and the whole reason
+for asking is that dropping them cannot be undone. The Tk backend opens
+its dialog on the same answer and for the same reason.
+
+<a id="edit_cfg_json_textual.textual_ask.ConfirmScreen.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(question: str, cancel_keys: Sequence[str]) -> None
+```
+
+Ask the question, with the keys that leave it unanswered.
+
+**Arguments**:
+
+- `question` - What this screen asks, as the user reads it.
+- `cancel_keys` - Key combinations that leave the question unanswered,
+  which is the same as answering it with no, empty when the
+  application gave it none.
+
+<a id="edit_cfg_json_textual.textual_ask.ConfirmScreen.compose"></a>
+
+#### compose
+
+```python
+def compose() -> ComposeResult
+```
+
+Create the question and the two controls that answer it.
+
+<a id="edit_cfg_json_textual.textual_ask.ConfirmScreen.on_button_pressed"></a>
+
+#### on\_button\_pressed
+
+```python
+def on_button_pressed(event: Button.Pressed) -> None
+```
+
+Give back what was pressed, and leave the screen.
+
+The message is stopped here because the editor underneath reads every
+press for a control of a row, and neither of these is one.
+
+<a id="edit_cfg_json_textual.textual_ask.ConfirmScreen.action_leave"></a>
+
+#### action\_leave
+
+```python
+def action_leave() -> None
+```
+
+Leave the screen, which is the same as keeping the changes.
+
+<a id="edit_cfg_json_textual.textual_ask.QUESTION_SCREENS"></a>
+
+#### QUESTION\_SCREENS
+
+The screens on which this backend asks the user something.
+
+The editor turns its own actions off while one of them is up, because Textual
+offers an application's priority bindings the key from the whole binding chain
+rather than from the part of it above the last modal screen. What makes a
+question modal is therefore the editor answering for its own actions, and this
+is what it asks about.
+
 <a id="edit_cfg_json_textual.textual_editor"></a>
 
 # edit\_cfg\_json\_textual.textual\_editor
@@ -445,151 +571,6 @@ nothing else, and naming it at every call site is what makes that visible; it
 also keeps the two backends from each holding the same block of twenty
 imported names, which is a duplication with nothing to factor out, since
 neither backend may import the other.
-
-<a id="edit_cfg_json_textual.textual_editor.DOCSTRING_ID"></a>
-
-#### DOCSTRING\_ID
-
-Identifier of the widget that shows what the configuration class says.
-
-<a id="edit_cfg_json_textual.textual_editor.VERDICT_ID"></a>
-
-#### VERDICT\_ID
-
-Identifier of the widget that shows what validation found.
-
-<a id="edit_cfg_json_textual.textual_editor.SAVE_ID"></a>
-
-#### SAVE\_ID
-
-Identifier of the widget that shows what saving did or would do.
-
-<a id="edit_cfg_json_textual.textual_editor.LOAD_ID"></a>
-
-#### LOAD\_ID
-
-Identifier of the widget that shows what reading the file did.
-
-<a id="edit_cfg_json_textual.textual_editor.BODY_ID"></a>
-
-#### BODY\_ID
-
-Identifier of the part of the screen that scrolls.
-
-<a id="edit_cfg_json_textual.textual_editor.MEMBERS_ID"></a>
-
-#### MEMBERS\_ID
-
-Identifier of the part of the body that holds the nodes.
-
-They have a container of their own inside the part that scrolls, because a
-validation pass can leave the model with other rows than it had and they are
-then mounted afresh. What is above them is not, so it is not in here.
-
-<a id="edit_cfg_json_textual.textual_editor.SAVE_AS_ID"></a>
-
-#### SAVE\_AS\_ID
-
-Identifier of the field that the file to write is typed into.
-
-<a id="edit_cfg_json_textual.textual_editor.NAME_CLASS"></a>
-
-#### NAME\_CLASS
-
-Style class of the widget that shows one member name.
-
-<a id="edit_cfg_json_textual.textual_editor.VALUE_CLASS"></a>
-
-#### VALUE\_CLASS
-
-Style class of the widget that shows or edits one member value.
-
-<a id="edit_cfg_json_textual.textual_editor.MARK_CLASS"></a>
-
-#### MARK\_CLASS
-
-Style class of the widget that marks one member.
-
-<a id="edit_cfg_json_textual.textual_editor.SUBTREE_CLASS"></a>
-
-#### SUBTREE\_CLASS
-
-Style class of the widget that says what one object is on its own.
-
-<a id="edit_cfg_json_textual.textual_editor.ROW_CLASS"></a>
-
-#### ROW\_CLASS
-
-Style class of the container that holds the widgets of one member.
-
-<a id="edit_cfg_json_textual.textual_editor.MEMBER_CLASS"></a>
-
-#### MEMBER\_CLASS
-
-Style class of the container that holds one member and its description.
-
-<a id="edit_cfg_json_textual.textual_editor.DESCRIPTION_CLASS"></a>
-
-#### DESCRIPTION\_CLASS
-
-Style class of the widget that says what one member is for.
-
-<a id="edit_cfg_json_textual.textual_editor.DIAGNOSTIC_CLASS"></a>
-
-#### DIAGNOSTIC\_CLASS
-
-Style class of the widget that says what is wrong with one member.
-
-<a id="edit_cfg_json_textual.textual_editor.FOLD_CLASS"></a>
-
-#### FOLD\_CLASS
-
-Style class of the control that folds one container.
-
-<a id="edit_cfg_json_textual.textual_editor.NAME_WIDTH"></a>
-
-#### NAME\_WIDTH
-
-Width in cells of the column that holds the member names.
-
-<a id="edit_cfg_json_textual.textual_editor.FOLD_WIDTH"></a>
-
-#### FOLD\_WIDTH
-
-Width in cells of the control that folds one container.
-
-Every row has one that wide, and the rows that hold nothing to fold have an
-empty one, so that the names of a container and of a value beside it line up.
-
-<a id="edit_cfg_json_textual.textual_editor.TREE_INDENT"></a>
-
-#### TREE\_INDENT
-
-Indentation in cells of each step inside a list or a dict.
-
-The whole node is indented and not only its name, so that a name inside a
-container is never cut off by the column that the names share. What that costs
-is a value column that steps to the right with the tree, which is what a tree
-looks like. The Tk backend indents by the same amount and for the same reason.
-
-<a id="edit_cfg_json_textual.textual_editor.DESCRIPTION_INDENT"></a>
-
-#### DESCRIPTION\_INDENT
-
-Indentation in cells of the description of one member.
-
-The indentation is what says that the line belongs to the member above it
-rather than being a member of its own.
-
-<a id="edit_cfg_json_textual.textual_editor.LEAST_VALUE_WIDTH"></a>
-
-#### LEAST\_VALUE\_WIDTH
-
-Smallest width in cells that the value of a member is given.
-
-A row that does not fit the terminal has to give way somewhere, and it is
-the marks that are cut rather than the field: the field is what the user
-edits, and `model_as_text` shows every mark in full whatever the terminal.
 
 <a id="edit_cfg_json_textual.textual_editor.QUIT_COMMAND"></a>
 
@@ -704,39 +685,6 @@ that has the focus, and it goes on doing that while a modal screen is up: the
 dispatch of a priority binding walks the whole chain and not the part of it
 above the last modal screen. So a modal screen is only really modal if the
 application says that its own actions do not apply while it is there.
-
-<a id="edit_cfg_json_textual.textual_editor.CSS_RULES"></a>
-
-#### CSS\_RULES
-
-The width and the height of every part of one member row.
-
-Rows are one cell high, so that the footer stays visible below them. A field
-is one cell high as well, which needs its border and its padding taken away,
-because both of them are part of how tall a field is.
-
-A member is as high as it needs to be rather than one cell, because it is the
-row and the description below it, and the explanatory text is as high as the
-lines it takes: a container of Textual's own accord takes an equal share of
-the height it is given, which would leave two members holding half a screen
-each.
-
-The body takes whatever height is left over, which is what makes it the part
-that scrolls: a configuration of any size fits a terminal of any size, and the
-verdict, the saving and the footer stay where the user left them, because they
-are what a user reaches for after editing rather than something to scroll to.
-
-The widths are the part that has to be said rather than left to Textual. A
-`Input` is a full width widget of its own accord, so it would take the whole
-line and lay the marks of the member out beyond the right edge of the screen,
-where they are there and cannot be seen. The value therefore takes what is
-left over and the marks take what they need, which is the opposite way round
-from the default and the only way round that shows both.
-
-The question about the output file sits in the middle of the screen and takes
-most of its width, so that a long path is still readable in a narrow
-terminal. Its own field is untouched by the rule above, which reaches only
-the fields inside a member row.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp"></a>
 
@@ -1128,6 +1076,38 @@ therefore when the editor says whether what they typed means a value
 of that member at all. Nothing is validated here: the whole
 configuration is what a validation pass is about, and this is one
 field answering for itself.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp.action_quit"></a>
+
+#### action\_quit
+
+```python
+async def action_quit() -> None
+```
+
+End the session, asking first where there is something to lose.
+
+Quitting writes nothing, so a buffer holding something that has not
+reached the file loses it. Whether that is so and what is asked about
+it are the core's, so that this backend and the Tk one cannot ask one
+user something and another user nothing; how the question is put is
+this backend's, and a modal screen is how a Textual application asks
+anything.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._end_if_dropped"></a>
+
+#### \_end\_if\_dropped
+
+```python
+def _end_if_dropped(discard: Optional[bool]) -> None
+```
+
+End the session where the changes were given up, and not else.
+
+**Arguments**:
+
+- `discard` - What the user answered, and None where the question was
+  left unanswered, which is the same as keeping them.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.action_validate"></a>
 
@@ -1537,10 +1517,12 @@ documented there.
 
 How the Textual backend names, styles and identifies its widgets.
 
-The identifiers, the style classes and the colours of this backend are here
-rather than in the module that builds the screen, because they are what one
-has to look at to know how the editor will look. Nothing here knows what an
-edit model is beyond the row it is given.
+The identifiers, the style classes, the sizes, the style sheet and the colours
+of this backend are here rather than in the modules that build the screen,
+because they are what one has to look at to know how the editor will look.
+Nothing here knows what an edit model is beyond the row it is given, and
+nothing here imports another module of this backend, so everything that builds
+a widget can read its own identifier and its own style class from here.
 
 What each kind of text is stays in the core, as `edit_cfg_json.Emphasis`, and
 what a kind looks like belongs here: a colour of the terminal's own theme, so
@@ -1594,6 +1576,175 @@ Prefix of the identifier of the control that folds one container.
 
 Prefix of the identifier of everything that one node owns.
 
+<a id="edit_cfg_json_textual.textual_look.DOCSTRING_ID"></a>
+
+#### DOCSTRING\_ID
+
+Identifier of the widget that shows what the configuration class says.
+
+<a id="edit_cfg_json_textual.textual_look.VERDICT_ID"></a>
+
+#### VERDICT\_ID
+
+Identifier of the widget that shows what validation found.
+
+<a id="edit_cfg_json_textual.textual_look.SAVE_ID"></a>
+
+#### SAVE\_ID
+
+Identifier of the widget that shows what saving did or would do.
+
+<a id="edit_cfg_json_textual.textual_look.LOAD_ID"></a>
+
+#### LOAD\_ID
+
+Identifier of the widget that shows what reading the file did.
+
+<a id="edit_cfg_json_textual.textual_look.BODY_ID"></a>
+
+#### BODY\_ID
+
+Identifier of the part of the screen that scrolls.
+
+<a id="edit_cfg_json_textual.textual_look.MEMBERS_ID"></a>
+
+#### MEMBERS\_ID
+
+Identifier of the part of the body that holds the nodes.
+
+They have a container of their own inside the part that scrolls, because a
+validation pass can leave the model with other rows than it had and they are
+then mounted afresh. What is above them is not, so it is not in here.
+
+<a id="edit_cfg_json_textual.textual_look.SAVE_AS_ID"></a>
+
+#### SAVE\_AS\_ID
+
+Identifier of the field that the file to write is typed into.
+
+<a id="edit_cfg_json_textual.textual_look.ASK_BOX_ID"></a>
+
+#### ASK\_BOX\_ID
+
+Identifier of the box that holds one question and its answer.
+
+<a id="edit_cfg_json_textual.textual_look.NAME_CLASS"></a>
+
+#### NAME\_CLASS
+
+Style class of the widget that shows one member name.
+
+<a id="edit_cfg_json_textual.textual_look.VALUE_CLASS"></a>
+
+#### VALUE\_CLASS
+
+Style class of the widget that shows or edits one member value.
+
+<a id="edit_cfg_json_textual.textual_look.MARK_CLASS"></a>
+
+#### MARK\_CLASS
+
+Style class of the widget that marks one member.
+
+<a id="edit_cfg_json_textual.textual_look.SUBTREE_CLASS"></a>
+
+#### SUBTREE\_CLASS
+
+Style class of the widget that says what one object is on its own.
+
+<a id="edit_cfg_json_textual.textual_look.ROW_CLASS"></a>
+
+#### ROW\_CLASS
+
+Style class of the container that holds the widgets of one member.
+
+<a id="edit_cfg_json_textual.textual_look.MEMBER_CLASS"></a>
+
+#### MEMBER\_CLASS
+
+Style class of the container that holds one member and its description.
+
+<a id="edit_cfg_json_textual.textual_look.DESCRIPTION_CLASS"></a>
+
+#### DESCRIPTION\_CLASS
+
+Style class of the widget that says what one member is for.
+
+<a id="edit_cfg_json_textual.textual_look.DIAGNOSTIC_CLASS"></a>
+
+#### DIAGNOSTIC\_CLASS
+
+Style class of the widget that says what is wrong with one member.
+
+<a id="edit_cfg_json_textual.textual_look.FOLD_CLASS"></a>
+
+#### FOLD\_CLASS
+
+Style class of the control that folds one container.
+
+<a id="edit_cfg_json_textual.textual_look.ELEMENT_CLASS"></a>
+
+#### ELEMENT\_CLASS
+
+Style class of a control that changes how many elements there are.
+
+<a id="edit_cfg_json_textual.textual_look.QUESTION_CLASS"></a>
+
+#### QUESTION\_CLASS
+
+Style class of a screen that asks the user a question.
+
+<a id="edit_cfg_json_textual.textual_look.ANSWER_CLASS"></a>
+
+#### ANSWER\_CLASS
+
+Style class of the row of controls that answers a question.
+
+<a id="edit_cfg_json_textual.textual_look.NAME_WIDTH"></a>
+
+#### NAME\_WIDTH
+
+Width in cells of the column that holds the member names.
+
+<a id="edit_cfg_json_textual.textual_look.FOLD_WIDTH"></a>
+
+#### FOLD\_WIDTH
+
+Width in cells of the control that folds one container.
+
+Every row has one that wide, and the rows that hold nothing to fold have an
+empty one, so that the names of a container and of a value beside it line up.
+
+<a id="edit_cfg_json_textual.textual_look.TREE_INDENT"></a>
+
+#### TREE\_INDENT
+
+Indentation in cells of each step inside a list or a dict.
+
+The whole node is indented and not only its name, so that a name inside a
+container is never cut off by the column that the names share. What that costs
+is a value column that steps to the right with the tree, which is what a tree
+looks like. The Tk backend indents by the same amount and for the same reason.
+
+<a id="edit_cfg_json_textual.textual_look.DESCRIPTION_INDENT"></a>
+
+#### DESCRIPTION\_INDENT
+
+Indentation in cells of the description of one member.
+
+The indentation is what says that the line belongs to the member above it
+rather than being a member of its own.
+
+<a id="edit_cfg_json_textual.textual_look.LEAST_VALUE_WIDTH"></a>
+
+#### LEAST\_VALUE\_WIDTH
+
+Smallest width in cells that the value of a member is given.
+
+A row that does not fit the terminal has to give way somewhere, and it is
+the marks that are cut rather than the field: the field is what the user
+edits, and `model_as_text` shows every mark in full whatever the terminal.
+
 <a id="edit_cfg_json_textual.textual_look.FOLD_SHUT_TEXT"></a>
 
 #### FOLD\_SHUT\_TEXT
@@ -1634,6 +1785,40 @@ would be legible in one of the two and a guess in the other.
 The values and their names are left alone, so the thing the user came to edit
 is the most legible thing on the screen. Everything else is either secondary
 text or a state to act on, which is what `edit_cfg_json.Emphasis` names.
+
+<a id="edit_cfg_json_textual.textual_look.CSS_RULES"></a>
+
+#### CSS\_RULES
+
+The width and the height of every part of one member row.
+
+Rows are one cell high, so that the footer stays visible below them. A field
+is one cell high as well, which needs its border and its padding taken away,
+because both of them are part of how tall a field is.
+
+A member is as high as it needs to be rather than one cell, because it is the
+row and the description below it, and the explanatory text is as high as the
+lines it takes: a container of Textual's own accord takes an equal share of
+the height it is given, which would leave two members holding half a screen
+each.
+
+The body takes whatever height is left over, which is what makes it the part
+that scrolls: a configuration of any size fits a terminal of any size, and the
+verdict, the saving and the footer stay where the user left them, because they
+are what a user reaches for after editing rather than something to scroll to.
+
+The widths are the part that has to be said rather than left to Textual. A
+`Input` is a full width widget of its own accord, so it would take the whole
+line and lay the marks of the member out beyond the right edge of the screen,
+where they are there and cannot be seen. The value therefore takes what is
+left over and the marks take what they need, which is the opposite way round
+from the default and the only way round that shows both.
+
+A screen that asks a question sits in the middle of the screen and takes most
+of its width, so that a long path or a long file name is still readable in a
+narrow terminal. Its own field is untouched by the rule above, which reaches
+only the fields inside a member row, and the controls that answer it take the
+width they need rather than a share of the box.
 
 <a id="edit_cfg_json_textual.textual_look.value_id"></a>
 

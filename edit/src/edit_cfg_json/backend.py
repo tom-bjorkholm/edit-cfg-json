@@ -41,6 +41,12 @@ class EditorBackend(Protocol):  # pylint: disable=too-few-public-methods
     def run_editor(self, model: EditModel) -> None:
         """Run the user interface for one model until the user is done.
 
+        A backend that offers the user a way out asks `close_question` on
+        every one of them before it takes it, because closing writes nothing
+        and a session that is closed with something in the buffer loses it.
+        What is asked is the model's to say and how it is asked is the
+        backend's, which is the same split as everything else here.
+
         Args:
             model: Model to show. The backend reads and edits the model, and
                 never touches the caller's configuration object.
@@ -61,6 +67,11 @@ class DumpEditor:  # pylint: disable=too-few-public-methods
     file amounts to rather than one that offers to change it, and whoever runs
     such a program has no later moment at which to press Save. Saving is
     therefore the caller's to ask for, before the model is handed over.
+
+    For the same reason it asks nothing before it ends. There is no session
+    for a user to close and nobody to answer a question, so what a session
+    that ends here does with a buffer that was never saved is settled: it
+    ends, which is the only thing it could ever have done.
     """
 
     def run_editor(self, model: EditModel) -> None:

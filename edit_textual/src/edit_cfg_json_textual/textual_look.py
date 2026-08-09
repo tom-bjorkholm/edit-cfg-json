@@ -1,10 +1,12 @@
 #! /usr/bin/env python3
 """How the Textual backend names, styles and identifies its widgets.
 
-The identifiers, the style classes and the colours of this backend are here
-rather than in the module that builds the screen, because they are what one
-has to look at to know how the editor will look. Nothing here knows what an
-edit model is beyond the row it is given.
+The identifiers, the style classes, the sizes, the style sheet and the colours
+of this backend are here rather than in the modules that build the screen,
+because they are what one has to look at to know how the editor will look.
+Nothing here knows what an edit model is beyond the row it is given, and
+nothing here imports another module of this backend, so everything that builds
+a widget can read its own identifier and its own style class from here.
 
 What each kind of text is stays in the core, as `edit_cfg_json.Emphasis`, and
 what a kind looks like belongs here: a colour of the terminal's own theme, so
@@ -49,6 +51,105 @@ FOLD_ID_PREFIX = 'fold_'
 MEMBER_ID_PREFIX = 'member_'
 """Prefix of the identifier of everything that one node owns."""
 
+DOCSTRING_ID = 'docstring'
+"""Identifier of the widget that shows what the configuration class says."""
+
+VERDICT_ID = 'verdict'
+"""Identifier of the widget that shows what validation found."""
+
+SAVE_ID = 'saving'
+"""Identifier of the widget that shows what saving did or would do."""
+
+LOAD_ID = 'load'
+"""Identifier of the widget that shows what reading the file did."""
+
+BODY_ID = 'body'
+"""Identifier of the part of the screen that scrolls."""
+
+MEMBERS_ID = 'members'
+"""Identifier of the part of the body that holds the nodes.
+
+They have a container of their own inside the part that scrolls, because a
+validation pass can leave the model with other rows than it had and they are
+then mounted afresh. What is above them is not, so it is not in here.
+"""
+
+SAVE_AS_ID = 'save_as'
+"""Identifier of the field that the file to write is typed into."""
+
+ASK_BOX_ID = 'ask_box'
+"""Identifier of the box that holds one question and its answer."""
+
+NAME_CLASS = 'member_name'
+"""Style class of the widget that shows one member name."""
+
+VALUE_CLASS = 'member_value'
+"""Style class of the widget that shows or edits one member value."""
+
+MARK_CLASS = 'member_mark'
+"""Style class of the widget that marks one member."""
+
+SUBTREE_CLASS = 'member_own'
+"""Style class of the widget that says what one object is on its own."""
+
+ROW_CLASS = 'member_row'
+"""Style class of the container that holds the widgets of one member."""
+
+MEMBER_CLASS = 'member'
+"""Style class of the container that holds one member and its description."""
+
+DESCRIPTION_CLASS = 'member_about'
+"""Style class of the widget that says what one member is for."""
+
+DIAGNOSTIC_CLASS = 'member_wrong'
+"""Style class of the widget that says what is wrong with one member."""
+
+FOLD_CLASS = 'member_fold'
+"""Style class of the control that folds one container."""
+
+ELEMENT_CLASS = 'member_element'
+"""Style class of a control that changes how many elements there are."""
+
+QUESTION_CLASS = 'ask_screen'
+"""Style class of a screen that asks the user a question."""
+
+ANSWER_CLASS = 'ask_answer'
+"""Style class of the row of controls that answers a question."""
+
+NAME_WIDTH = 24
+"""Width in cells of the column that holds the member names."""
+
+FOLD_WIDTH = 3
+"""Width in cells of the control that folds one container.
+
+Every row has one that wide, and the rows that hold nothing to fold have an
+empty one, so that the names of a container and of a value beside it line up.
+"""
+
+TREE_INDENT = 4
+"""Indentation in cells of each step inside a list or a dict.
+
+The whole node is indented and not only its name, so that a name inside a
+container is never cut off by the column that the names share. What that costs
+is a value column that steps to the right with the tree, which is what a tree
+looks like. The Tk backend indents by the same amount and for the same reason.
+"""
+
+DESCRIPTION_INDENT = 4
+"""Indentation in cells of the description of one member.
+
+The indentation is what says that the line belongs to the member above it
+rather than being a member of its own.
+"""
+
+LEAST_VALUE_WIDTH = 8
+"""Smallest width in cells that the value of a member is given.
+
+A row that does not fit the terminal has to give way somewhere, and it is
+the marks that are cut rather than the field: the field is what the user
+edits, and `model_as_text` shows every mark in full whatever the terminal.
+"""
+
 FOLD_SHUT_TEXT = '+'
 """Label of the control of a container that is folded away."""
 
@@ -87,6 +188,58 @@ would be legible in one of the two and a guess in the other.
 The values and their names are left alone, so the thing the user came to edit
 is the most legible thing on the screen. Everything else is either secondary
 text or a state to act on, which is what `edit_cfg_json.Emphasis` names.
+"""
+
+CSS_RULES = COLOUR_RULES + (
+    f'#{BODY_ID} {{ height: 1fr; }}',
+    f'#{MEMBERS_ID} {{ height: auto; }}',
+    f'.{MEMBER_CLASS} {{ height: auto; }}',
+    f'.{ROW_CLASS} {{ height: 1; }}',
+    f'.{NAME_CLASS} {{ width: {NAME_WIDTH}; }}',
+    f'.{VALUE_CLASS} {{ width: 1fr; min-width: {LEAST_VALUE_WIDTH}; }}',
+    f'.{MARK_CLASS}, .{SUBTREE_CLASS} {{ width: auto; }}',
+    f'.{ELEMENT_CLASS} {{ width: auto; min-width: 0; height: 1;'
+    ' border: none; padding: 0 1; margin: 0; }',
+    f'.{FOLD_CLASS} {{ width: {FOLD_WIDTH}; min-width: {FOLD_WIDTH};'
+    ' height: 1; border: none; padding: 0; margin: 0;'
+    ' text-align: center; }',
+    f'.{DESCRIPTION_CLASS}, .{DIAGNOSTIC_CLASS} {{ width: 1fr; height: auto;'
+    f' padding-left: {DESCRIPTION_INDENT}; }}',
+    f'#{DOCSTRING_ID} {{ width: 1fr; height: auto; }}',
+    f'.{ROW_CLASS} Input {{ height: 1; border: none; padding: 0; }}',
+    f'.{QUESTION_CLASS} {{ align: center middle; }}',
+    f'#{ASK_BOX_ID} {{ width: 80%; height: auto; padding: 1 2;'
+    ' border: round $primary; background: $surface; }',
+    f'.{ANSWER_CLASS} {{ width: auto; height: auto; }}')
+"""The width and the height of every part of one member row.
+
+Rows are one cell high, so that the footer stays visible below them. A field
+is one cell high as well, which needs its border and its padding taken away,
+because both of them are part of how tall a field is.
+
+A member is as high as it needs to be rather than one cell, because it is the
+row and the description below it, and the explanatory text is as high as the
+lines it takes: a container of Textual's own accord takes an equal share of
+the height it is given, which would leave two members holding half a screen
+each.
+
+The body takes whatever height is left over, which is what makes it the part
+that scrolls: a configuration of any size fits a terminal of any size, and the
+verdict, the saving and the footer stay where the user left them, because they
+are what a user reaches for after editing rather than something to scroll to.
+
+The widths are the part that has to be said rather than left to Textual. A
+`Input` is a full width widget of its own accord, so it would take the whole
+line and lay the marks of the member out beyond the right edge of the screen,
+where they are there and cannot be seen. The value therefore takes what is
+left over and the marks take what they need, which is the opposite way round
+from the default and the only way round that shows both.
+
+A screen that asks a question sits in the middle of the screen and takes most
+of its width, so that a long path or a long file name is still readable in a
+narrow terminal. Its own field is untouched by the rule above, which reaches
+only the fields inside a member row, and the controls that answer it take the
+width they need rather than a share of the box.
 """
 
 

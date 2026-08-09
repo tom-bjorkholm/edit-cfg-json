@@ -53,6 +53,9 @@ plan says only *when* that decision gets built.
 - [Step 14](#step-14--adding-and-removing-elements) — how many things a member
   holds, where a new element is copied from, and the containers that say why
   they cannot be given one.
+- [Step 15](#step-15--confirmation-before-dropping-edits) — closing an editor
+  that holds something unsaved asks first, in words the core owns and in a
+  dialog or a screen that each backend puts.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -87,8 +90,8 @@ file only says *when* that decision gets built.
   `edit_cfg_json_textual` never drift apart by more than one review.
 - Steps 1 to 9 are built, and each is written up in
   [steps_001-009_done.md](steps_001-009_done.md) as what it decided, what it
-  found while building it and what came of its review. Steps 10 to 14 are
-  built and are written up here, in the same way. Steps 15 onwards are named
+  found while building it and what came of its review. Steps 10 to 15 are
+  built and are written up here, in the same way. Steps 16 onwards are named
   steps with their observable outcome and their main risks; they are detailed
   just before they are started, when the core API is real rather than
   imagined.
@@ -124,7 +127,7 @@ version. Record which one, because the next step's fast iteration with
 | M2 Flat, fully explained | 6 to 9 | Descriptions, docstrings, field-level diagnostics, automatic-change visibility, explicit loader | done |
 | M3 Structure and folding | 10 to 12 | Lists, dicts, nested `Config` objects, folding with per-subtree badges | done |
 | M4 Configs in containers | 13 to 14 | `LIST_ELEMENT` and `DICT_VALUE` nesting, adding and removing elements | done |
-| M5 Release readiness | 15 to 17 | v1 documented, classified and published | to do |
+| M5 Release readiness | 15 to 17 | Closing keeps what was not saved, files are not overwritten unannounced, and v1 is documented, classified and published | step 15 done |
 
 ## 3. Steps 10 to 20, as named steps
 
@@ -605,8 +608,96 @@ The public names it settled:
 
 #### Step 15 — Confirmation before dropping edits
 
+Status: **Implemented and committed.**
+
 If Cancel/Close is asked for in an editor with unsaved changes it should ask
 for confirmation before discarding the edits.
+
+**Observable outcome.** Any example, in either graphical backend: edit a value
+and press Close, and the editor asks whether the changes may be dropped rather
+than dropping them. `python3 examples/src/example/e01_flat_config.py --ui tk`
+and `--ui textual` both show it, the answer that keeps the changes is the one
+the question opens on, and closing again after a Save asks nothing. `--ui dump`
+is unchanged and shows nothing of it, which is the point of the fourth decision
+below.
+
+**What it decided.** Four things, decided before the work started.
+
+- **Whether the user is asked and what they are asked belong to the core**, as
+  `close_question`, which answers with nothing at all when there is nothing to
+  ask about. It is a decision that depends on the state of the model, so it is
+  the core's by design section 4.5, and two user interfaces of one application
+  that disagreed about whether they warn would be worse than either behaviour.
+  How the question is put is each backend's own. Design section 7.2.
+- **Every way out asks, including the close button of the window.** Both
+  backends route the button, the key and — in Tk — `WM_DELETE_WINDOW` through
+  one method, because the one way out that is not a widget of the editor would
+  otherwise be the one way out that drops the changes silently. It is set on
+  the window `TkEditor` created and on no other.
+- **Two answers and not three.** Saving on the way out would have to cope with
+  a refused save, with no destination chosen yet, and with the Save-as question
+  opening from inside a confirmation, all of which belong to saving rather than
+  to closing.
+- **No `Settings` attribute.** Whether anything is unsaved the editor knows for
+  itself, which design section 9.6 keeps out of `Settings`. Whether
+  *overwriting* is confirmed is step 16's, and is the application's to say.
+
+**Core.** `model_text.close_question` and the `CLOSE_QUESTION` it words. The
+model needed nothing: `dirty` already answers "the buffer holds something worth
+saving", and a save moves the values the buffer is compared with.
+
+| Name | Kind |
+| --- | --- |
+| `close_question` | what to ask before closing, nothing when nothing |
+
+**What building it found.**
+
+- **Both backend modules were at pylint's thousand-line limit again**, and
+  what to move out was already named by the modules themselves. `tk_ask` now
+  holds every question this backend asks — the file to write and the key of a
+  new entry moved out of `tk_editor` and `tk_elements`, and the new one joined
+  them — which is the mirror of `textual_ask`. `textual_look` now holds the
+  widget identifiers, the style classes, the sizes and the whole style sheet,
+  which is what its own docstring had claimed all along while half of them sat
+  in `textual_editor`. Nothing in `textual_look` imports another module of its
+  backend, so everything that builds a widget reads its identifier and its
+  style class from there.
+- **The dump backend is asked nothing at all.** It prints once and returns, so
+  there is no session to close and nobody to answer; the question would have
+  been printed at a user who could not answer it. That is why this step changes
+  no example output and is reviewed by running a window.
+- **Textual needed the safe answer to be the one with the focus.** A modal
+  screen takes the focus to its first control, which would have been Discard,
+  and Enter would then have dropped the changes of a user who pressed it
+  without reading. `AUTO_FOCUS` names the other control, which is the same
+  answer as the Tk dialog's `default=NO`.
+
+#### Step 15B - Changed descriptions of `--ui dump`
+
+Today `--ui dump` is incorrectly described as the main focus in examples
+and almost as the preferred user interface. This is incorrect and must
+be changed in `./doc/design.md` in docstrings and in the example descriptions.
+
+This repo provides 2 real interactive user interfaces, one based on
+Textual and one based on Tkinter. Descriptions of examples should focus
+on how the example behaves in the interactive user interfaces.
+Descriptions of features shall focus on how the feature behaves and is
+usable in an interactive backend.
+
+The `--ui dump` backend provides:
+
+- a way to excercise features over the core/backend API without using
+  an interactive backend, useful for quick tests and for testing in
+  scripts.
+
+- a way to execute a short sequence of editor actions and getting a
+  printout of the results, in a non-interactive way.
+
+This is a very limited non-interactive user interface, but it has its
+uses as such. The documentation and design documents should
+describe `--ui dump` as this very limited non-interactive user interface,
+but it has its uses as such. Never describe it as the main or preferred
+user interface.
 
 #### Step 16 — Old/backup file when overwriting
 
@@ -718,7 +809,7 @@ is the subject of a design investigation in the beginning of this step.
 #### Step 22 - Full support for `DICT_VALUE_BY_KEY`
 
 Add full support for adding and deleting values in a dict that are
-declared by `DICT_VALUE_BY_KEY`
+declared by `DICT_VALUE_BY_KEY`.
 
 ## 4. Open questions recorded, not answered
 

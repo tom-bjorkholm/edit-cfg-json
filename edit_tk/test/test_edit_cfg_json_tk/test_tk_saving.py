@@ -10,8 +10,8 @@ from tkinter import filedialog
 import pytest
 from edit_cfg_json import EditModel, Settings
 from edit_cfg_json_tk import edit as tk_edit
-from edit_cfg_json_tk.tk_editor import ALL_FILES, EditorWidgets, \
-    SAVE_AS_TEXT, SAVE_TEXT
+from edit_cfg_json_tk.tk_ask import ALL_FILES
+from edit_cfg_json_tk.tk_editor import EditorWidgets, SAVE_AS_TEXT, SAVE_TEXT
 from example.e01_flat_config import FlatConfig
 from .helpers import FakeVar, NO_FILE_TEXT, real_fields, real_press, \
     retype, stub_editor, stub_press, written

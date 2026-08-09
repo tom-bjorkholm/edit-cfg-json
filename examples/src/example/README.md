@@ -14,7 +14,7 @@ repository only.
 
 | Example | What it teaches |
 | --- | --- |
-| [e01_flat_config.py](e01_flat_config.py) | The whole library in one call: hand a `Config` object and a backend to `edit()`. A flat configuration with one text member and one number member, both editable and both validated by the application's own validation plan. Why the editor never describes the schema a second time, why the values it shows are the declared members in their declared order rather than the sorted keys of the JSON file, and why a value that a validator rewrote is marked. Also the four ways an input file can be refused, the one way it can be incomplete and still be opened, and the round trip that ends with a written file and the object that was written. |
+| [e01_flat_config.py](e01_flat_config.py) | The whole library in one call: hand a `Config` object and a backend to `edit()`. A flat configuration with one text member and one number member, both editable and both validated by the application's own validation plan. Why the editor never describes the schema a second time, why the values it shows are the declared members in their declared order rather than the sorted keys of the JSON file, and why a value that a validator rewrote is marked. Also the four ways an input file can be refused, the one way it can be incomplete and still be opened, the round trip that ends with a written file and the object that was written, and the question that closing puts while something is still unsaved. |
 | [e02_enum_config.py](e02_enum_config.py) | An `Enum` member and an `IntEnum` member, with no validators at all. An enum is written to the file as the name of its member, so it is edited as text, and a name that is no member is refused by the conversion rather than by a validator. Which of `parse_converters()` and `serialize_converters()` an application has to write, why matching a name is forgiving enough to complete a prefix, and why a half typed name in a field is kept while the same name in a file refuses the file. |
 | [e03_described_config.py](e03_described_config.py) | Explaining the values to whoever edits them. The docstring of the configuration class labels the object and needs no passing, because the class already has it; the members need a `Descriptions` mapping, because a member docstring does not exist at runtime. Absolute paths as its keys, one member deliberately left undescribed, why a range is explained in words while the names of an enum are not, and the key that hides all of it again. |
 | [e04_validated_config.py](e04_validated_config.py) | Saying which member of a configuration is wrong. Why the validation pass that decides the verdict cannot say it, and how walking the same plan a second time can: a validator this application wrote and a validator `config_as_json` ships are attributed the same way, because the editor recognises no validator by type. Also the rule that is about no single member — a `ProjectedWholeConfigValidator` over two of them — which is why the block below the members is still there. |
@@ -99,6 +99,13 @@ be typed into in the same run. That is also the order a user would work in.
 text, in the same way that `--set` stands in for a user typing into a field.
 The editor starts with the explanations shown, so this flag is what shows the
 hidden form.
+
+There is no option standing in for Close, and there is deliberately none.
+Closing writes nothing, so an editor holding something that has not been saved
+asks before it drops it — which is a question, and the dump has nobody to
+answer one: it prints once and the run is then over. It is therefore the one
+behaviour of the editor that is seen with `--ui tk` or `--ui textual` and not
+in the text dump. Change a value in either of them and press Close to see it.
 
 ## Running an example
 

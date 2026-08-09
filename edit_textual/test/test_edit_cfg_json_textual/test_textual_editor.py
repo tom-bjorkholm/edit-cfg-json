@@ -12,10 +12,9 @@ from textual.containers import VerticalScroll
 from textual.geometry import Region
 from textual.widgets import Static
 from edit_cfg_json import EditModel, LoadReport
-from edit_cfg_json_textual.textual_editor import BODY_ID, EditorApp, \
-    LEAST_VALUE_WIDTH, LOAD_ID, SAVE_ID
-from edit_cfg_json_textual.textual_look import mark_id, plain_widget, \
-    value_id
+from edit_cfg_json_textual.textual_editor import EditorApp
+from edit_cfg_json_textual.textual_look import BODY_ID, \
+    LEAST_VALUE_WIDTH, LOAD_ID, SAVE_ID, mark_id, plain_widget, value_id
 from example.e01_flat_config import FlatConfig
 from .helpers import ANSWER_INDEX, DESCRIPTIONS, EXPECTED_VALUES, \
     FILLED_MARK, FILLED_REPORT, LOAD_MESSAGE, NAME_INDEX, NARROW_SIZE, \

@@ -104,6 +104,15 @@ list, a dict or a nested configuration object the value is on the rows below,
 and this says how many of them there are or which class they belong to.
 """
 
+CLOSE_QUESTION = ('These changes have not been saved. '
+                  'Close the editor and discard them?')
+"""What the user is asked before closing an editor with unsaved changes.
+
+Closing writes nothing of its own, so a session that is closed with something
+in the buffer loses it. What is lost is the one thing the editor knows and the
+user may not, which is why it is said rather than left to be discovered.
+"""
+
 SUBTREE_VALID_MARK = ' [valid on its own]'
 """What a nested object that is a configuration on its own says.
 
@@ -551,6 +560,31 @@ def save_text(model: EditModel) -> str:
     if model.out_file is None:
         return NO_DESTINATION_TEXT
     return SAVE_TO_FORM.format(name=model.out_file)
+
+
+def close_question(model: EditModel) -> str:
+    """Return what to ask before closing, and nothing when there is nothing.
+
+    Closing writes nothing, so a session with something in the buffer that has
+    not reached the file loses it. Whether that is so and what is asked about
+    it belong here rather than to a backend, by the same rule as the verdict
+    and the saving: two user interfaces of one application, one of which asked
+    and one of which did not, would be worse than either behaviour. How the
+    question is put is each backend's own, because that is where the toolkits
+    differ.
+
+    A backend that prints once and returns is not asking anybody: there is no
+    session for a user to close, so it consults nothing here and its answer is
+    the one it always had, which is that there is nothing to keep.
+
+    Args:
+        model: Model that is about to be closed.
+
+    Returns:
+        The question to put to the user, and nothing at all when the buffer
+        holds nothing that closing would lose.
+    """
+    return CLOSE_QUESTION if model.dirty else ''
 
 
 def _head_text(model: EditModel) -> str:

@@ -10,9 +10,6 @@
   * [FOLD\_SHUT\_TEXT](#edit_cfg_json_tk.tk_editor.FOLD_SHUT_TEXT)
   * [FOLD\_OPEN\_TEXT](#edit_cfg_json_tk.tk_editor.FOLD_OPEN_TEXT)
   * [CLOSE\_TEXT](#edit_cfg_json_tk.tk_editor.CLOSE_TEXT)
-  * [SAVE\_AS\_TITLE](#edit_cfg_json_tk.tk_editor.SAVE_AS_TITLE)
-  * [CONFIG\_FILES](#edit_cfg_json_tk.tk_editor.CONFIG_FILES)
-  * [ALL\_FILES](#edit_cfg_json_tk.tk_editor.ALL_FILES)
   * [StateWidgets](#edit_cfg_json_tk.tk_editor.StateWidgets)
     * [title](#edit_cfg_json_tk.tk_editor.StateWidgets.title)
     * [docstring](#edit_cfg_json_tk.tk_editor.StateWidgets.docstring)
@@ -31,6 +28,7 @@
     * [elements](#edit_cfg_json_tk.tk_editor.RowWidgets.elements)
   * [EditorWidgets](#edit_cfg_json_tk.tk_editor.EditorWidgets)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.EditorWidgets.__init__)
+    * [close\_editor](#edit_cfg_json_tk.tk_editor.EditorWidgets.close_editor)
     * [label\_text](#edit_cfg_json_tk.tk_editor.EditorWidgets.label_text)
     * [verdict\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.verdict_text_shown)
     * [save\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.save_text_shown)
@@ -70,10 +68,7 @@
   * [REMOVE\_TEXT](#edit_cfg_json_tk.tk_elements.REMOVE_TEXT)
   * [EARLIER\_TEXT](#edit_cfg_json_tk.tk_elements.EARLIER_TEXT)
   * [LATER\_TEXT](#edit_cfg_json_tk.tk_elements.LATER_TEXT)
-  * [ADD\_KEY\_TITLE](#edit_cfg_json_tk.tk_elements.ADD_KEY_TITLE)
-  * [ADD\_KEY\_PROMPT](#edit_cfg_json_tk.tk_elements.ADD_KEY_PROMPT)
   * [element\_controls](#edit_cfg_json_tk.tk_elements.element_controls)
-  * [asked\_key](#edit_cfg_json_tk.tk_elements.asked_key)
 * [edit\_cfg\_json\_tk.scrolling](#edit_cfg_json_tk.scrolling)
   * [BODY\_HEIGHT](#edit_cfg_json_tk.scrolling.BODY_HEIGHT)
   * [BODY\_WIDTH](#edit_cfg_json_tk.scrolling.BODY_WIDTH)
@@ -81,6 +76,16 @@
     * [area](#edit_cfg_json_tk.scrolling.ScrollingArea.area)
     * [body](#edit_cfg_json_tk.scrolling.ScrollingArea.body)
   * [scrolling\_body](#edit_cfg_json_tk.scrolling.scrolling_body)
+* [edit\_cfg\_json\_tk.tk\_ask](#edit_cfg_json_tk.tk_ask)
+  * [SAVE\_AS\_TITLE](#edit_cfg_json_tk.tk_ask.SAVE_AS_TITLE)
+  * [CONFIG\_FILES](#edit_cfg_json_tk.tk_ask.CONFIG_FILES)
+  * [ALL\_FILES](#edit_cfg_json_tk.tk_ask.ALL_FILES)
+  * [ADD\_KEY\_TITLE](#edit_cfg_json_tk.tk_ask.ADD_KEY_TITLE)
+  * [ADD\_KEY\_PROMPT](#edit_cfg_json_tk.tk_ask.ADD_KEY_PROMPT)
+  * [CLOSE\_TITLE](#edit_cfg_json_tk.tk_ask.CLOSE_TITLE)
+  * [asked\_file](#edit_cfg_json_tk.tk_ask.asked_file)
+  * [may\_close](#edit_cfg_json_tk.tk_ask.may_close)
+  * [asked\_key](#edit_cfg_json_tk.tk_ask.asked_key)
 
 <a id="edit_cfg_json_tk.tk_editor"></a>
 
@@ -168,23 +173,9 @@ is called Close because saving leaves the editor open: a button called Cancel
 beside values that have already been written would read as an offer to undo
 the writing, which it is not.
 
-<a id="edit_cfg_json_tk.tk_editor.SAVE_AS_TITLE"></a>
-
-#### SAVE\_AS\_TITLE
-
-Title of the dialog that asks which file to write.
-
-<a id="edit_cfg_json_tk.tk_editor.CONFIG_FILES"></a>
-
-#### CONFIG\_FILES
-
-What the dialog calls the files of the extension the application uses.
-
-<a id="edit_cfg_json_tk.tk_editor.ALL_FILES"></a>
-
-#### ALL\_FILES
-
-What the dialog calls every other file.
+Because it writes nothing, it is asked about while there is something in the
+buffer that has not reached the file. That question is `tk_ask.may_close`, and
+what it asks is the core's.
 
 <a id="edit_cfg_json_tk.tk_editor.StateWidgets"></a>
 
@@ -375,6 +366,25 @@ later be mounted inside a window that an application owns itself.
   closing does, because the editor must never destroy a window
   it did not create.
 
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets.close_editor"></a>
+
+#### close\_editor
+
+```python
+def close_editor() -> None
+```
+
+End the session, asking first where there is something to lose.
+
+This is what every way out of the editor does: the button, the key of
+the quit action, and the close button of a window that this backend
+owns. A way out that dropped the changes without a word would be the
+one thing an editor must not do, and having one method for all of
+them is what keeps any of them from becoming that.
+
+What closing itself does is what the caller said it does, which is
+destroying the window for a caller that owns one.
+
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets.label_text"></a>
 
 #### label\_text
@@ -486,6 +496,12 @@ Show the model in a Tk window until the user closes it.
 The widgets are held for as long as the window lives, because they
 own the fields that the Tcl variables belong to. The window is this
 backend's own, which is why closing the editor destroys it.
+
+The close button of the window is made to do what the Close button of
+the editor does, so that the one way out that is not a widget of the
+editor cannot be the one way out that drops the changes without
+asking. It is set on this window and on no other: the editor never
+touches a window it did not create.
 
 This is for an application that has no Tk of its own yet, because a
 second `tkinter.Tk` is a second Tcl interpreter and nothing can be
@@ -891,9 +907,9 @@ The Tk controls that change how many elements a node holds.
 
 They are here rather than in the module that builds the window for the reason
 every other split of this backend was made: one module of a thousand lines is
-one nobody reads to the end. What is here is one row's worth of controls and
-the one question this backend has to ask that the toolkit has no dialog of its
-own for, which is what a new entry of a dict is to be called.
+one nobody reads to the end. What is here is one row's worth of controls, and
+nothing else: the question that one of them has to ask is in `tk_ask`, with
+the other question this backend asks.
 
 Nothing here decides *whether* a node offers anything. That is
 `edit_cfg_json.MemberRow.offer`, which the core works out once so that the two
@@ -928,18 +944,6 @@ Text of the control that moves one element towards the front.
 
 Text of the control that moves one element towards the back.
 
-<a id="edit_cfg_json_tk.tk_elements.ADD_KEY_TITLE"></a>
-
-#### ADD\_KEY\_TITLE
-
-Title of the dialog that asks what a new entry of a dict is called.
-
-<a id="edit_cfg_json_tk.tk_elements.ADD_KEY_PROMPT"></a>
-
-#### ADD\_KEY\_PROMPT
-
-What that dialog asks, naming the member that is about to grow.
-
 <a id="edit_cfg_json_tk.tk_elements.element_controls"></a>
 
 #### element\_controls
@@ -971,32 +975,6 @@ that folds a container has to keep a column clear on every row.
 
   The controls that node offers, and nothing at all for one that offers
   none, which is most nodes of most configurations.
-
-<a id="edit_cfg_json_tk.tk_elements.asked_key"></a>
-
-#### asked\_key
-
-```python
-def asked_key(row: core.MemberRow) -> Optional[str]
-```
-
-Ask what a new entry of one dict is to be called.
-
-A new entry of a dict has to be called something, and nothing but the
-person configuring the application knows what. A key the dict already
-holds is asked about again rather than allowed to take the place of what
-is there: the model refuses such a key, and an editor that let the
-question be answered with one would be offering to lose an entry.
-
-**Arguments**:
-
-- `row` - Node that is about to be given an entry.
-  
-
-**Returns**:
-
-  The key that was named, and None where the question was left
-  unanswered or answered with nothing.
 
 <a id="edit_cfg_json_tk.scrolling"></a>
 
@@ -1095,4 +1073,141 @@ read in.
 **Returns**:
 
   The frame to pack, and the frame to build in.
+
+<a id="edit_cfg_json_tk.tk_ask"></a>
+
+# edit\_cfg\_json\_tk.tk\_ask
+
+The questions this backend asks the user, and the words of each of them.
+
+There are three of them — which file to write, what a new entry of a dict is
+to be called, and whether the changes that have not been saved may be dropped
+— and they are here together rather than in the modules that raise them, for
+the reason every other split of this backend was made: one module of a
+thousand lines is one nobody reads to the end. Keeping them together is also
+what makes it plain that this backend asks the toolkit for all three of its
+questions, where the Textual one has to build a screen for them.
+
+Nothing here decides *whether* a question is asked. Which file to write is
+asked where the model has no destination, what a new entry is called where
+`edit_cfg_json.MemberRow.offer` says a key is needed, and whether there is
+anything to lose by closing is `edit_cfg_json.close_question`. All three are
+the core's, so that the two backends cannot ask one user something and another
+user nothing.
+
+<a id="edit_cfg_json_tk.tk_ask.SAVE_AS_TITLE"></a>
+
+#### SAVE\_AS\_TITLE
+
+Title of the dialog that asks which file to write.
+
+<a id="edit_cfg_json_tk.tk_ask.CONFIG_FILES"></a>
+
+#### CONFIG\_FILES
+
+What the dialog calls the files of the extension the application uses.
+
+<a id="edit_cfg_json_tk.tk_ask.ALL_FILES"></a>
+
+#### ALL\_FILES
+
+What the dialog calls every other file.
+
+<a id="edit_cfg_json_tk.tk_ask.ADD_KEY_TITLE"></a>
+
+#### ADD\_KEY\_TITLE
+
+Title of the dialog that asks what a new entry of a dict is called.
+
+<a id="edit_cfg_json_tk.tk_ask.ADD_KEY_PROMPT"></a>
+
+#### ADD\_KEY\_PROMPT
+
+What that dialog asks, naming the member that is about to grow.
+
+<a id="edit_cfg_json_tk.tk_ask.CLOSE_TITLE"></a>
+
+#### CLOSE\_TITLE
+
+Title of the dialog that asks whether the changes may be dropped.
+
+<a id="edit_cfg_json_tk.tk_ask.asked_file"></a>
+
+#### asked\_file
+
+```python
+def asked_file(settings: core.Settings) -> str
+```
+
+Ask which file to write, with what the application uses offered first.
+
+What the dialog offers is what the application decided: the extension it
+uses for its configuration is the one the dialog adds to a name that has
+none, and the one it offers to filter by.
+
+**Arguments**:
+
+- `settings` - What the application has decided about file names.
+  
+
+**Returns**:
+
+  The file that was named, and nothing at all where the question was
+  left unanswered.
+
+<a id="edit_cfg_json_tk.tk_ask.may_close"></a>
+
+#### may\_close
+
+```python
+def may_close(model: core.EditModel) -> bool
+```
+
+Return whether the editor may close, asking where there is a question.
+
+Closing writes nothing, so a session with something in the buffer that
+has not reached the file loses it. What is asked and whether there is
+anything to ask about are the core's; putting the question is this
+backend's, and the toolkit has a dialog for exactly this.
+
+The answer that keeps the editor open is the one the dialog starts on, so
+that a user who answers without reading keeps their changes. The dialog is
+modal, which is what makes the question a question: the editor behind it
+cannot be closed a second time while it is up.
+
+**Arguments**:
+
+- `model` - Model that is about to be closed.
+  
+
+**Returns**:
+
+  Whether the session may end, which is always so while there is
+  nothing that closing would lose.
+
+<a id="edit_cfg_json_tk.tk_ask.asked_key"></a>
+
+#### asked\_key
+
+```python
+def asked_key(row: core.MemberRow) -> Optional[str]
+```
+
+Ask what a new entry of one dict is to be called.
+
+A new entry of a dict has to be called something, and nothing but the
+person configuring the application knows what. A key the dict already
+holds is asked about again rather than allowed to take the place of what
+is there: the model refuses such a key, and an editor that let the
+question be answered with one would be offering to lose an entry.
+
+**Arguments**:
+
+- `row` - Node that is about to be given an entry.
+  
+
+**Returns**:
+
+  The key that was named, and None where the question was left
+  unanswered or answered with nothing.
 

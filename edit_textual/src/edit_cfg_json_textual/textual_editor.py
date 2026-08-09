@@ -22,100 +22,17 @@ from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 import edit_cfg_json as core
-from edit_cfg_json_textual.textual_ask import ASK_BOX_ID, AskScreen
+from edit_cfg_json_textual.textual_ask import AskScreen, ConfirmScreen, \
+    QUESTION_SCREENS
 from edit_cfg_json_textual.textual_elements import ADD_ACTION, ASK_KEY_ID, \
-    ASK_KEY_LEAVE, ASK_KEY_PROMPT, ELEMENT_CLASS, EARLIER_ACTION, \
-    REMOVE_ACTION, element_button, element_id, offered_actions
-from edit_cfg_json_textual.textual_look import COLOUR_RULES, bind_action, \
-    description_id, diagnostic_id, fold_glyph, fold_id, mark_id, \
-    member_id, plain_widget, show_emphasis, subtree_id, value_id
-
-DOCSTRING_ID = 'docstring'
-"""Identifier of the widget that shows what the configuration class says."""
-
-VERDICT_ID = 'verdict'
-"""Identifier of the widget that shows what validation found."""
-
-SAVE_ID = 'saving'
-"""Identifier of the widget that shows what saving did or would do."""
-
-LOAD_ID = 'load'
-"""Identifier of the widget that shows what reading the file did."""
-
-BODY_ID = 'body'
-"""Identifier of the part of the screen that scrolls."""
-
-MEMBERS_ID = 'members'
-"""Identifier of the part of the body that holds the nodes.
-
-They have a container of their own inside the part that scrolls, because a
-validation pass can leave the model with other rows than it had and they are
-then mounted afresh. What is above them is not, so it is not in here.
-"""
-
-SAVE_AS_ID = 'save_as'
-"""Identifier of the field that the file to write is typed into."""
-
-NAME_CLASS = 'member_name'
-"""Style class of the widget that shows one member name."""
-
-VALUE_CLASS = 'member_value'
-"""Style class of the widget that shows or edits one member value."""
-
-MARK_CLASS = 'member_mark'
-"""Style class of the widget that marks one member."""
-
-SUBTREE_CLASS = 'member_own'
-"""Style class of the widget that says what one object is on its own."""
-
-ROW_CLASS = 'member_row'
-"""Style class of the container that holds the widgets of one member."""
-
-MEMBER_CLASS = 'member'
-"""Style class of the container that holds one member and its description."""
-
-DESCRIPTION_CLASS = 'member_about'
-"""Style class of the widget that says what one member is for."""
-
-DIAGNOSTIC_CLASS = 'member_wrong'
-"""Style class of the widget that says what is wrong with one member."""
-
-FOLD_CLASS = 'member_fold'
-"""Style class of the control that folds one container."""
-
-NAME_WIDTH = 24
-"""Width in cells of the column that holds the member names."""
-
-FOLD_WIDTH = 3
-"""Width in cells of the control that folds one container.
-
-Every row has one that wide, and the rows that hold nothing to fold have an
-empty one, so that the names of a container and of a value beside it line up.
-"""
-
-TREE_INDENT = 4
-"""Indentation in cells of each step inside a list or a dict.
-
-The whole node is indented and not only its name, so that a name inside a
-container is never cut off by the column that the names share. What that costs
-is a value column that steps to the right with the tree, which is what a tree
-looks like. The Tk backend indents by the same amount and for the same reason.
-"""
-
-DESCRIPTION_INDENT = 4
-"""Indentation in cells of the description of one member.
-
-The indentation is what says that the line belongs to the member above it
-rather than being a member of its own.
-"""
-
-LEAST_VALUE_WIDTH = 8
-"""Smallest width in cells that the value of a member is given.
-
-A row that does not fit the terminal has to give way somewhere, and it is
-the marks that are cut rather than the field: the field is what the user
-edits, and `model_as_text` shows every mark in full whatever the terminal.
-"""
+    ASK_KEY_LEAVE, ASK_KEY_PROMPT, EARLIER_ACTION, REMOVE_ACTION, \
+    element_button, element_id, offered_actions
+from edit_cfg_json_textual.textual_look import BODY_ID, CSS_RULES, \
+    DESCRIPTION_CLASS, DIAGNOSTIC_CLASS, DOCSTRING_ID, FOLD_CLASS, LOAD_ID, \
+    MARK_CLASS, MEMBERS_ID, MEMBER_CLASS, NAME_CLASS, ROW_CLASS, SAVE_AS_ID, \
+    SAVE_ID, SUBTREE_CLASS, TREE_INDENT, VALUE_CLASS, VERDICT_ID, \
+    bind_action, description_id, diagnostic_id, fold_glyph, fold_id, \
+    mark_id, member_id, plain_widget, show_emphasis, subtree_id, value_id
 
 QUIT_COMMAND = 'Quit'
 """Name of the action that ends the editor."""
@@ -185,57 +102,6 @@ that has the focus, and it goes on doing that while a modal screen is up: the
 dispatch of a priority binding walks the whole chain and not the part of it
 above the last modal screen. So a modal screen is only really modal if the
 application says that its own actions do not apply while it is there.
-"""
-
-
-CSS_RULES = COLOUR_RULES + (
-    f'#{BODY_ID} {{ height: 1fr; }}',
-    f'#{MEMBERS_ID} {{ height: auto; }}',
-    f'.{MEMBER_CLASS} {{ height: auto; }}',
-    f'.{ROW_CLASS} {{ height: 1; }}',
-    f'.{NAME_CLASS} {{ width: {NAME_WIDTH}; }}',
-    f'.{VALUE_CLASS} {{ width: 1fr; min-width: {LEAST_VALUE_WIDTH}; }}',
-    f'.{MARK_CLASS}, .{SUBTREE_CLASS} {{ width: auto; }}',
-    f'.{ELEMENT_CLASS} {{ width: auto; min-width: 0; height: 1;'
-    ' border: none; padding: 0 1; margin: 0; }',
-    f'.{FOLD_CLASS} {{ width: {FOLD_WIDTH}; min-width: {FOLD_WIDTH};'
-    ' height: 1; border: none; padding: 0; margin: 0;'
-    ' text-align: center; }',
-    f'.{DESCRIPTION_CLASS}, .{DIAGNOSTIC_CLASS} {{ width: 1fr; height: auto;'
-    f' padding-left: {DESCRIPTION_INDENT}; }}',
-    f'#{DOCSTRING_ID} {{ width: 1fr; height: auto; }}',
-    f'.{ROW_CLASS} Input {{ height: 1; border: none; padding: 0; }}',
-    'AskScreen { align: center middle; }',
-    f'#{ASK_BOX_ID} {{ width: 80%; height: auto; padding: 1 2;'
-    ' border: round $primary; background: $surface; }')
-"""The width and the height of every part of one member row.
-
-Rows are one cell high, so that the footer stays visible below them. A field
-is one cell high as well, which needs its border and its padding taken away,
-because both of them are part of how tall a field is.
-
-A member is as high as it needs to be rather than one cell, because it is the
-row and the description below it, and the explanatory text is as high as the
-lines it takes: a container of Textual's own accord takes an equal share of
-the height it is given, which would leave two members holding half a screen
-each.
-
-The body takes whatever height is left over, which is what makes it the part
-that scrolls: a configuration of any size fits a terminal of any size, and the
-verdict, the saving and the footer stay where the user left them, because they
-are what a user reaches for after editing rather than something to scroll to.
-
-The widths are the part that has to be said rather than left to Textual. A
-`Input` is a full width widget of its own accord, so it would take the whole
-line and lay the marks of the member out beyond the right edge of the screen,
-where they are there and cannot be seen. The value therefore takes what is
-left over and the marks take what they need, which is the opposite way round
-from the default and the only way round that shows both.
-
-The question about the output file sits in the middle of the screen and takes
-most of its width, so that a long path is still readable in a narrow
-terminal. Its own field is untouched by the rule above, which reaches only
-the fields inside a member row.
 """
 
 
@@ -601,6 +467,35 @@ class EditorApp(App[None]):
         self._model.check_field(self._member_rows[widget_id].path)
         self._show_state()
 
+    async def action_quit(self) -> None:
+        """End the session, asking first where there is something to lose.
+
+        Quitting writes nothing, so a buffer holding something that has not
+        reached the file loses it. Whether that is so and what is asked about
+        it are the core's, so that this backend and the Tk one cannot ask one
+        user something and another user nothing; how the question is put is
+        this backend's, and a modal screen is how a Textual application asks
+        anything.
+        """
+        question = core.close_question(self._model)
+        if not question:
+            await super().action_quit()
+            return
+        self.push_screen(
+            ConfirmScreen(question=question,
+                          cancel_keys=self._model.settings.actions.cancel),
+            self._end_if_dropped)
+
+    def _end_if_dropped(self, discard: Optional[bool]) -> None:
+        """End the session where the changes were given up, and not else.
+
+        Args:
+            discard: What the user answered, and None where the question was
+                left unanswered, which is the same as keeping them.
+        """
+        if discard:
+            self.exit()
+
     def action_validate(self) -> None:
         """Validate the buffer and show what the application would say."""
         self._model.validate()
@@ -813,7 +708,8 @@ class EditorApp(App[None]):
             own, and True for every other action at every other time.
         """
         _ = parameters
-        if action in EDITOR_ACTIONS and isinstance(self.screen, AskScreen):
+        if action in EDITOR_ACTIONS and isinstance(self.screen,
+                                                   QUESTION_SCREENS):
             return None
         return True
 

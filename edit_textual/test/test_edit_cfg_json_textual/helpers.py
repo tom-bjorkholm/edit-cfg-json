@@ -24,10 +24,10 @@ import json
 from config_as_json import JsonType
 from textual.widgets import Input, Label, Static
 from edit_cfg_json import ActionSettings, Descriptions, EditModel, LoadReport
-from edit_cfg_json_textual.textual_editor import DOCSTRING_ID, EditorApp, \
-    NAME_CLASS, SAVE_AS_ID, SAVE_ID, VERDICT_ID
-from edit_cfg_json_textual.textual_look import description_id, \
-    diagnostic_id, mark_id, value_id
+from edit_cfg_json_textual.textual_editor import EditorApp
+from edit_cfg_json_textual.textual_look import DOCSTRING_ID, NAME_CLASS, \
+    SAVE_AS_ID, SAVE_ID, VERDICT_ID, description_id, diagnostic_id, \
+    mark_id, value_id
 from example.e01_flat_config import FlatConfig
 
 DEFAULT_ACTIONS = ActionSettings()

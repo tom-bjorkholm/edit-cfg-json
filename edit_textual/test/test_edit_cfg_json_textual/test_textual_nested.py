@@ -14,10 +14,9 @@ import asyncio
 from textual.containers import Vertical
 from textual.widgets import Input, Label, Static
 from edit_cfg_json import EditModel
-from edit_cfg_json_textual.textual_editor import EditorApp, NAME_CLASS, \
-    SUBTREE_CLASS
-from edit_cfg_json_textual.textual_look import fold_id, member_id, \
-    subtree_id, value_id
+from edit_cfg_json_textual.textual_editor import EditorApp
+from edit_cfg_json_textual.textual_look import NAME_CLASS, SUBTREE_CLASS, \
+    fold_id, member_id, subtree_id, value_id
 from example.e09_nested_config import CourseExportConfig, TableOutputConfig
 from example.e10_config_containers import CourseReportsConfig
 from .helpers import ROOMY_SIZE, description_of, index_of, wrong_of

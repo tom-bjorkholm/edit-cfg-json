@@ -184,6 +184,27 @@ With neither `-i` nor `-o` there is nowhere to write, and a file name is not
 something a library can guess: the text dump says so, and the two graphical
 backends offer their Save as question instead.
 
+## Closing without saving
+
+Closing writes nothing, so closing a session with something typed into it
+loses what was typed. The editor asks before it lets that happen: change a
+value in either graphical backend and press Close, and it asks whether the
+changes may be discarded, with the answer that keeps them offered first.
+Answer Save first, or press Save and then Close, and it asks nothing, because
+there is then nothing left to lose.
+
+````sh
+cd examples/src/example
+python3 e01_flat_config.py --ui tk
+python3 e01_flat_config.py --ui textual
+````
+
+Whether there is anything to ask about, and what the question says, are the
+editor's own and the same in both backends; the dialog and the modal screen
+that put it are each backend's. `--ui dump` shows none of this, and that is
+not an omission: it prints once and returns, so there is no session for anyone
+to close and nobody to answer a question.
+
 ## What the application has already decided
 
 The editor does not run on its own. It runs inside an application that took

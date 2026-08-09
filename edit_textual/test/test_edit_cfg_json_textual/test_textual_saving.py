@@ -13,8 +13,8 @@ from textual.widgets import Input
 from edit_cfg_json import EditModel, EditorBackend
 from edit_cfg_json_textual import TextualEditor
 from edit_cfg_json_textual import edit as textual_edit
-from edit_cfg_json_textual.textual_ask import ASK_BOX_ID
-from edit_cfg_json_textual.textual_editor import EditorApp, SAVE_AS_ID
+from edit_cfg_json_textual.textual_editor import EditorApp
+from edit_cfg_json_textual.textual_look import ASK_BOX_ID, SAVE_AS_ID
 from example.e01_flat_config import FlatConfig
 from .helpers import ESCAPE_KEY, EXPLAIN_KEY, NARROW_SIZE, \
     NO_FILE_TEXT, QUIT_KEY, REFUSED_VERDICT, ROOMY_SIZE, SAVE_AS_KEY, \

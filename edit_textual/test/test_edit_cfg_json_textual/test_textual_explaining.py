@@ -9,10 +9,11 @@ import asyncio
 import pytest
 from textual.widgets import Static
 from edit_cfg_json import EditModel, Emphasis
-from edit_cfg_json_textual.textual_editor import DOCSTRING_ID, EditorApp, \
-    EXPLAIN_COMMAND, HIDE_COMMAND, LOAD_ID, SAVE_ID, VERDICT_ID
-from edit_cfg_json_textual.textual_look import EMPHASIS_CLASSES, \
-    description_id, mark_id, value_id
+from edit_cfg_json_textual.textual_editor import EditorApp, \
+    EXPLAIN_COMMAND, HIDE_COMMAND
+from edit_cfg_json_textual.textual_look import DOCSTRING_ID, \
+    EMPHASIS_CLASSES, LOAD_ID, SAVE_ID, VERDICT_ID, description_id, \
+    mark_id, value_id
 from example.e01_flat_config import FlatConfig
 from .helpers import ABOUT_NAME, ANSWER_INDEX, DESCRIPTIONS, \
     EXPLAIN_ALT_KEY, EXPLAIN_KEY, FILLED_REPORT, NAME_INDEX, NoDocConfig, \

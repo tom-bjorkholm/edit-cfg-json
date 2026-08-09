@@ -6,14 +6,16 @@
 
 from collections.abc import Callable
 from pathlib import Path
+from tkinter import messagebox
 from typing import cast
 import tkinter
 import pytest
 from edit_cfg_json import ActionSettings, EditModel, Settings
+from edit_cfg_json_tk import edit as tk_edit
 from edit_cfg_json_tk.tk_editor import CLOSE_TEXT, EditorWidgets, SAVE_TEXT
 from example.e01_flat_config import FlatConfig
-from .helpers import FakeVar, FakeWidget, real_press, stub_editor, \
-    stub_press, stub_texts, stub_window, written
+from .helpers import FakeVar, FakeWidget, real_fields, real_press, retype, \
+    stub_editor, stub_press, stub_texts, stub_window, written
 
 WHEEL_SEQUENCES = ('<MouseWheel>', '<Button-4>', '<Button-5>')
 """The sequences that the editor binds so that the wheel scrolls the body.
@@ -148,3 +150,134 @@ def test_real_close_window(root_or_skip: tkinter.Tk) -> None:
     EditorWidgets(parent=window, model=EditModel(FlatConfig()))
     real_press(window, CLOSE_TEXT)
     assert not window.winfo_exists()
+
+
+def _answer_close(monkeypatch: pytest.MonkeyPatch, answer: bool) -> list[str]:
+    """Make the question about the changes answer itself, and record it.
+
+    Args:
+        monkeypatch: The pytest fixture that replaces the dialog.
+        answer: Whether the changes may be dropped.
+
+    Returns:
+        A list that gets the question every time it is put.
+    """
+    asked: list[str] = []
+
+    def ask(**options: object) -> bool:
+        """Stand in for the system dialog that asks a yes or no question."""
+        asked.append(str(options['message']))
+        return answer
+    monkeypatch.setattr(messagebox, 'askyesno', ask)
+    return asked
+
+
+def _edited_editor() -> EditorWidgets:
+    """Return a stubbed editor holding a change that has not been saved."""
+    widgets = stub_editor(EditModel(FlatConfig()))
+    FakeVar.created[1].set('7')
+    return widgets
+
+
+def test_stub_clean_close(stub_tk: None,
+                          monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test a buffer nobody has touched is closed without a question."""
+    _ = stub_tk
+    asked = _answer_close(monkeypatch, answer=False)
+    closed: list[str] = []
+    EditorWidgets(parent=cast(tkinter.Misc, FakeWidget()),
+                  model=EditModel(FlatConfig()),
+                  on_close=lambda: closed.append('closed'))
+    stub_press(CLOSE_TEXT)
+    assert not asked
+    assert closed == ['closed']
+
+
+@pytest.mark.parametrize('close', [_close_by_button, _close_by_key])
+def test_stub_close_asks(stub_tk: None, monkeypatch: pytest.MonkeyPatch,
+                         close: Callable[[], None]) -> None:
+    """Test both ways out ask before dropping an unsaved change."""
+    _ = stub_tk
+    asked = _answer_close(monkeypatch, answer=False)
+    _edited_editor()
+    close()
+    assert len(asked) == 1
+    assert 'discard' in asked[0]
+
+
+def test_stub_close_kept(stub_tk: None,
+                         monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test the editor stays open while the answer is not to discard."""
+    _ = stub_tk
+    _answer_close(monkeypatch, answer=False)
+    closed: list[str] = []
+    widgets = EditorWidgets(parent=cast(tkinter.Misc, FakeWidget()),
+                            model=EditModel(FlatConfig()),
+                            on_close=lambda: closed.append('closed'))
+    FakeVar.created[1].set('7')
+    widgets.close_editor()
+    assert not closed
+
+
+def test_stub_close_discarded(stub_tk: None,
+                              monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test the answer that drops the changes closes the editor."""
+    _ = stub_tk
+    _answer_close(monkeypatch, answer=True)
+    closed: list[str] = []
+    widgets = EditorWidgets(parent=cast(tkinter.Misc, FakeWidget()),
+                            model=EditModel(FlatConfig()),
+                            on_close=lambda: closed.append('closed'))
+    FakeVar.created[1].set('7')
+    widgets.close_editor()
+    assert closed == ['closed']
+
+
+def test_close_after_save(stub_tk: None, tmp_path: Path,
+                          monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test a change that reached the file is not asked about."""
+    _ = stub_tk
+    asked = _answer_close(monkeypatch, answer=False)
+    closed: list[str] = []
+    EditorWidgets(parent=cast(tkinter.Misc, FakeWidget()),
+                  model=EditModel(FlatConfig(),
+                                  out_file=tmp_path / 'out.json'),
+                  on_close=lambda: closed.append('closed'))
+    FakeVar.created[1].set('7')
+    stub_press(SAVE_TEXT)
+    stub_press(CLOSE_TEXT)
+    assert not asked
+    assert closed == ['closed']
+
+
+def test_real_close_asks(root_or_skip: tkinter.Tk,
+                         monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test real Tk asks the same question and keeps the same window."""
+    asked = _answer_close(monkeypatch, answer=False)
+    window = tkinter.Toplevel(root_or_skip)
+    EditorWidgets(parent=window, model=EditModel(FlatConfig()))
+    retype(real_fields(window)[1], '7')
+    real_press(window, CLOSE_TEXT)
+    assert len(asked) == 1
+    assert window.winfo_exists()
+
+
+def test_window_close_asks(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test the close button of the window asks what the Close button asks.
+
+    It is the one way out that is not a widget of the editor, and it would
+    otherwise be the one way out that drops the changes without a word.
+    `Tk.mainloop` is replaced by that button being pressed.
+    """
+    asked = _answer_close(monkeypatch, answer=True)
+
+    def close_window(window: tkinter.Tk) -> None:
+        """Stand in for Tk.mainloop by closing the window as Tk would."""
+        retype(real_fields(window)[1], '7')
+        window.tk.call(window.protocol('WM_DELETE_WINDOW'))
+    monkeypatch.setattr(tkinter.Tk, 'mainloop', close_window)
+    try:
+        assert tk_edit(config=FlatConfig()) is None
+    except tkinter.TclError:
+        pytest.skip('No display available for Tk.')
+    assert len(asked) == 1
