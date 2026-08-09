@@ -20,7 +20,7 @@ from edit_cfg_json.saving import NOT_VALID, NO_DESTINATION, SaveOutcome, \
 from edit_cfg_json.settings import Settings, SettingsSource, checked_file, \
     chosen_file, current_settings
 from edit_cfg_json.validation import ValidationPass, ValidationVerdict, \
-    validate_buffer
+    subtree_states, subtree_verdict, validate_buffer
 
 
 # The model is where every piece of state that both backends read lives, so
@@ -66,6 +66,13 @@ class EditModel:
     something it is not, and everything inside it belongs to its own class:
     the parse converters that say what a value there means, and the members
     that class may leave out of a file.
+
+    Such an object is also asked whether it is a configuration on its own,
+    which folding it and every validation pass answer. That is a different
+    state from the verdict of the whole configuration and is kept apart from
+    it: a rule of the class above may relate two of these objects across the
+    boundary between them, so both of them can be valid on their own while the
+    configuration holding them cannot be saved.
     """
 
     # Every argument after the configuration object is an optional keyword,
@@ -195,6 +202,11 @@ class EditModel:
         differently. Every row says whether it is folded and whether it is
         shown, which is where a backend reads it.
 
+        A nested configuration object is asked whether it is a configuration
+        on its own at the same time. That is the cheap local question, it
+        needs no candidate configuration, and changing how much of an object
+        is on the screen is the moment at which a user is looking at it.
+
         Args:
             path: Path of the container to fold or open.
 
@@ -203,6 +215,7 @@ class EditModel:
             ValueError: The node is not a container.
         """
         self._buffer.toggle_fold(path)
+        self._ask_subtree(path)
 
     def toggle_fold_all(self) -> None:
         """Fold every container away, or open every one of them.
@@ -210,8 +223,27 @@ class EditModel:
         One action and not two, because a user who wants the values back
         wants all of them back: which of the two it does is decided by what
         is on the screen, so a press always changes something.
+
+        Every nested configuration object is asked about itself, for the same
+        reason folding one of them asks that one.
         """
         self._buffer.toggle_fold_all()
+        self._buffer.take_subtrees(
+            subtree_states(config=self._source.config,
+                           members=self._buffer.values()))
+
+    def _ask_subtree(self, path: ConfigPath) -> None:
+        """Say whether the object at one node is a configuration on its own.
+
+        Args:
+            path: Path of the node to ask about. A node that holds no
+                configuration object is left exactly as it was, because there
+                is nothing there to ask.
+        """
+        state = subtree_verdict(config=self._source.config,
+                                members=self._buffer.values(), path=path)
+        if state is not None:
+            self._buffer.take_subtrees({path: state})
 
     @property
     def settings(self) -> Settings:
@@ -471,6 +503,10 @@ class EditModel:
         the object of the session, because that is where the accepted values
         are and because the nested configuration objects inside it are the
         ones that own them.
+
+        What each nested object is on its own is written onto the rows after
+        that refresh, because a pass can leave the model with other rows than
+        it had and a state written onto the rows it had would be lost.
         """
         self._buffer.check_all()
         outcome = validate_buffer(config=self._source.config,
@@ -479,6 +515,7 @@ class EditModel:
             assert outcome.candidate is not None
             self._buffer.take_validated(config=outcome.candidate,
                                         members=outcome.members)
+        self._buffer.take_subtrees(outcome.subtrees)
         self._verdict = outcome.verdict
         return outcome
 

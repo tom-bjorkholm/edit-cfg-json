@@ -25,6 +25,7 @@
     * [fold](#edit_cfg_json_tk.tk_editor.RowWidgets.fold)
     * [field](#edit_cfg_json_tk.tk_editor.RowWidgets.field)
     * [mark](#edit_cfg_json_tk.tk_editor.RowWidgets.mark)
+    * [subtree](#edit_cfg_json_tk.tk_editor.RowWidgets.subtree)
     * [description](#edit_cfg_json_tk.tk_editor.RowWidgets.description)
     * [diagnostic](#edit_cfg_json_tk.tk_editor.RowWidgets.diagnostic)
   * [EditorWidgets](#edit_cfg_json_tk.tk_editor.EditorWidgets)
@@ -270,6 +271,15 @@ The field of an editable node, and None for every other node.
 #### mark
 
 The widget that says what has happened to this member.
+
+<a id="edit_cfg_json_tk.tk_editor.RowWidgets.subtree"></a>
+
+#### subtree
+
+The widget that says what this object is on its own.
+
+It is None for every node that is not a nested configuration object,
+because nothing else is a configuration that can be asked about itself.
 
 <a id="edit_cfg_json_tk.tk_editor.RowWidgets.description"></a>
 

@@ -14,6 +14,7 @@ by the example itself.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from typing import Optional
 import tkinter
 from edit_cfg_json import EditModel
 from edit_cfg_json_tk.tk_editor import EditorWidgets, FOLD_SHUT_TEXT
@@ -36,15 +37,54 @@ OUTPUT_SUMMARY = EditModel(TableOutputConfig()).summary
 OUTPUT_DETAIL = 'Nothing about this class says'
 """The beginning of the part that only an open object shows."""
 
+OWN_VALID = ' [valid on its own]'
+"""What an object that is a configuration on its own says.
 
-def _nested_stub() -> EditorWidgets:
+It is written out here rather than read from an internal module of the core,
+in the same way as every other text these tests expect.
+"""
+
+OWN_REFUSED = ' [refused on its own]'
+"""What an object that its own class refuses says instead."""
+
+REFUSED_FORMAT = ('participant_output', 'output_format')
+"""A member inside a nested object, to be given a value its class refuses."""
+
+
+def _nested_model(validated: bool = False) -> EditModel:
+    """Return a model of the example with the nested objects.
+
+    Args:
+        validated: Whether the buffer has been validated already, which is
+            what gives every nested object something to say about itself
+            before anything has been folded.
+
+    Returns:
+        A model of the example configuration.
+    """
+    model = EditModel(CourseExportConfig())
+    if validated:
+        model.validate()
+    return model
+
+
+def _refused_model() -> EditModel:
+    """Return a model whose nested object holds a value its class refuses."""
+    model = EditModel(CourseExportConfig())
+    model.set_text(path=REFUSED_FORMAT, text='xml')
+    return model
+
+
+def _nested_stub(model: Optional[EditModel] = None) -> EditorWidgets:
     """Build the stubbed widgets of the example with the nested objects."""
-    return stub_editor(EditModel(CourseExportConfig()))
+    return stub_editor(model if model is not None else _nested_model())
 
 
-def _nested_real(parent: tkinter.Misc) -> EditorWidgets:
+def _nested_real(parent: tkinter.Misc,
+                 model: Optional[EditModel] = None) -> EditorWidgets:
     """Build the real widgets of the example with the nested objects."""
-    return EditorWidgets(parent=parent, model=EditModel(CourseExportConfig()))
+    return EditorWidgets(parent=parent,
+                         model=model if model is not None else _nested_model())
 
 
 def test_stub_shows_the_class(stub_tk: None) -> None:
@@ -116,9 +156,15 @@ def test_stub_says_less(stub_tk: None) -> None:
 
 
 def test_stub_opens_again(stub_tk: None) -> None:
-    """Test opening it again brings back the members and the whole text."""
+    """Test opening it again brings back the members and the whole text.
+
+    The model is validated first, so that every nested object already says
+    what it is on its own: folding one asks it that question again, and a
+    round trip that started before it had ever been asked would differ by
+    that one text and by nothing else.
+    """
     _ = stub_tk
-    _nested_stub()
+    _nested_stub(_nested_model(validated=True))
     before = stub_texts(packed_only=True)
     stub_fold()
     stub_fold(FOLD_SHUT_TEXT)
@@ -127,7 +173,7 @@ def test_stub_opens_again(stub_tk: None) -> None:
 
 def test_real_folds_an_object(root_or_skip: tkinter.Tk) -> None:
     """Test real Tk folds a nested object away and opens it again."""
-    _nested_real(root_or_skip)
+    _nested_real(root_or_skip, _nested_model(validated=True))
     before = real_texts(root_or_skip, packed_only=True)
     real_fold(root_or_skip)
     folded = real_texts(root_or_skip, packed_only=True)
@@ -135,3 +181,59 @@ def test_real_folds_an_object(root_or_skip: tkinter.Tk) -> None:
     assert OUTPUT_SUMMARY in folded
     real_fold(root_or_skip, FOLD_SHUT_TEXT)
     assert real_texts(root_or_skip, packed_only=True) == before
+
+
+def test_stub_badge_on_fold(stub_tk: None) -> None:
+    """Test folding a nested object says what that object is on its own.
+
+    Nothing has been validated when the editor opens, so the object has not
+    been asked and says nothing. Folding it is one of the moments the model
+    asks, which is the cheap local question that needs no whole configuration.
+    """
+    _ = stub_tk
+    _nested_stub()
+    assert OWN_VALID not in stub_texts(packed_only=True)
+    stub_fold()
+    assert OWN_VALID in stub_texts(packed_only=True)
+
+
+def test_real_badge_on_fold(root_or_skip: tkinter.Tk) -> None:
+    """Test real Tk shows exactly what the stubbed test expects."""
+    _nested_real(root_or_skip)
+    assert OWN_VALID not in real_texts(root_or_skip, packed_only=True)
+    real_fold(root_or_skip)
+    assert OWN_VALID in real_texts(root_or_skip, packed_only=True)
+
+
+def test_stub_badge_refused(stub_tk: None) -> None:
+    """Test an object its own class refuses says so where it is folded."""
+    _ = stub_tk
+    _nested_stub(_refused_model())
+    stub_fold()
+    shown = stub_texts(packed_only=True)
+    assert OWN_REFUSED in shown
+    assert OWN_VALID not in shown
+
+
+def test_real_badge_refused(root_or_skip: tkinter.Tk) -> None:
+    """Test real Tk shows exactly what the stubbed test expects."""
+    _nested_real(root_or_skip, _refused_model())
+    real_fold(root_or_skip)
+    shown = real_texts(root_or_skip, packed_only=True)
+    assert OWN_REFUSED in shown
+    assert OWN_VALID not in shown
+
+
+def test_stub_only_objects(stub_tk: None) -> None:
+    """Test only the member that holds an object says what it is on its own.
+
+    The example declares two nested members and one of them holds no object,
+    so there is nothing there to ask and nothing said about it. A validated
+    model is what makes that visible: every object that is there has been
+    asked by then.
+    """
+    _ = stub_tk
+    _nested_stub(_nested_model(validated=True))
+    shown = stub_texts(packed_only=True)
+    assert shown.count(OWN_VALID) == 1
+    assert MISSING_OUTPUT in shown

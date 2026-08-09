@@ -210,6 +210,26 @@ class MemberRow(NamedTuple):
     the next edit of this node clears it.
     """
 
+    subtree_valid: Optional[bool] = None
+    """Whether the object here is a configuration on its own, None if unasked.
+
+    It is set for a declared nested configuration object and for nothing else,
+    because nothing else is a configuration that can be asked about itself. A
+    list, a dict and an ordinary value have no class of their own to ask, and a
+    declared member holding no object has no object to ask.
+
+    None is a third state rather than a kind of failure, exactly as it is for
+    the verdict of the whole configuration: this object has not been asked
+    since something inside it last changed. It is answered by folding the node
+    or opening it, and by every validation pass, and an edit anywhere inside it
+    takes the answer away again.
+
+    It says nothing about whether the configuration could be saved, and it is
+    deliberately not the same question: a rule of the class above may relate
+    two of these objects across the boundary between them, so both of them can
+    be valid on their own while the configuration holding them is refused.
+    """
+
     @property
     def name(self) -> str:
         """Return the name of the node, the last step of its path."""
@@ -433,7 +453,8 @@ def _row_of(path: ConfigPath, value: JsonType, context: RowContext,
             facts=MemberFacts(value=value, converter=converter,
                               optional=path in context.optional,
                               nested=node is not None)),
-        converter=converter, conversion='' if was is None else was.conversion)
+        converter=converter, conversion='' if was is None else was.conversion,
+        subtree_valid=None if was is None else was.subtree_valid)
 
 
 def built_rows(config: Config, members: Mapping[str, JsonType],

@@ -171,6 +171,13 @@ class RowWidgets(NamedTuple):
     mark: tkinter.Label
     """The widget that says what has happened to this member."""
 
+    subtree: Optional[tkinter.Label]
+    """The widget that says what this object is on its own.
+
+    It is None for every node that is not a nested configuration object,
+    because nothing else is a configuration that can be asked about itself.
+    """
+
     description: Optional[tkinter.Label]
     """The widget that says what this member is for.
 
@@ -492,10 +499,39 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         mark.pack(side='left')
         widgets = RowWidgets(
             frame=frame, fold=fold, field=field, mark=mark,
+            subtree=self._add_subtree(parent=line, row=row),
             description=self._add_description(parent=frame, row=row),
             diagnostic=shown_text(frame, '', core.MEMBER_DIAGNOSTIC))
         self._show_row_texts(row=row, widgets=widgets)
         return widgets
+
+    @staticmethod
+    def _add_subtree(parent: tkinter.Misc,
+                     row: core.MemberRow) -> Optional[tkinter.Label]:
+        """Create the widget that says what one object is on its own.
+
+        A node that is no configuration object gets no widget, by the same
+        rule as the description below the row: a widget that could never hold
+        anything is a piece of the window spent on nothing.
+
+        It does not wrap, exactly as the mark beside it does not: it belongs
+        on the line of its node, and a narrow window squeezes the values
+        rather than this.
+
+        Args:
+            parent: Line of the node that is being shown.
+            row: Node to create the widget for.
+
+        Returns:
+            The widget that says what that object is on its own, or None for
+            a node that is not one.
+        """
+        if not core.row_validates(row):
+            return None
+        label = shown_text(parent, core.row_subtree_text(row),
+                           core.subtree_emphasis(row), wrapping=False)
+        label.pack(side='left')
+        return label
 
     def _add_fold(self, parent: tkinter.Misc,
                   row: core.MemberRow) -> Optional[tkinter.Button]:
@@ -561,7 +597,20 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
             if row.shown:
                 widgets.frame.pack(fill='x', padx=(self._indent(row), PADDING))
         self._show_member_texts()
+        self._show_subtrees()
         self._show_fold_all()
+
+    def _show_subtrees(self) -> None:
+        """Say what each nested object is on its own, as the model says now.
+
+        It is shown after folding as well as after a validation pass, because
+        folding a nested object is one of the moments the model asks that
+        object about itself.
+        """
+        for row, widgets in zip(self._model.rows, self._rows, strict=True):
+            if widgets.subtree is not None:
+                told(widgets.subtree, text=core.row_subtree_text(row),
+                     emphasis=core.subtree_emphasis(row))
 
     @staticmethod
     def _indent(row: core.MemberRow) -> int:
@@ -783,6 +832,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
              emphasis=core.save_emphasis(self._model))
         for row, widgets in zip(self._model.rows, self._rows, strict=True):
             widgets.mark.config(text=core.row_marks(row))
+        self._show_subtrees()
         self._show_member_texts()
 
 

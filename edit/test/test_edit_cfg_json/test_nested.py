@@ -13,11 +13,18 @@ class rather than to the class holding it.
 from pathlib import Path
 import pytest
 from edit_cfg_json import EditModel, model_as_text, row_describes, \
-    row_description, row_value_text
+    row_description, row_subtree_text, row_validates, row_value_text
 from .model_helpers import row_at, row_paths, shown_paths, written
-from .container_cfg import ConfigDictCfg, ConfigListCfg, DeepConfigCfg, \
-    InnerCfg, NestedCfg, NoDocNestedCfg, NullNestedCfg, OmitNestedCfg, \
-    OwnedEnumCfg, OwnedOptionCfg
+from .container_cfg import CROSS_REFUSAL, ConfigDictCfg, ConfigListCfg, \
+    DeepConfigCfg, DeepSubtreeCfg, INNER_LIMIT, InnerCfg, NestedCfg, \
+    NoDocNestedCfg, NullNestedCfg, ORDER_REFUSAL, OmitNestedCfg, \
+    OwnedEnumCfg, OwnedOptionCfg, SubtreeCfg
+
+TOO_WIDE = str(INNER_LIMIT + 1)
+"""A width that the nested class of `SubtreeCfg` refuses."""
+
+OUT_OF_ORDER = '99'
+"""A low value above the high value of the other nested class."""
 
 
 def test_nested_holds_rows() -> None:
@@ -272,3 +279,186 @@ def test_dump_shows_the_tree() -> None:
     assert 'inner: InnerCfg\n' in printed
     assert '    width = 4' in printed
     assert 'limits: 1 entry' in printed
+
+
+def test_unasked_says_nothing() -> None:
+    """Test an object that has not been asked says nothing about itself.
+
+    Not being asked is a third state and not a kind of failure, exactly as it
+    is for the validation of the whole configuration, so nothing at all is
+    said until something asks.
+    """
+    row = row_at(EditModel(SubtreeCfg()), ('ranged',))
+    assert row.subtree_valid is None
+    assert row_subtree_text(row) == ''
+    assert row_validates(row)
+
+
+def test_fold_asks_the_object() -> None:
+    """Test folding a nested object asks whether it is one on its own.
+
+    That is the cheap local question: it needs no candidate configuration and
+    says nothing about whether the file could be written.
+    """
+    model = EditModel(SubtreeCfg())
+    model.toggle_fold(('ranged',))
+    assert row_at(model, ('ranged',)).subtree_valid is True
+    assert model.verdict is None
+
+
+def test_open_asks_again() -> None:
+    """Test opening a nested object asks it as well as folding it does.
+
+    Changing how much of an object is on the screen is the moment at which
+    the user is looking at it, whichever way it changed.
+    """
+    model = EditModel(SubtreeCfg())
+    model.toggle_fold(('ranged',))
+    model.set_text(path=('ranged', 'width'), text=TOO_WIDE)
+    model.toggle_fold(('ranged',))
+    assert row_at(model, ('ranged',)).subtree_valid is False
+
+
+def test_edit_inside_unasks() -> None:
+    """Test an edit inside an object takes back what was said about it.
+
+    The answer was about the values the object held, and one of them has
+    just changed. It is a different lifetime from the verdict of the whole
+    configuration, which any edit anywhere takes away.
+    """
+    model = EditModel(SubtreeCfg())
+    model.validate()
+    assert row_at(model, ('ordered',)).subtree_valid is True
+    model.set_text(path=('ranged', 'width'), text='5')
+    assert row_at(model, ('ranged',)).subtree_valid is None
+    assert row_at(model, ('ordered',)).subtree_valid is True
+
+
+def test_pass_asks_objects() -> None:
+    """Test a validation pass answers for every nested object at once."""
+    model = EditModel(DeepSubtreeCfg())
+    model.validate()
+    assert row_at(model, ('outer',)).subtree_valid is True
+    assert row_at(model, ('outer', 'ranged')).subtree_valid is True
+
+
+def test_fold_all_asks_all() -> None:
+    """Test folding everything asks every nested object about itself."""
+    model = EditModel(SubtreeCfg())
+    model.toggle_fold_all()
+    assert row_at(model, ('ranged',)).subtree_valid is True
+    assert row_at(model, ('ordered',)).subtree_valid is True
+
+
+def test_missing_not_asked() -> None:
+    """Test a declared member holding no object is never asked about one.
+
+    There is no object there, so there is nothing to ask and nothing that
+    could ever be said, which is what a backend reads before it creates the
+    widget that would say it.
+    """
+    model = EditModel(NullNestedCfg())
+    model.validate()
+    row = row_at(model, ('inner',))
+    assert not row_validates(row)
+    assert row.subtree_valid is None
+
+
+def test_container_unasked() -> None:
+    """Test a list or a dict is no configuration and is never asked."""
+    model = EditModel(NestedCfg())
+    model.validate()
+    assert not row_validates(row_at(model, ('limits',)))
+    assert row_validates(row_at(model, ('inner',)))
+
+
+def test_member_refused_in() -> None:
+    """Test a member a nested class refuses is named at that member.
+
+    That is what asking the object on its own reaches and reading the whole
+    configuration cannot: such an object validates itself while `parse_json`
+    builds it, so the object that could say which member was refused is one
+    that was never built.
+    """
+    model = EditModel(SubtreeCfg())
+    model.set_text(path=('ranged', 'width'), text=TOO_WIDE)
+    verdict = model.validate()
+    assert not verdict.valid
+    assert set(verdict.refused) == {('ranged', 'width')}
+    assert row_at(model, ('ranged',)).subtree_valid is False
+    assert row_at(model, ('ordered',)).subtree_valid is True
+
+
+def test_object_refuses_own() -> None:
+    """Test what a nested class refuses about no member of it is at it.
+
+    It is about the object, and the object is a node with a row, so it is
+    said there rather than in the block below the members: a message that
+    names no place sends the user looking for one.
+    """
+    model = EditModel(SubtreeCfg())
+    model.set_text(path=('ordered', 'low'), text=OUT_OF_ORDER)
+    verdict = model.validate()
+    assert set(verdict.refused) == {('ordered',)}
+    assert ORDER_REFUSAL.format(low=99, high=9) in verdict.refused[
+        ('ordered',)]
+    assert verdict.diagnostics == ''
+
+
+def test_valid_object_refused() -> None:
+    """Test an object valid on its own inside a configuration that is not.
+
+    This is what the two states are kept apart for. The rule that refuses
+    this configuration is about both objects and therefore about neither, so
+    each of them is a perfectly good configuration on its own while the
+    configuration holding them cannot be saved.
+    """
+    model = EditModel(SubtreeCfg())
+    model.set_text(path=('ranged', 'width'), text='1')
+    verdict = model.validate()
+    assert not verdict.valid
+    assert not verdict.refused
+    assert CROSS_REFUSAL.format(width=1) in verdict.diagnostics
+    assert row_at(model, ('ranged',)).subtree_valid is True
+    assert row_at(model, ('ordered',)).subtree_valid is True
+
+
+def test_refused_once_deep() -> None:
+    """Test one mistake deep inside is reported once and at its own object.
+
+    An object holding a refused object is refused as well, and it is not
+    asked again, so the outer one carries no message of its own.
+    """
+    model = EditModel(DeepSubtreeCfg())
+    model.set_text(path=('outer', 'ranged', 'width'), text=TOO_WIDE)
+    verdict = model.validate()
+    assert set(verdict.refused) == {('outer', 'ranged', 'width')}
+    assert row_at(model, ('outer', 'ranged')).subtree_valid is False
+    assert row_at(model, ('outer',)).subtree_valid is False
+
+
+def test_own_state_in_dump() -> None:
+    """Test the text rendering says what each object is on its own."""
+    model = EditModel(SubtreeCfg())
+    model.set_text(path=('ranged', 'width'), text=TOO_WIDE)
+    model.validate()
+    printed = model_as_text(model)
+    assert 'ranged: RangedInnerCfg (edited) [refused on its own]' in printed
+    assert 'ordered: OrderedInnerCfg [valid on its own]' in printed
+
+
+def test_key_order_no_change() -> None:
+    """Test a nested object is not marked for the order its members are in.
+
+    The editor holds the members of such an object in the order its class
+    declares them and `config_as_json` writes them sorted, so the two orders
+    differ for every nested object there is. A file that holds the same
+    values in another order holds the same values, so neither the user nor a
+    validator has changed anything here.
+    """
+    model = EditModel(SubtreeCfg())
+    model.set_text(path=('ordered', 'high'), text='8')
+    model.set_text(path=('ordered', 'high'), text='9')
+    model.validate()
+    assert not model.dirty
+    assert not row_at(model, ('ordered',)).changed_by_validator

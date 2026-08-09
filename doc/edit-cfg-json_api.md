@@ -140,6 +140,7 @@
   * [NO\_KIND](#edit_cfg_json.leaf_value.NO_KIND)
   * [value\_as\_text](#edit_cfg_json.leaf_value.value_as_text)
   * [text\_as\_value](#edit_cfg_json.leaf_value.text_as_value)
+  * [canonical\_text](#edit_cfg_json.leaf_value.canonical_text)
   * [values\_differ](#edit_cfg_json.leaf_value.values_differ)
   * [value\_kind](#edit_cfg_json.leaf_value.value_kind)
 * [edit\_cfg\_json.loader](#edit_cfg_json.loader)
@@ -169,6 +170,7 @@
     * [check\_all](#edit_cfg_json.buffer.EditBuffer.check_all)
     * [toggle\_fold](#edit_cfg_json.buffer.EditBuffer.toggle_fold)
     * [toggle\_fold\_all](#edit_cfg_json.buffer.EditBuffer.toggle_fold_all)
+    * [take\_subtrees](#edit_cfg_json.buffer.EditBuffer.take_subtrees)
     * [keep\_saved](#edit_cfg_json.buffer.EditBuffer.keep_saved)
     * [take\_validated](#edit_cfg_json.buffer.EditBuffer.take_validated)
 * [edit\_cfg\_json.settings](#edit_cfg_json.settings)
@@ -213,11 +215,15 @@
   * [TREE\_INDENT](#edit_cfg_json.model_text.TREE_INDENT)
   * [LEAF\_FORM](#edit_cfg_json.model_text.LEAF_FORM)
   * [CONTAINER\_FORM](#edit_cfg_json.model_text.CONTAINER_FORM)
+  * [SUBTREE\_VALID\_MARK](#edit_cfg_json.model_text.SUBTREE_VALID_MARK)
+  * [SUBTREE\_REFUSED\_MARK](#edit_cfg_json.model_text.SUBTREE_REFUSED_MARK)
   * [row\_value\_text](#edit_cfg_json.model_text.row_value_text)
   * [row\_marks](#edit_cfg_json.model_text.row_marks)
   * [docstring\_text](#edit_cfg_json.model_text.docstring_text)
   * [row\_describes](#edit_cfg_json.model_text.row_describes)
   * [row\_description](#edit_cfg_json.model_text.row_description)
+  * [row\_validates](#edit_cfg_json.model_text.row_validates)
+  * [row\_subtree\_text](#edit_cfg_json.model_text.row_subtree_text)
   * [row\_fold\_text](#edit_cfg_json.model_text.row_fold_text)
   * [can\_fold](#edit_cfg_json.model_text.can_fold)
   * [fold\_hides](#edit_cfg_json.model_text.fold_hides)
@@ -239,6 +245,7 @@
   * [MEMBER\_DIAGNOSTIC](#edit_cfg_json.emphasis.MEMBER_DIAGNOSTIC)
   * [LOAD\_REMARK](#edit_cfg_json.emphasis.LOAD_REMARK)
   * [verdict\_emphasis](#edit_cfg_json.emphasis.verdict_emphasis)
+  * [subtree\_emphasis](#edit_cfg_json.emphasis.subtree_emphasis)
   * [save\_emphasis](#edit_cfg_json.emphasis.save_emphasis)
 * [edit\_cfg\_json.edit\_model](#edit_cfg_json.edit_model)
   * [EditModel](#edit_cfg_json.edit_model.EditModel)
@@ -280,6 +287,7 @@
     * [description](#edit_cfg_json.rows.MemberRow.description)
     * [converter](#edit_cfg_json.rows.MemberRow.converter)
     * [conversion](#edit_cfg_json.rows.MemberRow.conversion)
+    * [subtree\_valid](#edit_cfg_json.rows.MemberRow.subtree_valid)
     * [name](#edit_cfg_json.rows.MemberRow.name)
     * [depth](#edit_cfg_json.rows.MemberRow.depth)
     * [foldable](#edit_cfg_json.rows.MemberRow.foldable)
@@ -338,6 +346,7 @@
 * [edit\_cfg\_json.validation](#edit_cfg_json.validation)
   * [BUFFER\_ERRORS](#edit_cfg_json.validation.BUFFER_ERRORS)
   * [NOTHING\_REFUSED](#edit_cfg_json.validation.NOTHING_REFUSED)
+  * [NO\_SUBTREES](#edit_cfg_json.validation.NO_SUBTREES)
   * [ValidationVerdict](#edit_cfg_json.validation.ValidationVerdict)
     * [valid](#edit_cfg_json.validation.ValidationVerdict.valid)
     * [diagnostics](#edit_cfg_json.validation.ValidationVerdict.diagnostics)
@@ -346,11 +355,17 @@
     * [verdict](#edit_cfg_json.validation.ValidationPass.verdict)
     * [members](#edit_cfg_json.validation.ValidationPass.members)
     * [candidate](#edit_cfg_json.validation.ValidationPass.candidate)
+    * [subtrees](#edit_cfg_json.validation.ValidationPass.subtrees)
   * [Attribution](#edit_cfg_json.validation.Attribution)
     * [refused](#edit_cfg_json.validation.Attribution.refused)
     * [remaining](#edit_cfg_json.validation.Attribution.remaining)
   * [PLAN\_METHOD](#edit_cfg_json.validation.PLAN_METHOD)
+  * [SubtreeFindings](#edit_cfg_json.validation.SubtreeFindings)
+    * [valid](#edit_cfg_json.validation.SubtreeFindings.valid)
+    * [refused](#edit_cfg_json.validation.SubtreeFindings.refused)
   * [validate\_buffer](#edit_cfg_json.validation.validate_buffer)
+  * [subtree\_states](#edit_cfg_json.validation.subtree_states)
+  * [subtree\_verdict](#edit_cfg_json.validation.subtree_verdict)
 
 <a id="edit_cfg_json.tree"></a>
 
@@ -2306,6 +2321,34 @@ reports it as the wrong type.
 
   The JSON space value that the text stands for.
 
+<a id="edit_cfg_json.leaf_value.canonical_text"></a>
+
+#### canonical\_text
+
+```python
+def canonical_text(value: JsonType) -> str
+```
+
+Return one value as the text that decides whether it is unchanged.
+
+The keys of a dictionary are sorted, because `config_as_json` writes them
+sorted and a file that holds the same values in another order holds the
+same values. The editor does hold them in another order: the members of a
+nested configuration object are kept in the order its class declares them,
+which is the order they are read in and not the order they are written in.
+
+Everything else is compared as it is written, which is what tells `1` from
+`1.0` and from `true`: all three of them reach the file differently.
+
+**Arguments**:
+
+- `value` - One value in JSON space.
+  
+
+**Returns**:
+
+  The text that stands for that value.
+
 <a id="edit_cfg_json.leaf_value.values_differ"></a>
 
 #### values\_differ
@@ -2865,6 +2908,27 @@ One action and not two, because a user who wants the values back
 wants all of them back: which of the two it does is decided by what
 is on the screen, so a press always changes something.
 
+<a id="edit_cfg_json.buffer.EditBuffer.take_subtrees"></a>
+
+#### take\_subtrees
+
+```python
+def take_subtrees(states: Mapping[ConfigPath, bool]) -> None
+```
+
+Say what asking these objects about themselves found.
+
+Only the nodes that were asked are written to, and every other row is
+left exactly as it was: folding one object asks about that one, and a
+validation pass asks about all of them.
+
+**Arguments**:
+
+- `states` - Whether each of them is a configuration on its own, by the
+  path of its node. A path that is no node of this configuration
+  is ignored, because a pass that ran before a rebuild of the
+  rows can name one.
+
 <a id="edit_cfg_json.buffer.EditBuffer.keep_saved"></a>
 
 #### keep\_saved
@@ -3378,6 +3442,30 @@ A colon and not an equals sign, because what follows is not the value: for a
 list, a dict or a nested configuration object the value is on the rows below,
 and this says how many of them there are or which class they belong to.
 
+<a id="edit_cfg_json.model_text.SUBTREE_VALID_MARK"></a>
+
+#### SUBTREE\_VALID\_MARK
+
+What a nested object that is a configuration on its own says.
+
+*On its own* is the whole of what it claims, and the words are there because
+of what it must not be read as. The configuration holding this object may be
+refused for a reason that is about nothing inside it — a rule of the class
+above relating this object to another one is exactly that — so this says
+nothing at all about whether the file can be written. That is the line below
+the members, and it is the only thing that answers it.
+
+<a id="edit_cfg_json.model_text.SUBTREE_REFUSED_MARK"></a>
+
+#### SUBTREE\_REFUSED\_MARK
+
+What a nested object that its own class refuses says.
+
+The other way round holds without qualification: an object its own class
+refuses cannot be part of a configuration that is saved. What is wrong with it
+is at the member it is about, or below the object where it is about no member
+of it.
+
 <a id="edit_cfg_json.model_text.row_value_text"></a>
 
 #### row\_value\_text
@@ -3520,6 +3608,60 @@ afterwards.
 
   What is said below that node, empty while it is not being shown or
   when there is nothing to say about it.
+
+<a id="edit_cfg_json.model_text.row_validates"></a>
+
+#### row\_validates
+
+```python
+def row_validates(row: MemberRow) -> bool
+```
+
+Return whether one node can ever say what it is on its own.
+
+A backend asks this before it creates the widget that says it, by the same
+rule as `row_describes`: a widget that could never hold anything is a
+piece of the window spent on nothing.
+
+Only a declared nested configuration object that is really there can, and
+nothing else. A list, a dict and a value have no class of their own to ask,
+and a declared member that holds no object has no object to ask.
+
+**Arguments**:
+
+- `row` - Node to ask about.
+  
+
+**Returns**:
+
+  Whether that node is a configuration object of its own.
+
+<a id="edit_cfg_json.model_text.row_subtree_text"></a>
+
+#### row\_subtree\_text
+
+```python
+def row_subtree_text(row: MemberRow) -> str
+```
+
+Return what one nested object says about itself, as it is shown.
+
+A node that has not been asked since something inside it last changed says
+nothing, because that is a state and not an answer, and a line saying so
+under every object would be a line spent on nothing.
+
+Both backends read it from here, so that neither of them decides on its
+own how a valid object and a refused one are told apart.
+
+**Arguments**:
+
+- `row` - Node to render.
+  
+
+**Returns**:
+
+  What that object is on its own, and nothing for every other node and
+  for one that has not been asked.
 
 <a id="edit_cfg_json.model_text.row_fold_text"></a>
 
@@ -3892,6 +4034,31 @@ yet rather than as something wrong.
 
   The emphasis of the validation state of that model.
 
+<a id="edit_cfg_json.emphasis.subtree_emphasis"></a>
+
+#### subtree\_emphasis
+
+```python
+def subtree_emphasis(row: MemberRow) -> Emphasis
+```
+
+Return how what one nested object is on its own is shown.
+
+The same three states as the validation of the whole configuration, and
+the same three ways of showing them, because they are the same kind of
+answer about a smaller thing: a node that has not been asked since
+something inside it changed is what has not happened yet rather than
+something wrong.
+
+**Arguments**:
+
+- `row` - Node whose own state is shown.
+  
+
+**Returns**:
+
+  The emphasis of what that object is on its own.
+
 <a id="edit_cfg_json.emphasis.save_emphasis"></a>
 
 #### save\_emphasis
@@ -3966,6 +4133,13 @@ shown as the dict it serializes to, because that would be showing it as
 something it is not, and everything inside it belongs to its own class:
 the parse converters that say what a value there means, and the members
 that class may leave out of a file.
+
+Such an object is also asked whether it is a configuration on its own,
+which folding it and every validation pass answer. That is a different
+state from the verdict of the whole configuration and is kept apart from
+it: a rule of the class above may relate two of these objects across the
+boundary between them, so both of them can be valid on their own while the
+configuration holding them cannot be saved.
 
 <a id="edit_cfg_json.edit_model.EditModel.__init__"></a>
 
@@ -4116,6 +4290,11 @@ application cannot end up with two user interfaces that are folded
 differently. Every row says whether it is folded and whether it is
 shown, which is where a backend reads it.
 
+A nested configuration object is asked whether it is a configuration
+on its own at the same time. That is the cheap local question, it
+needs no candidate configuration, and changing how much of an object
+is on the screen is the moment at which a user is looking at it.
+
 **Arguments**:
 
 - `path` - Path of the container to fold or open.
@@ -4139,6 +4318,9 @@ Fold every container away, or open every one of them.
 One action and not two, because a user who wants the values back
 wants all of them back: which of the two it does is decided by what
 is on the screen, so a press always changes something.
+
+Every nested configuration object is asked about itself, for the same
+reason folding one of them asks that one.
 
 <a id="edit_cfg_json.edit_model.EditModel.settings"></a>
 
@@ -4680,6 +4862,28 @@ thing from what a validation pass says about it: it stays true until this
 node is edited again, whatever happens to the rest of the buffer. It is
 set when the user leaves the field and again by every validation pass, and
 the next edit of this node clears it.
+
+<a id="edit_cfg_json.rows.MemberRow.subtree_valid"></a>
+
+#### subtree\_valid
+
+Whether the object here is a configuration on its own, None if unasked.
+
+It is set for a declared nested configuration object and for nothing else,
+because nothing else is a configuration that can be asked about itself. A
+list, a dict and an ordinary value have no class of their own to ask, and a
+declared member holding no object has no object to ask.
+
+None is a third state rather than a kind of failure, exactly as it is for
+the verdict of the whole configuration: this object has not been asked
+since something inside it last changed. It is answered by folding the node
+or opening it, and by every validation pass, and an edit anywhere inside it
+takes the answer away again.
+
+It says nothing about whether the configuration could be saved, and it is
+deliberately not the same question: a rule of the class above may relate
+two of these objects across the boundary between them, so both of them can
+be valid on their own while the configuration holding them is refused.
 
 <a id="edit_cfg_json.rows.MemberRow.name"></a>
 
@@ -5661,7 +5865,7 @@ Return what one successful load did to the file that it read.
 
 Running the application's own validation over one edit buffer.
 
-There are three passes here and they answer three different questions. What
+There are four passes here and they answer four different questions. What
 the text of each member means is answered first, by the parse converter the
 class declared for that member, because a value that does not exist cannot be
 validated and the message the configuration class prints for one is about
@@ -5671,6 +5875,17 @@ the pass that decides whether the buffer is valid at all. And when that pass
 refuses, the plan is walked a third time to say which members it was about,
 because `Config.validate()` stops at the first step that refuses and can
 therefore report one failure and never say whose it was.
+
+The fourth is every nested configuration object asked on its own, and it
+answers what the third one cannot reach. Such an object validates itself while
+`parse_json` builds it, so a refusal from inside it keeps the walk above from
+ever holding an object to walk: the probe is a copy of the configuration with
+one method left out, and the nested objects inside that copy are built by the
+library and validate themselves as they always do. Applying one subtree of the
+buffer to the object that owns it is what reaches them, and it answers the
+other question a nested object raises as well — whether it is a configuration
+on its own, which is what its row says while the whole configuration is
+refused for a reason that is about something else entirely.
 
 <a id="edit_cfg_json.validation.BUFFER_ERRORS"></a>
 
@@ -5698,6 +5913,14 @@ What a pass that refused no individual member reports.
 It cannot be written to, because every verdict that names no member shares
 this one mapping and a default that could be changed would be a defect
 waiting to happen.
+
+<a id="edit_cfg_json.validation.NO_SUBTREES"></a>
+
+#### NO\_SUBTREES
+
+What a pass over a configuration with no nested object at all reports.
+
+It cannot be written to, for the same reason as the mapping above.
 
 <a id="edit_cfg_json.validation.ValidationVerdict"></a>
 
@@ -5784,6 +6007,23 @@ the same text, so that what reaches the file is what the verdict was
 reached about. It is also what `edit()` gives back to the application,
 which then needs no load of its own to see what was saved.
 
+<a id="edit_cfg_json.validation.ValidationPass.subtrees"></a>
+
+#### subtrees
+
+Whether each nested object is a configuration on its own, by its path.
+
+A subtree can be valid while the whole configuration is not, which is what
+a rule relating two of them across the boundary does, and that is the
+honest state rather than a contradiction. It is a different question from
+the verdict and it is answered separately, so a row can say what its own
+object amounts to without saying anything about the file.
+
+A member declared to hold an object and holding none is not here, because
+there is nothing to validate; and a pass the class accepted answers for
+every one of them at once, since `parse_json` built and validated each of
+them while it read the buffer.
+
 <a id="edit_cfg_json.validation.Attribution"></a>
 
 ## Attribution Objects
@@ -5812,6 +6052,28 @@ What a step that is about no single member said, empty when none.
 
 Name of the method that the probe below has replaced with nothing.
 
+<a id="edit_cfg_json.validation.SubtreeFindings"></a>
+
+## SubtreeFindings Objects
+
+```python
+class SubtreeFindings(NamedTuple)
+```
+
+What asking each nested configuration object on its own found.
+
+<a id="edit_cfg_json.validation.SubtreeFindings.valid"></a>
+
+#### valid
+
+Whether each of them is a configuration on its own, by its path.
+
+<a id="edit_cfg_json.validation.SubtreeFindings.refused"></a>
+
+#### refused
+
+What they refused, by the path of the node each refusal is about.
+
 <a id="edit_cfg_json.validation.validate_buffer"></a>
 
 #### validate\_buffer
@@ -5821,31 +6083,28 @@ def validate_buffer(config: Config, members: dict[str,
                                                   JsonType]) -> ValidationPass
 ```
 
-Validate one edit buffer by applying it to a candidate configuration.
+Validate one edit buffer, and every nested object of it on its own.
 
-The buffer is applied to a copy of the configuration object with
-`Config.parse_json`, which runs the whole chain the application runs when
-it reads its own file: key matching, the recursive check of dict shapes
-against the defaults, the parse converters, the nested configuration
-objects and then the validation plan. So the user sees exactly the
-diagnostics that the application would produce, there is no second
-implementation of validation anywhere, and there is no way for the editor
-to accept something the application would then refuse.
+The whole buffer decides the verdict, by `_single_pass`, which is the
+application's own reading of its own file and the only thing that says
+whether these values could be saved. Each nested configuration object is
+then asked the same question about the part of the buffer it owns, which
+answers the two things that pass cannot.
 
-The class is not constructed, and it is not asked to be. What a
-construction would add is the declaring of the members, which a copy has
-already, so a class that needs a constructor argument this library knows
-nothing about is validated here exactly as well as any other.
+It says whether that object is a configuration on its own, which is a
+different state from the verdict and has to be shown as one: a rule of the
+class above relates two objects across the boundary between them, so both
+of them can be valid while the configuration is refused.
 
-What each value means is settled before that, by running the parse
-converter of its member. A value that means nothing is reported as the
-one member it is about, and the candidate is not built at all: it would
-only report the same thing as text it could not read as JSON, which is
-an answer to a question the user did not ask.
+And it says which member of a nested object was refused. Such an object
+validates itself while `parse_json` builds it, so the walk of section 6.3
+of `doc/design.md` never gets an object to walk and would leave the
+message in the block below the members. Applying the subtree to the object
+that owns it is what reaches the member.
 
-The stream the candidate writes to is captured rather than passed on,
-because these diagnostics are the answer to a question the user asked
-and belong on the screen and not in the terminal behind it.
+None of that is asked of a pass the class accepted: `parse_json` built and
+validated every nested object while it read the buffer, so all of them are
+valid and there is nothing left to find out.
 
 **Arguments**:
 
@@ -5857,6 +6116,58 @@ and belong on the screen and not in the terminal behind it.
 
 **Returns**:
 
-  What the pass found, and the members of the configuration object it
-  built. The members are empty when the buffer was refused.
+  What the pass found, the members of the configuration object it built,
+  and what each nested object is on its own.
+
+<a id="edit_cfg_json.validation.subtree_states"></a>
+
+#### subtree\_states
+
+```python
+def subtree_states(config: Config,
+                   members: dict[str, JsonType]) -> dict[ConfigPath, bool]
+```
+
+Return whether each nested object of one buffer is valid on its own.
+
+This is what folding every node at once asks, where the verdict of the
+whole configuration is not what was asked for and would be a great deal
+more work than the question deserves.
+
+**Arguments**:
+
+- `config` - Configuration object of this session. It is not modified.
+- `members` - The edit buffer, as one JSON space value per member.
+  
+
+**Returns**:
+
+  One answer per nested object that is there, by the path of its node.
+
+<a id="edit_cfg_json.validation.subtree_verdict"></a>
+
+#### subtree\_verdict
+
+```python
+def subtree_verdict(config: Config, members: dict[str, JsonType],
+                    path: ConfigPath) -> Optional[bool]
+```
+
+Return whether the object at one node is a configuration on its own.
+
+This is what folding one node asks, and it is the cheap local question
+that section 6.2 of `doc/design.md` makes folding the trigger for: it
+needs no candidate configuration and says nothing about the file.
+
+**Arguments**:
+
+- `config` - Configuration object of this session. It is not modified.
+- `members` - The edit buffer, as one JSON space value per member.
+- `path` - Path of the node to ask about.
+  
+
+**Returns**:
+
+  What that object says about itself, and None where there is no object
+  to ask, which a declared member holding none is.
 

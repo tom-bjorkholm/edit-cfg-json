@@ -87,6 +87,27 @@ def text_as_value(text: str, is_text_member: bool) -> JsonType:
     return value
 
 
+def canonical_text(value: JsonType) -> str:
+    """Return one value as the text that decides whether it is unchanged.
+
+    The keys of a dictionary are sorted, because `config_as_json` writes them
+    sorted and a file that holds the same values in another order holds the
+    same values. The editor does hold them in another order: the members of a
+    nested configuration object are kept in the order its class declares them,
+    which is the order they are read in and not the order they are written in.
+
+    Everything else is compared as it is written, which is what tells `1` from
+    `1.0` and from `true`: all three of them reach the file differently.
+
+    Args:
+        value: One value in JSON space.
+
+    Returns:
+        The text that stands for that value.
+    """
+    return json.dumps(value, sort_keys=True)
+
+
 def values_differ(value: JsonType, other: JsonType) -> bool:
     """Return whether two values would be written to the file differently.
 
@@ -103,7 +124,7 @@ def values_differ(value: JsonType, other: JsonType) -> bool:
     Returns:
         Whether the two values are different values.
     """
-    return json.dumps(value) != json.dumps(other)
+    return canonical_text(value) != canonical_text(other)
 
 
 def value_kind(value: JsonType) -> str:

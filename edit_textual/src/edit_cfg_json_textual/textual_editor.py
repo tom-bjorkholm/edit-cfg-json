@@ -24,7 +24,7 @@ from textual.widgets import Button, Footer, Header, Input, Label, Static
 import edit_cfg_json as core
 from edit_cfg_json_textual.textual_look import COLOUR_RULES, bind_action, \
     description_id, diagnostic_id, fold_glyph, fold_id, mark_id, \
-    member_id, plain_widget, show_emphasis, value_id
+    member_id, plain_widget, show_emphasis, subtree_id, value_id
 
 DOCSTRING_ID = 'docstring'
 """Identifier of the widget that shows what the configuration class says."""
@@ -63,6 +63,9 @@ VALUE_CLASS = 'member_value'
 
 MARK_CLASS = 'member_mark'
 """Style class of the widget that marks one member."""
+
+SUBTREE_CLASS = 'member_own'
+"""Style class of the widget that says what one object is on its own."""
 
 ROW_CLASS = 'member_row'
 """Style class of the container that holds the widgets of one member."""
@@ -194,7 +197,7 @@ CSS_RULES = COLOUR_RULES + (
     f'.{ROW_CLASS} {{ height: 1; }}',
     f'.{NAME_CLASS} {{ width: {NAME_WIDTH}; }}',
     f'.{VALUE_CLASS} {{ width: 1fr; min-width: {LEAST_VALUE_WIDTH}; }}',
-    f'.{MARK_CLASS} {{ width: auto; }}',
+    f'.{MARK_CLASS}, .{SUBTREE_CLASS} {{ width: auto; }}',
     f'.{FOLD_CLASS} {{ width: {FOLD_WIDTH}; min-width: {FOLD_WIDTH};'
     ' height: 1; border: none; padding: 0; margin: 0;'
     ' text-align: center; }',
@@ -462,7 +465,8 @@ class EditorApp(App[None]):
         marks = plain_widget(core.row_marks(row), mark_id(index), MARK_CLASS,
                              core.MEMBER_MARK)
         beside = [Label(row.name, classes=NAME_CLASS),
-                  self._value_widget(index=index, row=row), marks]
+                  self._value_widget(index=index, row=row), marks,
+                  *self._subtree_widgets(index=index, row=row)]
         folding = self._fold_widget(index=index, row=row)
         line = Horizontal(*([folding] if folding is not None else []), *beside,
                           classes=ROW_CLASS)
@@ -473,6 +477,26 @@ class EditorApp(App[None]):
         member.styles.padding = (0, 0, 0, row.depth * TREE_INDENT)
         member.display = row.shown
         return member
+
+    @staticmethod
+    def _subtree_widgets(index: int, row: core.MemberRow) -> ComposeResult:
+        """Create the widget that says what one object is on its own.
+
+        A node that is no configuration object gets none, by the same rule as
+        the description below the row: a widget that could never hold anything
+        is a piece of the screen spent on nothing.
+
+        Args:
+            index: Place of the node among the rows.
+            row: Node to create the widget for.
+
+        Returns:
+            One widget for a nested configuration object, and none at all for
+            every other node.
+        """
+        if core.row_validates(row):
+            yield plain_widget(core.row_subtree_text(row), subtree_id(index),
+                               SUBTREE_CLASS, core.subtree_emphasis(row))
 
     def _fold_widget(self, index: int,
                      row: core.MemberRow) -> Optional[Widget]:
@@ -689,7 +713,22 @@ class EditorApp(App[None]):
                 self.query_one(f'#{fold_id(index)}',
                                Button).label = fold_glyph(row)
         self._show_descriptions()
+        self._show_subtrees()
         self._bind_fold()
+
+    def _show_subtrees(self) -> None:
+        """Say what each nested object is on its own, as the model says now.
+
+        It is shown after folding as well as after a validation pass, because
+        folding a nested object is one of the moments the model asks that
+        object about itself.
+        """
+        for index, row in enumerate(self._model.rows):
+            if not core.row_validates(row):
+                continue
+            widget = self.query_one(f'#{subtree_id(index)}', Static)
+            widget.update(core.row_subtree_text(row))
+            show_emphasis(widget, core.subtree_emphasis(row))
 
     def _show_explanations(self) -> None:
         """Show as much of the explanatory text as the model says to show.
@@ -821,6 +860,7 @@ class EditorApp(App[None]):
             self.query_one(f'#{mark_id(index)}',
                            Static).update(core.row_marks(row))
             self._show_diagnostic(index=index, row=row)
+        self._show_subtrees()
 
     def _show_diagnostic(self, index: int, row: core.MemberRow) -> None:
         """Show what is wrong with one node, or nothing when nothing is."""

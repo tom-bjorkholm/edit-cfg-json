@@ -96,12 +96,32 @@ value, and a sentence has neither.
 LEAF_FORM = '{indent}{name} = {value}{marks}'
 """Form of the line that shows one value of the configuration."""
 
-CONTAINER_FORM = '{indent}{name}: {value}{folded}{marks}'
+CONTAINER_FORM = '{indent}{name}: {value}{folded}{marks}{subtree}'
 """Form of the line that shows one node that is not edited in a field.
 
 A colon and not an equals sign, because what follows is not the value: for a
 list, a dict or a nested configuration object the value is on the rows below,
 and this says how many of them there are or which class they belong to.
+"""
+
+SUBTREE_VALID_MARK = ' [valid on its own]'
+"""What a nested object that is a configuration on its own says.
+
+*On its own* is the whole of what it claims, and the words are there because
+of what it must not be read as. The configuration holding this object may be
+refused for a reason that is about nothing inside it — a rule of the class
+above relating this object to another one is exactly that — so this says
+nothing at all about whether the file can be written. That is the line below
+the members, and it is the only thing that answers it.
+"""
+
+SUBTREE_REFUSED_MARK = ' [refused on its own]'
+"""What a nested object that its own class refuses says.
+
+The other way round holds without qualification: an object its own class
+refuses cannot be part of a configuration that is saved. What is wrong with it
+is at the member it is about, or below the object where it is about no member
+of it.
 """
 
 
@@ -244,6 +264,48 @@ def row_description(model: EditModel, row: MemberRow) -> str:
     return '\n'.join(line for line in said if line)
 
 
+def row_validates(row: MemberRow) -> bool:
+    """Return whether one node can ever say what it is on its own.
+
+    A backend asks this before it creates the widget that says it, by the same
+    rule as `row_describes`: a widget that could never hold anything is a
+    piece of the window spent on nothing.
+
+    Only a declared nested configuration object that is really there can, and
+    nothing else. A list, a dict and a value have no class of their own to ask,
+    and a declared member that holds no object has no object to ask.
+
+    Args:
+        row: Node to ask about.
+
+    Returns:
+        Whether that node is a configuration object of its own.
+    """
+    return row.config_type is not None and row.foldable
+
+
+def row_subtree_text(row: MemberRow) -> str:
+    """Return what one nested object says about itself, as it is shown.
+
+    A node that has not been asked since something inside it last changed says
+    nothing, because that is a state and not an answer, and a line saying so
+    under every object would be a line spent on nothing.
+
+    Both backends read it from here, so that neither of them decides on its
+    own how a valid object and a refused one are told apart.
+
+    Args:
+        row: Node to render.
+
+    Returns:
+        What that object is on its own, and nothing for every other node and
+        for one that has not been asked.
+    """
+    if row.subtree_valid is None:
+        return ''
+    return SUBTREE_VALID_MARK if row.subtree_valid else SUBTREE_REFUSED_MARK
+
+
 def row_fold_text(row: MemberRow) -> str:
     """Return what says that one container is folded, empty when it is not.
 
@@ -343,7 +405,8 @@ def _row_line(row: MemberRow, indent: str) -> str:
     shape = LEAF_FORM if row.editable else CONTAINER_FORM
     return shape.format(indent=indent, name=row.name,
                         value=row_value_text(row), marks=row_marks(row),
-                        folded=row_fold_text(row))
+                        folded=row_fold_text(row),
+                        subtree=row_subtree_text(row))
 
 
 def _row_as_text(model: EditModel, row: MemberRow) -> str:

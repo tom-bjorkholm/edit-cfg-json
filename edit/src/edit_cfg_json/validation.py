@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 """Running the application's own validation over one edit buffer.
 
-There are three passes here and they answer three different questions. What
+There are four passes here and they answer four different questions. What
 the text of each member means is answered first, by the parse converter the
 class declared for that member, because a value that does not exist cannot be
 validated and the message the configuration class prints for one is about
@@ -11,6 +11,17 @@ the pass that decides whether the buffer is valid at all. And when that pass
 refuses, the plan is walked a third time to say which members it was about,
 because `Config.validate()` stops at the first step that refuses and can
 therefore report one failure and never say whose it was.
+
+The fourth is every nested configuration object asked on its own, and it
+answers what the third one cannot reach. Such an object validates itself while
+`parse_json` builds it, so a refusal from inside it keeps the walk above from
+ever holding an object to walk: the probe is a copy of the configuration with
+one method left out, and the nested objects inside that copy are built by the
+library and validate themselves as they always do. Applying one subtree of the
+buffer to the object that owns it is what reaches them, and it answers the
+other question a nested object raises as well — whether it is a configuration
+on its own, which is what its row says while the whole configuration is
+refused for a reason that is about something else entirely.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -26,7 +37,7 @@ from config_as_json import Config, ConfigPath, JsonType, \
 from edit_cfg_json.constructing import parsed_config
 from edit_cfg_json.converting import convert_member, node_converters, \
     refusal_text
-from edit_cfg_json.tree import config_nodes, flat_values
+from edit_cfg_json.tree import ConfigNode, config_nodes, flat_values
 
 BUFFER_ERRORS = (KeyError, TypeError, ValueError)
 """Every way in which a configuration class refuses an edit buffer.
@@ -49,6 +60,12 @@ NOTHING_REFUSED: Mapping[ConfigPath, str] = MappingProxyType({})
 It cannot be written to, because every verdict that names no member shares
 this one mapping and a default that could be changed would be a defect
 waiting to happen.
+"""
+
+NO_SUBTREES: Mapping[ConfigPath, bool] = MappingProxyType({})
+"""What a pass over a configuration with no nested object at all reports.
+
+It cannot be written to, for the same reason as the mapping above.
 """
 
 
@@ -108,6 +125,21 @@ class ValidationPass(NamedTuple):
     the same text, so that what reaches the file is what the verdict was
     reached about. It is also what `edit()` gives back to the application,
     which then needs no load of its own to see what was saved.
+    """
+
+    subtrees: Mapping[ConfigPath, bool] = NO_SUBTREES
+    """Whether each nested object is a configuration on its own, by its path.
+
+    A subtree can be valid while the whole configuration is not, which is what
+    a rule relating two of them across the boundary does, and that is the
+    honest state rather than a contradiction. It is a different question from
+    the verdict and it is answered separately, so a row can say what its own
+    object amounts to without saying anything about the file.
+
+    A member declared to hold an object and holding none is not here, because
+    there is nothing to validate; and a pass the class accepted answers for
+    every one of them at once, since `parse_json` built and validated each of
+    them while it read the buffer.
     """
 
 
@@ -377,8 +409,8 @@ def _no_pass(verdict: ValidationVerdict) -> ValidationPass:
     return ValidationPass(verdict=verdict, members={}, candidate=None)
 
 
-def validate_buffer(config: Config,
-                    members: dict[str, JsonType]) -> ValidationPass:
+def _single_pass(config: Config,
+                 members: dict[str, JsonType]) -> ValidationPass:
     """Validate one edit buffer by applying it to a candidate configuration.
 
     The buffer is applied to a copy of the configuration object with
@@ -393,7 +425,10 @@ def validate_buffer(config: Config,
     The class is not constructed, and it is not asked to be. What a
     construction would add is the declaring of the members, which a copy has
     already, so a class that needs a constructor argument this library knows
-    nothing about is validated here exactly as well as any other.
+    nothing about is validated here exactly as well as any other. That is also
+    what lets one nested object be asked the very same question about the part
+    of the buffer it owns: the object is there to be copied, whatever its
+    class would have needed to be built from nothing.
 
     What each value means is settled before that, by running the parse
     converter of its member. A value that means nothing is reported as the
@@ -406,9 +441,8 @@ def validate_buffer(config: Config,
     and belong on the screen and not in the terminal behind it.
 
     Args:
-        config: Configuration object of this session, which says which class
-            the buffer belongs to and holds everything about it that is not a
-            member. It is not modified.
+        config: Configuration object that the buffer belongs to, which holds
+            everything about it that is not a member. It is not modified.
         members: The edit buffer, as one JSON space value per member.
 
     Returns:
@@ -434,3 +468,243 @@ def validate_buffer(config: Config,
                                  diagnostics=diagnostics.getvalue())
     return ValidationPass(verdict=accepted, members=validated,
                           candidate=candidate)
+
+
+class SubtreeFindings(NamedTuple):
+    """What asking each nested configuration object on its own found."""
+
+    valid: dict[ConfigPath, bool]
+    """Whether each of them is a configuration on its own, by its path."""
+
+    refused: dict[ConfigPath, str]
+    """What they refused, by the path of the node each refusal is about."""
+
+
+def _deepest_first(nodes: Mapping[ConfigPath, ConfigNode]) -> list[ConfigPath]:
+    """Return the path of every nested object, the innermost ones first.
+
+    An object holding a refused object is refused whatever else is true of it,
+    so the innermost are asked first and one with a refused object inside it
+    is then not asked at all. That is what keeps a single mistake from being
+    reported once for every object it happens to be inside.
+
+    Args:
+        nodes: Every configuration object of the tree, by its path.
+
+    Returns:
+        The path of every nested object, the longest paths first. The
+        configuration itself is left out: it is the whole configuration and
+        not a subtree of one.
+    """
+    return sorted((path for path in nodes if path), key=len, reverse=True)
+
+
+def _refused_inside(path: ConfigPath,
+                    valid: Mapping[ConfigPath, bool]) -> bool:
+    """Return whether an object inside one node has already been refused."""
+    return any(not state for other, state in valid.items()
+               if len(other) > len(path) and other[:len(path)] == path)
+
+
+def _own_refusal(path: ConfigPath,
+                 verdict: ValidationVerdict) -> dict[ConfigPath, str]:
+    """Return what one nested object refused about no member of itself.
+
+    A rule of its own class that is about no single member is about the
+    object, and the object is a node with a row of its own, so it is said
+    there rather than in the block below the members: a configuration of any
+    size does not fit a window, and a message that names no place sends the
+    user looking for one.
+
+    Args:
+        path: Path of the node the object is at.
+        verdict: What asking that object on its own found.
+
+    Returns:
+        What to say at that node, and nothing at all when the object said
+        nothing that was not already attributed to a member of it.
+    """
+    said = verdict.diagnostics.strip()
+    return {path: said} if said else {}
+
+
+def _record_subtree(path: ConfigPath, node: ConfigNode, value: JsonType,
+                    findings: SubtreeFindings) -> None:
+    """Ask one nested object about its own part of the buffer.
+
+    Args:
+        path: Path of the node the object is at.
+        node: What the class declares there, and what is really there.
+        value: What the buffer holds for that node.
+        findings: What the objects inside it found, which this adds to.
+    """
+    if node.config is None or not isinstance(value, dict):
+        return
+    if _refused_inside(path=path, valid=findings.valid):
+        findings.valid[path] = False
+        return
+    verdict = _single_pass(config=node.config, members=value).verdict
+    findings.valid[path] = verdict.valid
+    if verdict.valid:
+        return
+    inside = {path + node_path: message
+              for node_path, message in verdict.refused.items()}
+    own = _own_refusal(path=path, verdict=verdict)
+    findings.refused.update(inside or own)
+
+
+def _subtree_findings(config: Config,
+                      members: dict[str, JsonType]) -> SubtreeFindings:
+    """Return what every nested object of one buffer says about itself.
+
+    Args:
+        config: Configuration object of this session, which says which nodes
+            are configuration objects of their own. It is not modified.
+        members: The edit buffer, as one JSON space value per member.
+
+    Returns:
+        Whether each of them is a configuration on its own, and what those
+        that are not refused, by the path of the node it is about.
+    """
+    nodes = config_nodes(config)
+    values = dict(flat_values(members=members, nodes=nodes))
+    findings = SubtreeFindings(valid={}, refused={})
+    for path in _deepest_first(nodes):
+        _record_subtree(path=path, node=nodes[path], value=values.get(path),
+                        findings=findings)
+    return findings
+
+
+def _accepted_subtrees(candidate: Config) -> dict[ConfigPath, bool]:
+    """Return every nested object of an accepted configuration, as valid.
+
+    A pass the class accepted built and validated every nested object inside
+    it while it parsed the buffer, so each of them is a configuration on its
+    own and none has to be asked again.
+
+    Args:
+        candidate: Configuration object that the pass built and accepted. It
+            is not modified, and it is the object the buffer is rebuilt from,
+            so its paths are the paths the rows will have.
+
+    Returns:
+        The path of every nested object of it, each of them valid.
+    """
+    return {path: True for path, node in config_nodes(candidate).items()
+            if path and node.config is not None}
+
+
+def _with_subtrees(verdict: ValidationVerdict,
+                   findings: SubtreeFindings) -> ValidationVerdict:
+    """Return one refused verdict with what the nested objects refused in it.
+
+    What the whole pass printed is dropped wherever a nested object explained
+    the refusal and the pass itself attributed nothing, because the two then
+    say the same thing and the nested one says it at the node it is about. A
+    pass that did attribute something reached its own validation plan, so what
+    it printed is about something else and is kept.
+
+    Args:
+        verdict: What applying the whole buffer found.
+        findings: What each nested object said about itself.
+
+    Returns:
+        That verdict, with every refusal from inside a nested object in it.
+    """
+    if not findings.refused:
+        return verdict
+    refused = dict(findings.refused)
+    refused.update(verdict.refused)
+    said = verdict.diagnostics if verdict.refused else ''
+    return verdict._replace(refused=refused, diagnostics=said)
+
+
+def validate_buffer(config: Config,
+                    members: dict[str, JsonType]) -> ValidationPass:
+    """Validate one edit buffer, and every nested object of it on its own.
+
+    The whole buffer decides the verdict, by `_single_pass`, which is the
+    application's own reading of its own file and the only thing that says
+    whether these values could be saved. Each nested configuration object is
+    then asked the same question about the part of the buffer it owns, which
+    answers the two things that pass cannot.
+
+    It says whether that object is a configuration on its own, which is a
+    different state from the verdict and has to be shown as one: a rule of the
+    class above relates two objects across the boundary between them, so both
+    of them can be valid while the configuration is refused.
+
+    And it says which member of a nested object was refused. Such an object
+    validates itself while `parse_json` builds it, so the walk of section 6.3
+    of `doc/design.md` never gets an object to walk and would leave the
+    message in the block below the members. Applying the subtree to the object
+    that owns it is what reaches the member.
+
+    None of that is asked of a pass the class accepted: `parse_json` built and
+    validated every nested object while it read the buffer, so all of them are
+    valid and there is nothing left to find out.
+
+    Args:
+        config: Configuration object of this session, which says which class
+            the buffer belongs to and holds everything about it that is not a
+            member. It is not modified.
+        members: The edit buffer, as one JSON space value per member.
+
+    Returns:
+        What the pass found, the members of the configuration object it built,
+        and what each nested object is on its own.
+    """
+    outcome = _single_pass(config=config, members=members)
+    if outcome.verdict.valid:
+        assert outcome.candidate is not None
+        accepted = _accepted_subtrees(outcome.candidate)
+        return outcome._replace(subtrees=accepted)
+    findings = _subtree_findings(config=config, members=members)
+    return outcome._replace(
+        verdict=_with_subtrees(verdict=outcome.verdict, findings=findings),
+        subtrees=findings.valid)
+
+
+def subtree_states(config: Config,
+                   members: dict[str, JsonType]) -> dict[ConfigPath, bool]:
+    """Return whether each nested object of one buffer is valid on its own.
+
+    This is what folding every node at once asks, where the verdict of the
+    whole configuration is not what was asked for and would be a great deal
+    more work than the question deserves.
+
+    Args:
+        config: Configuration object of this session. It is not modified.
+        members: The edit buffer, as one JSON space value per member.
+
+    Returns:
+        One answer per nested object that is there, by the path of its node.
+    """
+    return _subtree_findings(config=config, members=members).valid
+
+
+def subtree_verdict(config: Config, members: dict[str, JsonType],
+                    path: ConfigPath) -> Optional[bool]:
+    """Return whether the object at one node is a configuration on its own.
+
+    This is what folding one node asks, and it is the cheap local question
+    that section 6.2 of `doc/design.md` makes folding the trigger for: it
+    needs no candidate configuration and says nothing about the file.
+
+    Args:
+        config: Configuration object of this session. It is not modified.
+        members: The edit buffer, as one JSON space value per member.
+        path: Path of the node to ask about.
+
+    Returns:
+        What that object says about itself, and None where there is no object
+        to ask, which a declared member holding none is.
+    """
+    nodes = config_nodes(config)
+    node = nodes.get(path)
+    if node is None or node.config is None:
+        return None
+    value = dict(flat_values(members=members, nodes=nodes)).get(path)
+    if not isinstance(value, dict):
+        return None
+    return _single_pass(config=node.config, members=value).verdict.valid

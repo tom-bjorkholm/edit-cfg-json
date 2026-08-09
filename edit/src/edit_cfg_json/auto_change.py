@@ -57,6 +57,7 @@ import json
 from config_as_json import Config, ConfigAutoChangeHook, \
     HookDataVersionError, JsonType, RocfChange, RocfChangeKind
 from edit_cfg_json.constructing import parsed_config
+from edit_cfg_json.leaf_value import canonical_text
 
 HOOK_DATA_VERSION = 1
 """Version of the recorded automatic changes that this module reads.
@@ -190,24 +191,6 @@ class FileChanges(NamedTuple):
                     or self.unplaced or self.detail)
 
 
-def _canonical(value: JsonType) -> str:
-    """Return one value as the text that decides whether it is unchanged.
-
-    The keys of a dictionary are sorted, because `config_as_json` writes them
-    sorted while a file is written by hand, and a file that holds the same
-    values in another order holds the same values. Everything else is compared
-    as it is written, which is what tells `1` from `1.0` and from `true`: all
-    three of them reach the file differently.
-
-    Args:
-        value: One value in JSON space.
-
-    Returns:
-        The text that stands for that value.
-    """
-    return json.dumps(value, sort_keys=True)
-
-
 def _written(config: Config) -> Mapping[str, JsonType]:
     """Return the values that one loaded configuration would write to a file.
 
@@ -267,7 +250,7 @@ def _altered(written: Mapping[str, JsonType],
     """
     return frozenset(name for name, value in written.items()
                      if name not in held
-                     or _canonical(value) != _canonical(held[name]))
+                     or canonical_text(value) != canonical_text(held[name]))
 
 
 def _member(path: Optional[str], written: Mapping[str, JsonType]) -> str:

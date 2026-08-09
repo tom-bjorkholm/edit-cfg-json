@@ -4,10 +4,11 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+import json
 import pytest
 from config_as_json import JsonType
-from edit_cfg_json.leaf_value import text_as_value, value_as_text, \
-    values_differ
+from edit_cfg_json.leaf_value import canonical_text, text_as_value, \
+    value_as_text, values_differ
 
 EVERY_KIND = [None, True, False, 0, 42, -1, 1.5, '', 'text', '42',
               'with "quotes"', 'Björkholm', [1, 2], {'key': 1}]
@@ -79,12 +80,32 @@ def test_text_round_trip(value: JsonType) -> None:
                           (None, None, False), (None, 'null', True),
                           (42, '42', True), ('a', 'a', False),
                           ([1, 2], [1, 2], False), ([1, 2], [2, 1], True),
-                          ({'key': 1}, {'key': 1}, False)])
+                          ({'key': 1}, {'key': 1}, False),
+                          ({'a': 1, 'b': 2}, {'b': 2, 'a': 1}, False),
+                          ({'a': {'x': 1, 'y': 2}},
+                           {'a': {'y': 2, 'x': 1}}, False),
+                          ({'a': 1}, {'a': 2}, True)])
 def test_values_differ(value: JsonType, other: JsonType, differ: bool) -> None:
     """Test values are compared as a file would show them, not as Python.
 
     Python considers `True` equal to `1` and `1` equal to `1.0`, while all
     three are written differently to a JSON file. Changing a member from one
     to the other changes the file, so it is a change.
+
+    The order of the keys of a dictionary is the one thing a file cannot
+    hold, because `config_as_json` writes them sorted, so two dictionaries
+    that differ only in it are the same values. The editor really does hold
+    them in another order: the members of a nested configuration object are
+    kept in the order its class declares them.
     """
     assert values_differ(value, other) is differ
+
+
+@pytest.mark.parametrize('value', EVERY_KIND)
+def test_canonical_json(value: JsonType) -> None:
+    """Test the text a value is compared by is the JSON of that value.
+
+    A list keeps its order, because a file keeps it, and everything else is
+    written as it is written. Only the keys of a dictionary are sorted.
+    """
+    assert canonical_text(value) == json.dumps(value, sort_keys=True)

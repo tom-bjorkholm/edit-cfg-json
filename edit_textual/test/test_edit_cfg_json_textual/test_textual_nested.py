@@ -13,8 +13,10 @@ import asyncio
 from textual.containers import Vertical
 from textual.widgets import Input, Label, Static
 from edit_cfg_json import EditModel
-from edit_cfg_json_textual.textual_editor import EditorApp, NAME_CLASS
-from edit_cfg_json_textual.textual_look import fold_id, member_id, value_id
+from edit_cfg_json_textual.textual_editor import EditorApp, NAME_CLASS, \
+    SUBTREE_CLASS
+from edit_cfg_json_textual.textual_look import fold_id, member_id, \
+    subtree_id, value_id
 from example.e09_nested_config import CourseExportConfig, TableOutputConfig
 from .helpers import ROOMY_SIZE, description_of, index_of
 
@@ -24,6 +26,16 @@ OUTPUT_CLASS = TableOutputConfig.__name__
 MISSING_OUTPUT = f'no {OUTPUT_CLASS}'
 """What the row of the optional member that holds no object says."""
 
+OWN_VALID = ' [valid on its own]'
+"""What the row of an object that is a configuration on its own adds.
+
+It is written out here rather than read from an internal module of the core,
+in the same way as every other text these tests expect.
+"""
+
+OWN_REFUSED = ' [refused on its own]'
+"""What the row of an object that its own class refuses adds instead."""
+
 OBJECT_MEMBER = 'participant_output'
 """The member of the example that holds a nested configuration object."""
 
@@ -32,6 +44,9 @@ MISSING_MEMBER = 'audit_output'
 
 INSIDE_MEMBER = 'file_name'
 """A member that only exists inside a nested object of the example."""
+
+REFUSED_MEMBER = (OBJECT_MEMBER, 'output_format')
+"""A member inside that object, to be given a value its class refuses."""
 
 OUTPUT_SUMMARY = EditModel(TableOutputConfig()).summary
 """The one line of the nested class that a folded object shows."""
@@ -43,6 +58,20 @@ OUTPUT_DETAIL = 'Nothing about this class says'
 def _nested_app() -> EditorApp:
     """Return an application on the example with the nested objects."""
     return EditorApp(EditModel(CourseExportConfig()))
+
+
+def _refused_app() -> EditorApp:
+    """Return one whose nested object holds a value its class refuses."""
+    model = EditModel(CourseExportConfig())
+    model.set_text(path=REFUSED_MEMBER, text='xml')
+    return EditorApp(model)
+
+
+def _own_text(app: EditorApp, member_name: str) -> str:
+    """Return what the application says one object is on its own."""
+    widget = app.query_one(f'#{subtree_id(index_of(app, member_name))}',
+                           Static)
+    return str(widget.content)
 
 
 def _all_names(app: EditorApp) -> list[str]:
@@ -128,3 +157,47 @@ def test_folded_says_less() -> None:
     assert OUTPUT_DETAIL in open_text
     assert OUTPUT_DETAIL not in folded_text
     assert OUTPUT_SUMMARY in folded_text
+
+
+async def _badge_on_fold(app: EditorApp) -> tuple[str, str]:
+    """Press the control of the nested object and report what it now says."""
+    async with app.run_test(size=ROOMY_SIZE) as pilot:
+        before = _own_text(app, OBJECT_MEMBER)
+        await pilot.click(f'#{fold_id(index_of(app, OBJECT_MEMBER))}')
+        await pilot.pause()
+        return before, _own_text(app, OBJECT_MEMBER)
+
+
+def test_badge_on_fold() -> None:
+    """Test folding a nested object says what that object is on its own.
+
+    Nothing has been validated when the editor opens, so the object has not
+    been asked and says nothing. Folding it is one of the moments the model
+    asks, which is the cheap local question that needs no whole configuration.
+    """
+    before, after = asyncio.run(_badge_on_fold(_nested_app()))
+    assert before == ''
+    assert after == OWN_VALID
+
+
+def test_badge_refused() -> None:
+    """Test an object its own class refuses says so where it is folded."""
+    _, after = asyncio.run(_badge_on_fold(_refused_app()))
+    assert after == OWN_REFUSED
+
+
+async def _badge_widgets() -> int:
+    """Return how many nodes the application gave a badge widget at all."""
+    app = _nested_app()
+    async with app.run_test(size=ROOMY_SIZE):
+        return len(app.query(f'.{SUBTREE_CLASS}'))
+
+
+def test_only_objects_say() -> None:
+    """Test only the member that holds an object is given a widget for it.
+
+    The example declares two nested members and one of them holds no object,
+    so there is nothing there to ask and no widget that could ever say
+    anything about it.
+    """
+    assert asyncio.run(_badge_widgets()) == 1

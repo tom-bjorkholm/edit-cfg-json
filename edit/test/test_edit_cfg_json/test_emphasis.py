@@ -12,7 +12,10 @@ tested there.
 
 from pathlib import Path
 from edit_cfg_json import EXPLANATION, EditModel, Emphasis, LOAD_REMARK, \
-    MEMBER_DIAGNOSTIC, MEMBER_MARK, save_emphasis, verdict_emphasis
+    MEMBER_DIAGNOSTIC, MEMBER_MARK, save_emphasis, subtree_emphasis, \
+    verdict_emphasis
+from .container_cfg import INNER_LIMIT, SubtreeCfg
+from .model_helpers import row_at
 from .sample_cfg import FlatCfg, RangeCfg
 
 
@@ -66,6 +69,32 @@ def test_edit_forgets_verdict() -> None:
     model.validate()
     model.set_text(path=('answer',), text='7')
     assert verdict_emphasis(model) is Emphasis.MUTED
+
+
+def test_object_not_asked() -> None:
+    """Test an object nobody has asked is the third state and not a failure.
+
+    The same three states as the validation of the whole configuration, and
+    the same three ways of showing them, because they are the same kind of
+    answer about a smaller thing.
+    """
+    row = row_at(EditModel(SubtreeCfg()), ('ranged',))
+    assert subtree_emphasis(row) is Emphasis.MUTED
+
+
+def test_object_accepted() -> None:
+    """Test an object that is a configuration on its own is shown as one."""
+    model = EditModel(SubtreeCfg())
+    model.toggle_fold(('ranged',))
+    assert subtree_emphasis(row_at(model, ('ranged',))) is Emphasis.GOOD
+
+
+def test_object_refused() -> None:
+    """Test an object its own class refuses is shown as refused."""
+    model = EditModel(SubtreeCfg())
+    model.set_text(path=('ranged', 'width'), text=str(INNER_LIMIT + 1))
+    model.validate()
+    assert subtree_emphasis(row_at(model, ('ranged',))) is Emphasis.BAD
 
 
 def test_save_not_tried() -> None:

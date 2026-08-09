@@ -251,16 +251,15 @@ of a list. A class that lists such a member in `_omit_none_from_json()` writes
 nothing for it and it then has no row at all, which is what any omitted member
 already does.
 
-**What a validator inside a nested object refuses is not yet attributed to the
-member it is about.** Such an object validates itself while the whole
-configuration is parsed, so the object that could say which member was refused
-is one the editor never holds — the same problem section 6.3 solved at the top
-level, and the same answer does not reach inside, because the nested objects
-are constructed by `parse_json` and not by the editor. Validating each subtree
-on its own is what answers it, and that is section 6.2, built at step 12. Until
-then such a refusal reaches the user in the block below the members, which is
-less helpful and is never wrong. A value whose *text* means nothing is a
-different question and is already answered at the member, inside a nested
+**What a validator inside a nested object refuses is attributed by asking that
+object on its own**, built at step 12. Such an object validates itself while
+the whole configuration is parsed, so the object that could say which member
+was refused is one the editor never holds — the same problem section 6.3
+solved at the top level, and the same answer does not reach inside, because
+the nested objects are constructed by `parse_json` and not by the editor.
+Applying the subtree of the buffer to the object that owns it is what does
+reach it, and that is section 6.2. A value whose *text* means nothing is a
+different question and was already answered at the member, inside a nested
 object as anywhere else, because it is asked of the member alone.
 
 A trivial configuration has scalar values, or maybe individual nested
@@ -313,6 +312,16 @@ Python considers `True` equal to `1` and `1` equal to `1.0` while a file
 writes all three of them differently, and any of those changes changes
 the file. Future versions will probably add more type information on
 more focus on attribute types.
+
+The one thing that comparison ignores is **the order of the keys of a
+dictionary**, for the reason section 5.3 gives about the other comparison in
+this library: `config_as_json` writes them sorted, so a file cannot hold two
+orders and two values that differ only in one are the same value. The editor
+really does hold another order — the members of a nested configuration object
+are kept in the order its class declares them, which is section 4.1 — so
+without this every nested object would report itself as changed by a validator
+the first time anything in it was validated. Found and fixed at step 12, where
+the example that shows a nested object being edited showed it.
 
 A successful save moves that value to what was written, which is what makes
 the second question keep answering itself: what has just reached the file is
@@ -589,11 +598,14 @@ one that earns the vocabulary: a description and a refusal sit one below the
 other under the same member, and the one that has to be acted on has to be
 told from the one that only explains. Section 6.5.
 
-The two decisions that depend on the state of the model — what the validation
-and the saving are shown as — are functions of the core rather than of a
-backend, because they are the two that a backend could otherwise answer
-differently. Whether a save succeeded is also not readable from its message,
-which is why `EditModel.save_outcome` exists beside `save_message`.
+The decisions that depend on the state of the model — what the validation, the
+saving and what one nested object is on its own are shown as — are functions
+of the core rather than of a backend, because they are the ones a backend
+could otherwise answer differently. Whether a save succeeded is also not
+readable from its message, which is why `EditModel.save_outcome` exists beside
+`save_message`. All three have the same three states, and `MUTED` for the one
+that has not been reached is what makes them read as the same kind of answer
+about three different things.
 
 Colour itself cannot be in the core: Textual names colours of its terminal's
 theme and follows it into a dark mode, Tk has no theme to ask and needs colour
@@ -668,6 +680,13 @@ it, so that neither of them works out for itself what folding hides. Settled at
 step 10 for a list and a dict, and step 11 made a nested configuration object
 one of them without changing anything here — which is what settling it as "a
 node that holds rows" rather than "a container" bought.
+
+**Folding a nested configuration object also asks it about itself**, which is
+section 6.2 and the one thing folding does beyond deciding what is on the
+screen. Opening one asks as well: the answer is the same question either way,
+and changing how much of an object is shown is the moment the user is looking
+at it. A list and a dict are asked nothing, because neither is a configuration
+that has anything to say about itself.
 
 **The editor opens with a container open unless opening it would flood the
 window.** That is the same decision as section 4.4's, made once more where it
@@ -991,15 +1010,23 @@ gives the probe of section 6.3 the object it needs.
 
 ### 6.2 Subtree validation, and why folding is the natural trigger
 
-Every nested config class is required to be constructible from
-`from_json_data_text` alone, or through the `factory_function` declared
-in its `ConfigNesting`. A nested-config subtree can therefore be
-validated **in isolation** by constructing `config_type` from that
-subtree's JSON.
+A nested config subtree can be validated **in isolation**, by applying that
+subtree's JSON to the nested object itself. Built at step 12.
 
-That makes folding and validating the same operation: when the user folds
-a nested config away, the editor validates that subtree and shows the
-result as a badge on the folded row.
+**The object is copied and not constructed**, which is the same correction
+step 9 made to section 6.1 and for the same reason: the object is there to be
+copied, so a class whose constructor needs an argument this library knows
+nothing about is asked about itself exactly as well as any other, a
+`factory_function` that answered with a subclass is asked as the subclass it
+really is, and there is one way of applying a buffer to an object rather than
+two. This document first said "constructing `config_type` from that subtree's
+JSON", which was written before that correction and would have been the second
+way.
+
+That makes folding and validating the same operation: when the user folds a
+nested config away — or opens it again, since changing how much of an object
+is on the screen is the moment the user is looking at it — the editor asks
+that object about itself and shows the result as a badge on its row.
 
 Two validity levels result, and the UI must distinguish them:
 
@@ -1012,6 +1039,40 @@ Two validity levels result, and the UI must distinguish them:
 
 A subtree can be valid while the root is not. That is the honest state
 and both should be shown.
+
+**The badge is worded so that it cannot be read as the other one.** It says
+*valid on its own*, and the words that qualify it are the whole point: a rule
+of the class above relating two objects across the boundary between them
+refuses the configuration while saying nothing against either object, so a
+badge that said only *valid* would be answering a question nobody may ask of
+it. Whether the file can be written is the verdict line of section 6.5, and
+that line is the only thing that answers it. The other direction needs no
+qualification, because an object its own class refuses cannot be part of a
+configuration that is saved.
+
+**A pass the class accepted answers for every object at once**, so none of
+them is asked again: `parse_json` builds and validates each nested object
+while it reads the buffer, so a whole configuration that was accepted has
+every subtree in it accepted already. The walk therefore runs only when the
+whole buffer was refused, which is also the only time it has anything to add.
+
+**The innermost object is asked first, and one holding a refused one is not
+asked at all.** It is refused whatever else is true of it, and asking it again
+would report one mistake once for every object it happens to be inside.
+
+**What a nested object refuses about no member of itself is shown at that
+object**, and not in the block below the members. It is about the object, the
+object is a node with a row, and section 6.5's reason for naming a place
+applies: a configuration of any size does not fit a window. The block keeps
+what is about no node at all, which is where a rule relating two objects
+across a boundary belongs.
+
+**A state that has not been asked for is shown as nothing**, the third state
+that `verdict` and `save_outcome` already have. It is taken back whenever
+anything inside that object is edited, which is a different lifetime from the
+verdict of the whole configuration: that one is dropped by an edit anywhere,
+and this one only by an edit inside the object it is about. That difference is
+why it is carried by the row rather than by the verdict.
 
 ### 6.3 Field-level attribution
 

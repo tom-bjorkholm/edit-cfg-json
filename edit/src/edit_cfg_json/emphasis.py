@@ -20,6 +20,7 @@ the two backends could otherwise answer differently.
 
 from enum import Enum, auto
 from edit_cfg_json.edit_model import EditModel
+from edit_cfg_json.rows import MemberRow
 
 
 class Emphasis(Enum):
@@ -100,6 +101,26 @@ def verdict_emphasis(model: EditModel) -> Emphasis:
     if verdict is None:
         return Emphasis.MUTED
     return Emphasis.GOOD if verdict.valid else Emphasis.BAD
+
+
+def subtree_emphasis(row: MemberRow) -> Emphasis:
+    """Return how what one nested object is on its own is shown.
+
+    The same three states as the validation of the whole configuration, and
+    the same three ways of showing them, because they are the same kind of
+    answer about a smaller thing: a node that has not been asked since
+    something inside it changed is what has not happened yet rather than
+    something wrong.
+
+    Args:
+        row: Node whose own state is shown.
+
+    Returns:
+        The emphasis of what that object is on its own.
+    """
+    if row.subtree_valid is None:
+        return Emphasis.MUTED
+    return Emphasis.GOOD if row.subtree_valid else Emphasis.BAD
 
 
 def save_emphasis(model: EditModel) -> Emphasis:

@@ -44,6 +44,9 @@ plan says only *when* that decision gets built.
 - [Step 11](#step-11--nested-config-objects) — a nested `Config` object as a
   node with a class, a docstring and members of its own, and the ownership of
   everything inside it.
+- [Step 12](#step-12--subtree-validation) — every nested object asked whether
+  it is a configuration on its own, which both puts a badge on its row and
+  names the member inside it that a validator refused.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -78,8 +81,8 @@ file only says *when* that decision gets built.
   `edit_cfg_json_textual` never drift apart by more than one review.
 - Steps 1 to 9 are built, and each is written up in
   [steps_001-009_done.md](steps_001-009_done.md) as what it decided, what it
-  found while building it and what came of its review. Steps 10 and 11 are
-  built and are written up here, in the same way. Steps 12 onwards are named
+  found while building it and what came of its review. Steps 10 to 12 are
+  built and are written up here, in the same way. Steps 13 onwards are named
   steps with their observable outcome and their main risks; they are detailed
   just before they are started, when the core API is real rather than
   imagined.
@@ -113,7 +116,7 @@ version. Record which one, because the next step's fast iteration with
 | --- | --- | --- | --- |
 | M1 Flat round trip | 1 to 5 | Both backends edit a `Config` with one `str` and one `int`, validate it and save it | done |
 | M2 Flat, fully explained | 6 to 9 | Descriptions, docstrings, field-level diagnostics, automatic-change visibility, explicit loader | done |
-| M3 Structure and folding | 10 to 12 | Lists, dicts, nested `Config` objects, folding with per-subtree badges | steps 10 and 11 done |
+| M3 Structure and folding | 10 to 12 | Lists, dicts, nested `Config` objects, folding with per-subtree badges | done |
 | M4 Configs in containers | 13 to 14 | `LIST_ELEMENT` and `DICT_VALUE` nesting, adding and removing elements | to do |
 | M5 Release readiness | 15 to 17 | v1 documented, classified and published | to do |
 
@@ -309,21 +312,79 @@ The public names it settled:
 
 #### Step 12 — Subtree validation
 
-Fold state is in the model already, so what is left is the validation: folding
-a nested config validates that subtree by constructing its `config_type` from
-that subtree's JSON. Show *subtree-valid* and *config-valid* as the two
-distinct states they are; a subtree can be valid while the root is not, and
-both should be shown. `e09_nested_config.py` gains the badges. Risk: a
-`WholeConfigValidator` on a parent relates members across a nesting boundary,
-so a green subtree badge must never be allowed to read as "the file can be
-saved".
+Status: **Implemented and committed.**
 
-Step 11 left this step one thing more, and it is the more useful half: **what
-a validator inside a nested object refuses is not attributed to the member it
-is about**, because such an object validates itself inside `parse_json` and the
-probe of design section 6.3 cannot reach it. Constructing each subtree on its
-own is exactly what does reach it, so the badge and the attribution are the
-same mechanism and should be built together. Design sections 4.1 and 6.2.
+**Observable outcome.** `e09_nested_config.py` gains a badge on every nested
+object and a rule that relates its two outputs across the boundary between
+them. `python3 examples/src/example/e09_nested_config.py --ui dump` says
+`participant_output: TableOutputConfig [valid on its own]`;
+`--set participant_output.output_format=xml` says *refused on its own* and
+names the member it is about, which is the half step 11 could not do; and
+`-i ../../data/e09_with_audit.json --set
+audit_output.file_name=advanced-participants.csv` shows both objects valid on
+their own while the configuration is refused, which is the risk this step was
+written to guard against. `--ui tk` and `--ui textual` show the same badges.
+
+**What it decided.** Four things, decided before the work started.
+
+- **Folding an object asks it, and so does opening it**, and every validation
+  pass asks all of them. The badge is on the row whether the object is open or
+  folded, and an edit anywhere inside it takes the answer back. Design
+  sections 4.7 and 6.2.
+- **The badge says *valid on its own*.** The qualifying words are the whole
+  point: a rule of the class above may refuse the configuration while saying
+  nothing against either object, so a badge reading only *valid* would answer
+  a question that is not its to answer. Design section 6.2.
+- **What a nested object refuses about no member of itself is shown at that
+  object**, not in the block below the members. It is about the object, and
+  the object is a node with a row. Design sections 6.2 and 6.5.
+- **The object is copied and not constructed**, which is design section 6.2
+  corrected to what step 9 settled for section 6.1. The object is there to be
+  copied, so a class needing a constructor argument this library knows nothing
+  about is asked exactly as well as any other, and a `factory_function` that
+  answered with a subclass is asked as the subclass it really is.
+
+**Core.** `validation._single_pass` is what step 9's `validate_buffer` became,
+and `validate_buffer` is now that pass plus every nested object asked about
+the part of the buffer it owns. `subtree_states` and `subtree_verdict` are
+what folding asks. Refusals from inside an object are merged into
+`ValidationVerdict.refused` under absolute paths, so nothing about how a
+refusal is shown or how long it lives had to change.
+
+The public names it settled:
+
+| Name | Kind |
+| --- | --- |
+| `MemberRow.subtree_valid` | what one object is on its own, None if unasked |
+| `row_validates` | whether a node can ever say what it is on its own |
+| `row_subtree_text` | what it says, as it is shown |
+| `subtree_emphasis` | how that stands out, the same three states as a verdict |
+
+**What building it found.**
+
+- **A pass the class accepted answers for every object at once**, because
+  `parse_json` builds and validates each nested object while it reads the
+  buffer. So the walk runs only when the whole buffer was refused, which is
+  also the only time it has anything to add.
+- **The innermost object has to be asked first.** An object holding a refused
+  object is refused whatever else is true of it, and asking it again would
+  report one mistake once for every object it happens to be inside.
+- **Every nested object was reporting itself as changed by a validator.** The
+  editor holds the members of such an object in the order its class declares
+  them and `config_as_json` writes them sorted, so the first validation pass
+  after any edit inside one found a different JSON notation for the same
+  values. `values_differ` now compares canonically, which is the rule design
+  section 5.3 already stated for the comparison the load makes and for the
+  same reason; the two now share `leaf_value.canonical_text`. A defect of step
+  11, found because this step gave `e09` a reason to edit inside an object.
+- **A file that a cross-boundary rule refuses cannot be opened at all**, so
+  the example demonstrates that rule with `--set` rather than with a data
+  file of its own. `parse_json` ends in `validate()`, which is design section
+  5.2 working as designed and worth saying in the example.
+- **The two backend test modules tripped the duplicate-code check**, because
+  the badge texts are asserted in both and neither package may import the
+  other. The constants were regrouped so that each file states them where it
+  reads them, which is what design section 8 asks for before a suppression.
 
 ### Milestone 4 — configs in containers
 

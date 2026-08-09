@@ -16,12 +16,27 @@ import pytest
 from edit_cfg_json import EditModel
 from example import e09_nested_config
 from example.e09_nested_config import CourseExportConfig, DESCRIPTIONS, \
-    OUTPUT_FORMATS, TableOutputConfig
+    OUTPUT_FORMATS, SAME_FILE_REFUSAL, TableOutputConfig
 from .helpers import DUMP_TAIL, TEXT_LINE, data_file, dump, head, \
     input_tail, open_tk_ui, refused, textual_titles
 
 HEAD = head(CourseExportConfig())
 """The lines that every dump of this example begins with."""
+
+OWN_VALID = ' [valid on its own]'
+"""What an object that is a configuration on its own says.
+
+Every dump of an example validates the buffer before it prints it, so every
+nested object of a dump has been asked about itself. It is written out here
+rather than read from the core, in the same way as every other text these
+tests expect.
+"""
+
+OWN_REFUSED = ' [refused on its own]'
+"""What an object that its own class refuses says instead."""
+
+AUDIT_FILE = 'advanced-participants.csv'
+"""The file name that both outputs are given, to be refused for it."""
 
 OUTPUT_DOC = EditModel(TableOutputConfig()).docstring
 """The whole docstring of the nested class, as an open object shows it."""
@@ -39,21 +54,24 @@ ABOUT_AUDIT = DESCRIPTIONS[('audit_output',)]
 """What it says about its optional nested object."""
 
 PARTICIPANT_LINES = [
-    'participant_output: TableOutputConfig', f'    {ABOUT_PARTICIPANT}',
+    f'participant_output: TableOutputConfig{OWN_VALID}',
+    f'    {ABOUT_PARTICIPANT}',
     *[f'    {line}'.rstrip() for line in OUTPUT_DOC.split('\n')],
     '    file_name = participants.csv', f'        {ABOUT_FILE_NAME}',
     f'    {TEXT_LINE}', '    output_format = CSV', f'    {TEXT_LINE}',
     '    encoding = utf-8', f'    {TEXT_LINE}']
 """Every line that the mandatory nested object of this example is shown as.
 
-The row says the class and not how many entries the dict has, what the
-application said about the object comes first below it, the docstring of that
-class comes after that, and then its own members in the order that class
-declares them rather than the sorted order the file has.
+The row says the class and not how many entries the dict has, and then what it
+is on its own, which is what asking that object about its own values found.
+What the application said about the object comes first below it, the docstring
+of that class comes after that, and then its own members in the order that
+class declares them rather than the sorted order the file has.
 """
 
-FOLDED_PARTICIPANT = ['participant_output: TableOutputConfig (folded)',
-                      f'    {ABOUT_PARTICIPANT}', f'    {OUTPUT_SUMMARY}']
+FOLDED_PARTICIPANT = [
+    f'participant_output: TableOutputConfig (folded){OWN_VALID}',
+    f'    {ABOUT_PARTICIPANT}', f'    {OUTPUT_SUMMARY}']
 """What the same object says when it is folded away.
 
 The summary of its class rather than the whole docstring, because an object
@@ -98,7 +116,8 @@ def test_folded_says_summary(capsys: pytest.CaptureFixture[str]) -> None:
 def test_fold_key_folds_all(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the fold key reaches a nested object like any other node."""
     printed = _dump(capsys, '--toggle-fold')
-    assert 'participant_output: TableOutputConfig (folded)' in printed
+    assert f'participant_output: TableOutputConfig (folded){OWN_VALID}' \
+        in printed
     assert 'output_format' not in printed
 
 
@@ -124,7 +143,8 @@ def test_object_not_edited(capsys: pytest.CaptureFixture[str]) -> None:
 def test_edit_inside_object(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a member of a nested object is edited by the path to it."""
     printed = _dump(capsys, '--set', 'participant_output.encoding=latin-1')
-    assert 'participant_output: TableOutputConfig (edited)' in printed
+    assert f'participant_output: TableOutputConfig (edited){OWN_VALID}' \
+        in printed
     assert '    encoding = latin-1 (edited)' in printed
     assert 'validation: valid' in printed
 
@@ -139,28 +159,48 @@ def test_nested_validator(capsys: pytest.CaptureFixture[str]) -> None:
     printed = _dump(capsys, '--set', 'participant_output.output_format=txt')
     assert '    output_format = TXT (edited) (changed by validator)' in printed
     assert 'participant_output: TableOutputConfig (edited) ' \
-        '(changed by validator)' in printed
+        f'(changed by validator){OWN_VALID}' in printed
 
 
 def test_nested_refusal(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test what a validator of the nested class refuses is reported.
+    """Test what a validator of the nested class refuses is shown at it.
 
-    It is reported below the members rather than at the one it is about,
-    because a nested object validates itself while the whole configuration is
-    parsed and there is then no object left to ask which member was refused.
-    Validating each subtree on its own is what answers that, at step 12 of
-    the delivery plan. What this asserts is that the refusal reaches the user
-    and says which values the class accepts, which is true either way.
+    Asking that object about its own values is what reaches the member, which
+    reading the whole configuration cannot: a nested object validates itself
+    while the configuration around it is parsed, and there is then no object
+    left to ask which of its members was refused.
     """
     printed = _dump(capsys, '--set', 'participant_output.output_format=xml')
-    assert 'validation: invalid' in printed
+    assert f'participant_output: TableOutputConfig (edited){OWN_REFUSED}' \
+        in printed
+    assert 'validation: invalid, see participant_output.output_format' \
+        in printed
+    # The refusal is on the line below that member, indented under it, which
+    # is where what is wrong with a member is shown and what step 12 added.
+    assert '    output_format = xml (edited)\n        ' in printed
     assert ', '.join(OUTPUT_FORMATS) in printed
+
+
+def test_valid_object_refused(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test an object valid on its own inside a configuration that is not.
+
+    This is what the two states are kept apart for, and it is the one way a
+    badge could be misread: the rule that refuses this configuration is about
+    both outputs and therefore about neither, so each of them is a perfectly
+    good `TableOutputConfig` while the file cannot be written at all.
+    """
+    printed = _dump(capsys, '-i', data_file('e09_with_audit.json'), '--set',
+                    f'audit_output.file_name={AUDIT_FILE}')
+    assert printed.count(OWN_VALID) == 2
+    assert OWN_REFUSED not in printed
+    assert 'validation: invalid' in printed
+    assert SAME_FILE_REFUSAL.format(name=AUDIT_FILE) in printed
 
 
 def test_read_file(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a file that holds the optional object fills it with rows."""
     printed = _dump(capsys, '-i', data_file('e09_with_audit.json'))
-    assert 'audit_output: TableOutputConfig\n' in printed
+    assert f'audit_output: TableOutputConfig{OWN_VALID}\n' in printed
     assert '    file_name = advanced-audit.txt' in printed
     assert MISSING_AUDIT not in printed
     assert printed.endswith(input_tail('e09_with_audit.json'))

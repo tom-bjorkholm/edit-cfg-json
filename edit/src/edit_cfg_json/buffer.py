@@ -197,6 +197,23 @@ class EditBuffer:
                         if row.foldable} if self.anything_open else set()
         self._stamp()
 
+    def take_subtrees(self, states: Mapping[ConfigPath, bool]) -> None:
+        """Say what asking these objects about themselves found.
+
+        Only the nodes that were asked are written to, and every other row is
+        left exactly as it was: folding one object asks about that one, and a
+        validation pass asks about all of them.
+
+        Args:
+            states: Whether each of them is a configuration on its own, by the
+                path of its node. A path that is no node of this configuration
+                is ignored, because a pass that ran before a rebuild of the
+                rows can name one.
+        """
+        self._rows = {path: row._replace(subtree_valid=states[path])
+                      if path in states else row
+                      for path, row in self._rows.items()}
+
     def keep_saved(self) -> None:
         """Make what was written the values that the buffer is compared to.
 
@@ -267,6 +284,12 @@ class EditBuffer:
     def _hold_again(self, path: ConfigPath) -> None:
         """Bring every container that one node is inside up to date with it.
 
+        What each of them was found to be on its own is taken away at the same
+        time, because a value inside an object has just changed and the answer
+        was about the values it had. It is a different lifetime from the
+        verdict of the whole configuration, which any edit anywhere takes
+        away, and that is why it is kept here rather than there.
+
         Args:
             path: Path of the node that was just edited.
         """
@@ -274,7 +297,8 @@ class EditBuffer:
             parent = self._rows[path[:depth]]
             self._rows[parent.path] = parent._replace(
                 value=assembled(children=self._held(parent),
-                                as_list=isinstance(parent.original, list)))
+                                as_list=isinstance(parent.original, list)),
+                subtree_valid=None)
 
     def _held(self, parent: MemberRow) -> list[tuple[str, JsonType]]:
         """Return the last step and the value of each child of one row."""

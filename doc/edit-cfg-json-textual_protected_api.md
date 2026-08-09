@@ -12,6 +12,7 @@
   * [NAME\_CLASS](#edit_cfg_json_textual.textual_editor.NAME_CLASS)
   * [VALUE\_CLASS](#edit_cfg_json_textual.textual_editor.VALUE_CLASS)
   * [MARK\_CLASS](#edit_cfg_json_textual.textual_editor.MARK_CLASS)
+  * [SUBTREE\_CLASS](#edit_cfg_json_textual.textual_editor.SUBTREE_CLASS)
   * [ROW\_CLASS](#edit_cfg_json_textual.textual_editor.ROW_CLASS)
   * [MEMBER\_CLASS](#edit_cfg_json_textual.textual_editor.MEMBER_CLASS)
   * [DESCRIPTION\_CLASS](#edit_cfg_json_textual.textual_editor.DESCRIPTION_CLASS)
@@ -60,6 +61,7 @@
     * [compose](#edit_cfg_json_textual.textual_editor.EditorApp.compose)
     * [\_row\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._row_widgets)
     * [\_member\_widget](#edit_cfg_json_textual.textual_editor.EditorApp._member_widget)
+    * [\_subtree\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._subtree_widgets)
     * [\_fold\_widget](#edit_cfg_json_textual.textual_editor.EditorApp._fold_widget)
     * [get\_system\_commands](#edit_cfg_json_textual.textual_editor.EditorApp.get_system_commands)
     * [\_load\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._load_widgets)
@@ -75,6 +77,7 @@
     * [action\_fold](#edit_cfg_json_textual.textual_editor.EditorApp.action_fold)
     * [on\_button\_pressed](#edit_cfg_json_textual.textual_editor.EditorApp.on_button_pressed)
     * [\_show\_folding](#edit_cfg_json_textual.textual_editor.EditorApp._show_folding)
+    * [\_show\_subtrees](#edit_cfg_json_textual.textual_editor.EditorApp._show_subtrees)
     * [\_show\_explanations](#edit_cfg_json_textual.textual_editor.EditorApp._show_explanations)
     * [\_show\_descriptions](#edit_cfg_json_textual.textual_editor.EditorApp._show_descriptions)
     * [action\_save\_as](#edit_cfg_json_textual.textual_editor.EditorApp.action_save_as)
@@ -93,6 +96,7 @@
 * [edit\_cfg\_json\_textual.textual\_look](#edit_cfg_json_textual.textual_look)
   * [VALUE\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.VALUE_ID_PREFIX)
   * [MARK\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.MARK_ID_PREFIX)
+  * [SUBTREE\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.SUBTREE_ID_PREFIX)
   * [DESCRIPTION\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.DESCRIPTION_ID_PREFIX)
   * [DIAGNOSTIC\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.DIAGNOSTIC_ID_PREFIX)
   * [FOLD\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.FOLD_ID_PREFIX)
@@ -103,6 +107,7 @@
   * [COLOUR\_RULES](#edit_cfg_json_textual.textual_look.COLOUR_RULES)
   * [value\_id](#edit_cfg_json_textual.textual_look.value_id)
   * [mark\_id](#edit_cfg_json_textual.textual_look.mark_id)
+  * [subtree\_id](#edit_cfg_json_textual.textual_look.subtree_id)
   * [description\_id](#edit_cfg_json_textual.textual_look.description_id)
   * [diagnostic\_id](#edit_cfg_json_textual.textual_look.diagnostic_id)
   * [fold\_id](#edit_cfg_json_textual.textual_look.fold_id)
@@ -197,6 +202,12 @@ Style class of the widget that shows or edits one member value.
 #### MARK\_CLASS
 
 Style class of the widget that marks one member.
+
+<a id="edit_cfg_json_textual.textual_editor.SUBTREE_CLASS"></a>
+
+#### SUBTREE\_CLASS
+
+Style class of the widget that says what one object is on its own.
 
 <a id="edit_cfg_json_textual.textual_editor.ROW_CLASS"></a>
 
@@ -717,6 +728,32 @@ containers is folded away.
 
   A widget holding the line of that node and what is said below it.
 
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._subtree_widgets"></a>
+
+#### \_subtree\_widgets
+
+```python
+@staticmethod
+def _subtree_widgets(index: int, row: core.MemberRow) -> ComposeResult
+```
+
+Create the widget that says what one object is on its own.
+
+A node that is no configuration object gets none, by the same rule as
+the description below the row: a widget that could never hold anything
+is a piece of the screen spent on nothing.
+
+**Arguments**:
+
+- `index` - Place of the node among the rows.
+- `row` - Node to create the widget for.
+  
+
+**Returns**:
+
+  One widget for a nested configuration object, and none at all for
+  every other node.
+
 <a id="edit_cfg_json_textual.textual_editor.EditorApp._fold_widget"></a>
 
 #### \_fold\_widget
@@ -951,6 +988,20 @@ of itself says less about itself.
 
 This is not part of `_show_state`, which runs on every key the user
 types: nothing typed into a field folds anything.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._show_subtrees"></a>
+
+#### \_show\_subtrees
+
+```python
+def _show_subtrees() -> None
+```
+
+Say what each nested object is on its own, as the model says now.
+
+It is shown after folding as well as after a validation pass, because
+folding a nested object is one of the moments the model asks that
+object about itself.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp._show_explanations"></a>
 
@@ -1239,6 +1290,12 @@ always something Textual accepts as an identifier.
 
 Prefix of the identifier of the widget that marks one node.
 
+<a id="edit_cfg_json_textual.textual_look.SUBTREE_ID_PREFIX"></a>
+
+#### SUBTREE\_ID\_PREFIX
+
+Prefix of the identifier of the widget that says what one object is.
+
 <a id="edit_cfg_json_textual.textual_look.DESCRIPTION_ID_PREFIX"></a>
 
 #### DESCRIPTION\_ID\_PREFIX
@@ -1323,6 +1380,16 @@ def mark_id(index: int) -> str
 ```
 
 Return the identifier of the widget that marks one node.
+
+<a id="edit_cfg_json_textual.textual_look.subtree_id"></a>
+
+#### subtree\_id
+
+```python
+def subtree_id(index: int) -> str
+```
+
+Return the identifier of the widget that says what one object is.
 
 <a id="edit_cfg_json_textual.textual_look.description_id"></a>
 

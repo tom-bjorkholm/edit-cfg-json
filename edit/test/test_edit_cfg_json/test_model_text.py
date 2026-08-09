@@ -5,11 +5,13 @@
 # MIT License
 
 from pathlib import Path
+from typing import Optional
 import pytest
-from config_as_json import JsonType
+from config_as_json import Config, ConfigPath, JsonType
 from edit_cfg_json import Descriptions, EditModel, LoadReport, MemberRow, \
     docstring_text, load_text, model_as_text, model_title, row_description, \
-    row_diagnostic, row_marks, row_value_text, save_text, verdict_text
+    row_diagnostic, row_marks, row_subtree_text, row_validates, \
+    row_value_text, save_text, verdict_text
 from .container_cfg import KeyedEnumCfg, TreeCfg
 from .sample_cfg import HIGHEST, TOO_LARGE_MESSAGE, DocumentedCfg, FlatCfg, \
     IntEnumCfg, ListCfg, NoDocCfg, NoneCfg, RangeCfg, RewriteCfg, RulesCfg
@@ -489,6 +491,39 @@ def test_folded_says_so() -> None:
     assert 'rules: 2 elements (folded)\n' in text
     assert 'low = 1' not in text
     assert 'answer = 3' in text
+
+
+@pytest.mark.parametrize('state, expected',
+                         [(None, ''), (True, ' [valid on its own]'),
+                          (False, ' [refused on its own]')])
+def test_row_subtree_text(state: Optional[bool], expected: str) -> None:
+    """Test each of the three states an object can be in has its own text.
+
+    Not having been asked says nothing at all, because it is a state and not
+    an answer, and a line saying so under every object would be a line of the
+    window spent on nothing.
+    """
+    row = MemberRow(path=('inner',), value={}, original={}, children=(),
+                    config_type=DocumentedCfg, subtree_valid=state)
+    assert row_subtree_text(row) == expected
+
+
+@pytest.mark.parametrize('config_type, children, validates',
+                         [(DocumentedCfg, (), True),
+                          (DocumentedCfg, None, False), (None, (), False),
+                          (None, None, False)])
+def test_row_validates(config_type: Optional[type[Config]],
+                       children: Optional[tuple[ConfigPath, ...]],
+                       validates: bool) -> None:
+    """Test only a nested object that is really there can be asked at all.
+
+    A list and a dict have no class of their own to ask, and a declared
+    member holding no object has no object to ask, which is the case with a
+    class and no children.
+    """
+    row = MemberRow(path=('inner',), value={}, original={}, children=children,
+                    config_type=config_type)
+    assert row_validates(row) is validates
 
 
 def test_leaf_marked_at_depth() -> None:

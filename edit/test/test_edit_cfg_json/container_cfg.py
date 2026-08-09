@@ -10,9 +10,11 @@ every sample configuration would be too long to read.
 # MIT License
 
 from typing import Optional, TextIO
+import sys
 from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
-    ListOrderingValidator, ListValueValidator, MemberValidationStep, \
-    NestedConfigs, ParseConverter, ValidationPlan
+    IntFloatValidator, InvalidConfiguration, ListOrderingValidator, \
+    ListValueValidator, MemberValidationStep, NestedConfigs, ParseConverter, \
+    ValidationPlan, WholeConfigValidationStep, WholeConfigValidator
 from .sample_cfg import Colour, SampleCfg
 
 MANY_LABELS = 12
@@ -24,6 +26,35 @@ is what that class is for.
 
 SMALL_LIMIT = 9
 """Largest value that the list of `RangedListCfg` accepts."""
+
+INNER_LIMIT = 10
+"""Largest width that the nested class of `SubtreeCfg` accepts."""
+
+ORDER_REFUSAL = 'The low value {low} is above the high value {high}.'
+"""What the rule of a nested class that is about no member of it says."""
+
+CROSS_REFUSAL = 'The width {width} is the low value of the other object.'
+"""What the rule that reaches across two nested objects says.
+
+It is about both of them and therefore about neither, which is what makes each
+of them a perfectly good configuration on its own while the one holding them
+is refused.
+"""
+
+
+def _refuse(message: str, stderr_file: TextIO) -> None:
+    """Write one refusal to the diagnostics stream and then raise it.
+
+    Args:
+        message: What is wrong with the configuration.
+        stderr_file: Stream that a validator writes its refusal to before it
+            raises, which is the contract `config_as_json` states.
+
+    Raises:
+        InvalidConfiguration: Always, which is what this is for.
+    """
+    print(message, file=stderr_file)
+    raise InvalidConfiguration(message)
 
 
 class TreeCfg(SampleCfg):
@@ -322,6 +353,139 @@ class NoDocNestedCfg(SampleCfg):
         """Return the declaration of the one nested configuration object."""
         return {'inner': ConfigNesting(kind=ConfigNestingKind.MEMBER,
                                        config_type=NoDocInnerCfg)}
+
+
+class RangedInnerCfg(SampleCfg):
+    """A nested object whose own class refuses a width above a limit.
+
+    The rule belongs to this class, so it runs while `parse_json` builds one
+    of these. That is exactly why the walk over the class holding it cannot
+    say which member was refused: the object that would be asked is one that
+    was never built.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the one member that the rule of this class is about."""
+        self.width: int = 4
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return the one rule that the width has to obey."""
+        _ = stderr_file
+        in_range = IntFloatValidator[int](min_value=0, max_value=INNER_LIMIT,
+                                          allowed_values=None)
+        return [MemberValidationStep(member_names=['width'],
+                                     validator=in_range)]
+
+
+# A validator has one method, which is what a validator is.
+# pylint: disable-next=too-few-public-methods
+class LowNotHigh(WholeConfigValidator):
+    """A rule of a nested class that is about no single member of it.
+
+    It is about two members together, so there is no member to attribute it
+    to, and it is what shows that such a refusal is reported at the object
+    rather than at one of the rows below it.
+    """
+
+    def validate(self, config: Config,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Refuse an object whose low value is above its high value."""
+        low = getattr(config, 'low', 0)
+        high = getattr(config, 'high', 0)
+        if low > high:
+            _refuse(ORDER_REFUSAL.format(low=low, high=high), stderr_file)
+
+
+class OrderedInnerCfg(SampleCfg):
+    """A nested object with a rule about two of its members at once."""
+
+    def declare_members(self) -> None:
+        """Assign the two members that the rule of this class is about."""
+        self.low: int = 1
+        self.high: int = 9
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return the one rule that is about both members together."""
+        _ = stderr_file
+        return [WholeConfigValidationStep(validator=LowNotHigh())]
+
+
+# A validator has one method, which is what a validator is.
+# pylint: disable-next=too-few-public-methods
+class WidthNotLow(WholeConfigValidator):
+    """A rule that reaches across the boundary between two nested objects.
+
+    Neither object can check it, because each of them knows its own members
+    and nothing about the other, so it belongs to the class holding them
+    both. It is what makes a configuration refused while every object inside
+    it is a perfectly good configuration on its own.
+    """
+
+    def validate(self, config: Config,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Refuse a configuration whose two objects agree on one number."""
+        width = getattr(config, 'ranged').width
+        if width == getattr(config, 'ordered').low:
+            _refuse(CROSS_REFUSAL.format(width=width), stderr_file)
+
+
+class SubtreeCfg(SampleCfg):
+    """A configuration whose two nested objects each have rules of their own.
+
+    Every case that asking an object about itself has to tell apart is
+    reachable from this one class: a member of an object refused by the class
+    that owns it, an object refused for a reason that is about no member of
+    it, and a configuration refused while both objects are valid on their own.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the two nested objects that the rules are about."""
+        self.ranged: RangedInnerCfg = RangedInnerCfg()
+        self.ordered: OrderedInnerCfg = OrderedInnerCfg()
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration of the two nested configuration objects."""
+        member = ConfigNestingKind.MEMBER
+        return {'ranged': ConfigNesting(kind=member,
+                                        config_type=RangedInnerCfg),
+                'ordered': ConfigNesting(kind=member,
+                                         config_type=OrderedInnerCfg)}
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return the one rule that is about both objects together."""
+        _ = stderr_file
+        return [WholeConfigValidationStep(validator=WidthNotLow())]
+
+
+class HoldingInnerCfg(SampleCfg):
+    """A nested object that holds a nested object with a rule of its own."""
+
+    def declare_members(self) -> None:
+        """Assign the nested object that this one holds."""
+        self.ranged: RangedInnerCfg = RangedInnerCfg()
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration of the object inside this one."""
+        return {'ranged': ConfigNesting(kind=ConfigNestingKind.MEMBER,
+                                        config_type=RangedInnerCfg)}
+
+
+class DeepSubtreeCfg(SampleCfg):
+    """A configuration two objects deep, the innermost holding the rule.
+
+    It is what shows that one mistake is reported once: an object holding a
+    refused object is refused as well, and it is not asked again, so what is
+    wrong appears at the innermost object it is really about.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the outer of the two nested objects."""
+        self.outer: HoldingInnerCfg = HoldingInnerCfg()
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration of the outer nested object."""
+        return {'outer': ConfigNesting(kind=ConfigNestingKind.MEMBER,
+                                       config_type=HoldingInnerCfg)}
 
 
 class ConfigListCfg(SampleCfg):

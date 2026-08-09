@@ -26,6 +26,7 @@
     * [fold](#edit_cfg_json_tk.tk_editor.RowWidgets.fold)
     * [field](#edit_cfg_json_tk.tk_editor.RowWidgets.field)
     * [mark](#edit_cfg_json_tk.tk_editor.RowWidgets.mark)
+    * [subtree](#edit_cfg_json_tk.tk_editor.RowWidgets.subtree)
     * [description](#edit_cfg_json_tk.tk_editor.RowWidgets.description)
     * [diagnostic](#edit_cfg_json_tk.tk_editor.RowWidgets.diagnostic)
   * [\_show\_below](#edit_cfg_json_tk.tk_editor._show_below)
@@ -46,10 +47,12 @@
     * [\_create\_rows](#edit_cfg_json_tk.tk_editor.EditorWidgets._create_rows)
     * [\_build\_rows](#edit_cfg_json_tk.tk_editor.EditorWidgets._build_rows)
     * [\_add\_row](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_row)
+    * [\_add\_subtree](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_subtree)
     * [\_add\_fold](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_fold)
     * [\_folder](#edit_cfg_json_tk.tk_editor.EditorWidgets._folder)
     * [\_fold\_all](#edit_cfg_json_tk.tk_editor.EditorWidgets._fold_all)
     * [\_show\_rows](#edit_cfg_json_tk.tk_editor.EditorWidgets._show_rows)
+    * [\_show\_subtrees](#edit_cfg_json_tk.tk_editor.EditorWidgets._show_subtrees)
     * [\_indent](#edit_cfg_json_tk.tk_editor.EditorWidgets._indent)
     * [\_show\_fold\_all](#edit_cfg_json_tk.tk_editor.EditorWidgets._show_fold_all)
     * [\_show\_row\_texts](#edit_cfg_json_tk.tk_editor.EditorWidgets._show_row_texts)
@@ -338,6 +341,15 @@ The field of an editable node, and None for every other node.
 #### mark
 
 The widget that says what has happened to this member.
+
+<a id="edit_cfg_json_tk.tk_editor.RowWidgets.subtree"></a>
+
+#### subtree
+
+The widget that says what this object is on its own.
+
+It is None for every node that is not a nested configuration object,
+because nothing else is a configuration that can be asked about itself.
 
 <a id="edit_cfg_json_tk.tk_editor.RowWidgets.description"></a>
 
@@ -677,6 +689,37 @@ again cannot move it away from the node it belongs to. That frame is
 also what folding takes out of the layout, which is why it is not
 packed here but by `_show_rows`.
 
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_subtree"></a>
+
+#### \_add\_subtree
+
+```python
+@staticmethod
+def _add_subtree(parent: tkinter.Misc,
+                 row: core.MemberRow) -> Optional[tkinter.Label]
+```
+
+Create the widget that says what one object is on its own.
+
+A node that is no configuration object gets no widget, by the same
+rule as the description below the row: a widget that could never hold
+anything is a piece of the window spent on nothing.
+
+It does not wrap, exactly as the mark beside it does not: it belongs
+on the line of its node, and a narrow window squeezes the values
+rather than this.
+
+**Arguments**:
+
+- `parent` - Line of the node that is being shown.
+- `row` - Node to create the widget for.
+  
+
+**Returns**:
+
+  The widget that says what that object is on its own, or None for
+  a node that is not one.
+
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_fold"></a>
 
 #### \_add\_fold
@@ -744,6 +787,20 @@ what is in it while its container is folded and opened again.
 What is said below the nodes is shown again as well, because folding a
 nested configuration object changes it: an object that is showing less
 of itself says less about itself.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._show_subtrees"></a>
+
+#### \_show\_subtrees
+
+```python
+def _show_subtrees() -> None
+```
+
+Say what each nested object is on its own, as the model says now.
+
+It is shown after folding as well as after a validation pass, because
+folding a nested object is one of the moments the model asks that
+object about itself.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._indent"></a>
 

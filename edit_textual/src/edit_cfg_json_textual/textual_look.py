@@ -34,6 +34,9 @@ always something Textual accepts as an identifier.
 MARK_ID_PREFIX = 'mark_'
 """Prefix of the identifier of the widget that marks one node."""
 
+SUBTREE_ID_PREFIX = 'own_'
+"""Prefix of the identifier of the widget that says what one object is."""
+
 DESCRIPTION_ID_PREFIX = 'about_'
 """Prefix of the identifier of the widget that describes one node."""
 
@@ -95,6 +98,11 @@ def value_id(index: int) -> str:
 def mark_id(index: int) -> str:
     """Return the identifier of the widget that marks one node."""
     return f'{MARK_ID_PREFIX}{index}'
+
+
+def subtree_id(index: int) -> str:
+    """Return the identifier of the widget that says what one object is."""
+    return f'{SUBTREE_ID_PREFIX}{index}'
 
 
 def description_id(index: int) -> str:

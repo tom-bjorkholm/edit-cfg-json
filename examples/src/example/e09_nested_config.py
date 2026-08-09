@@ -40,6 +40,37 @@ python3 e09_nested_config.py --ui dump
 python3 e09_nested_config.py --ui dump --fold participant_output
 ````
 
+## Every object says what it is on its own
+
+A nested object is a configuration, so it can be asked whether it is a valid
+one without asking anything about the configuration around it. The editor asks
+that whenever the object is folded or opened, and again on every validation
+pass, and the answer is on the row:
+
+````text
+participant_output: TableOutputConfig [valid on its own]
+````
+
+**On its own is the whole of what that claims**, and it is worth being careful
+about, because it is the one badge that could be misread. A configuration can
+be refused for a reason that is about nothing inside either object — the rule
+in `CourseExportConfig` below is exactly that — and both objects then say
+*valid on its own* while the file cannot be written at all:
+
+````sh
+cd examples/src/example
+python3 e09_nested_config.py --ui dump -i ../../data/e09_with_audit.json \
+    --set audit_output.file_name=advanced-participants.csv
+````
+
+Whether these values could be saved is the line below the members, and that
+line is the only thing that answers it.
+
+That has to be typed rather than read from a file, because a file whose values
+the application refuses is one the editor will not open at all: `parse_json`
+ends in `validate()`, so there is no object to build an editor on. Correcting
+such a file is a job for a text editor, and the message says so.
+
 ## Everything inside it belongs to its own class
 
 This is the part that is easy to get wrong and impossible to see from the
@@ -75,10 +106,10 @@ that deliberately does **not** stop at the boundary of a nested object: an
 application explaining its own settings should not have to know where its
 nesting boundaries fall.
 
-## Where a refusal inside a nested object is shown, for now
+## Where a refusal inside a nested object is shown
 
-Type something that class will not accept and the editor refuses the buffer
-and prints what the class said:
+Type something that class will not accept and the refusal appears at the
+member it is about, exactly as it does for a member at the top level:
 
 ````sh
 cd examples/src/example
@@ -88,17 +119,20 @@ python3 e09_nested_config.py --ui dump \
     --set participant_output.encoding=nonsense
 ````
 
-What it does **not** yet do is name the member it was about, the way it does
-for a member at the top level. A nested object validates itself while the
-whole configuration is being parsed, so by the time the editor could ask which
-member was refused there is no object left to ask. Validating each subtree on
-its own is what answers that, and it is step 12 of the delivery plan. Until
-then the message is below the members rather than at one of them, which is
-less helpful and is never wrong.
+Asking each object on its own is what makes that possible, and it is the same
+question the badge above answers. Reading the whole configuration cannot: a
+nested object validates itself while the configuration around it is being
+parsed, so by the time anything could ask which member was refused there is no
+object left to ask.
 
-A value whose *text* means nothing at all is a different question and is
-already answered at the member, inside a nested object as anywhere else,
-because that is asked of the member alone and needs no configuration at all.
+A rule that is about **no single member** of an object is shown below that
+object rather than at one of its members, because that is what it is about.
+The rule of `CourseExportConfig` below is about two objects and therefore
+about neither, so it appears below all of them, in the validation line.
+
+A value whose *text* means nothing at all is a third question again, and is
+answered at the member without any configuration being built, inside a nested
+object as anywhere else.
 
 ## An optional nested object
 
@@ -150,12 +184,21 @@ from pathlib import Path
 from typing import Optional, TextIO
 import sys
 from config_as_json import CharEncodingValidator, Config, ConfigNesting, \
-    ConfigNestingKind, MemberValidationStep, NestedConfigs, PathOrStr, \
-    StrValidator, ValidationPlan
+    ConfigNestingKind, InvalidConfiguration, MemberValidationStep, \
+    NestedConfigs, PathOrStr, StrValidator, ValidationPlan, \
+    WholeConfigValidationStep, WholeConfigValidator
 from edit_cfg_json import Descriptions
 
 OUTPUT_FORMATS = ['CSV', 'TXT']
 """The formats that one table-like output can be written in."""
+
+SAME_FILE_REFUSAL = 'The two outputs would both be written to {name}.'
+"""What the rule below says when the two outputs name one file.
+
+It is a rule about two objects and therefore about neither of them, which is
+what makes it the rule this example needs: both objects can be perfectly good
+configurations on their own while the configuration holding them is refused.
+"""
 
 
 class TableOutputConfig(Config):
@@ -208,6 +251,44 @@ class TableOutputConfig(Config):
                                      validator=formats),
                 MemberValidationStep(member_names=['encoding'],
                                      validator=CharEncodingValidator())]
+
+
+# A validator has one method, which is fewer than pylint likes to see in a
+# class. That is what a validator is, so the check is turned off for this one.
+# pylint: disable-next=too-few-public-methods
+class OutputsDiffer(WholeConfigValidator):
+    """Refuse a configuration whose two outputs write the same file.
+
+    This is a rule that reaches *across* the boundary between two nested
+    objects, which is the one kind of rule neither of those objects can check
+    for itself: each of them knows its own file name and nothing about the
+    other. So it belongs to the class that holds them both, and it is a
+    `WholeConfigValidator` because it is about no single member.
+    """
+
+    def validate(self, config: Config,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Refuse two outputs that would be written to one file.
+
+        Args:
+            config: The whole course export, which is what makes the two file
+                names comparable at all.
+            stderr_file: Stream that the refusal is written to before it is
+                raised, which is the contract every validator here follows.
+
+        Raises:
+            InvalidConfiguration: Both outputs name the same file.
+        """
+        assert isinstance(config, CourseExportConfig)
+        audit = config.audit_output
+        # There is nothing to compare while the optional output is absent,
+        # which is what the declared defaults of this class leave it as.
+        if audit is None or \
+                audit.file_name != config.participant_output.file_name:
+            return
+        message = SAME_FILE_REFUSAL.format(name=audit.file_name)
+        print(message, file=stderr_file)
+        raise InvalidConfiguration(message)
 
 
 class CourseExportConfig(Config):
@@ -264,15 +345,21 @@ class CourseExportConfig(Config):
                     config_type=TableOutputConfig)}
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
-        """Return no validation steps of this configuration's own.
+        """Return the one rule that is about both outputs at once.
 
-        Every rule of this example belongs to `TableOutputConfig`, which is
-        the point: the class that owns the values is the class that checks
-        them, and the editor runs the real plan of whichever class owns a
-        subtree.
+        Every rule about what is *inside* an output belongs to
+        `TableOutputConfig`, which is the point of nesting: the class that
+        owns the values is the class that checks them, and the editor runs the
+        real plan of whichever class owns a subtree.
+
+        What is left here is the one rule that neither of those objects could
+        check, because it is about the pair of them. That is also what makes a
+        green badge on an output mean less than it looks: each of them can be
+        a perfectly good `TableOutputConfig` while this rule refuses the
+        configuration they are both in.
         """
         _ = stderr_file
-        return []
+        return [WholeConfigValidationStep(validator=OutputsDiffer())]
 
 
 DESCRIPTIONS: Descriptions = {
