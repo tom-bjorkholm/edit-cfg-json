@@ -80,21 +80,29 @@ to type it. The editor therefore asks the question when the user **leaves the
 field**, and not on every key, because a field that complained about every
 half typed name would be complaining about nothing.
 
-Run this example with one of:
+Run this example in one of the two editors, and leaving the field is the
+thing to try, because it is what asks the question:
 
 ````sh
-python3 examples/src/example/e02_enum_config.py --ui dump
 python3 examples/src/example/e02_enum_config.py --ui tk
 python3 examples/src/example/e02_enum_config.py --ui textual
 ````
 
 Inside this repository, use the virtual environment that the build creates,
 because that is where the three packages are installed:
-`./venv/bin/python3 examples/src/example/e02_enum_config.py --ui dump`.
+`./venv/bin/python3 examples/src/example/e02_enum_config.py --ui tk`.
 
-These four, run from the folder the examples live in, show a name being
-accepted, a prefix being completed, a prefix that names two members being
-refused, and a number being refused in a member that an `IntEnum` declares:
+Type `ELECT` into `needed` and move to the other field: the refusal appears
+below that member, and typing the rest of the name takes it away again,
+because what a conversion said is kept until that member is edited again.
+That is the half of this example that only an editor has, since a field
+losing the focus is not something a printout has to lose.
+
+`--ui dump` is the very limited non-interactive user interface, and it prints
+the model once. The four below make the same edits a user would type, and show
+a name being accepted, a prefix being completed, a prefix that names two
+members being refused, and a number being refused in a member that an
+`IntEnum` declares:
 
 ````sh
 cd examples/src/example

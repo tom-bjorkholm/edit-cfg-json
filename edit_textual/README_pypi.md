@@ -3,12 +3,6 @@
 There are 3 related packages for editing a `config-as-json`
 configuration:
 
-- **[edit-cfg-json](https://pypi.org/project/edit-cfg-json/)** the user
-  interface agnostic core. It discovers the editable structure of a
-  `config_as_json.Config` object by introspection, and owns all editing,
-  validation and file handling. It is also the package a third party
-  writes a new user interface backend against.
-
 - **[edit-cfg-json-tk](https://pypi.org/project/edit-cfg-json-tk/)** a
   desktop editor based on Tkinter. It is a thin backend on top of the
   core.
@@ -17,13 +11,21 @@ configuration:
   a terminal editor based on Textual. It is a thin backend on top of the
   core.
 
+- **[edit-cfg-json](https://pypi.org/project/edit-cfg-json/)** the user
+  interface agnostic core. It discovers the editable structure of a
+  `config_as_json.Config` object by introspection, and owns all editing,
+  validation and file handling. It is also the package a third party
+  writes a new user interface backend against. The only backend it ships
+  itself is a very limited non-interactive one that prints the model once
+  and returns, for a script, a test or a continuous integration job.
+
 The application supplies its own `Config` object and gets a folding
 editor for it, without writing any user interface code and without
 describing its configuration schema a second time.
 
-The three packages share a version number and are released together. Pick
-the backend that matches how your application is used; both backends pull
-in the core themselves.
+The three packages share a version number and are released together. The
+first two are the editors: pick the one that matches how your application
+is used, and it pulls in the core itself.
 
 ## Project status
 
@@ -193,6 +195,12 @@ exit code of its own:
 
 The numbers are `edit_cfg_json.ExitCode`, so a program that runs this one can
 name them instead of writing them out.
+
+Codes `10` and `11` are answered by `edit-cfg-json` alone, because it is the
+one of the three that runs the non-interactive backend and therefore the one
+whose exit code can carry a verdict: nobody was there to read one. A program
+that gave the user a session ends with success when the user closes it,
+whatever is left in the fields, because closing an editor is not a failure.
 
 ### If the script folder is not on the path
 

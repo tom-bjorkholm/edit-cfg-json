@@ -2008,11 +2008,16 @@ is the report or the refusal.
 
 The protocol that every user interface backend implements.
 
-The one backend this package ships is here as well, because it is the one
-that needs no user interface library: it prints the model and returns. That
-makes it the backend of a program that judges a configuration file on a
-machine with no display, and it is also the shortest thing there is to read
-for anybody writing a backend of their own.
+The editors this library is for are the Textual one and the Tkinter one, and
+each of them lives in a package of its own, because this package imports no
+user interface library.
+
+What is here beside the protocol is `DumpEditor`, which is a very limited
+non-interactive backend: it prints the model once and returns. It is the one
+backend that needs no user interface library at all, which is what makes it
+useful for exercising this API without a display and for printing what a short
+sequence of editor actions left behind. It is not an editor and is not the way
+to see what one does.
 
 <a id="edit_cfg_json.backend.EditorBackend"></a>
 
@@ -2071,19 +2076,30 @@ backend's, which is the same split as everything else here.
 class DumpEditor()
 ```
 
-A backend that prints the model instead of opening a window.
+A very limited non-interactive backend: it prints the model once.
 
-It satisfies `EditorBackend` and is not a special case beside a real
-backend, which is worth noticing: the protocol asks for one method, so
-anything with that method can be handed to `edit`. That is also how an
-application writes a backend of its own.
+It is not one of this library's editors and is not how one is looked at.
+The editors are `edit_cfg_json_textual.TextualEditor` and
+`edit_cfg_json_tk.TkEditor`, and everything a user does — typing into a
+field, leaving one, pressing a control on a row, answering a question —
+happens in one of those and in neither this nor any other printout.
+
+What this is good for is the two things a non-interactive backend can do:
+exercising a feature over this API without a display, which is what a
+quick check, a script and an automated test need, and printing what a
+short sequence of editor actions left behind. Those are real uses, and
+they are the whole of them.
+
+It satisfies `EditorBackend` and is not a special case beside an
+interactive backend, which is worth noticing: the protocol asks for one
+method, so anything with that method can be handed to `edit`. That is also
+how an application writes a backend of its own, and this is the shortest
+one there is to read.
 
 It runs to completion in the sense the protocol asks for, and there is
-simply nothing for the user to do while it runs: it prints once and
-returns. So it is the backend of a program that says what a configuration
-file amounts to rather than one that offers to change it, and whoever runs
-such a program has no later moment at which to press Save. Saving is
-therefore the caller's to ask for, before the model is handed over.
+simply nothing for the user to do while it runs. So whoever runs it has no
+later moment at which to press Save, and saving is the caller's to ask
+for, before the model is handed over.
 
 For the same reason it asks nothing before it ends. There is no session
 for a user to close and nobody to answer a question, so what a session
@@ -2104,6 +2120,12 @@ Validating is what makes the printed model say what the application
 itself would make of the values in it, which is the whole point of
 printing them. A save that the caller already asked for has validated
 them too, and says so on the line about saving.
+
+An interactive backend does the opposite and waits to be asked, with a
+button or a key, because a user halfway through typing a value has not
+asked anything. Validating here is the consequence of having no later
+moment to be asked in, and not a different opinion about when a buffer
+should be validated.
 
 **Arguments**:
 
@@ -6633,10 +6655,15 @@ explains the marks on those members. The validation state of the buffer
 follows them, and the saving after that, in the order in which a session
 reaches them, so that a rendering never leaves it unsaid what the
 application would make of what is shown or where it would be written.
-This is the rendering used by the examples and by the tests, so that
-every step of the editor can be observed without a display. It belongs
-to the core rather than to a backend because it is user interface
-agnostic.
+It belongs to the core rather than to a backend because it is user
+interface agnostic.
+
+What it renders is what the model holds, and that is the whole of what it
+can testify to. The two interactive backends draw the same model and add
+everything a printout has none of — a field with the focus in it, a
+control to press, a question to answer — so this is what a test and a
+script read to check the core without a display, and never a substitute
+for looking at an editor.
 
 **Arguments**:
 
@@ -8547,7 +8574,12 @@ It is the program of the package that imports no user interface library, so it
 needs no display: it prints the configuration as text, with what the
 application's own validators make of it, and with `--save` it writes the
 validated file. That makes it a configuration checker for a terminal or for a
-continuous integration job as much as a way of looking at a class.
+continuous integration job, and not an editor.
+
+**For an editor, run `edit-cfg-json-tk` or `edit-cfg-json-textual`**, which
+take the very same command line and open a window and a terminal screen. This
+program has no field to type into and nobody to press Save, which is why it is
+the one of the three that offers `--save` at all.
 
 Run it as `edit-cfg-json`, or as `python -m edit_cfg_json` on a machine whose
 script folder is not on the path.

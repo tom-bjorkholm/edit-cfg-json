@@ -71,23 +71,30 @@ it, because that matches `type(value)` exactly rather than by subclass; the
 denied type is used here because its diagnostic names `bool` and so teaches
 the reader what was rejected.
 
-Run this example with one of:
+Run this example in one of the two editors, which is where everything above
+is really seen:
 
 ````sh
-python3 examples/src/example/e01_flat_config.py --ui dump
 python3 examples/src/example/e01_flat_config.py --ui tk
 python3 examples/src/example/e01_flat_config.py --ui textual
 ````
 
 Inside this repository, use the virtual environment that the build creates,
 because that is where the three packages are installed:
-`./venv/bin/python3 examples/src/example/e01_flat_config.py --ui dump`.
+`./venv/bin/python3 examples/src/example/e01_flat_config.py --ui tk`.
 
-The `--ui dump` variant needs neither a window nor a terminal, so it is also
-what the tests of this example use. The same edit that a user would type
-into a field can be made from the command line, which is what makes an
-editor observable without a display. These three show the buffer being
-accepted, being refused, and being rewritten:
+Type into either field and ask for a validation pass — the Tkinter editor has
+a Validate button and the Textual editor validates on `ctrl+r`, or on `f5` —
+and the editor says what `FlatConfig` makes of what is in the fields. Both of
+them also have Save and Save as, which the last section below is about.
+
+`--ui dump` is the third value of `--ui`, and it is a very limited
+non-interactive user interface: it prints the model once and returns, with no
+field to type into and no button to press. Its use is that a command line can
+stand in for the user, so an editing step can be reached from a script and by
+the tests of this example. These three make the same three edits a user would
+make into the field, and show the buffer being accepted, being refused, and
+being rewritten:
 
 ````sh
 python3 examples/src/example/e01_flat_config.py --ui dump --set answer=7
@@ -95,10 +102,8 @@ python3 examples/src/example/e01_flat_config.py --ui dump --set answer=500
 python3 examples/src/example/e01_flat_config.py --ui dump --set name=other
 ````
 
-In the two graphical backends the same pass is asked for rather than done
-for the user: the Tkinter editor has a Validate button and the Textual
-editor validates on `ctrl+r`, or on `f5`. Both of them also have Save and
-Save as, which the last section below is about.
+It validates before it prints, because it has no later moment in which a user
+could ask it to.
 
 ## Reading the values from a file
 
@@ -153,10 +158,11 @@ decide which of the two it was.
 ## Writing the file again
 
 `-o` names the file to write, and defaults to `-i`, which is what an editor
-is normally asked to do. In the two graphical backends the user presses Save;
-`--ui dump` prints once and the run is then over, so `--save` is what asks it
-to really write the file. These four show a round trip, a round trip over the
-input file, a save that is refused, and a save with nowhere to go:
+is normally asked to do. In the two editors the user presses Save; `--ui dump`
+happens once and the run is then over, so there is no moment at which anyone
+could press it and `--save` is what asks for the file to really be written.
+These four show a round trip, a round trip over the input file, a save that is
+refused, and a save with nowhere to go:
 
 ````sh
 cd examples/src/example
@@ -181,14 +187,16 @@ idea: what is written is what the application would read back.
 
 The fourth command is the one case where the editor has to ask something.
 With neither `-i` nor `-o` there is nowhere to write, and a file name is not
-something a library can guess: the text dump says so, and the two graphical
-backends offer their Save as question instead.
+something a library can guess, so the two editors put their Save as question:
+a system file dialog in Tkinter and a small screen of its own in Textual.
+`--ui dump` has nobody to ask, so it says that there is nowhere to write and
+that is all it can do about it.
 
 ## Closing without saving
 
 Closing writes nothing, so closing a session with something typed into it
 loses what was typed. The editor asks before it lets that happen: change a
-value in either graphical backend and press Close, and it asks whether the
+value in either interactive backend and press Close, and it asks whether the
 changes may be discarded, with the answer that keeps them offered first.
 Answer Save first, or press Save and then Close, and it asks nothing, because
 there is then nothing left to lose.
@@ -202,8 +210,10 @@ python3 e01_flat_config.py --ui textual
 Whether there is anything to ask about, and what the question says, are the
 editor's own and the same in both backends; the dialog and the modal screen
 that put it are each backend's. `--ui dump` shows none of this, and that is
-not an omission: it prints once and returns, so there is no session for anyone
-to close and nobody to answer a question.
+not an omission but what a non-interactive user interface is: it prints once
+and returns, so there is no session for anyone to close and nobody to answer a
+question. It is the plainest example of something that has to be run in an
+editor to be seen at all.
 
 ## What the application has already decided
 
@@ -228,11 +238,15 @@ tried without a program per answer:
 
 ````sh
 cd examples/src/example
-python3 e01_flat_config.py --ui dump --key save=ctrl+w --ui textual
+python3 e01_flat_config.py --ui textual --key save=ctrl+w
 python3 e01_flat_config.py --ui dump --extension .cfg -o /tmp/plain --save
 python3 e01_flat_config.py --ui dump --extension .cfg --enforce-extension \
     -o /tmp/out.json --save
 ````
+
+The first of those has to be run in an editor, because a key is something a
+user presses; the other two are what a file name setting does, which a
+printout can say as well as a window can.
 
 The second of those writes `/tmp/plain.cfg`: a destination that is being
 chosen and has no extension at all gets the one the application uses,
@@ -263,16 +277,18 @@ any, so the same editor is reachable without running this file:
 
 ````sh
 export PYTHONPATH=examples/src
+edit-cfg-json-tk --module example.e01_flat_config --class FlatConfig
 edit-cfg-json --module example.e01_flat_config --class FlatConfig \
     -i in.json
-edit-cfg-json-tk --module example.e01_flat_config --class FlatConfig
 ````
 
-The first prints the model, as `--ui dump` does here; the second opens the
-window, as `--ui tk` does. What they cannot do is what a command line cannot
-supply: the description mapping of example 3, and the `Settings` above. Those
-are what an application knows about itself, and that is why an application
-still writes the one `edit()` call rather than shelling out to a program.
+The first opens the window, as `--ui tk` does here; the second runs the
+non-interactive backend and prints the model, as `--ui dump` does, and answers
+with an exit code that says whether the file is one this class would accept.
+What none of them can do is what a command line cannot supply: the description
+mapping of example 3, and the `Settings` above. Those are what an application
+knows about itself, and that is why an application still writes the one
+`edit()` call rather than shelling out to a program.
 """
 
 # Copyright (c) 2026 Tom Björkholm

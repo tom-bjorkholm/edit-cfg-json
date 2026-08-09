@@ -620,10 +620,15 @@ def model_as_text(model: EditModel) -> str:
     follows them, and the saving after that, in the order in which a session
     reaches them, so that a rendering never leaves it unsaid what the
     application would make of what is shown or where it would be written.
-    This is the rendering used by the examples and by the tests, so that
-    every step of the editor can be observed without a display. It belongs
-    to the core rather than to a backend because it is user interface
-    agnostic.
+    It belongs to the core rather than to a backend because it is user
+    interface agnostic.
+
+    What it renders is what the model holds, and that is the whole of what it
+    can testify to. The two interactive backends draw the same model and add
+    everything a printout has none of — a field with the focus in it, a
+    control to press, a question to answer — so this is what a test and a
+    script read to check the core without a display, and never a substitute
+    for looking at an editor.
 
     Args:
         model: Model to render.

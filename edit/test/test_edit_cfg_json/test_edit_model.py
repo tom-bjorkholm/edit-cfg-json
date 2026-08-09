@@ -558,8 +558,8 @@ def test_no_destination_yet() -> None:
 def test_save_needs_a_file() -> None:
     """Test a save with nowhere to write refuses and says why.
 
-    The backends turn this into a question, but the model has to answer it
-    for a caller that cannot ask one, such as the text dump of the examples.
+    The two editors turn this into a question, but the model has to answer
+    it for a caller that cannot ask one, such as the non-interactive backend.
     """
     model = EditModel(FlatCfg())
     outcome = model.save()

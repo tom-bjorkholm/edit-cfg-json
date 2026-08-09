@@ -50,21 +50,28 @@ reached it either, because it would have stopped at the member before it, and
 an editor that reported a rule the application never applied would be making
 things up.
 
-Run this example with one of:
+Run this example in one of the two editors, where a validation pass is asked
+for with the Validate button or with `ctrl+r`, or `f5`:
 
 ````sh
-python3 examples/src/example/e04_validated_config.py --ui dump
 python3 examples/src/example/e04_validated_config.py --ui tk
 python3 examples/src/example/e04_validated_config.py --ui textual
 ````
 
 Inside this repository, use the virtual environment that the build creates:
-`./venv/bin/python3 examples/src/example/e04_validated_config.py --ui dump`.
+`./venv/bin/python3 examples/src/example/e04_validated_config.py --ui tk`.
 
-These four, run from the folder the examples live in, show one member being
-refused by a validator this application wrote, one being refused by a
-validator `config_as_json` ships, both being refused at once, and the rule
-that is about no single member:
+Break two members at once and ask for the pass, and each of them carries its
+own sentence below its own field while the line above the block names both. A
+configuration too tall for the window is exactly the case that attribution
+exists for, and scrolling to the named member is what makes it worth having.
+
+`--ui dump` is the very limited non-interactive user interface, and it
+validates once before it prints, because there is nobody to press Validate.
+These four make the same edits and show one member being refused by a
+validator this application wrote, one being refused by a validator
+`config_as_json` ships, both being refused at once, and the rule that is about
+no single member:
 
 ````sh
 cd examples/src/example

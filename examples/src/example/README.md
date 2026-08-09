@@ -35,9 +35,9 @@ takes the same options:
 
 | Option | Meaning |
 | --- | --- |
-| `--ui dump` | Print the model as text. Needs neither a window nor a terminal. |
 | `--ui tk` | Open the editor in a Tkinter window. |
 | `--ui textual` | Open the editor in the terminal, with Textual. |
+| `--ui dump` | Print the model once, non-interactively. Needs neither a window nor a terminal. |
 | `--set member=value` | Edit one value before showing it. Repeatable. A value inside a list or a dict is named by the whole path to it, with a dot between the steps. |
 | `--add PATH` | Add one element to a list. `--add PATH=KEY` adds one entry to a dict, which needs a key. Repeatable. |
 | `--remove PATH` | Remove one element or entry. Repeatable. |
@@ -57,24 +57,36 @@ takes the same options:
 something the example can guess, and a silent choice would teach the wrong
 thing about a library that has more than one user interface.
 
-`--ui dump` is not a lesser mode. It runs `edit_cfg_json.DumpEditor`, a backend
-that the core itself ships, so it shows exactly the model that the two
-graphical backends draw. That is what lets every example be checked without a
-display. `StandInUser` beside it in `cmd_line.py` is the other kind of backend:
-one written by hand, in a few lines, which does what a user would do — type
-into a field, press the explain key, press Save — and then hands the model on.
-Between the two of them they say what a backend really is, which is anything
-with a `run_editor` method.
+**`--ui tk` and `--ui textual` are the editors, and they are what these
+examples are about.** Each example says what the user sees and does — which
+control is pressed, what appears below which member, what changes when a field
+loses the focus — and the way to see any of that is to open one of the two.
+
+**`--ui dump` is a very limited non-interactive user interface.** It runs
+`edit_cfg_json.DumpEditor`, which prints the model once and returns, so there
+is no field to type into, no control to press and nobody to answer a question.
+It is good for two things and no more: exercising a feature over the core and
+backend API with no display, which is what the tests of these examples do, and
+printing what a short sequence of editor actions left behind. Every `--ui dump`
+command line below is one of those sequences, which is what makes an example
+checkable from a script; none of them is a picture of the editor.
+
+`StandInUser` beside it in `cmd_line.py` is the other kind of backend: one
+written by hand, in a few lines, which does what a user would do — type into a
+field, press the explain key, press Save — and then hands the model on. Between
+it and `DumpEditor` they say what a backend really is, which is anything with a
+`run_editor` method.
 
 `-o/--output` defaults to the input file, which is what an editor is normally
-asked to do. With neither, there is nowhere to write, and the two graphical
+asked to do. With neither, there is nowhere to write, and the two interactive
 backends ask for a destination when Save is pressed.
 
-`--save` is the one option that only means something for `--ui dump`. The dump
-prints once and the run is then over, so there is no later moment at which a
-user could press Save; without `--save` the dump says where it *would* write,
-and with it the file is really written. That is what makes the whole round
-trip observable without a display.
+`--save` is the one option that only means something for `--ui dump`. The
+printout happens once and the run is then over, so there is no moment at which
+a user could press Save; without `--save` it says where it *would* write, and
+with it the file is really written. That is what puts a whole round trip within
+reach of a script. In the two editors the user presses Save, which is the only
+place saving is really seen.
 
 Every run ends by saying what `edit()` gave back, because "the saved object,
 or `None` when nothing was saved" is the contract of this library and a
@@ -102,10 +114,11 @@ hidden form.
 
 There is no option standing in for Close, and there is deliberately none.
 Closing writes nothing, so an editor holding something that has not been saved
-asks before it drops it — which is a question, and the dump has nobody to
-answer one: it prints once and the run is then over. It is therefore the one
-behaviour of the editor that is seen with `--ui tk` or `--ui textual` and not
-in the text dump. Change a value in either of them and press Close to see it.
+asks before it drops it — which is a question, and a printout has nobody to
+answer one: it happens once and the run is then over. Change a value with
+`--ui tk` or `--ui textual` and press Close to see it. It is the plainest of
+the behaviours that only an editor has, and a reminder of what a `--ui dump`
+line can and cannot show.
 
 ## Running an example
 
@@ -113,8 +126,8 @@ The three packages have to be importable. Inside this repository, use the
 virtual environment that the build creates:
 
 ```sh
-./venv/bin/python3 examples/src/example/e01_flat_config.py --ui dump
-./venv/bin/python3 examples/src/example/e01_flat_config.py --ui tk \
+./venv/bin/python3 examples/src/example/e01_flat_config.py --ui tk
+./venv/bin/python3 examples/src/example/e01_flat_config.py --ui textual \
     -i examples/data/e01_incomplete.json
 ```
 
@@ -123,6 +136,14 @@ Outside this repository, install the backend you want and use any Python:
 ```sh
 pip install --upgrade edit-cfg-json-tk edit-cfg-json-textual
 python3 e01_flat_config.py --ui textual
+```
+
+`--ui dump` needs neither backend installed, because the core ships it, which
+is what makes it the one to reach for in a script or on a machine with no
+display:
+
+```sh
+./venv/bin/python3 examples/src/example/e01_flat_config.py --ui dump
 ```
 
 Every example file can also be imported instead of run, which is what the
@@ -135,13 +156,18 @@ configuration class, so any class in this folder can be opened without running
 the file it lives in:
 
 ```sh
-PYTHONPATH=examples/src ./venv/bin/edit-cfg-json \
-    --module example.e03_described_config --class DescribedConfig
 PYTHONPATH=examples/src ./venv/bin/edit-cfg-json-textual \
     --module example.e02_enum_config --class EnumConfig
 ./venv/bin/edit-cfg-json-tk --file \
     examples/src/example/e03_described_config.py --class DescribedConfig
+PYTHONPATH=examples/src ./venv/bin/edit-cfg-json \
+    --module example.e03_described_config --class DescribedConfig
 ```
+
+The first two open an editor. The third runs the non-interactive backend and
+prints what that class makes of the values, which is what a script or a
+continuous integration job can read, and is the same relation `--ui dump` has
+to `--ui tk` and `--ui textual` above.
 
 A class that the editor cannot construct on its own is named through its
 loader instead, and `--class` beside it says which class the run insists on

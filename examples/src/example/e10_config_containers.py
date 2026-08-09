@@ -51,7 +51,9 @@ window can spare for one member, so `reports` opens **folded** and says so.
 lists and dicts: it is the rule of example 8, counting everything inside a
 container, and a container of configuration objects reaches the limit at three
 of them rather than at a dozen numbers. It is worth meeting here, because it is
-where a real configuration meets it.
+where a real configuration meets it, and it is the first thing an editor shows
+of a configuration this size: one member open and one folded, with a control on
+each of them.
 
 ````sh
 cd examples/src/example
@@ -148,24 +150,31 @@ named key of a dict is an object. It is edited exactly like the two here, and
 it is out of scope for adding and removing, so the example that shows what can
 and cannot be added is where it belongs.
 
-Run this example with one of:
+Run this example in one of the two editors. This is the first example whose
+configuration is the size a real one is, so it is the first where the fold
+controls and the scrolling are doing real work:
 
 ````sh
-python3 examples/src/example/e10_config_containers.py --ui dump
 python3 examples/src/example/e10_config_containers.py --ui tk
 python3 examples/src/example/e10_config_containers.py --ui textual
 ````
 
 Inside this repository, use the virtual environment that the build creates:
-`./venv/bin/python3 examples/src/example/e10_config_containers.py --ui dump`.
+`./venv/bin/python3 examples/src/example/e10_config_containers.py --ui tk`.
 
-There is a file to read in [examples/data/](../../data/), and it holds two
-reports in the list and three in the dict, which folds the other one of the
-two containers:
+Open `reports`, break one report's `max_rows`, and fold the member again: the
+badge on the container row says *refused inside* while everything below it is
+hidden, which is why a container of objects has a badge of its own.
+
+`--ui dump` is the very limited non-interactive user interface, and it is what
+the command lines above use. There is a file to read in
+[examples/data/](../../data/), and it holds two reports in the list and three
+in the dict, which folds the other one of the two containers:
 
 ````sh
 cd examples/src/example
 python3 e10_config_containers.py --ui dump -i ../../data/e10_reports.json
+python3 e10_config_containers.py --ui tk -i ../../data/e10_reports.json
 ````
 """
 

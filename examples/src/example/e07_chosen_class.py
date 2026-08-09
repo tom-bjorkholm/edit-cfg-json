@@ -32,19 +32,26 @@ would be the application meeting it.
 
 Those two together are the whole of what a class-choosing loader costs.
 
-Run this example with one of:
+Run this example in one of the two editors, once per file, and read the title
+of each: the same program opens two different configuration classes, and the
+title is where it says which one it opened.
 
 ````sh
-python3 examples/src/example/e07_chosen_class.py --ui dump
-python3 examples/src/example/e07_chosen_class.py --ui tk
-python3 examples/src/example/e07_chosen_class.py --ui textual
+cd examples/src/example
+python3 e07_chosen_class.py --ui tk -i ../../data/e07_drawing.json
+python3 e07_chosen_class.py --ui textual -i ../../data/e07_model.json
 ````
 
 Inside this repository, use the virtual environment that the build creates:
-`./venv/bin/python3 examples/src/example/e07_chosen_class.py --ui dump`.
+`./venv/bin/python3 examples/src/example/e07_chosen_class.py --ui tk`.
 
-These two are the point of the example. The same program opens two different
-configuration classes, and the title of each says which one it opened:
+Change `mode` in either of them and press Save, and the save is refused with
+the message that says why: the file that would be written is one this
+application would read back as the other class. That refusal is worth meeting
+where a user meets it, which is at the Save button.
+
+`--ui dump` is the very limited non-interactive user interface. These two
+print the two classes:
 
 ````sh
 cd examples/src/example
@@ -52,9 +59,10 @@ python3 e07_chosen_class.py --ui dump -i ../../data/e07_drawing.json
 python3 e07_chosen_class.py --ui dump -i ../../data/e07_model.json
 ````
 
-And these two are what a save will not do. The first would write a file that
-this application reads as the other class, and says so; the second would write
-one it could not read at all, and says what its own rule said about it:
+And these two are the same two refusals as at the Save button above, reached
+without one. The first would write a file that this application reads as the
+other class, and says so; the second would write one it could not read at all,
+and says what its own rule said about it:
 
 ````sh
 cd examples/src/example
@@ -64,11 +72,11 @@ python3 e07_chosen_class.py --ui dump -i ../../data/e07_drawing.json \
     --set mode=3D -o /tmp/out.json --save
 ````
 
-The same through the program that the core installs, where `--class` is how a
-script says which of the two classes it is prepared to go on with. The first
-opens whichever class the file selects, the second insists on that class and
-opens it, and the third insists on the other one and stops with a message and
-an exit code of its own:
+The same through the non-interactive program that the core installs, where
+`--class` is how a script says which of the two classes it is prepared to go
+on with. The first opens whichever class the file selects, the second insists
+on that class and opens it, and the third insists on the other one and stops
+with a message and an exit code of its own:
 
 ````sh
 PYTHONPATH=examples/src edit-cfg-json --module example.e07_chosen_class \

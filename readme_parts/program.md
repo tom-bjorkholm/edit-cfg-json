@@ -97,6 +97,12 @@ exit code of its own:
 The numbers are `edit_cfg_json.ExitCode`, so a program that runs this one can
 name them instead of writing them out.
 
+Codes `10` and `11` are answered by `edit-cfg-json` alone, because it is the
+one of the three that runs the non-interactive backend and therefore the one
+whose exit code can carry a verdict: nobody was there to read one. A program
+that gave the user a session ends with success when the user closes it,
+whatever is left in the fields, because closing an editor is not a failure.
+
 ### If the script folder is not on the path
 
 Every one of these programs is also reachable through the package it belongs

@@ -42,21 +42,26 @@ and applying the buffer with `Config.parse_json`, which runs everything the
 class runs while it reads a file. That is worth knowing, because it is why the
 list of teams is still there when a validation pass runs: the copy has it.
 
-Run this example with one of:
+Run this example in one of the two editors, on the file of teams, and type
+into the `team` field to see the rule that only this application could have
+written:
 
 ````sh
-python3 examples/src/example/e06_factory_config.py --ui dump
-python3 examples/src/example/e06_factory_config.py --ui tk
-python3 examples/src/example/e06_factory_config.py --ui textual
+cd examples/src/example
+python3 e06_factory_config.py --ui tk -i ../../data/e06_teams.json
+python3 e06_factory_config.py --ui textual -i ../../data/e06_teams.json
 ````
 
 Inside this repository, use the virtual environment that the build creates:
-`./venv/bin/python3 examples/src/example/e06_factory_config.py --ui dump`.
+`./venv/bin/python3 examples/src/example/e06_factory_config.py --ui tk`.
 
-These show the rule that only the application could have written. The first is
-corrected to `alpha` and marked as a value a validator changed, because the
-validator was told to accept the best match; the second names no team and is
-refused, with the three names that exist:
+Typing `alp` and validating rewrites the field to `alpha` and marks it as a
+value a validator changed; typing `delta` is refused with the three names that
+exist. Both happen in the fields, because the loader is only about how the
+object was made and not about how it is edited.
+
+`--ui dump` is the very limited non-interactive user interface, and these two
+make the same two edits:
 
 ````sh
 cd examples/src/example
@@ -66,10 +71,12 @@ python3 e06_factory_config.py --ui dump -i ../../data/e06_teams.json \
     --set team=delta
 ````
 
-And this is the same class through the program that the core installs, which
-is where the difference between having a loader and not having one is plainest.
-The first run is refused, because a program cannot construct this class either;
-the second opens it; the third says which class it insists on getting:
+And this is the same class through the non-interactive program that the core
+installs, which is where the difference between having a loader and not having
+one is plainest. The first run is refused, because a program cannot construct
+this class either; the second opens it; the third says which class it insists
+on getting. `edit-cfg-json-tk` and `edit-cfg-json-textual` answer exactly the
+same way and then open an editor:
 
 ````sh
 PYTHONPATH=examples/src edit-cfg-json --module example.e06_factory_config \

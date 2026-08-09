@@ -20,6 +20,8 @@ The library provides:
   introspection and owns all editing, validation and file handling
 - a Textual (terminal) editor
 - a Tkinter (desktop) editor
+- a very limited non-interactive backend, shipped by the core, which
+  prints the model once and returns
 
 The application supplies its `Config` object, optionally a loader
 callable, optionally an input file name, an output file name, and a
@@ -28,6 +30,31 @@ mapping of per-attribute descriptions.
 The editor shall have no opinion about what the filename extension shall
 be for input or output files. Some applications use `.cfg`, some use `.json`,
 and also other file name extensions are in use.
+
+### 1.1 The two interactive editors are what this library is for
+
+The Textual editor and the Tkinter editor are the product. Wherever this
+document says what a feature does, it says what it does in a window or in a
+terminal: which control the user presses, what appears below which member, and
+what changes when the focus moves.
+
+The non-interactive backend is neither of those and must never be described as
+though it were. It offers no field to type into, no control to press, no focus
+to lose and nobody to answer a question, so a printout can show what the model
+holds and can never show what an editor does. What it is genuinely good for is
+two things:
+
+- exercising a feature over the core and backend API without an interactive
+  backend, which is what makes a quick check, a script and an automated test
+  possible on a machine with no display
+- running a short sequence of editor actions and printing what they left
+  behind, in one non-interactive run
+
+It is `DumpEditor` in the core, `--ui dump` in the examples of this repository,
+and the backend of the `edit-cfg-json` program (section 8.3). Being limited is
+not a fault of it — a checker that prints a verdict and an exit code is a
+useful thing to be — and it is a fault to present it as the way this editor is
+seen or judged.
 
 ## 2. Repository and package structure
 
@@ -1125,6 +1152,14 @@ The user sees exactly the diagnostics the application would see at load
 time. There is no second validation implementation and no way for the
 editor to accept something the application later rejects.
 
+**The pass is asked for and never done for the user.** Tk has a Validate
+button and Textual a key, because a user who is halfway through typing a value
+has not asked anything, and an editor that answered a question nobody put would
+be reporting a mistake that is not one yet. The non-interactive backend of
+section 1.1 has no later moment in which to be asked, so it validates once
+before it prints — which is a consequence of printing once and returning, and
+not a second policy about when to validate.
+
 **The class is not constructed, and it does not have to be.** This document
 first said "construct a candidate config from that text", and step 9 found
 that the construction adds nothing: the declaring of the members is the whole
@@ -1443,10 +1478,12 @@ the dialog opens on and as the control the screen puts the focus on, because a
 user who answers without reading should keep what they have. Leaving the
 question — the cancel key of section 9.1 — is the same as keeping them.
 
-**A backend that prints once and returns is asked nothing.** There is no
+**The non-interactive backend of section 1.1 is asked nothing.** There is no
 session for a user to close and nobody to answer, so `DumpEditor` consults
 none of this; where the core is asked, such a backend's answer is to discard,
-which is the only answer it ever had.
+which is the only answer it ever had. Closing is therefore one of the
+behaviours that exist only in a window or a terminal, and one of the plainest
+reasons a printout is no measure of this editor.
 
 **Two answers and not three.** Saving on the way out was rejected: it would
 have to cope with a save the application refuses, with no destination chosen
@@ -1704,13 +1741,19 @@ product and not only a development tool, and the second benefit is what built
 them at step 7B: every question about a configuration that is not two members
 long used to cost a hand-written example, and now any class in reach answers it.
 
+**Two of the three open an editor**, and they are the two an application author
+usually wants. The third runs the non-interactive backend of section 1.1, so it
+is a configuration checker rather than an editor: it says what a class makes of
+a file and answers with an exit code, which is what a script and a continuous
+integration job can use and what neither of the other two can offer.
+
 #### 8.3.1 The command line owns no logic
 
 `edit_cfg_json.cli` holds all of it — the parsing, the two doors to a class, the
 construction, one editing session and the exit code — and `run_cli` takes the
 backend for exactly the reason `edit()` does: the core names no user interface.
 Each package is then a program of a few statements. Without that split the two
-graphical programs would be near copies of each other, and section 8 answers
+interactive programs would be near copies of each other, and section 8 answers
 duplicate code between the backends by moving logic into the core rather than by
 suppressing the warning. It is also what makes the whole program testable with
 no display and no toolkit, by handing `run_cli` a backend that is a stub.
@@ -2021,6 +2064,13 @@ is what the editor itself may take.
 The core needs no UI and no display, and it is where essentially all the
 logic lives. If a behaviour can only be tested through a backend, that is
 evidence the behaviour is in the wrong package.
+
+**A printout of the model is evidence about the core and never about a
+backend.** The non-interactive backend of section 1.1 is a test instrument as
+much as it is a user interface, and what it can testify to is what the model
+holds. What only a user can reach — a control that is pressed, a field that
+loses the focus, a question that is answered — is tested where it exists, which
+is sections 10.2 to 10.4.
 
 ### 10.2 Tkinter: three categories
 

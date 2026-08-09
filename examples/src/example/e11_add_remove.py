@@ -48,6 +48,11 @@ of guessing at `''` or `'localhost'`. Its elements can still be removed and
 moved; there is simply nothing to add. Read a file that holds one, and it can
 be extended from then on, because the member now holds an element to copy.
 
+In an editor these are controls at the end of the row of the node, and the
+member that cannot be given an element has no add control at all rather than
+one that refuses every press — a sentence below it says why instead. Without a
+display, `--add`, `--remove` and `--move` press the same controls:
+
 ````sh
 cd examples/src/example
 python3 e11_add_remove.py --ui dump --add stages
@@ -59,9 +64,11 @@ python3 e11_add_remove.py --ui dump --add extra_hosts \
 
 ## An entry of a dict needs a key
 
-`--add runners=nightly` says what the new entry is called, because nothing but
-the person configuring the application knows. The two graphical backends ask
-for it in a dialog and in a screen; the command line takes it after an equals
+Nothing but the person configuring the application knows what a new entry is
+called, so the editor asks: a dialog in Tkinter and a modal screen in Textual,
+which is the question worth seeing in one of them, and a key the dict already
+holds is asked about again rather than allowed to take the place of what is
+there. Without a display, `--add runners=nightly` says it after an equals
 sign, exactly as `--set` takes a value.
 
 A dict is written in the sorted order of its keys, so a new entry appears
@@ -151,24 +158,33 @@ python3 e11_add_remove.py --ui dump --move stages.0=down
 python3 e11_add_remove.py --ui dump --move retry_delays.2=up
 ````
 
-Run this example with one of:
+Run this example in one of the two editors, which is the only place the
+controls this example is about can be pressed:
 
 ````sh
-python3 examples/src/example/e11_add_remove.py --ui dump
 python3 examples/src/example/e11_add_remove.py --ui tk
 python3 examples/src/example/e11_add_remove.py --ui textual
 ````
 
 Inside this repository, use the virtual environment that the build creates:
-`./venv/bin/python3 examples/src/example/e11_add_remove.py --ui dump`.
+`./venv/bin/python3 examples/src/example/e11_add_remove.py --ui tk`.
 
-There is a file to read in [examples/data/](../../data/), and it holds a
-pipeline whose `extra_hosts` is not empty, which is what makes that member
-extendable:
+Look along the rows and see which controls each of them gets. `stages` offers
+adding on its own row and removing and moving on the row of each element it
+holds; `extra_hosts` offers no adding at all and says why below itself, and
+`limits`, `labels` and `hooks` offer nothing with a line below each saying
+why. Adding an entry to `runners` is where the editor asks a question, which
+is the other thing only an editor does.
+
+`--ui dump` is the very limited non-interactive user interface, and the
+command lines above press the same controls without a display. There is a file
+to read in [examples/data/](../../data/), and it holds a pipeline whose
+`extra_hosts` is not empty, which is what makes that member extendable:
 
 ````sh
 cd examples/src/example
 python3 e11_add_remove.py --ui dump -i ../../data/e11_pipeline.json
+python3 e11_add_remove.py --ui tk -i ../../data/e11_pipeline.json
 ````
 """
 

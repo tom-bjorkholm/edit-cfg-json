@@ -30,9 +30,13 @@ declares them — not the sorted order the file has. And the docstring of that
 class is shown below the row, exactly as the docstring of the whole
 configuration is shown at the top.
 
-Fold it away and it says less about itself as well as showing fewer rows: the
-summary of its docstring while it is folded, the whole docstring while it is
-open.
+Press the fold control on its row and it says less about itself as well as
+showing fewer rows: the summary of its docstring while it is folded, the whole
+docstring while it is open. That is worth pressing twice in an editor, because
+the text below the row changes with every press and not only when the explain
+key is used.
+
+Without a display, `--fold` presses the same control:
 
 ````sh
 cd examples/src/example
@@ -162,19 +166,24 @@ python3 e09_nested_config.py --ui dump -i ../../data/e09_with_audit.json
 
 A *list* or a *dict* of nested objects, which is the ordinary shape of a large
 configuration. The editor handles them by the very same mechanism as the two
-members here — each object inside the container is one node — and step 13 of
-the delivery plan is the example that shows them.
+members here — each object inside the container is one node — and
+[e10_config_containers.py](e10_config_containers.py) is the example that shows
+them.
 
-Run this example with one of:
+Run this example in one of the two editors, where the badge on each object row
+and the folding of one object are what there is to look at:
 
 ````sh
-python3 examples/src/example/e09_nested_config.py --ui dump
 python3 examples/src/example/e09_nested_config.py --ui tk
 python3 examples/src/example/e09_nested_config.py --ui textual
 ````
 
 Inside this repository, use the virtual environment that the build creates:
-`./venv/bin/python3 examples/src/example/e09_nested_config.py --ui dump`.
+`./venv/bin/python3 examples/src/example/e09_nested_config.py --ui tk`.
+
+`--ui dump` is the very limited non-interactive user interface, and it is what
+every command line above uses: it prints the same rows, the same badges and
+the same sentences, which is what lets this example be checked from a script.
 """
 
 # Copyright (c) 2026 Tom Björkholm

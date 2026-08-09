@@ -57,20 +57,29 @@ it was written for, and a `config_as_json` that records another version then
 says so plainly instead of being misread. An application that only wants them
 printed calls `print_changes` and needs no such check at all.
 
-Run this example with one of:
+Run this example in one of the two editors, on the file in the old shape,
+which is where the marks are worth looking at:
 
 ````sh
-python3 examples/src/example/e05_old_format_config.py --ui dump
-python3 examples/src/example/e05_old_format_config.py --ui tk
-python3 examples/src/example/e05_old_format_config.py --ui textual
+cd examples/src/example
+python3 e05_old_format_config.py --ui tk -i ../../data/e05_old_format.json
+python3 e05_old_format_config.py --ui textual \
+    -i ../../data/e05_old_format.json
 ````
 
 Inside this repository, use the virtual environment that the build creates:
-`./venv/bin/python3 examples/src/example/e05_old_format_config.py --ui dump`.
+`./venv/bin/python3 examples/src/example/e05_old_format_config.py --ui tk`.
 
-These two are the point of the example. The first opens a file in the old
-shape and says what reading it did; the second opens the same configuration in
-the current shape and says nothing at all, because nothing happened:
+The message about the file is above the fields and the mark of each member is
+beside its own field, which is the arrangement that makes them read as one
+thing: the message says what happened to the file and each mark says what
+happened to that value.
+
+`--ui dump` is the very limited non-interactive user interface, and it prints
+the same message and the same marks. These two are the point of the example.
+The first opens a file in the old shape and says what reading it did; the
+second opens the same configuration in the current shape and says nothing at
+all, because nothing happened:
 
 ````sh
 cd examples/src/example
@@ -79,7 +88,8 @@ python3 e05_old_format_config.py --ui dump -i ../../data/e05_current.json
 ````
 
 And this is the same old file read by the class that declares no hook, through
-the program that the core installs, which needs no example at all:
+the non-interactive program that the core installs, which needs no example at
+all:
 
 ````sh
 PYTHONPATH=examples/src edit-cfg-json --module example.e05_old_format_config \
@@ -92,8 +102,9 @@ class. What the message is left with is the one fact that belongs to no member:
 `debug_trace` is in the file, this configuration does not use it, and saving
 leaves it out.
 
-Migrating the file is then one more option on the same program, because a
-program with nobody to press Save is the one that offers `--save`:
+Migrating the file is then one more option on that same program, because a
+program with nobody to press Save is the one that offers `--save`. In an
+editor the user presses Save instead, which is one keystroke and no option:
 
 ````sh
 PYTHONPATH=examples/src edit-cfg-json --module example.e05_old_format_config \

@@ -7,36 +7,46 @@ parsing, so the parsing lives here once and every example reuses it. That
 keeps each example file about the shape of a configuration instead of about
 `argparse`.
 
-One required option decides how the configuration is shown:
+One required option decides which user interface the example is shown in:
 
-| `--ui` value | What it does                                    |
-| ------------ | ----------------------------------------------- |
-| `dump`       | prints the model as text, needs no display      |
-| `tk`         | opens the Tkinter editor in a window            |
-| `textual`    | opens the Textual editor in the terminal        |
+| `--ui` value | What it does                                     |
+| ------------ | ------------------------------------------------ |
+| `tk`         | opens the Tkinter editor in a window             |
+| `textual`    | opens the Textual editor in the terminal         |
+| `dump`       | prints the model once, non-interactively         |
 
-The text dump is one of the `--ui` values rather than a separate switch,
-because the three are alternatives: there is no situation in which one run
-should both open a window and print the model. Making them one option also
-means that `argparse` itself refuses a missing or an unknown choice, so this
-module needs no hand written check for either.
+**The first two are the editors, and they are what every example is really
+about.** An example teaches what the user sees and does: which control is
+pressed, what appears below which member, what changes when a field loses the
+focus. Reading an example and then running it with `--ui tk` or
+`--ui textual` is the intended way round.
 
-The text dump is not a lesser mode. It is `edit_cfg_json.DumpEditor`, a
-backend that the core itself ships, so `--ui dump` shows exactly the model
-that the two graphical backends render. It is the backend of the
-`edit-cfg-json` program as well, which is what the core installs for an
-application author who would rather not write a program at all.
+**`--ui dump` is a very limited non-interactive user interface**, and it is
+not the way to see what the editor does. It is `edit_cfg_json.DumpEditor`,
+which prints the model once and returns: there is no field to type into, no
+control to press, no focus to lose and nobody to answer a question. What it
+is genuinely good for is the two things a non-interactive backend can do —
+exercising a feature over the core and backend API without a display, which is
+what the tests of these examples do, and printing what a short sequence of
+editor actions left behind. The command lines below stand in for those
+actions, so every example can be checked from a script and on a machine with
+no display, and that is the whole of what a printout is evidence of.
 
-`StandInUser` below it is the other kind of backend: one written by hand, in a
-few lines, for this repository's own purposes. Between the two of them they
-say what a backend really is — anything with a `run_editor` method.
+The three are one option rather than a switch beside two, because they are
+alternatives: there is no situation in which one run should both open a
+window and print the model. Making them one option also means that `argparse`
+itself refuses a missing or an unknown choice, so this module needs no hand
+written check for either.
+
+`StandInUser` below is the other kind of backend: one written by hand, in a
+few lines, for this repository's own purposes. Between it and `DumpEditor`
+they say what a backend really is — anything with a `run_editor` method.
 
 The repeatable `--set member=value` option edits the buffer before anything
-is shown. It is what lets an editing step be demonstrated and tested without
-a display: the same edit that a user would type into a field is made from the
-command line, and `--ui dump` then prints the edited buffer. A member the user
-changed is marked, so the edit is visible even when the new value looks like
-the old one.
+is shown. What it stands in for is a user typing into a field, which is where
+an example's editing really happens; making the same edit from a command line
+is what lets it be reached without a display. A member the user changed is
+marked, so the edit is visible even when the new value looks like the old one.
 
 A value inside a list or a dict is named by the whole path to it, with a dot
 between the steps: `--set retry_delays.0=3` and `--set ports.http=8080`. A
@@ -67,7 +77,7 @@ editor that quietly shows the default values instead of what was asked for.
 
 `-o/--output` names the file that is written, and defaults to the input file,
 which is what an editor is normally asked to do. With neither, there is
-nowhere to write, and the two graphical backends ask for a destination when
+nowhere to write, and the two interactive backends ask for a destination when
 Save is pressed.
 
 An example that has something to say about the members it declares hands a
@@ -89,17 +99,17 @@ explanations shown, one of these hides them — the label of the configuration
 keeps its one line summary, and the rest of the class docstring and the
 description of every member go away — and two of them show them again.
 
-`--ui dump` validates the buffer before it prints it, so the dump always
-says what the application would make of the values it shows. The two
-graphical backends do not: there the user asks for a validation pass, with
-a button or with a key, because a user who is halfway through typing a
-value has not asked anything yet.
+A validation pass is asked for in the two editors, with a button or with a
+key, because a user who is halfway through typing a value has not asked
+anything yet. `--ui dump` has no later moment in which to be asked, so it
+validates once before it prints — which is what having no user does to the
+question, and not a second opinion about when a buffer should be validated.
 
-`--save` is the one option that only means something for `--ui dump`. The
-dump prints once and the run is then over, so there is no later moment at
-which a user could press Save; without `--save` the dump says where it would
-write, and with it the file is really written. That is what makes the whole
-round trip observable without a display.
+`--save` is the one option that only means something for `--ui dump`, for the
+same reason: the printout happens once and the run is then over, so there is
+no moment at which a user could press Save. Without `--save` it says where it
+would write, and with it the file is really written, which is what puts a
+round trip within reach of a script.
 
 `--extension`, `--enforce-extension` and `--key` stand in for the
 application the editor runs inside. A real application does not parse these

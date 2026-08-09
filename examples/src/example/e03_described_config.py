@@ -82,19 +82,26 @@ the rest is what gets out of the way.
 Which of the two states the editor is in belongs to the model and not to
 either user interface, so the two backends cannot end up disagreeing about it.
 
-Run this example with one of:
+Run this example in one of the two editors, and press `f1`, which is what
+this example is for:
 
 ````sh
-python3 examples/src/example/e03_described_config.py --ui dump
 python3 examples/src/example/e03_described_config.py --ui tk
 python3 examples/src/example/e03_described_config.py --ui textual
 ````
 
 Inside this repository, use the virtual environment that the build creates:
-`./venv/bin/python3 examples/src/example/e03_described_config.py --ui dump`.
+`./venv/bin/python3 examples/src/example/e03_described_config.py --ui tk`.
 
-These two show the same model with the explanations shown and hidden, which
-is what `f1` does without a display:
+The Tkinter window offers it as a tick-box in its button row, where the tick
+says which of the two states the window is in, and the Textual footer renames
+its action for what the next press will do. That is the one place the two
+backends deliberately answer the same question differently, because a button
+row and a footer of keys offer an action differently.
+
+`--ui dump` is the very limited non-interactive user interface, and
+`--toggle-explain` is what stands in for the key there. These two print the
+same model with the explanations shown and hidden:
 
 ````sh
 cd examples/src/example

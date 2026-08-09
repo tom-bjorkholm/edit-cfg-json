@@ -31,8 +31,10 @@ row uses an equals sign and shows the value. That is the difference between
 them: the container has no value of its own, because its value is the rows
 below it.
 
-A value inside a container is addressed by the whole path to it, which is what
-`--set` writes with a dot between the steps:
+In an editor every one of those value rows is a field, so `1` and `80` are
+typed into exactly as a flat member is. A value inside a container is
+addressed by the whole path to it, which is what `--set` writes with a dot
+between the steps to reach the same field without a display:
 
 ````sh
 cd examples/src/example
@@ -59,8 +61,12 @@ rows than a window can spare; a long one starts folded, and its row says so.
 
 Which containers are folded belongs to the model and not to either user
 interface, exactly as the explain toggle does, so the two backends cannot
-disagree about it. Without a display, `--fold PATH` presses one control and
-`--toggle-fold` presses the key:
+disagree about it. Pressing the control on a row is the way to see this, and
+it is worth pressing a few: what a fold really buys is a configuration that
+fits the window again.
+
+Without a display, `--fold PATH` presses one control and `--toggle-fold`
+presses the key:
 
 ````sh
 cd examples/src/example
@@ -86,9 +92,10 @@ cd examples/src/example
 python3 e08_lists_and_dicts.py --ui dump --set report_formats.0=json
 ````
 
-The member is marked *changed by validator*, and the two graphical backends
-build their rows again when a pass leaves the model with other rows than it
-had, because there is no widget any more for a value that is gone.
+The member is marked *changed by validator*, and this is one to try in an
+editor: both backends build their rows again when a pass leaves the model with
+other rows than it had, because there is no widget any more for a value that
+is gone, and the field that was typed into may be one of them.
 
 ## What is refused, and where it is shown
 
@@ -114,22 +121,25 @@ nested `Config` object is not here either: it serializes as a dict and it is
 not one, so [e09_nested_config.py](e09_nested_config.py) is where it becomes a
 first-class node of its own.
 
-Run this example with one of:
+Run this example in one of the two editors, and press the fold controls,
+which is the part of this example that a printout can only report:
 
 ````sh
-python3 examples/src/example/e08_lists_and_dicts.py --ui dump
 python3 examples/src/example/e08_lists_and_dicts.py --ui tk
 python3 examples/src/example/e08_lists_and_dicts.py --ui textual
 ````
 
 Inside this repository, use the virtual environment that the build creates:
-`./venv/bin/python3 examples/src/example/e08_lists_and_dicts.py --ui dump`.
+`./venv/bin/python3 examples/src/example/e08_lists_and_dicts.py --ui tk`.
 
-There is a file to read in [examples/data/](../../data/):
+`--ui dump` is the very limited non-interactive user interface, and it prints
+the rows that are on the screen, so a folded container is one line there as
+well. There is a file to read in [examples/data/](../../data/):
 
 ````sh
 cd examples/src/example
 python3 e08_lists_and_dicts.py --ui dump -i ../../data/e08_complete.json
+python3 e08_lists_and_dicts.py --ui tk -i ../../data/e08_complete.json
 ````
 """
 

@@ -31,10 +31,10 @@ from {{import_name}} import ActionSettings, ConfigLoadError, Descriptions, \
 | `ActionSettings` | The key combinations of every action of the editor, one attribute per action, so that an action the application says nothing about keeps its default. |
 | `SettingsSource` | What every entry point takes: a `Settings`, or a callable that answers with one. |
 | `EditorBackend` | The protocol a user interface implements. It is phrased against `EditModel`, so a backend can also be mounted by an application that runs its own event loop. |
-| `DumpEditor` | The one backend this package ships, and the only one that needs no user interface library: it validates the buffer, prints the model and returns. It is what the `{{dist_name}}` program below runs, and it is the shortest thing there is to read for anybody writing a backend of their own. |
+| `DumpEditor` | A very limited non-interactive backend, and the one this package can ship because it needs no user interface library: it validates the buffer, prints the model once and returns. It is not an editor — there is no field to type into, no control to press and nobody to answer a question — and it is good for two things: exercising this API with no display, which is what a script and an automated test need, and printing what a short sequence of editor actions left behind. It is also the shortest backend there is to read for anybody writing one of their own. The editors are `edit-cfg-json-tk` and `edit-cfg-json-textual`. |
 | `default_config` | One configuration object holding the declared defaults of a class, which is what `edit` and `EditModel` take. It is the door for a caller that has a class rather than an object, and it refuses a class the editor cannot construct in the same words that reading a file does. |
 | `run_cli` | The whole command line of a ready-to-run program, given a backend. `ExitCode` is what it answers with, `add_file_options` adds the input, output and policy options to any other parser, and `named_policy` turns a `--policy` value into a `LoadPolicy`. |
-| `model_as_text` | The plain text rendering of a whole model, used by the examples and by the tests so that the editor can be observed without a display. It begins with what the load did and ends with the validation state and the saving, so a rendering never leaves any of them unsaid. |
+| `model_as_text` | The plain text rendering of a whole model, used by the examples and by the tests so that what the model holds can be checked without a display. It begins with what the load did and ends with the validation state and the saving, so a rendering never leaves any of them unsaid. What it cannot render is anything a user reaches for — a field with the focus in it, a control, a question — so it checks the core rather than standing in for an editor. |
 | `model_title` | The label of a whole model, marked while the buffer holds a change worth saving. Both backends show it, so neither of them decides on its own how an unsaved change looks. |
 | `load_text` | What reading the input file did, as text, and nothing at all when it did nothing worth saying. Both backends show it, so the two of them cannot tell the user two different things about one file. |
 | `docstring_text` | What the configuration class says about itself, as much of it as is being shown: the whole docstring while the explanations are shown, and its first paragraph while they are hidden. Both backends show it, so neither of them decides on its own how much of a docstring the user is offered. |
@@ -55,12 +55,12 @@ being left out.
 
 ## The {{dist_name}} program
 
-Installing this package installs a program of the same name, and it needs no
-display: it prints the configuration class you name, with what that class's own
-validators make of the values, and with `--save` it writes the validated file.
-So it is a configuration checker for a terminal or for a continuous integration
-job as much as a way of looking at a class, and nobody has to write a line of
-code to use it:
+Installing this package installs a program of the same name. **It is a
+configuration checker and not an editor**: it runs `DumpEditor`, so it needs no
+display and it prints the configuration class you name, with what that class's
+own validators make of the values, and answers with an exit code that says
+whether the file is one the application would accept. With `--save` it writes
+the validated file. Nobody has to write a line of code to use it:
 
 ````sh
 {{dist_name}} --module myapp.config --class AppConfig -i /etc/myapp.json
@@ -72,8 +72,13 @@ The second of those writes the file the class itself would have written: what
 the file left out is filled in from the declared defaults, and what a validator
 rewrites is rewritten. `--save` exists only in this program of the three,
 because a run that prints once and returns has no later moment at which a user
-could press Save. Its two graphical relatives, `edit-cfg-json-tk` and
-`edit-cfg-json-textual`, open an editor and give the user one instead.
+could press Save.
+
+**For an editor, install `edit-cfg-json-tk` or `edit-cfg-json-textual`.** Their
+programs take this very same command line and open a window and a terminal
+screen, where the fields are typed into, the containers are folded, and Save is
+a button. This one is for a terminal or a continuous integration job, which is
+what neither of the other two can be.
 
 {{include: program.md}}
 
