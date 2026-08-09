@@ -1418,6 +1418,8 @@ behaviour.
 - A destination that cannot be written — a folder that does not exist, a file
   that may not be written to — is a message and not a crash, for the same
   reason: the alternative costs the user the whole session.
+- **What the destination held is kept, and overwriting it is asked about.**
+  Section 7.3.
 - **Where the application said how it loads, that is asked once more before
   anything is written**, with the very text the file would hold. It is the one
   question a validation pass cannot answer: the pass applies the buffer to the
@@ -1496,6 +1498,63 @@ editor knows for itself, and section 9.6 keeps `Settings` for what only the
 application knows. Whether *overwriting* a file is confirmed is a different
 question, because only the application knows how its files are looked after,
 and that one is left where section 9.6 leaves it.
+
+### 7.3 The file that a save writes over
+
+A save writes over whatever the destination holds, and what it holds is a
+configuration somebody wrote. It may be the one this session read a minute ago,
+and it may be one another person wrote on another day; nothing the editor can
+look at tells those apart. So the file is **kept** before it is overwritten,
+and the user is **asked** before it happens. Both are the application's
+decision, for the reason section 9.6 gives about `Settings` as a whole: how its
+own configuration files are looked after is something an application knows and
+the editor cannot find out. Built at step 16.
+
+**It is once per destination per session, and that is what makes it about the
+user's own work.** From the second save onwards the file being written over is
+the first save of the same session: keeping it would push the configuration
+that was really there one number further from being found, and asking about it
+would be asking the user about something they did a minute ago. The model
+therefore holds every destination it has written, and Save-as onto some other
+existing file is asked about again because that is another file.
+
+**Kept by renaming, not by copying**, which is what the file being kept *is*
+rather than a second reading of it, and which leaves the previous content whole
+under one name or the other whatever happens next. The name is the destination
+plus `backup_suffix`, added to the whole name rather than put in place of the
+extension: `xx.cfg` becomes `xx.cfg.bak`, and one attribute then expresses
+`.old` and `~` as well. `backup_count` above one numbers them from `_1`, which
+is the file overwritten last, and each save moves every one of them one number
+further back until the oldest falls off the end. One is not numbered, because a
+number would say that there are others when there are not.
+
+**Where it happens in a save is the whole of what can go wrong.** It is after
+the validation and after the loader has been asked, and immediately before the
+write. So a save that is refused for any reason keeps nothing — a refused save
+that had pushed the kept files along would cost the user the oldest of them for
+nothing — and a save that kept the previous content and then could not write
+says where that content is, on the line below its own message. A save that
+cannot keep it writes nothing at all: overwriting cannot be undone, so the
+moment at which that is found is the last moment at which anything can be done
+about it. A destination that is not a regular file, a folder being the case
+that arises, is left to the write to refuse in its own words rather than
+renamed out of the user's way.
+
+**Whether the user is asked belongs to the core and how they are asked to each
+backend**, which is exactly section 7.2's split and for the same reason.
+`overwrite_question` answers with the question and with nothing at all when
+there is nothing to ask, `EditModel.overwritten_file` is the file it is about,
+and each backend puts it in a dialog or on a modal screen with the answer that
+leaves the file alone offered first. The Tk file dialog is told **not** to ask
+this itself, although it offers to: a question that one backend put and the
+other did not would be the one thing the core owning the question exists to
+prevent.
+
+**A backend that prints once and returns is asked nothing**, as it is asked
+nothing before closing, and it writes what it was asked to write. What it does
+*not* skip is keeping the previous content, because that is the model's work
+and not a question: a script that saves has exactly the same reason to still
+have the configuration that was there.
 
 ## 8. The UI backend contract
 
@@ -1881,6 +1940,9 @@ class Settings:
     actions: ActionSettings = ActionSettings()
     file_extension: Optional[str] = None
     extension_enforced: bool = False
+    backup_suffix: Optional[str] = '.bak'
+    backup_count: int = 1
+    confirm_overwrite: bool = True
 ```
 
 One attribute per action rather than a mapping keyed by an action enum. The
@@ -1903,6 +1965,14 @@ function key is what asks for help everywhere else and because a field claims
 most of the control letters, and `ctrl+g`, because a terminal or a keyboard
 that does not deliver a function key would otherwise leave the action to the
 button and the command palette.
+
+The last three are what step 16 added, and they make the same point a third
+time: three attributes, three defaults, and an application written before them
+gets what the editor would have chosen anyway. What they say is section 7.3's;
+that they are here is because only an application knows how its own
+configuration files are looked after. Two of the three defaults are the answers
+that lose nothing — one kept file, and a question before it is written — which
+is the right way for a default about something that cannot be undone to lean.
 
 `fold` is the attribute that step 10 added, and it makes the same point a
 second time. Its keys are `f2`, the function key beside the one that explains,
@@ -2034,9 +2104,11 @@ backends from binding different keys or offering different file names.
 - **Anything the editor can find out for itself.** `Settings` is for what
   the application knows and the editor cannot.
 
-Room is deliberately left here for step 16 of the delivery plan, where
-whether an overwritten file keeps a backup, and whether overwriting is
-confirmed, become application decisions of exactly this kind.
+Whether an overwritten file is kept, under what name, how many of them, and
+whether overwriting is confirmed are application decisions of exactly this
+kind, and they are the three attributes section 7.3 is about. Whether there is
+anything *unsaved* is not, which is the line between them: the editor knows
+that for itself.
 
 ### 9.7 Keys that are kept free
 
@@ -2139,6 +2211,8 @@ In scope:
 - descriptions, class docstrings, and a docstring visibility toggle
 - automatic-change and filled-default visibility
 - a question before closing drops what has not been saved (section 7.2)
+- the file a save writes over kept, and a question before it is written
+  (section 7.3)
 - modal `edit()` with both backends
 
 Deliberately out of scope for v1:

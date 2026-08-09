@@ -25,6 +25,7 @@ repository only.
 | [e09_nested_config.py](e09_nested_config.py) | A member that holds a nested `Config` object, shown as the object it is rather than as the dict it serializes to: its class where its value would be, its own docstring below it, its own members as the rows under that, and a badge saying what it is on its own. Why everything inside it belongs to its own class, why a description path is the one thing that crosses that boundary, and why an object can be valid on its own inside a configuration that is refused. Also an optional member holding no object at all. |
 | [e10_config_containers.py](e10_config_containers.py) | A list whose elements are configuration objects and a dict whose values are them, which is what a configuration of any real size is made of. The member stays an ordinary container that folds and says how much it holds, and each object inside it is a node of its own. How one description with the `'['` step reaches every element and every value, and how naming every step singles one of them out again. Why a container of objects opens folded at three of them, why the rule of the element class runs once per object, and why a rule about all of them belongs to the class holding them. |
 | [e11_add_remove.py](e11_add_remove.py) | Changing **how many** things a member holds: adding an element, removing one and moving one along a list. Where a new element comes from — the class a nesting declaration names, or the elements the class declares for the member itself — and the one member that has neither, which says so instead of guessing. Also the three dicts that cannot gain a key and the three different reasons why, and an optional member that is given its object and put back to holding none. |
+| [e12_backup_files.py](e12_backup_files.py) | What becomes of the file that a save writes over. The application says how its own files are looked after, in one `edit_cfg_json.Settings` that this example builds in Python as a real application does: what the previous content is kept as, how many of those are kept and how they rotate, and that the editor asks before it overwrites a file this session did not write. Why that happens once per destination per session and not once per press of Save, and why a save that is refused keeps nothing either. |
 
 ## Shared command line handling
 
@@ -48,7 +49,7 @@ takes the same options:
 | `-i`, `--input` | Configuration file to read. |
 | `--policy` | What to do about a declared value the file does not hold. |
 | `-o`, `--output` | Configuration file to write, or the input file. |
-| `--save` | Really write that file. Only with `--ui dump`. |
+| `--save` | Press Save. Repeatable, as a press is. Only with `--ui dump`. |
 | `--extension` | File name extension this application uses for its configuration. |
 | `--enforce-extension` | Refuse a file that has another extension. |
 | `--key ACTION=COMBINATIONS` | Keys of one action of the editor. Repeatable. |
@@ -86,7 +87,15 @@ printout happens once and the run is then over, so there is no moment at which
 a user could press Save; without `--save` it says where it *would* write, and
 with it the file is really written. That is what puts a whole round trip within
 reach of a script. In the two editors the user presses Save, which is the only
-place saving is really seen.
+place saving is really seen. It is repeatable because a press is: two of them
+are two presses in one session, which is what shows that the file a save keeps
+is kept once and not once per press.
+
+A save that writes over a file the session did not write keeps what that file
+held, under the name the application chose, and says where it went.
+[e12_backup_files.py](e12_backup_files.py) is what that is about. The two
+editors ask before they do it; `--ui dump` has nobody to ask and writes, which
+is the same answer a printout gives to the question about closing.
 
 Every run ends by saying what `edit()` gave back, because "the saved object,
 or `None` when nothing was saved" is the contract of this library and a
@@ -101,7 +110,10 @@ so each of them can be tried without writing a file first.
 that the editor runs inside. A real application does not parse these from a
 command line: it knows its own answers and builds one `edit_cfg_json.Settings`
 from them. They are options here so that each answer can be tried without a
-program per answer.
+program per answer. [e12_backup_files.py](e12_backup_files.py) is the one
+example that does it the way a real application does, and hands over a
+`Settings` of its own; the three options above then fill in the parts they
+name and leave the rest of it alone.
 
 `--add`, `--remove` and `--move` stand in for pressing the controls on a row,
 and they are applied before `--set`, so that a value inside a new element can

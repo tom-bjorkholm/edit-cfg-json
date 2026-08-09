@@ -59,6 +59,9 @@ plan says only *when* that decision gets built.
 - [Step 15B](#step-15b---changed-descriptions-of---ui-dump) — the two
   interactive editors described as the product they are, and `--ui dump` as
   the very limited non-interactive user interface it is.
+- [Step 16](#step-16--oldbackup-file-when-overwriting) — the file that a save
+  writes over kept under the name the application chose, once per destination
+  per session, and a question before it happens.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -130,7 +133,7 @@ version. Record which one, because the next step's fast iteration with
 | M2 Flat, fully explained | 6 to 9 | Descriptions, docstrings, field-level diagnostics, automatic-change visibility, explicit loader | done |
 | M3 Structure and folding | 10 to 12 | Lists, dicts, nested `Config` objects, folding with per-subtree badges | done |
 | M4 Configs in containers | 13 to 14 | `LIST_ELEMENT` and `DICT_VALUE` nesting, adding and removing elements | done |
-| M5 Release readiness | 15 to 17 | Closing keeps what was not saved, files are not overwritten unannounced, and v1 is documented, classified and published | steps 15 and 15B done |
+| M5 Release readiness | 15 to 17 | Closing keeps what was not saved, files are not overwritten unannounced, and v1 is documented, classified and published | steps 15, 15B and 16 done |
 
 ## 3. Steps 10 to 20, as named steps
 
@@ -788,6 +791,8 @@ lives.
 
 #### Step 16 — Old/backup file when overwriting
 
+Status: **Implemented and committed.**
+
 If the editor is asked to write to a file name where the file exists, it
 should create an old/backup file with the previous content (probably by
 renaming the existing file to the old/backup file name). This logic only
@@ -800,6 +805,99 @@ We should probably let application choose backup file extension (like
 xx.cfg.bak or yy.cfg.old or zz.cfg~) in the Settings dataclass.
 We should probably let the application opt in for several numbered backup
 files (xx.cfg.bak_1, xx.cfg.bak_2, xx.cfg.bak_3...) in the Settings dataclass.
+
+**Observable outcome.** A new example `e12_backup_files.py`, whose application
+has decided how its own files are looked after and says so in a `Settings` of
+its own, in Python, as a real application does.
+`cp examples/data/e12_archive.cfg /tmp/archive.cfg` and then
+`python3 examples/src/example/e12_backup_files.py --ui dump -i
+/tmp/archive.cfg --set keep_days=60 --save` writes the file and says on the
+line below that the previous content is in `/tmp/archive.cfg.old_1`; a second
+run with `--save --save` presses Save twice and keeps one file, so `old_1` and
+`old_2` hold the two configurations that were really there and there is no
+`old_3`; `--set keep_days=soon --save` is refused and leaves every one of them
+where it was. `--ui tk` and `--ui textual` ask before they overwrite, in a
+dialog and on a modal screen, with the answer that leaves the file alone
+offered first, and ask nothing on the second press of Save.
+
+**What it decided.** Four things, decided before the work started.
+
+- **The user is asked, and it is the application that decides whether they
+  are.** `confirm_overwrite` is `True` by default, which is the way a default
+  about something that cannot be undone should lean. Whether there is anything
+  to ask about is the core's, as `overwrite_question`, which is exactly the
+  shape step 15 settled for closing and for the same reason: two user
+  interfaces of one application that disagreed about whether they warn would be
+  worse than either behaviour.
+- **One attribute names the kept file, and it is added to the whole name.**
+  `backup_suffix` defaults to `.bak`, so `xx.cfg` is kept as `xx.cfg.bak`, and
+  `.old` and `~` are the same attribute rather than three shapes to choose
+  between. `None` keeps nothing. Design section 7.3.
+- **`backup_count` numbers them from `_1` and rotates.** One is not numbered,
+  because a number would say that there are others when there are not; two or
+  more are `_1` for the file overwritten last, each save moves every one of
+  them one further back, and the oldest falls off the end.
+- **The keeping happens after the validation and immediately before the
+  write.** That is what makes a refused save keep nothing, which matters: a
+  refused save that had pushed the kept files along would cost the user the
+  oldest of them for nothing.
+
+**Core.** `saving` gained the naming, the rotation and `keep_previous`, and
+`write_config` says where the previous content went whether it then wrote the
+file or not. `SaveState.written_files` is what "this session has written that
+destination" is, `EditModel.overwritten_file` is what a backend asks before it
+saves, and `model_text.overwrite_question` is the question. `Settings` gained
+the three attributes, and `_check_backups` beside `_normalize_extension`.
+
+The public names it settled:
+
+| Name | Kind |
+| --- | --- |
+| `Settings.backup_suffix` | what the overwritten file is kept as, None for none |
+| `Settings.backup_count` | how many of them are kept |
+| `Settings.confirm_overwrite` | whether the user is asked first |
+| `EditModel.overwritten_file` | the file a save would overwrite, None for none |
+| `overwrite_question` | what to ask before saving, nothing when nothing |
+
+**What building it found.**
+
+- **A save was reading the settings more than once.** `checked_file` asked for
+  them and so did the keeping, and an application that hands over a callable is
+  asked again at every point of use — so one save could check the name against
+  one answer and keep the previous content according to another. The settings
+  are resolved once at the top of `save` and passed down now. Found by the test
+  that hands over a callable answering differently every time, which was
+  written for step 9 and is why this cost one line rather than a bug report.
+- **A `Config` with an empty validation plan accepts a value of the wrong
+  type.** `config_as_json` checks the declared type of a member only where the
+  application asks it to, so the new example's `keep_days` took the text `soon`
+  and would have written it. The example declares one `ValueTypeValidator`, so
+  that there is a save it can have refused — which is what shows that a refused
+  save keeps nothing either.
+- **Tk's own file dialog offers to ask this question.** `asksaveasfilename`
+  confirms overwriting by default, which would have meant the Tk backend asking
+  where the Textual one did not, and asking twice where the core asks as well.
+  It is told `confirmoverwrite=False`: the question is the core's.
+- **The question comes before the validation, and that is deliberate.** A user
+  who types an invalid value and presses Save is asked about the file and then
+  told that the values are refused. Validating first would mean running a pass —
+  which rewrites what the user typed and marks it — for a save the user then
+  declines, and leaving the buffer changed by something that did not happen is
+  worse than one question that was not needed.
+- **`ConfirmScreen` needed the words of each answer.** One screen serves both
+  questions of this backend, and Discard beside a question about a file would be
+  a word to work out rather than read, so the labels are constructor arguments
+  and the identifiers are `YES_ID` and `NO_ID` rather than the names of the
+  closing answer.
+- **`run_example` had to be able to take a `Settings`.** Every example before
+  this one gets its settings from the command line, which is right for trying
+  an answer without writing a program and wrong for showing what an application
+  does. It takes one now, and the command line options fill in the parts they
+  name with `dataclasses.replace`.
+- **`test_edit_model.py` went over a thousand lines**, so what a model does
+  about the file it writes is `test_model_saving.py` now: saving, keeping,
+  the destination and the file name settings, which are also the tests of that
+  module that have a file system in them.
 
 #### Step 17 — v1 polish
 

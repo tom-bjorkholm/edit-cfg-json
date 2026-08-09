@@ -7,6 +7,7 @@
 from edit_cfg_json.descriptions import class_docstring, class_summary
 from edit_cfg_json.edit_model import EditModel
 from edit_cfg_json.rows import MemberRow
+from edit_cfg_json.saving import kept_file
 from edit_cfg_json.tree import path_text
 from edit_cfg_json.validation import ValidationVerdict
 
@@ -111,6 +112,22 @@ CLOSE_QUESTION = ('These changes have not been saved. '
 Closing writes nothing of its own, so a session that is closed with something
 in the buffer loses it. What is lost is the one thing the editor knows and the
 user may not, which is why it is said rather than left to be discovered.
+"""
+
+OVERWRITE_QUESTION = 'File {name} already exists. Overwrite it?'
+"""What the user is asked before a save writes over a file they did not.
+
+It is asked once per destination per session, because from the second save
+onwards the file being written over is the user's own earlier save and there
+is nothing there to lose.
+"""
+
+KEPT_QUESTION = ' What it holds now is kept as {name}.'
+"""What the same question adds where the previous content is kept.
+
+The user is answering a question about losing a file, so whether it is really
+lost is part of what they are answering about. An application that keeps no
+backup says nothing here, which is the honest thing for it to say.
 """
 
 SUBTREE_VALID_MARK = ' [valid on its own]'
@@ -585,6 +602,43 @@ def close_question(model: EditModel) -> str:
         holds nothing that closing would lose.
     """
     return CLOSE_QUESTION if model.dirty else ''
+
+
+def overwrite_question(model: EditModel) -> str:
+    """Return what to ask before saving, and nothing when there is nothing.
+
+    A save writes over whatever the destination holds, and what it holds may
+    be a configuration this session never read. Whether the user is asked
+    about that is the application's decision, because only an application
+    knows how its own files are looked after; whether there is anything to ask
+    about is this model's, by the same rule as the question about closing. How
+    the question is put is each backend's own.
+
+    A backend that prints once and returns is asking nobody. It writes what it
+    was asked to write, which is the answer such a backend gives to every
+    question, and the previous content is kept exactly as it is for a user who
+    answered.
+
+    Args:
+        model: Model that is about to be saved.
+
+    Returns:
+        The question to put to the user, and nothing at all when saving would
+        overwrite nothing that this session did not write itself.
+    """
+    # The settings are read once, for the same reason a save reads them once:
+    # a callable that answers with them is asked again at every point of use,
+    # so asking twice could promise a kept file to a user who was asked
+    # according to one answer and saved according to another.
+    settings = model.settings
+    if not settings.confirm_overwrite:
+        return ''
+    name = model.overwritten_file
+    if name is None:
+        return ''
+    kept = kept_file(name=name, settings=settings)
+    keeps = '' if kept is None else KEPT_QUESTION.format(name=kept)
+    return OVERWRITE_QUESTION.format(name=name) + keeps
 
 
 def _head_text(model: EditModel) -> str:

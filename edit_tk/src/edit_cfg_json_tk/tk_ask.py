@@ -1,18 +1,20 @@
 #! /usr/bin/env python3
 """The questions this backend asks the user, and the words of each of them.
 
-There are three of them — which file to write, what a new entry of a dict is
-to be called, and whether the changes that have not been saved may be dropped
-— and they are here together rather than in the modules that raise them, for
-the reason every other split of this backend was made: one module of a
-thousand lines is one nobody reads to the end. Keeping them together is also
-what makes it plain that this backend asks the toolkit for all three of its
-questions, where the Textual one has to build a screen for them.
+There are four of them — which file to write, what a new entry of a dict is to
+be called, whether an existing file may be overwritten, and whether the changes
+that have not been saved may be dropped — and they are here together rather
+than in the modules that raise them, for the reason every other split of this
+backend was made: one module of a thousand lines is one nobody reads to the
+end. Keeping them together is also what makes it plain that this backend asks
+the toolkit for all four of its questions, where the Textual one has to build a
+screen for them.
 
 Nothing here decides *whether* a question is asked. Which file to write is
 asked where the model has no destination, what a new entry is called where
-`edit_cfg_json.MemberRow.offer` says a key is needed, and whether there is
-anything to lose by closing is `edit_cfg_json.close_question`. All three are
+`edit_cfg_json.MemberRow.offer` says a key is needed, whether a file may be
+overwritten is `edit_cfg_json.overwrite_question`, and whether there is
+anything to lose by closing is `edit_cfg_json.close_question`. All four are
 the core's, so that the two backends cannot ask one user something and another
 user nothing.
 """
@@ -41,6 +43,9 @@ ADD_KEY_PROMPT = 'Key of the new entry of {name}:'
 
 CLOSE_TITLE = 'Close the editor'
 """Title of the dialog that asks whether the changes may be dropped."""
+
+OVERWRITE_TITLE = 'Overwrite the file'
+"""Title of the dialog that asks whether an existing file may be written."""
 
 
 def _file_types(settings: core.Settings) -> list[tuple[str, str]]:
@@ -85,7 +90,26 @@ def asked_file(settings: core.Settings) -> str:
     """
     return filedialog.asksaveasfilename(
         title=SAVE_AS_TITLE, filetypes=_file_types(settings),
-        defaultextension=settings.file_extension or '')
+        defaultextension=settings.file_extension or '', confirmoverwrite=False)
+
+
+def _answered_yes(title: str, question: str) -> bool:
+    """Put one question of the editor, and return what was answered.
+
+    The answer that changes nothing is the one the dialog starts on, so that a
+    user who answers without reading keeps what they have. The dialog is
+    modal, which is what makes a question a question: what is behind it cannot
+    be asked a second time while it is up.
+
+    Args:
+        title: What the window of the dialog is called.
+        question: What the core says is to be asked.
+
+    Returns:
+        Whether the user answered yes.
+    """
+    return messagebox.askyesno(title=title, message=question,
+                               default=messagebox.NO)
 
 
 def may_close(model: core.EditModel) -> bool:
@@ -96,11 +120,6 @@ def may_close(model: core.EditModel) -> bool:
     anything to ask about are the core's; putting the question is this
     backend's, and the toolkit has a dialog for exactly this.
 
-    The answer that keeps the editor open is the one the dialog starts on, so
-    that a user who answers without reading keeps their changes. The dialog is
-    modal, which is what makes the question a question: the editor behind it
-    cannot be closed a second time while it is up.
-
     Args:
         model: Model that is about to be closed.
 
@@ -109,10 +128,31 @@ def may_close(model: core.EditModel) -> bool:
         nothing that closing would lose.
     """
     question = core.close_question(model)
-    if not question:
-        return True
-    return messagebox.askyesno(title=CLOSE_TITLE, message=question,
-                               default=messagebox.NO)
+    return not question or _answered_yes(title=CLOSE_TITLE, question=question)
+
+
+def may_overwrite(model: core.EditModel) -> bool:
+    """Return whether the save may write, asking where there is a question.
+
+    A save writes over whatever the destination holds, and what it holds may
+    be a configuration this session never read. Whether that is asked about at
+    all is the application's decision and whether there is anything to ask is
+    the model's; this puts the question the same way as the one above it.
+
+    The dialog that asks for a file is told not to ask this itself. The
+    toolkit offers to, and a question that one backend put and the other did
+    not would be exactly what the core owning the question exists to prevent.
+
+    Args:
+        model: Model that is about to be saved.
+
+    Returns:
+        Whether the file may be written, which is always so where saving
+        overwrites nothing that this session did not write itself.
+    """
+    question = core.overwrite_question(model)
+    return not question or _answered_yes(title=OVERWRITE_TITLE,
+                                         question=question)
 
 
 def asked_key(row: core.MemberRow) -> Optional[str]:

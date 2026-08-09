@@ -130,9 +130,12 @@
   * [ADD\_KEY\_TITLE](#edit_cfg_json_tk.tk_ask.ADD_KEY_TITLE)
   * [ADD\_KEY\_PROMPT](#edit_cfg_json_tk.tk_ask.ADD_KEY_PROMPT)
   * [CLOSE\_TITLE](#edit_cfg_json_tk.tk_ask.CLOSE_TITLE)
+  * [OVERWRITE\_TITLE](#edit_cfg_json_tk.tk_ask.OVERWRITE_TITLE)
   * [\_file\_types](#edit_cfg_json_tk.tk_ask._file_types)
   * [asked\_file](#edit_cfg_json_tk.tk_ask.asked_file)
+  * [\_answered\_yes](#edit_cfg_json_tk.tk_ask._answered_yes)
   * [may\_close](#edit_cfg_json_tk.tk_ask.may_close)
+  * [may\_overwrite](#edit_cfg_json_tk.tk_ask.may_overwrite)
   * [asked\_key](#edit_cfg_json_tk.tk_ask.asked_key)
 
 <a id="edit_cfg_json_tk.tk_editor"></a>
@@ -987,6 +990,12 @@ A session that has no file to write yet is asked where to write,
 which is what every editor does and what the design asks a backend
 for. There is no way round to loop back here, because the question
 is what gives the session a file.
+
+A destination that holds a file this session did not write is asked
+about as well, because that file is about to stop existing. Nothing is
+shown when the user says no: they have just been asked and answered,
+and a line saying that nothing was written would be telling them what
+they decided.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._save_as"></a>
 
@@ -1957,18 +1966,20 @@ Run this program and return what it ends with.
 
 The questions this backend asks the user, and the words of each of them.
 
-There are three of them — which file to write, what a new entry of a dict is
-to be called, and whether the changes that have not been saved may be dropped
-— and they are here together rather than in the modules that raise them, for
-the reason every other split of this backend was made: one module of a
-thousand lines is one nobody reads to the end. Keeping them together is also
-what makes it plain that this backend asks the toolkit for all three of its
-questions, where the Textual one has to build a screen for them.
+There are four of them — which file to write, what a new entry of a dict is to
+be called, whether an existing file may be overwritten, and whether the changes
+that have not been saved may be dropped — and they are here together rather
+than in the modules that raise them, for the reason every other split of this
+backend was made: one module of a thousand lines is one nobody reads to the
+end. Keeping them together is also what makes it plain that this backend asks
+the toolkit for all four of its questions, where the Textual one has to build a
+screen for them.
 
 Nothing here decides *whether* a question is asked. Which file to write is
 asked where the model has no destination, what a new entry is called where
-`edit_cfg_json.MemberRow.offer` says a key is needed, and whether there is
-anything to lose by closing is `edit_cfg_json.close_question`. All three are
+`edit_cfg_json.MemberRow.offer` says a key is needed, whether a file may be
+overwritten is `edit_cfg_json.overwrite_question`, and whether there is
+anything to lose by closing is `edit_cfg_json.close_question`. All four are
 the core's, so that the two backends cannot ask one user something and another
 user nothing.
 
@@ -2007,6 +2018,12 @@ What that dialog asks, naming the member that is about to grow.
 #### CLOSE\_TITLE
 
 Title of the dialog that asks whether the changes may be dropped.
+
+<a id="edit_cfg_json_tk.tk_ask.OVERWRITE_TITLE"></a>
+
+#### OVERWRITE\_TITLE
+
+Title of the dialog that asks whether an existing file may be written.
 
 <a id="edit_cfg_json_tk.tk_ask._file_types"></a>
 
@@ -2059,6 +2076,31 @@ none, and the one it offers to filter by.
   The file that was named, and nothing at all where the question was
   left unanswered.
 
+<a id="edit_cfg_json_tk.tk_ask._answered_yes"></a>
+
+#### \_answered\_yes
+
+```python
+def _answered_yes(title: str, question: str) -> bool
+```
+
+Put one question of the editor, and return what was answered.
+
+The answer that changes nothing is the one the dialog starts on, so that a
+user who answers without reading keeps what they have. The dialog is
+modal, which is what makes a question a question: what is behind it cannot
+be asked a second time while it is up.
+
+**Arguments**:
+
+- `title` - What the window of the dialog is called.
+- `question` - What the core says is to be asked.
+  
+
+**Returns**:
+
+  Whether the user answered yes.
+
 <a id="edit_cfg_json_tk.tk_ask.may_close"></a>
 
 #### may\_close
@@ -2074,11 +2116,6 @@ has not reached the file loses it. What is asked and whether there is
 anything to ask about are the core's; putting the question is this
 backend's, and the toolkit has a dialog for exactly this.
 
-The answer that keeps the editor open is the one the dialog starts on, so
-that a user who answers without reading keeps their changes. The dialog is
-modal, which is what makes the question a question: the editor behind it
-cannot be closed a second time while it is up.
-
 **Arguments**:
 
 - `model` - Model that is about to be closed.
@@ -2088,6 +2125,35 @@ cannot be closed a second time while it is up.
 
   Whether the session may end, which is always so while there is
   nothing that closing would lose.
+
+<a id="edit_cfg_json_tk.tk_ask.may_overwrite"></a>
+
+#### may\_overwrite
+
+```python
+def may_overwrite(model: core.EditModel) -> bool
+```
+
+Return whether the save may write, asking where there is a question.
+
+A save writes over whatever the destination holds, and what it holds may
+be a configuration this session never read. Whether that is asked about at
+all is the application's decision and whether there is anything to ask is
+the model's; this puts the question the same way as the one above it.
+
+The dialog that asks for a file is told not to ask this itself. The
+toolkit offers to, and a question that one backend put and the other did
+not would be exactly what the core owning the question exists to prevent.
+
+**Arguments**:
+
+- `model` - Model that is about to be saved.
+  
+
+**Returns**:
+
+  Whether the file may be written, which is always so where saving
+  overwrites nothing that this session did not write itself.
 
 <a id="edit_cfg_json_tk.tk_ask.asked_key"></a>
 

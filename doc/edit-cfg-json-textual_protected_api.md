@@ -18,10 +18,12 @@
   * [element\_button](#edit_cfg_json_textual.textual_elements.element_button)
 * [edit\_cfg\_json\_textual.textual\_ask](#edit_cfg_json_textual.textual_ask)
   * [CANCEL\_COMMAND](#edit_cfg_json_textual.textual_ask.CANCEL_COMMAND)
-  * [DISCARD\_ID](#edit_cfg_json_textual.textual_ask.DISCARD_ID)
-  * [KEEP\_ID](#edit_cfg_json_textual.textual_ask.KEEP_ID)
+  * [YES\_ID](#edit_cfg_json_textual.textual_ask.YES_ID)
+  * [NO\_ID](#edit_cfg_json_textual.textual_ask.NO_ID)
   * [DISCARD\_LABEL](#edit_cfg_json_textual.textual_ask.DISCARD_LABEL)
   * [KEEP\_LABEL](#edit_cfg_json_textual.textual_ask.KEEP_LABEL)
+  * [OVERWRITE\_LABEL](#edit_cfg_json_textual.textual_ask.OVERWRITE_LABEL)
+  * [NO\_SAVE\_LABEL](#edit_cfg_json_textual.textual_ask.NO_SAVE_LABEL)
   * [AskScreen](#edit_cfg_json_textual.textual_ask.AskScreen)
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_ask.AskScreen.__init__)
     * [compose](#edit_cfg_json_textual.textual_ask.AskScreen.compose)
@@ -77,9 +79,12 @@
     * [on\_input\_changed](#edit_cfg_json_textual.textual_editor.EditorApp.on_input_changed)
     * [on\_input\_blurred](#edit_cfg_json_textual.textual_editor.EditorApp.on_input_blurred)
     * [action\_quit](#edit_cfg_json_textual.textual_editor.EditorApp.action_quit)
+    * [\_ask](#edit_cfg_json_textual.textual_editor.EditorApp._ask)
     * [\_end\_if\_dropped](#edit_cfg_json_textual.textual_editor.EditorApp._end_if_dropped)
     * [action\_validate](#edit_cfg_json_textual.textual_editor.EditorApp.action_validate)
     * [action\_save](#edit_cfg_json_textual.textual_editor.EditorApp.action_save)
+    * [\_write\_if\_allowed](#edit_cfg_json_textual.textual_editor.EditorApp._write_if_allowed)
+    * [\_write\_file](#edit_cfg_json_textual.textual_editor.EditorApp._write_file)
     * [action\_explain](#edit_cfg_json_textual.textual_editor.EditorApp.action_explain)
     * [action\_fold](#edit_cfg_json_textual.textual_editor.EditorApp.action_fold)
     * [on\_button\_pressed](#edit_cfg_json_textual.textual_editor.EditorApp.on_button_pressed)
@@ -326,10 +331,11 @@ The screens this backend asks the user a question on.
 
 There are two shapes of question. One is answered with text — which file to
 write, and what a new entry of a dict is to be called — and one is answered
-yes or no, which is whether the changes that have not been saved may be
-dropped. Each shape is one screen serving every question of that shape,
-because two screens differing in a prompt would be the same code twice and the
-questions would then be free to drift apart in how they behave.
+yes or no, which is whether an existing file may be overwritten and whether
+the changes that have not been saved may be dropped. Each shape is one screen
+serving every question of that shape, because two screens differing in a
+prompt would be the same code twice and the questions would then be free to
+drift apart in how they behave.
 
 A question is a screen of its own rather than a field or a row in the editor,
 because it is asked, answered and gone: something that was always there would
@@ -339,8 +345,9 @@ or never.
 Neither screen decides *whether* it is asked. Which file to write is what a
 backend is asked for when the model has no destination, what a new entry is
 called is asked where `edit_cfg_json.MemberRow.offer` says a key is needed,
-and whether there is anything to lose by closing is
-`edit_cfg_json.close_question`. All three are the core's, so that the two
+whether a file may be overwritten is `edit_cfg_json.overwrite_question`, and
+whether there is anything to lose by closing is
+`edit_cfg_json.close_question`. All four are the core's, so that the two
 backends cannot ask one user something and another user nothing.
 
 <a id="edit_cfg_json_textual.textual_ask.CANCEL_COMMAND"></a>
@@ -349,15 +356,15 @@ backends cannot ask one user something and another user nothing.
 
 Name of the action that leaves a question of the editor unanswered.
 
-<a id="edit_cfg_json_textual.textual_ask.DISCARD_ID"></a>
+<a id="edit_cfg_json_textual.textual_ask.YES_ID"></a>
 
-#### DISCARD\_ID
+#### YES\_ID
 
 Identifier of the control that answers a question with yes.
 
-<a id="edit_cfg_json_textual.textual_ask.KEEP_ID"></a>
+<a id="edit_cfg_json_textual.textual_ask.NO_ID"></a>
 
-#### KEEP\_ID
+#### NO\_ID
 
 Identifier of the control that answers it with no.
 
@@ -376,6 +383,22 @@ Label of the control that leaves the editor as it was.
 It says what happens next rather than answering the question with a word, in
 the same way as the actions this backend renames: a control saying No beside a
 question about closing leaves the user working out what No was about.
+
+<a id="edit_cfg_json_textual.textual_ask.OVERWRITE_LABEL"></a>
+
+#### OVERWRITE\_LABEL
+
+Label of the control that writes over the file that is there.
+
+<a id="edit_cfg_json_textual.textual_ask.NO_SAVE_LABEL"></a>
+
+#### NO\_SAVE\_LABEL
+
+Label of the control that leaves that file exactly as it is.
+
+It says what happens next for the same reason the one above it does: what No
+means here is that nothing is written, and a user reading a control should not
+have to work that out from the question.
 
 <a id="edit_cfg_json_textual.textual_ask.AskScreen"></a>
 
@@ -486,23 +509,29 @@ It is a screen and not a field, exactly as the question above it is, and
 it is answered with controls rather than with text because what the user
 is being asked for is a decision and not a value.
 
+One screen serves every question of this shape, and each of them says what
+its own two answers do: what the user is agreeing to is different for a
+question about the changes in the buffer and one about the file on disk,
+and Yes beside either of them would be a word to work out rather than read.
+
 <a id="edit_cfg_json_textual.textual_ask.ConfirmScreen.AUTO_FOCUS"></a>
 
 #### AUTO\_FOCUS
 
 The control that the screen opens with, which is the safe one.
 
-A screen that opened on the control which drops the changes would drop
-them for a user who pressed Enter without reading, and the whole reason
-for asking is that dropping them cannot be undone. The Tk backend opens
-its dialog on the same answer and for the same reason.
+A screen that opened on the control which loses something would lose it
+for a user who pressed Enter without reading, and the whole reason for
+asking is that what is lost cannot be got back. The Tk backend opens its
+dialog on the same answer and for the same reason.
 
 <a id="edit_cfg_json_textual.textual_ask.ConfirmScreen.__init__"></a>
 
 #### \_\_init\_\_
 
 ```python
-def __init__(question: str, cancel_keys: Sequence[str]) -> None
+def __init__(question: str, cancel_keys: Sequence[str], yes_text: str,
+             no_text: str) -> None
 ```
 
 Ask the question, with the keys that leave it unanswered.
@@ -513,6 +542,8 @@ Ask the question, with the keys that leave it unanswered.
 - `cancel_keys` - Key combinations that leave the question unanswered,
   which is the same as answering it with no, empty when the
   application gave it none.
+- `yes_text` - What the control that agrees to the question does.
+- `no_text` - What the control that leaves everything as it is does.
 
 <a id="edit_cfg_json_textual.textual_ask.ConfirmScreen.compose"></a>
 
@@ -545,7 +576,7 @@ press for a control of a row, and neither of these is one.
 def action_leave() -> None
 ```
 
-Leave the screen, which is the same as keeping the changes.
+Leave the screen, which is the same as changing nothing.
 
 <a id="edit_cfg_json_textual.textual_ask.QUESTION_SCREENS"></a>
 
@@ -1094,6 +1125,25 @@ user something and another user nothing; how the question is put is
 this backend's, and a modal screen is how a Textual application asks
 anything.
 
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._ask"></a>
+
+#### \_ask
+
+```python
+def _ask(question: str, yes_text: str, no_text: str,
+         answered: Callable[[Optional[bool]], None]) -> None
+```
+
+Put one question of the editor on a screen of its own.
+
+**Arguments**:
+
+- `question` - What the core says is to be asked.
+- `yes_text` - What the control that agrees to it does.
+- `no_text` - What the control that leaves everything as it is does.
+- `answered` - What is called with the answer, and with None where the
+  question was left unanswered.
+
 <a id="edit_cfg_json_textual.textual_editor.EditorApp._end_if_dropped"></a>
 
 #### \_end\_if\_dropped
@@ -1136,6 +1186,37 @@ A session that has no file to write yet is asked where to write,
 which is what every editor does and what the design asks a backend
 for. There is no way round to loop back here, because the question
 is what gives the session a file.
+
+A destination that holds a file this session did not write is asked
+about as well, because that file is about to stop existing. Nothing is
+shown when the user says no: they have just been asked and answered,
+and a line saying that nothing was written would be telling them what
+they decided.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._write_if_allowed"></a>
+
+#### \_write\_if\_allowed
+
+```python
+def _write_if_allowed(overwrite: Optional[bool]) -> None
+```
+
+Write the file where that was agreed to, and not else.
+
+**Arguments**:
+
+- `overwrite` - What the user answered, and None where the question was
+  left unanswered, which is the same as leaving the file alone.
+
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._write_file"></a>
+
+#### \_write\_file
+
+```python
+def _write_file() -> None
+```
+
+Write the output file and show what came of trying.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.action_explain"></a>
 

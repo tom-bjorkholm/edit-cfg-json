@@ -20,7 +20,7 @@ from config_as_json import Config, ConfigPath, PathOrStr
 import edit_cfg_json as core
 from edit_cfg_json_tk.key_names import bind_key
 from edit_cfg_json_tk.scrolling import scrolling_body
-from edit_cfg_json_tk.tk_ask import asked_file, may_close
+from edit_cfg_json_tk.tk_ask import asked_file, may_close, may_overwrite
 from edit_cfg_json_tk.tk_elements import element_controls
 from edit_cfg_json_tk.tk_look import FIELD_BACKGROUND, FIELD_BORDER, \
     FIELD_FOREGROUND, FOLD_WIDTH, LEAST_FIELD_WIDTH, NAME_COLUMN_WIDTH, \
@@ -760,9 +760,17 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         which is what every editor does and what the design asks a backend
         for. There is no way round to loop back here, because the question
         is what gives the session a file.
+
+        A destination that holds a file this session did not write is asked
+        about as well, because that file is about to stop existing. Nothing is
+        shown when the user says no: they have just been asked and answered,
+        and a line saying that nothing was written would be telling them what
+        they decided.
         """
         if self._model.out_file is None:
             self._save_as()
+            return
+        if not may_overwrite(self._model):
             return
         self._model.save()
         self._refresh()

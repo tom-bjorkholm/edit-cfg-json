@@ -17,6 +17,7 @@ running.
 
 from collections.abc import Callable
 from pathlib import Path
+from typing import Optional
 import asyncio
 import tkinter
 from config_as_json import Config
@@ -97,18 +98,25 @@ def head(config: Config, edited: bool = False) -> str:
     return '\n'.join(line for line in lines if line)
 
 
-def saved_tail(out_file: Path, class_name: str) -> str:
-    """Return the two lines that a dump which wrote a file ends with.
+def saved_tail(out_file: Path, class_name: str,
+               kept: Optional[Path] = None) -> str:
+    """Return the lines that a dump which wrote a file ends with.
 
     Args:
         out_file: File that the run was asked to write.
         class_name: Name of the configuration class of the example.
+        kept: File that what the destination held was kept as, or None where
+            the destination held nothing to keep. A save says so, because a
+            user whose file has been moved has to be told where it went.
 
     Returns:
         What the run says about the save and about what `edit()` gave back.
     """
-    return (f'Saved to {out_file}.\n'
-            f'edit() returned the saved {class_name} object.')
+    lines = [f'Saved to {out_file}.']
+    if kept is not None:
+        lines.append(f'The previous content is in {kept}.')
+    lines.append(f'edit() returned the saved {class_name} object.')
+    return '\n'.join(lines)
 
 
 def data_file(name: str) -> str:

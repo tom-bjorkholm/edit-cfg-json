@@ -7,6 +7,7 @@
 from collections.abc import Sequence
 from copy import deepcopy
 from io import StringIO
+from pathlib import Path
 from typing import Optional, TextIO
 import sys
 from config_as_json import Config, ConfigPath, PathOrStr
@@ -17,8 +18,9 @@ from edit_cfg_json.elements import declared_values
 from edit_cfg_json.loader import ConfigLoader, ConfigSource
 from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.rows import MemberRow
-from edit_cfg_json.saving import NOT_VALID, NO_DESTINATION, SaveOutcome, \
-    SaveState, reload_refusal, write_config
+from edit_cfg_json.saving import NOTHING_KEPT, NOT_VALID, NO_DESTINATION, \
+    KeptFile, SaveOutcome, SaveState, keep_previous, reload_refusal, \
+    write_config
 from edit_cfg_json.settings import Settings, SettingsSource, checked_file, \
     chosen_file, current_settings
 from edit_cfg_json.validation import ValidationPass, ValidationVerdict, \
@@ -329,6 +331,25 @@ class EditModel:
         return self._saving.out_file
 
     @property
+    def overwritten_file(self) -> Optional[PathOrStr]:
+        """Return the existing file that saving now would overwrite, or None.
+
+        There is one where a destination has been chosen, a file of that name
+        is really there, and this session has not written it yet. That last
+        condition is what makes this a question about the user's *own* work: a
+        file this session has written is the user's earlier save, and there is
+        nothing to say about overwriting one of those.
+
+        It is what says whether a backend has anything to ask before it saves,
+        and what the previous content is kept as is decided at the same moment
+        and for the same file.
+        """
+        out_file = self._saving.out_file
+        if out_file is None or Path(out_file) in self._saving.written_files:
+            return None
+        return out_file if Path(out_file).is_file() else None
+
+    @property
     def save_outcome(self) -> Optional[SaveOutcome]:
         """Return what the last attempt to save did, or None when none.
 
@@ -567,6 +588,10 @@ class EditModel:
         use for its configuration, whether it was chosen here or named in
         the call that built this model.
 
+        What the destination held before this session reached it is kept
+        first, under the name the application chose for it, so that a save
+        over somebody else's configuration does not take it away from them.
+
         A save that wrote the file leaves nothing to save, so the values
         that were written become the ones the buffer is compared against
         and the model stops reporting itself as dirty.
@@ -575,11 +600,16 @@ class EditModel:
             Whether the file was written, and what to tell the user. It is
             also kept, as `save_message`.
         """
+        # The settings are resolved once and passed on, because a callable
+        # that answers with them is asked again at every point of use: one
+        # save asking twice could check the name against one answer and keep
+        # the previous content according to another.
+        settings = self.settings
         out_file = self._saving.out_file
         if out_file is None:
             return self._record(SaveOutcome(saved=False,
                                             message=NO_DESTINATION))
-        destination = checked_file(name=out_file, settings=self.settings)
+        destination = checked_file(name=out_file, settings=settings)
         if destination.message:
             return self._record(SaveOutcome(saved=False,
                                             message=destination.message))
@@ -589,10 +619,43 @@ class EditModel:
         refusal = reload_refusal(loader=self._source.loader, config=candidate)
         if refusal:
             return self._record(SaveOutcome(saved=False, message=refusal))
-        outcome = write_config(config=candidate, out_file=destination.name)
+        return self._record(self._written(candidate=candidate,
+                                          name=destination.name,
+                                          settings=settings))
+
+    def _written(self, candidate: Config, name: PathOrStr,
+                 settings: Settings) -> SaveOutcome:
+        """Keep what the destination holds, write it, and say what came of it.
+
+        Args:
+            candidate: Configuration object that the pass accepted.
+            name: File to write, as the settings of the application leave it.
+            settings: What the application has decided, as this save read it.
+
+        Returns:
+            Whether the file was written, and what to tell the user.
+        """
+        kept = self._kept_file(name=name, settings=settings)
+        if kept.message:
+            return SaveOutcome(saved=False, message=kept.message)
+        outcome = write_config(config=candidate, out_file=name, kept=kept.name)
         if outcome.saved:
-            self._keep_saved(candidate)
-        return self._record(outcome)
+            self._keep_saved(candidate=candidate, name=name)
+        return outcome
+
+    def _kept_file(self, name: PathOrStr, settings: Settings) -> KeptFile:
+        """Keep what one destination holds, unless this session wrote it.
+
+        Args:
+            name: File that is about to be written.
+            settings: What the application has decided, as this save read it.
+
+        Returns:
+            Where the previous content went, or why it could not be kept.
+        """
+        if Path(name) in self._saving.written_files:
+            return NOTHING_KEPT
+        return keep_previous(name=name, settings=settings)
 
     def _validation_pass(self) -> ValidationPass:
         """Validate the buffer, refresh it, and keep what the pass found.
@@ -622,7 +685,18 @@ class EditModel:
         self._saving.outcome = outcome
         return outcome
 
-    def _keep_saved(self, candidate: Config) -> None:
-        """Make what was written the values that the buffer is compared to."""
+    def _keep_saved(self, candidate: Config, name: PathOrStr) -> None:
+        """Make what was written the values that the buffer is compared to.
+
+        The destination joins the files this session has written, which is
+        what keeps the next save over it from keeping a backup of it and from
+        asking about it: both of those are about the file somebody else left
+        there, and that file is gone as soon as this session has written once.
+
+        Args:
+            candidate: Configuration object that reached the file.
+            name: File that it reached.
+        """
         self._saving.written = candidate
+        self._saving.written_files.add(Path(name))
         self._buffer.keep_saved()

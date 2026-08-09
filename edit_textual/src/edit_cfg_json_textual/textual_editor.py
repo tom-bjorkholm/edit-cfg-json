@@ -12,7 +12,7 @@ neither backend may import the other.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from typing import ClassVar, Optional, TextIO
 import sys
 from config_as_json import Config, ConfigPath, PathOrStr
@@ -23,6 +23,7 @@ from textual.widget import Widget
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 import edit_cfg_json as core
 from edit_cfg_json_textual.textual_ask import AskScreen, ConfirmScreen, \
+    DISCARD_LABEL, KEEP_LABEL, NO_SAVE_LABEL, OVERWRITE_LABEL, \
     QUESTION_SCREENS
 from edit_cfg_json_textual.textual_elements import ADD_ACTION, ASK_KEY_ID, \
     ASK_KEY_LEAVE, ASK_KEY_PROMPT, EARLIER_ACTION, REMOVE_ACTION, \
@@ -481,10 +482,24 @@ class EditorApp(App[None]):
         if not question:
             await super().action_quit()
             return
+        self._ask(question=question, yes_text=DISCARD_LABEL,
+                  no_text=KEEP_LABEL, answered=self._end_if_dropped)
+
+    def _ask(self, question: str, yes_text: str, no_text: str,
+             answered: Callable[[Optional[bool]], None]) -> None:
+        """Put one question of the editor on a screen of its own.
+
+        Args:
+            question: What the core says is to be asked.
+            yes_text: What the control that agrees to it does.
+            no_text: What the control that leaves everything as it is does.
+            answered: What is called with the answer, and with None where the
+                question was left unanswered.
+        """
         self.push_screen(
             ConfirmScreen(question=question,
-                          cancel_keys=self._model.settings.actions.cancel),
-            self._end_if_dropped)
+                          cancel_keys=self._model.settings.actions.cancel,
+                          yes_text=yes_text, no_text=no_text), answered)
 
     def _end_if_dropped(self, discard: Optional[bool]) -> None:
         """End the session where the changes were given up, and not else.
@@ -511,10 +526,35 @@ class EditorApp(App[None]):
         which is what every editor does and what the design asks a backend
         for. There is no way round to loop back here, because the question
         is what gives the session a file.
+
+        A destination that holds a file this session did not write is asked
+        about as well, because that file is about to stop existing. Nothing is
+        shown when the user says no: they have just been asked and answered,
+        and a line saying that nothing was written would be telling them what
+        they decided.
         """
         if self._model.out_file is None:
             self.action_save_as()
             return
+        question = core.overwrite_question(self._model)
+        if not question:
+            self._write_file()
+            return
+        self._ask(question=question, yes_text=OVERWRITE_LABEL,
+                  no_text=NO_SAVE_LABEL, answered=self._write_if_allowed)
+
+    def _write_if_allowed(self, overwrite: Optional[bool]) -> None:
+        """Write the file where that was agreed to, and not else.
+
+        Args:
+            overwrite: What the user answered, and None where the question was
+                left unanswered, which is the same as leaving the file alone.
+        """
+        if overwrite:
+            self._write_file()
+
+    def _write_file(self) -> None:
+        """Write the output file and show what came of trying."""
         self._model.save()
         self._refresh()
 

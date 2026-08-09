@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import ClassVar, cast
 import json
 import tkinter
+from tkinter import messagebox
+import pytest
 from edit_cfg_json import Descriptions, EditModel, LoadReport
 from edit_cfg_json_tk.tk_editor import CLOSE_TEXT, EditorWidgets, \
     EXPLAIN_TEXT, FOLD_OPEN_TEXT, SAVE_AS_TEXT, SAVE_TEXT, VALIDATE_TEXT
@@ -512,6 +514,32 @@ def model_value(model: EditModel, name: str) -> object:
 def written(out_file: Path) -> object:
     """Return what one output file holds, as JSON space values."""
     return json.loads(out_file.read_text(encoding='UTF-8'))
+
+
+def answer_question(monkeypatch: pytest.MonkeyPatch,
+                    answer: bool) -> list[str]:
+    """Make every yes or no question answer itself, and record each of them.
+
+    Both of the questions this backend answers this way — whether the changes
+    may be dropped and whether a file may be overwritten — go to the one
+    dialog of the toolkit, so one stand-in serves both and neither test module
+    holds a copy of it.
+
+    Args:
+        monkeypatch: The pytest fixture that replaces the dialog.
+        answer: What the user answers, for every question that is put.
+
+    Returns:
+        A list that gets the question every time one is put.
+    """
+    asked: list[str] = []
+
+    def ask(**options: object) -> bool:
+        """Stand in for the system dialog that asks a yes or no question."""
+        asked.append(str(options['message']))
+        return answer
+    monkeypatch.setattr(messagebox, 'askyesno', ask)
+    return asked
 
 
 def stub_window() -> FakeWidget:

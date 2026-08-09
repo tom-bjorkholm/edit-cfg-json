@@ -125,6 +125,16 @@ have, so that what can be added to each of them can be read side by side.
 | --- | --- |
 | [e11_pipeline.json](e11_pipeline.json) | Opens with two machines in `extra_hosts`, which the declared defaults leave empty. That is what makes the member extendable: nothing declares what one host looks like, so the editor has nothing to copy until the file gives it one. It also holds three stages rather than two and an `audit` stage rather than none. |
 
+## Files for `e12_backup_files.py`
+
+`ArchiveConfig` declares one text member, one number member and one true or
+false member. That example is not about them: it is about what becomes of the
+file when a save writes over it.
+
+| File | What happens |
+| --- | --- |
+| [e12_archive.cfg](e12_archive.cfg) | Opens with every value from the file. It is the one data file with another extension, because that application uses `.cfg` for its configuration. Copy it somewhere else before saving over it, which is what the example says to do: the round trip is what keeps the previous content beside the file as `archive.cfg.old_1`. |
+
 ## Why a file with a bad value cannot be opened
 
 An editor that refused to open the very file that has to be repaired would

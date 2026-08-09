@@ -35,11 +35,19 @@ def test_default_keys() -> None:
 
 
 def test_no_opinion() -> None:
-    """Test an application that says nothing has no opinion at all."""
+    """Test an application that says nothing has no opinion at all.
+
+    Two of these are not "nothing": an application that says nothing about
+    the file it overwrites gets the one thing the editor would have chosen
+    anyway, which is one kept file and a question before it is written.
+    """
     settings = Settings()
     assert settings.actions == ActionSettings()
     assert settings.file_extension is None
     assert not settings.extension_enforced
+    assert settings.backup_suffix == '.bak'
+    assert settings.backup_count == 1
+    assert settings.confirm_overwrite
 
 
 def test_every_action_named() -> None:
@@ -113,6 +121,35 @@ def test_no_extension_refused(given: str) -> None:
     """Test text that names no extension is refused as one."""
     with pytest.raises(ValueError, match='not a file name extension'):
         _ = Settings(file_extension=given)
+
+
+@pytest.mark.parametrize('given', ['.bak', '.old', '~', '.tmp~', None])
+def test_backup_suffix_kept(given: Optional[str]) -> None:
+    """Test a backup suffix is taken exactly as the application gave it.
+
+    Unlike the extension, which is normalized to begin with its dot: a
+    suffix that is not an extension at all is one of the shapes an
+    application asks for, and `~` is the one every editor knows.
+    """
+    assert Settings(backup_suffix=given).backup_suffix == given
+
+
+@pytest.mark.parametrize('given', ['', '.', '..', '   '])
+def test_no_suffix_refused(given: str) -> None:
+    """Test text that would add nothing to a name is refused as a suffix."""
+    with pytest.raises(ValueError, match='not a backup file name suffix'):
+        _ = Settings(backup_suffix=given)
+
+
+@pytest.mark.parametrize('given', [0, -1])
+def test_no_backups_refused(given: int) -> None:
+    """Test keeping fewer than one file is refused where it is asked for.
+
+    Keeping none is what an empty `backup_suffix` says, and two ways of
+    saying one thing are two answers that can disagree with each other.
+    """
+    with pytest.raises(ValueError, match='not a number of backup files'):
+        _ = Settings(backup_count=given)
 
 
 def test_settings_themselves() -> None:

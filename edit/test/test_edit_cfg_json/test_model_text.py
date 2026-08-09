@@ -9,9 +9,9 @@ from typing import Optional
 import pytest
 from config_as_json import Config, ConfigPath, JsonType
 from edit_cfg_json import Descriptions, EditModel, LoadReport, MemberRow, \
-    close_question, docstring_text, load_text, model_as_text, model_title, \
-    row_description, row_diagnostic, row_marks, row_subtree_text, \
-    row_value_text, save_text, verdict_text
+    Settings, close_question, docstring_text, load_text, model_as_text, \
+    model_title, overwrite_question, row_description, row_diagnostic, \
+    row_marks, row_subtree_text, row_value_text, save_text, verdict_text
 from .container_cfg import KeyedEnumCfg, TreeCfg
 from .sample_cfg import HIGHEST, TOO_LARGE_MESSAGE, DocumentedCfg, FlatCfg, \
     IntEnumCfg, ListCfg, NoDocCfg, NoneCfg, RangeCfg, RewriteCfg, RulesCfg
@@ -355,6 +355,55 @@ def test_close_after_refusal(tmp_path: Path) -> None:
     model.set_text(path=('answer',), text='500')
     model.save()
     assert close_question(model) != ''
+
+
+def _existing(tmp_path: Path) -> Path:
+    """Return one output file that already holds a configuration."""
+    out_file = tmp_path / 'out.json'
+    out_file.write_text('{"name": "was there", "answer": 1}', encoding='UTF-8')
+    return out_file
+
+
+def test_nothing_overwritten(tmp_path: Path) -> None:
+    """Test a save that would overwrite no file is not asked about."""
+    assert overwrite_question(EditModel(FlatCfg())) == ''
+    model = EditModel(FlatCfg(), out_file=tmp_path / 'out.json')
+    assert overwrite_question(model) == ''
+
+
+def test_overwrite_asks(tmp_path: Path) -> None:
+    """Test the question names the file and what will be kept of it."""
+    out_file = _existing(tmp_path)
+    question = overwrite_question(EditModel(FlatCfg(), out_file=out_file))
+    assert str(out_file) in question
+    assert f'kept as {out_file}.bak' in question
+
+
+def test_overwrite_keeps_none(tmp_path: Path) -> None:
+    """Test an application that keeps nothing promises nothing.
+
+    The user is answering a question about losing a file, so a sentence
+    saying that it is kept would be the one thing that must not be there
+    where it is not.
+    """
+    model = EditModel(FlatCfg(), out_file=_existing(tmp_path),
+                      settings=Settings(backup_suffix=None))
+    assert 'kept' not in overwrite_question(model)
+
+
+def test_overwrite_not_asked(tmp_path: Path) -> None:
+    """Test an application that says not to ask is not asked for."""
+    model = EditModel(FlatCfg(), out_file=_existing(tmp_path),
+                      settings=Settings(confirm_overwrite=False))
+    assert overwrite_question(model) == ''
+    assert model.overwritten_file is not None
+
+
+def test_overwrite_asked_once(tmp_path: Path) -> None:
+    """Test a file this session has written is not asked about again."""
+    model = EditModel(FlatCfg(), out_file=_existing(tmp_path))
+    assert model.save().saved
+    assert overwrite_question(model) == ''
 
 
 def test_docstring_text() -> None:

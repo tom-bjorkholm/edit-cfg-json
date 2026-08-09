@@ -240,11 +240,15 @@ def test_bad_verdict_colour() -> None:
 
 
 def test_saving_coloured(tmp_path: Path) -> None:
-    """Test a save that wrote the file and one that could not differ."""
-    out_file = tmp_path / 'out.json'
+    """Test a save that wrote the file and one that could not differ.
 
+    Each of the two writes a file of its own, so that neither of them is
+    asked whether it may overwrite what the other one left: the question is
+    tested where it belongs and this is about the colour of the answer.
+    """
     async def saved(text: str) -> set[str]:
         """Type one value and press Save."""
+        out_file = tmp_path / f'out-{text}.json'
         app = EditorApp(EditModel(FlatConfig(), out_file=out_file))
         async with app.run_test() as pilot:
             field_of(app, 'answer').value = text

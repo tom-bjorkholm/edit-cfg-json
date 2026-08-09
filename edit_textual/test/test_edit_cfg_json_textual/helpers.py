@@ -22,6 +22,7 @@ backends and by the example itself.
 from pathlib import Path
 import json
 from config_as_json import JsonType
+from textual.pilot import Pilot
 from textual.widgets import Input, Label, Static
 from edit_cfg_json import ActionSettings, Descriptions, EditModel, LoadReport
 from edit_cfg_json_textual.textual_editor import EditorApp
@@ -229,6 +230,24 @@ def wrong_of(app: EditorApp, member_name: str) -> str:
 def described_app() -> EditorApp:
     """Return an application on a model whose text member is described."""
     return EditorApp(EditModel(FlatConfig(), descriptions=DESCRIPTIONS))
+
+
+async def answer_with(pilot: Pilot[None], answer: str) -> None:
+    """Answer one question of the editor, by a control or by a key.
+
+    A question of this backend can be answered either way, so both tests that
+    put one say which they mean in the same notation: a selector is told from
+    a key by its `#`.
+
+    Args:
+        pilot: Driver of the application the question is up in.
+        answer: Selector of the control to press, or the key to press.
+    """
+    if answer.startswith('#'):
+        await pilot.click(answer)
+    else:
+        await pilot.press(answer)
+    await pilot.pause()
 
 
 async def save_as(model: EditModel, typed: str, key: str = SAVE_AS_KEY,

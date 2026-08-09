@@ -13,8 +13,8 @@ from edit_cfg_json_tk import edit as tk_edit
 from edit_cfg_json_tk.tk_ask import ALL_FILES
 from edit_cfg_json_tk.tk_editor import EditorWidgets, SAVE_AS_TEXT, SAVE_TEXT
 from example.e01_flat_config import FlatConfig
-from .helpers import FakeVar, NO_FILE_TEXT, real_fields, real_press, \
-    retype, stub_editor, stub_press, written
+from .helpers import FakeVar, NO_FILE_TEXT, answer_question, real_fields, \
+    real_press, retype, stub_editor, stub_press, written
 
 
 def _answer_dialog(monkeypatch: pytest.MonkeyPatch, answer: str) -> list[int]:
@@ -254,6 +254,87 @@ def test_edit_returns_none(monkeypatch: pytest.MonkeyPatch,
     assert not out_file.exists()
 
 
+def _there(tmp_path: Path) -> Path:
+    """Return an output file that already holds a configuration.
+
+    It is one that this class would accept, so that the save which follows is
+    refused by nothing but the answer the test gives to the question.
+    """
+    out_file = tmp_path / 'out.json'
+    out_file.write_text('{"name": "Was there", "answer": 1}', encoding='UTF-8')
+    return out_file
+
+
+def test_stub_overwrite_asks(stub_tk: None, monkeypatch: pytest.MonkeyPatch,
+                             tmp_path: Path) -> None:
+    """Test a save over a file this session did not write asks first."""
+    _ = stub_tk
+    out_file = _there(tmp_path)
+    asked = answer_question(monkeypatch, answer=True)
+    widgets = stub_editor(EditModel(FlatConfig(), out_file=out_file))
+    stub_press(SAVE_TEXT)
+    assert len(asked) == 1
+    assert str(out_file) in asked[0]
+    assert widgets.save_text_shown.startswith(f'Saved to {out_file}.')
+    assert written(out_file) == {'name': 'Flat example', 'answer': 42}
+    assert written(tmp_path / 'out.json.bak') == {'name': 'Was there',
+                                                  'answer': 1}
+
+
+def test_stub_overwrite_no(stub_tk: None, monkeypatch: pytest.MonkeyPatch,
+                           tmp_path: Path) -> None:
+    """Test the answer that keeps the file writes nothing and says nothing.
+
+    The user has just been asked and answered, so a line about a save that
+    did not happen would be telling them what they decided.
+    """
+    _ = stub_tk
+    out_file = _there(tmp_path)
+    answer_question(monkeypatch, answer=False)
+    widgets = stub_editor(EditModel(FlatConfig(), out_file=out_file))
+    stub_press(SAVE_TEXT)
+    assert widgets.save_text_shown == f'save to: {out_file}'
+    assert written(out_file) == {'name': 'Was there', 'answer': 1}
+    assert not (tmp_path / 'out.json.bak').exists()
+
+
+def test_real_overwrite_asks(root_or_skip: tkinter.Tk,
+                             monkeypatch: pytest.MonkeyPatch,
+                             tmp_path: Path) -> None:
+    """Test the real Save button asks the same question."""
+    out_file = _there(tmp_path)
+    asked = answer_question(monkeypatch, answer=False)
+    widgets = EditorWidgets(parent=root_or_skip,
+                            model=EditModel(FlatConfig(), out_file=out_file))
+    real_press(root_or_skip, SAVE_TEXT)
+    assert len(asked) == 1
+    assert widgets.save_text_shown == f'save to: {out_file}'
+
+
+def test_stub_asked_once(stub_tk: None, monkeypatch: pytest.MonkeyPatch,
+                         tmp_path: Path) -> None:
+    """Test the second save of one session is not asked about."""
+    _ = stub_tk
+    asked = answer_question(monkeypatch, answer=True)
+    stub_editor(EditModel(FlatConfig(), out_file=_there(tmp_path)))
+    stub_press(SAVE_TEXT)
+    FakeVar.created[1].set('7')
+    stub_press(SAVE_TEXT)
+    assert len(asked) == 1
+
+
+def test_stub_no_file_no_ask(stub_tk: None, monkeypatch: pytest.MonkeyPatch,
+                             tmp_path: Path) -> None:
+    """Test writing a file that is not there yet asks nothing at all."""
+    _ = stub_tk
+    asked = answer_question(monkeypatch, answer=False)
+    widgets = stub_editor(EditModel(FlatConfig(),
+                                    out_file=tmp_path / 'out.json'))
+    stub_press(SAVE_TEXT)
+    assert not asked
+    assert widgets.save_text_shown == f'Saved to {tmp_path / "out.json"}.'
+
+
 def _dialog_options(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     """Make the Save as dialog answer nothing, and record what it was given.
 
@@ -289,6 +370,21 @@ def test_dialog_offers(stub_tk: None, monkeypatch: pytest.MonkeyPatch,
     stub_press(SAVE_AS_TEXT)
     assert seen['defaultextension'] == extension
     assert seen['filetypes'] == types
+
+
+def test_dialog_leaves_asking(stub_tk: None,
+                              monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test the dialog is told not to ask about overwriting on its own.
+
+    The toolkit offers to ask, and this question is the core's: one that this
+    backend put and the Textual one did not would be exactly what the core
+    owning it exists to prevent.
+    """
+    _ = stub_tk
+    seen = _dialog_options(monkeypatch)
+    stub_editor(EditModel(FlatConfig()))
+    stub_press(SAVE_AS_TEXT)
+    assert seen['confirmoverwrite'] is False
 
 
 def test_stub_dialog_name(stub_tk: None, monkeypatch: pytest.MonkeyPatch,

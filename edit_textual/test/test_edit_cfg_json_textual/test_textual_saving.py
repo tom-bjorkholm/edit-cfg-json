@@ -13,13 +13,14 @@ from textual.widgets import Input
 from edit_cfg_json import EditModel, EditorBackend
 from edit_cfg_json_textual import TextualEditor
 from edit_cfg_json_textual import edit as textual_edit
+from edit_cfg_json_textual.textual_ask import NO_ID, YES_ID
 from edit_cfg_json_textual.textual_editor import EditorApp
 from edit_cfg_json_textual.textual_look import ASK_BOX_ID, SAVE_AS_ID
 from example.e01_flat_config import FlatConfig
 from .helpers import ESCAPE_KEY, EXPLAIN_KEY, NARROW_SIZE, \
     NO_FILE_TEXT, QUIT_KEY, REFUSED_VERDICT, ROOMY_SIZE, SAVE_AS_KEY, \
-    SAVE_KEY, VALIDATE_KEY, VALID_VERDICT, described_app, docstring_of, \
-    field_of, save_as, saving_of, verdict_of, written
+    SAVE_KEY, VALIDATE_KEY, VALID_VERDICT, answer_with, described_app, \
+    docstring_of, field_of, save_as, saving_of, verdict_of, written
 
 
 async def _save_with(model: EditModel, member_name: str = 'answer',
@@ -143,6 +144,89 @@ def test_save_asks_when_none(tmp_path: Path) -> None:
     assert asyncio.run(save_as(model, str(out_file), key=SAVE_KEY)) == \
         f'Saved to {out_file}.'
     assert out_file.exists()
+
+
+def _there(tmp_path: Path) -> Path:
+    """Return an output file that already holds a configuration.
+
+    It is one that this class would accept, so that the save which follows is
+    refused by nothing but the answer the test gives to the question.
+    """
+    out_file = tmp_path / 'out.json'
+    out_file.write_text('{"name": "Was there", "answer": 1}', encoding='UTF-8')
+    return out_file
+
+
+async def _save_over(model: EditModel, answer: str,
+                     presses: int = 1) -> tuple[str, int]:
+    """Run the application, press Save and answer the question about the file.
+
+    Args:
+        model: Model to run the application on.
+        answer: Selector of the control to press, or the key to press.
+        presses: How many times Save is pressed, because the second press of
+            one session is the one that is not asked about.
+
+    Returns:
+        What the editor says about saving afterwards, and how many times it
+        asked.
+    """
+    app = EditorApp(model)
+    asked = 0
+    async with app.run_test() as pilot:
+        for _ in range(presses):
+            await pilot.press(SAVE_KEY)
+            await pilot.pause()
+            if app.screen.query(f'#{ASK_BOX_ID}'):
+                asked += 1
+                await answer_with(pilot, answer)
+        return saving_of(app), asked
+
+
+def test_overwrite_writes(tmp_path: Path) -> None:
+    """Test the control that agrees writes the file and keeps what it held."""
+    out_file = _there(tmp_path)
+    saving, asked = asyncio.run(_save_over(
+        EditModel(FlatConfig(), out_file=out_file), answer=f'#{YES_ID}'))
+    assert asked == 1
+    assert saving.startswith(f'Saved to {out_file}.')
+    assert written(out_file) == {'name': 'Flat example', 'answer': 42}
+    assert written(tmp_path / 'out.json.bak') == {'name': 'Was there',
+                                                  'answer': 1}
+
+
+@pytest.mark.parametrize('answer', [f'#{NO_ID}', ESCAPE_KEY])
+def test_overwrite_left(tmp_path: Path, answer: str) -> None:
+    """Test the answer that keeps the file leaves it exactly as it was.
+
+    Leaving the question unanswered is the same answer, which is the rule
+    every question of this editor follows.
+    """
+    out_file = _there(tmp_path)
+    saving, asked = asyncio.run(_save_over(
+        EditModel(FlatConfig(), out_file=out_file), answer=answer))
+    assert asked == 1
+    assert saving == f'save to: {out_file}'
+    assert written(out_file) == {'name': 'Was there', 'answer': 1}
+    assert not (tmp_path / 'out.json.bak').exists()
+
+
+def test_overwrite_asked_once(tmp_path: Path) -> None:
+    """Test the second save of one session is not asked about."""
+    saving, asked = asyncio.run(_save_over(
+        EditModel(FlatConfig(), out_file=_there(tmp_path)),
+        answer=f'#{YES_ID}', presses=2))
+    assert asked == 1
+    assert saving == f'Saved to {tmp_path / "out.json"}.'
+
+
+def test_no_file_no_question(tmp_path: Path) -> None:
+    """Test writing a file that is not there yet asks nothing at all."""
+    out_file = tmp_path / 'out.json'
+    saving, asked = asyncio.run(_save_over(
+        EditModel(FlatConfig(), out_file=out_file), answer=f'#{NO_ID}'))
+    assert asked == 0
+    assert saving == f'Saved to {out_file}.'
 
 
 def test_save_as_starts_at(tmp_path: Path) -> None:

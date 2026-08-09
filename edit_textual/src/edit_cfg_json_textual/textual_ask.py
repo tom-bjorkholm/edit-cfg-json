@@ -3,10 +3,11 @@
 
 There are two shapes of question. One is answered with text — which file to
 write, and what a new entry of a dict is to be called — and one is answered
-yes or no, which is whether the changes that have not been saved may be
-dropped. Each shape is one screen serving every question of that shape,
-because two screens differing in a prompt would be the same code twice and the
-questions would then be free to drift apart in how they behave.
+yes or no, which is whether an existing file may be overwritten and whether
+the changes that have not been saved may be dropped. Each shape is one screen
+serving every question of that shape, because two screens differing in a
+prompt would be the same code twice and the questions would then be free to
+drift apart in how they behave.
 
 A question is a screen of its own rather than a field or a row in the editor,
 because it is asked, answered and gone: something that was always there would
@@ -16,8 +17,9 @@ or never.
 Neither screen decides *whether* it is asked. Which file to write is what a
 backend is asked for when the model has no destination, what a new entry is
 called is asked where `edit_cfg_json.MemberRow.offer` says a key is needed,
-and whether there is anything to lose by closing is
-`edit_cfg_json.close_question`. All three are the core's, so that the two
+whether a file may be overwritten is `edit_cfg_json.overwrite_question`, and
+whether there is anything to lose by closing is
+`edit_cfg_json.close_question`. All four are the core's, so that the two
 backends cannot ask one user something and another user nothing.
 """
 
@@ -36,10 +38,10 @@ from edit_cfg_json_textual.textual_look import ANSWER_CLASS, ASK_BOX_ID, \
 CANCEL_COMMAND = 'Cancel'
 """Name of the action that leaves a question of the editor unanswered."""
 
-DISCARD_ID = 'discard'
+YES_ID = 'answer-yes'
 """Identifier of the control that answers a question with yes."""
 
-KEEP_ID = 'keep'
+NO_ID = 'answer-no'
 """Identifier of the control that answers it with no."""
 
 DISCARD_LABEL = 'Discard'
@@ -51,6 +53,17 @@ KEEP_LABEL = 'Keep editing'
 It says what happens next rather than answering the question with a word, in
 the same way as the actions this backend renames: a control saying No beside a
 question about closing leaves the user working out what No was about.
+"""
+
+OVERWRITE_LABEL = 'Overwrite'
+"""Label of the control that writes over the file that is there."""
+
+NO_SAVE_LABEL = 'Do not save'
+"""Label of the control that leaves that file exactly as it is.
+
+It says what happens next for the same reason the one above it does: what No
+means here is that nothing is written, and a user reading a control should not
+have to work that out from the question.
 """
 
 
@@ -123,18 +136,24 @@ class ConfirmScreen(ModalScreen[bool]):
     It is a screen and not a field, exactly as the question above it is, and
     it is answered with controls rather than with text because what the user
     is being asked for is a decision and not a value.
+
+    One screen serves every question of this shape, and each of them says what
+    its own two answers do: what the user is agreeing to is different for a
+    question about the changes in the buffer and one about the file on disk,
+    and Yes beside either of them would be a word to work out rather than read.
     """
 
-    AUTO_FOCUS: ClassVar[str] = f'#{KEEP_ID}'
+    AUTO_FOCUS: ClassVar[str] = f'#{NO_ID}'
     """The control that the screen opens with, which is the safe one.
 
-    A screen that opened on the control which drops the changes would drop
-    them for a user who pressed Enter without reading, and the whole reason
-    for asking is that dropping them cannot be undone. The Tk backend opens
-    its dialog on the same answer and for the same reason.
+    A screen that opened on the control which loses something would lose it
+    for a user who pressed Enter without reading, and the whole reason for
+    asking is that what is lost cannot be got back. The Tk backend opens its
+    dialog on the same answer and for the same reason.
     """
 
-    def __init__(self, question: str, cancel_keys: Sequence[str]) -> None:
+    def __init__(self, question: str, cancel_keys: Sequence[str],
+                 yes_text: str, no_text: str) -> None:
         """Ask the question, with the keys that leave it unanswered.
 
         Args:
@@ -142,9 +161,13 @@ class ConfirmScreen(ModalScreen[bool]):
             cancel_keys: Key combinations that leave the question unanswered,
                 which is the same as answering it with no, empty when the
                 application gave it none.
+            yes_text: What the control that agrees to the question does.
+            no_text: What the control that leaves everything as it is does.
         """
         super().__init__(classes=QUESTION_CLASS)
         self._question = question
+        self._yes_text = yes_text
+        self._no_text = no_text
         bind_action(self._bindings, keys=tuple(cancel_keys), action='leave',
                     description=CANCEL_COMMAND)
 
@@ -153,8 +176,8 @@ class ConfirmScreen(ModalScreen[bool]):
         with Vertical(id=ASK_BOX_ID):
             yield Label(self._question)
             with Horizontal(classes=ANSWER_CLASS):
-                yield Button(DISCARD_LABEL, id=DISCARD_ID)
-                yield Button(KEEP_LABEL, id=KEEP_ID)
+                yield Button(self._yes_text, id=YES_ID)
+                yield Button(self._no_text, id=NO_ID)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Give back what was pressed, and leave the screen.
@@ -163,10 +186,10 @@ class ConfirmScreen(ModalScreen[bool]):
         press for a control of a row, and neither of these is one.
         """
         event.stop()
-        self.dismiss(event.button.id == DISCARD_ID)
+        self.dismiss(event.button.id == YES_ID)
 
     def action_leave(self) -> None:
-        """Leave the screen, which is the same as keeping the changes."""
+        """Leave the screen, which is the same as changing nothing."""
         self.dismiss(False)
 
 

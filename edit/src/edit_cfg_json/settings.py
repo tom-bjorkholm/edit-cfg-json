@@ -26,6 +26,25 @@ DUPLICATE_KEY = 'Key combination {key} is set for both {first} and {second}.'
 NOT_AN_EXTENSION = '{value} is not a file name extension.'
 """Message of the refusal of an extension setting that names none."""
 
+NOT_A_SUFFIX = '{value} is not a backup file name suffix.'
+"""Message of the refusal of a backup suffix that names no file of its own."""
+
+NOT_A_COUNT = '{value} is not a number of backup files to keep.'
+"""Message of the refusal of a backup count that keeps no file at all.
+
+Keeping no backup is what an empty `backup_suffix` says, and saying it twice
+would leave two answers that could disagree with each other.
+"""
+
+BACKUP_SUFFIX = '.bak'
+"""What is added to the name of a file whose previous content is kept.
+
+It is added to the whole name rather than put in place of the extension, so
+that a configuration called `xx.cfg` is kept as `xx.cfg.bak` and the name still
+says what kind of file it was. That is also what lets one attribute express
+every shape an application may want, `.old` and `~` among them.
+"""
+
 WRONG_EXTENSION = ('File {name} does not have the {extension} extension '
                    'that this application uses for its configuration.')
 """Message of the refusal of a file name an enforced extension forbids."""
@@ -206,6 +225,13 @@ class ActionSettings:
 class Settings:
     """What the application around the editor has already decided.
 
+    Which keys its own user interface has taken, what one of its configuration
+    files is called, and how the file that is about to be overwritten is
+    looked after. The last of those is the application's for the same reason
+    as the other two: whether an old configuration is worth keeping, and under
+    what name, is something an application knows about its own files and the
+    editor cannot find out.
+
     Both this class and `ActionSettings` are frozen: the editor is given
     what an application decided and has no business changing it.
     """
@@ -228,8 +254,59 @@ class Settings:
     then no extension to enforce.
     """
 
+    backup_suffix: Optional[str] = BACKUP_SUFFIX
+    """What the file that is about to be overwritten is kept as, or None.
+
+    It is added to the whole file name, so `.bak` keeps `xx.cfg` as
+    `xx.cfg.bak`, `.old` keeps it as `xx.cfg.old` and `~` keeps it as
+    `xx.cfg~`. It is taken exactly as it is given, unlike `file_extension`,
+    because a suffix that is not an extension is one of the shapes an
+    application may want.
+
+    None keeps nothing, for an application that looks after its own files in
+    some other way. The default keeps one, because overwriting a file the user
+    has not written in this session is the one moment at which the previous
+    content is about to stop existing, and an editor that has it in its hands
+    is the cheapest place there will ever be to keep it.
+    """
+
+    backup_count: int = 1
+    """How many of them are kept, the newest first.
+
+    One is kept under the plain name that `backup_suffix` gives, because a
+    number in it would say that there are others when there are not. Two or
+    more are numbered from `_1`, which is the file that was overwritten last,
+    and each save moves every one of them one number further back until the
+    oldest falls off the end.
+    """
+
+    confirm_overwrite: bool = True
+    """Whether the user is asked before an existing file is overwritten.
+
+    They are asked once per destination per session, at the same moment as the
+    previous content would be kept, because that is the moment at which the
+    file on disk stops being what it was. A session that has already written
+    that file is not asked again: it is the user's own earlier save that is
+    being overwritten, and asking about it would be asking about nothing.
+
+    The two interactive editors put the question. A backend that prints once
+    and returns has nobody to answer it and writes what it was asked to write,
+    which is the same answer such a backend gives to the question about
+    closing.
+    """
+
     def __post_init__(self) -> None:
-        """Normalize the extension, and refuse text that is not one.
+        """Normalize the extension, and refuse what names no file at all.
+
+        Raises:
+            ValueError: The extension or the backup suffix is text that names
+                no file, or fewer than one backup is to be kept.
+        """
+        self._normalize_extension()
+        self._check_backups()
+
+    def _normalize_extension(self) -> None:
+        """Add the dot of the extension, and refuse text that is not one.
 
         The dot is added here rather than everywhere the extension is read,
         so that every user of a `Settings` sees one form of it. Writing to a
@@ -246,6 +323,23 @@ class Settings:
             raise ValueError(NOT_AN_EXTENSION.format(value=repr(extension)))
         if not extension.startswith('.'):
             object.__setattr__(self, 'file_extension', f'.{extension}')
+
+    def _check_backups(self) -> None:
+        """Refuse a suffix that names no file and a count that keeps none.
+
+        The suffix is not normalized in any way, because a suffix that begins
+        with a dot and one that does not are both shapes an application asks
+        for. What it may not be is text that adds nothing to a name, since the
+        backup would then be the file it was made from.
+
+        Raises:
+            ValueError: The suffix names no file, or the count is below one.
+        """
+        suffix = self.backup_suffix
+        if suffix is not None and not suffix.strip('.').strip():
+            raise ValueError(NOT_A_SUFFIX.format(value=repr(suffix)))
+        if self.backup_count < 1:
+            raise ValueError(NOT_A_COUNT.format(value=self.backup_count))
 
 
 type SettingsSource = Settings | Callable[[], Settings]

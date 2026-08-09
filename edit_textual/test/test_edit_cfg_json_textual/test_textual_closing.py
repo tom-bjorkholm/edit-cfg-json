@@ -16,12 +16,12 @@ from typing import NamedTuple
 import asyncio
 from textual.widgets import Label
 from edit_cfg_json import EditModel
-from edit_cfg_json_textual.textual_ask import DISCARD_ID, KEEP_ID
+from edit_cfg_json_textual.textual_ask import NO_ID, YES_ID
 from edit_cfg_json_textual.textual_editor import EditorApp
 from edit_cfg_json_textual.textual_look import ASK_BOX_ID
 from example.e01_flat_config import FlatConfig
-from .helpers import ESCAPE_KEY, QUIT_KEY, SAVE_KEY, VALIDATE_KEY, field_of, \
-    model_value, verdict_of
+from .helpers import ESCAPE_KEY, QUIT_KEY, SAVE_KEY, VALIDATE_KEY, \
+    answer_with, field_of, model_value, verdict_of
 
 TYPED_ANSWER = '7'
 """What the stand-in user types into the number member before closing."""
@@ -58,11 +58,7 @@ async def _quit_after(app: EditorApp, typed: bool,
         await pilot.pause()
         asked = bool(app.screen.query(f'#{ASK_BOX_ID}'))
         for answer in answers:
-            if answer.startswith('#'):
-                await pilot.click(answer)
-            else:
-                await pilot.press(answer)
-            await pilot.pause()
+            await answer_with(pilot, answer)
         return Closing(asked=asked, running=app.is_running)
 
 
@@ -101,7 +97,7 @@ def test_keeping_stays_open() -> None:
     """Test the control that keeps the changes leaves the editor as it was."""
     model = EditModel(FlatConfig())
     closing = asyncio.run(_quit_after(EditorApp(model), typed=True,
-                                      answers=(f'#{KEEP_ID}',)))
+                                      answers=(f'#{NO_ID}',)))
     assert closing.running
     assert model_value(model, 'answer') == int(TYPED_ANSWER)
 
@@ -116,7 +112,7 @@ def test_leaving_stays_open() -> None:
 def test_discarding_ends_it() -> None:
     """Test the control that drops the changes is what ends the session."""
     closing = asyncio.run(_quit_after(EditorApp(EditModel(FlatConfig())),
-                                      typed=True, answers=(f'#{DISCARD_ID}',)))
+                                      typed=True, answers=(f'#{YES_ID}',)))
     assert not closing.running
 
 

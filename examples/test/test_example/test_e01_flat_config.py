@@ -274,16 +274,23 @@ def test_saved_is_not_edited(tmp_path: Path,
 
 def test_save_over_input(tmp_path: Path,
                          capsys: pytest.CaptureFixture[str]) -> None:
-    """Test the input file is what a save writes when no output is named."""
+    """Test the input file is what a save writes when no output is named.
+
+    It already exists, so this is also where an example that says nothing at
+    all about its files meets the default that keeps what one held: the file
+    is written and what it held is beside it under the default suffix.
+    """
     in_file = tmp_path / 'round.json'
     in_file.write_text('{"name": "From a file", "answer": 7}',
                        encoding='UTF-8')
+    kept = tmp_path / 'round.json.bak'
     assert _dump(capsys, '-i', str(in_file), '--set', 'answer=11',
                  '--save') == (f'{HEAD}\nname = From a file\n{TEXT_LINE}\n'
                                f'answer = 11\n{WHOLE_LINE}\n'
                                f'{VALID_LINE}\n'
-                               f'{saved_tail(in_file, "FlatConfig")}')
+                               f'{saved_tail(in_file, "FlatConfig", kept)}')
     assert _written(in_file) == {'name': 'From a file', 'answer': 11}
+    assert _written(kept) == {'name': 'From a file', 'answer': 7}
 
 
 def test_save_refused(tmp_path: Path,

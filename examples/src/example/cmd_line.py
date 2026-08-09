@@ -109,13 +109,25 @@ question, and not a second opinion about when a buffer should be validated.
 same reason: the printout happens once and the run is then over, so there is
 no moment at which a user could press Save. Without `--save` it says where it
 would write, and with it the file is really written, which is what puts a
-round trip within reach of a script.
+round trip within reach of a script. It is repeatable, because Save is a
+button and a key: two of them are two presses in one session, which is what
+shows that the file a save keeps is kept once and not once per press.
+
+A save that writes over a file this session did not write keeps what that file
+held, under the name the application chose, and says where it went. The two
+editors ask before they do it; `--ui dump` has nobody to ask and writes, which
+is the same answer a printout gives to the question about closing.
 
 `--extension`, `--enforce-extension` and `--key` stand in for the
 application the editor runs inside. A real application does not parse these
 from a command line: it knows its own answers and builds one
 `edit_cfg_json.Settings` from them. They are options here so that every
 answer can be tried without writing a program per answer.
+
+An example that has decided something about its own files hands over a
+`Settings` object of its own instead, which is what a real application does,
+and the three options above then fill in the parts they name and leave the
+rest of it alone.
 
 `--key ACTION=COMBINATIONS` names one action of the editor and the key
 combinations that run it, separated by commas. `--key save=ctrl+w` moves
@@ -138,7 +150,7 @@ contract is better seen than read.
 # MIT License
 
 import argparse
-from dataclasses import fields
+from dataclasses import fields, replace
 from typing import Optional
 from config_as_json import Config
 from edit_cfg_json import ActionSettings, ConfigLoadError, ConfigLoader, \
@@ -244,8 +256,9 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
     parser.add_argument('--key', action='append', dest='keys',
                         metavar='ACTION=COMBINATIONS',
                         help='Keys of one action of the editor. Repeatable.')
-    parser.add_argument('--save', action='store_true',
-                        help='Write the output file. Only with --ui dump.')
+    parser.add_argument('--save', action='count', default=0,
+                        help='Press Save. Repeatable, as a press is. Only '
+                             'with --ui dump.')
     add_file_options(parser)
     return parser
 
@@ -394,8 +407,8 @@ def _apply_folds(parser: argparse.ArgumentParser, model: EditModel,
             parser.error(NOT_A_CONTAINER_MESSAGE.format(name=name))
 
 
-def _action_keys(parser: argparse.ArgumentParser,
-                 values: Optional[list[str]]) -> ActionSettings:
+def _action_keys(parser: argparse.ArgumentParser, values: Optional[list[str]],
+                 given: ActionSettings) -> ActionSettings:
     """Return the key combinations that every `--key` of one run asks for.
 
     The names that are accepted are the attributes of `ActionSettings`
@@ -404,10 +417,11 @@ def _action_keys(parser: argparse.ArgumentParser,
     Args:
         parser: Parser used to report the error and exit.
         values: The `--key` values, or None when the option was not used.
+        given: What the example itself decided about the keys.
 
     Returns:
-        The keys of every action, with the default of each action the
-        command line said nothing about.
+        The keys of every action, with what the example decided for each
+        action the command line said nothing about.
     """
     names = {field.name for field in fields(ActionSettings)}
     chosen: dict[str, tuple[str, ...]] = {}
@@ -418,7 +432,7 @@ def _action_keys(parser: argparse.ArgumentParser,
                 value=value, names=', '.join(sorted(names))))
         chosen[name] = tuple(key for key in keys.split(',') if key)
     try:
-        actions = ActionSettings(**chosen)
+        actions = replace(given, **chosen)
     except ValueError as error:
         # `parser.error` writes the message and ends the process, so nothing
         # below this runs when two actions were given the same key.
@@ -426,26 +440,33 @@ def _action_keys(parser: argparse.ArgumentParser,
     return actions
 
 
-def _settings(parser: argparse.ArgumentParser,
-              parsed: argparse.Namespace) -> Settings:
+def _settings(parser: argparse.ArgumentParser, parsed: argparse.Namespace,
+              given: Settings) -> Settings:
     """Return what this run says the application has already decided.
 
     A real application does not build this from a command line. It knows
     its own answers, and either passes one object like this one or a
-    callable that answers with one.
+    callable that answers with one. That is what `given` is: an example that
+    has decided something about its own files says so in Python, and each
+    option here fills in the one thing it names and leaves the rest of it.
 
     Args:
         parser: Parser used to report the error and exit.
         parsed: Parsed command line of one example run.
+        given: What the example itself decided, which is nothing at all for
+            an example that has no opinion about keys or about files.
 
     Returns:
         The settings that this run hands to the editor.
     """
     try:
-        settings = Settings(actions=_action_keys(parser=parser,
-                                                 values=parsed.keys),
-                            file_extension=parsed.extension,
-                            extension_enforced=parsed.enforce_extension)
+        settings = replace(
+            given,
+            actions=_action_keys(parser=parser, values=parsed.keys,
+                                 given=given.actions),
+            file_extension=parsed.extension or given.file_extension,
+            extension_enforced=(parsed.enforce_extension
+                                or given.extension_enforced))
     except ValueError as error:
         # `parser.error` writes the message and ends the process, so nothing
         # below this runs when the extension is text that names none.
@@ -472,7 +493,10 @@ class StandInUser:  # pylint: disable=too-few-public-methods
     two: the dump prints the model it is given, and pressing Save is not
     printing. A dump does print once and return, though, so `--save` is the
     only way a user could ever ask it for one, which is why the command line
-    accepts the option for `--ui dump` alone.
+    accepts the option for `--ui dump` alone. It presses Save once per time it
+    was given, because a second press of Save is a thing a user does and does
+    not do the same as the first: the file it would write over is the one the
+    first press wrote.
     """
 
     def __init__(self, inner: EditorBackend, parser: argparse.ArgumentParser,
@@ -507,7 +531,7 @@ class StandInUser:  # pylint: disable=too-few-public-methods
             model.toggle_fold_all()
         _apply_folds(parser=self._parser, model=model,
                      folds=self._parsed.folds)
-        if self._parsed.save:
+        for _ in range(self._parsed.save):
             model.save()
         self._inner.run_editor(model)
 
@@ -574,7 +598,8 @@ def _result_text(saved: Optional[Config]) -> str:
 def _run_editor(*, parser: argparse.ArgumentParser, config: Config,
                 backend: EditorBackend, parsed: argparse.Namespace,
                 descriptions: Optional[Descriptions],
-                loader: Optional[ConfigLoader]) -> Optional[Config]:
+                loader: Optional[ConfigLoader],
+                settings: Settings) -> Optional[Config]:
     """Run one editing session, or say why the input file cannot be opened.
 
     This is the whole of what an application does: it hands over its own
@@ -591,6 +616,7 @@ def _run_editor(*, parser: argparse.ArgumentParser, config: Config,
         parsed: Parsed command line of one example run.
         descriptions: What the example says about its members, or None.
         loader: How the example constructs its configuration, or None.
+        settings: What the example has already decided about keys and files.
 
     Returns:
         The configuration object that was saved, or None when the session
@@ -601,7 +627,8 @@ def _run_editor(*, parser: argparse.ArgumentParser, config: Config,
                      descriptions=descriptions, loader=loader,
                      out_file=parsed.output,
                      policy=named_policy(parsed.policy),
-                     settings=_settings(parser=parser, parsed=parsed))
+                     settings=_settings(parser=parser, parsed=parsed,
+                                        given=settings))
     except ConfigLoadError as error:
         # `parser.error` writes the message and ends the process, so nothing
         # below this runs when the input file cannot be opened.
@@ -609,16 +636,23 @@ def _run_editor(*, parser: argparse.ArgumentParser, config: Config,
     return saved
 
 
-def run_example(example_name: str, config: Config,
+# One argument per thing that an example hands over, which is the whole of
+# what an application says about a session. Each of them is an independent
+# keyword, as the arguments of `edit` in the core are and for the same reason,
+# and that core function carries the same disable.
+# pylint: disable-next=too-many-arguments
+def run_example(example_name: str, config: Config, *,
                 args: Optional[list[str]] = None,
                 descriptions: Optional[Descriptions] = None,
-                loader: Optional[ConfigLoader] = None) -> None:
+                loader: Optional[ConfigLoader] = None,
+                settings: Settings = Settings()) -> None:
     """Run one example program from the command line.
 
     This is the whole contract between an example and this module: the
     example says what it is called, hands over the configuration object it
-    wants to edit, says what it has to say about the members of it, and says
-    how that object is constructed if the editor cannot construct it itself.
+    wants to edit, says what it has to say about the members of it, says
+    how that object is constructed if the editor cannot construct it itself,
+    and says what it has already decided about keys and about its own files.
 
     Args:
         example_name: Name of the example, used in help and error text.
@@ -629,7 +663,11 @@ def run_example(example_name: str, config: Config,
             or None for an example that says nothing about them.
         loader: How this example constructs its configuration, or None for a
             class that the editor can construct on its own, which is what
-            every example but the last two is.
+            every example but two is.
+        settings: What this example has already decided about the keys of the
+            editor and about the files it reads and writes. The default is an
+            application with no opinion, which is what every example but one
+            is; the command line then fills in what its own options name.
     """
     parser = _create_parser(example_name)
     parsed = parser.parse_args(args)
@@ -638,4 +676,5 @@ def run_example(example_name: str, config: Config,
                           parsed=parsed)
     print(_result_text(_run_editor(parser=parser, config=config,
                                    backend=backend, parsed=parsed,
-                                   descriptions=descriptions, loader=loader)))
+                                   descriptions=descriptions, loader=loader,
+                                   settings=settings)))
