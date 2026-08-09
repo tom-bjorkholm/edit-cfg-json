@@ -1,9 +1,10 @@
 #! /usr/bin/env python3
 """Tests for what the Textual backend makes of a nested configuration object.
 
-The configuration class comes from the example rather than from one of its
-own, so that the same nesting is used by the core tests, by both backends and
-by the example itself.
+The configuration classes come from the examples rather than from ones of
+their own, so that the same nesting is used by the core tests, by both backends
+and by the examples themselves. Two of them are used: one object held by a
+member, and a list and a dict whose elements are objects.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -18,6 +19,7 @@ from edit_cfg_json_textual.textual_editor import EditorApp, NAME_CLASS, \
 from edit_cfg_json_textual.textual_look import fold_id, member_id, \
     subtree_id, value_id
 from example.e09_nested_config import CourseExportConfig, TableOutputConfig
+from example.e10_config_containers import CourseReportsConfig
 from .helpers import ROOMY_SIZE, description_of, index_of
 
 OUTPUT_CLASS = TableOutputConfig.__name__
@@ -53,6 +55,28 @@ OUTPUT_SUMMARY = EditModel(TableOutputConfig()).summary
 
 OUTPUT_DETAIL = 'Nothing about this class says'
 """The beginning of the part that only an open object shows."""
+
+LIST_MEMBER = 'reports'
+"""The member of the other example that holds a list of objects.
+
+Three objects of three members each is more rows than a window can spare, so
+that container opens folded.
+"""
+
+REPEATED_MEMBER = 'title'
+"""A member that every one of those repeated objects has.
+
+Several objects of one class have the same member names, so counting one of
+them is what says how many objects are on the screen. Nothing but its place
+among the rows tells one of those members from the next, which is exactly what
+this backend has to get right.
+"""
+
+LIST_REPORTS = 3
+"""How many objects the list of that example holds."""
+
+DICT_REPORTS = 2
+"""How many objects its dict holds, which is few enough to open open."""
 
 
 def _nested_app() -> EditorApp:
@@ -191,6 +215,29 @@ async def _badge_widgets() -> int:
     app = _nested_app()
     async with app.run_test(size=ROOMY_SIZE):
         return len(app.query(f'.{SUBTREE_CLASS}'))
+
+
+async def _repeated() -> tuple[list[str], list[str], int]:
+    """Open the other example and press the control of its folded list."""
+    app = EditorApp(EditModel(CourseReportsConfig()))
+    async with app.run_test(size=ROOMY_SIZE) as pilot:
+        folded = _shown_names(app)
+        await pilot.click(f'#{fold_id(index_of(app, LIST_MEMBER))}')
+        await pilot.pause()
+        return folded, _shown_names(app), len(app.query(f'.{SUBTREE_CLASS}'))
+
+
+def test_repeated_objects() -> None:
+    """Test a list of objects opens folded and opens to one row for each.
+
+    Several objects of one class in one container is what a real configuration
+    is made of, and every one of them is a node with the same member names as
+    the next, so what a backend has to get right is how many of them there are.
+    """
+    folded, opened, badges = asyncio.run(_repeated())
+    assert folded.count(REPEATED_MEMBER) == DICT_REPORTS
+    assert opened.count(REPEATED_MEMBER) == DICT_REPORTS + LIST_REPORTS
+    assert badges == DICT_REPORTS + LIST_REPORTS
 
 
 def test_only_objects_say() -> None:

@@ -6,9 +6,10 @@ here as everywhere else in this backend, because the two fail in opposite
 directions: a stub drifts from what Tk really does, and real Tk hides a wrong
 value behind a widget default.
 
-The configuration class comes from the example rather than from one of its
-own, so that the same nesting is used by the core tests, by both backends and
-by the example itself.
+The configuration classes come from the examples rather than from ones of
+their own, so that the same nesting is used by the core tests, by both backends
+and by the examples themselves. Two of them are used: one object held by a
+member, and a list and a dict whose elements are objects.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -19,6 +20,8 @@ import tkinter
 from edit_cfg_json import EditModel
 from edit_cfg_json_tk.tk_editor import EditorWidgets, FOLD_SHUT_TEXT
 from example.e09_nested_config import CourseExportConfig, TableOutputConfig
+from example.e10_config_containers import CourseReportsConfig, \
+    ReportOutputConfig
 from .helpers import FakeVar, real_fields, real_fold, real_texts, \
     stub_editor, stub_fold, stub_texts
 
@@ -49,6 +52,27 @@ OWN_REFUSED = ' [refused on its own]'
 
 REFUSED_FORMAT = ('participant_output', 'output_format')
 """A member inside a nested object, to be given a value its class refuses."""
+
+REPORT_CLASS = ReportOutputConfig.__name__
+"""What the row of one repeated object of the other example says."""
+
+LIST_REPORTS = 3
+"""How many objects the list of that example holds.
+
+Three objects of three members each is more rows than a window can spare, so
+that container opens folded and none of its objects is on the window.
+"""
+
+DICT_REPORTS = 2
+"""How many objects the dict of that example holds, which opens open."""
+
+REPORT_FIELDS = 16
+"""How many fields that example needs: one per value and none per object.
+
+Its plain member, the three members of each of the three objects of the list,
+and the three members of each of the two objects of the dict. Neither
+container and none of the five objects is edited in a field of its own.
+"""
 
 
 def _nested_model(validated: bool = False) -> EditModel:
@@ -222,6 +246,45 @@ def test_real_badge_refused(root_or_skip: tkinter.Tk) -> None:
     shown = real_texts(root_or_skip, packed_only=True)
     assert OWN_REFUSED in shown
     assert OWN_VALID not in shown
+
+
+def test_stub_repeated(stub_tk: None) -> None:
+    """Test a list of objects opens folded and opens to one row for each.
+
+    Several objects of one class in one container is what a real configuration
+    is made of, and there is nothing but its place among the rows to tell one
+    of them from the next, so what a backend has to get right is how many of
+    them there are.
+    """
+    _ = stub_tk
+    stub_editor(EditModel(CourseReportsConfig()))
+    assert stub_texts(packed_only=True).count(REPORT_CLASS) == DICT_REPORTS
+    stub_fold(FOLD_SHUT_TEXT)
+    assert stub_texts(packed_only=True).count(REPORT_CLASS) == \
+        DICT_REPORTS + LIST_REPORTS
+
+
+def test_real_repeated(root_or_skip: tkinter.Tk) -> None:
+    """Test real Tk shows exactly what the stubbed test expects."""
+    EditorWidgets(parent=root_or_skip, model=EditModel(CourseReportsConfig()))
+    shown = real_texts(root_or_skip, packed_only=True)
+    assert shown.count(REPORT_CLASS) == DICT_REPORTS
+    real_fold(root_or_skip, FOLD_SHUT_TEXT)
+    assert real_texts(root_or_skip, packed_only=True).count(REPORT_CLASS) == \
+        DICT_REPORTS + LIST_REPORTS
+
+
+def test_stub_fields_count(stub_tk: None) -> None:
+    """Test a field is created for every value and for nothing else."""
+    _ = stub_tk
+    stub_editor(EditModel(CourseReportsConfig()))
+    assert len(FakeVar.created) == REPORT_FIELDS
+
+
+def test_real_fields_count(root_or_skip: tkinter.Tk) -> None:
+    """Test real Tk creates exactly as many fields as the stub expects."""
+    EditorWidgets(parent=root_or_skip, model=EditModel(CourseReportsConfig()))
+    assert len(real_fields(root_or_skip)) == REPORT_FIELDS
 
 
 def test_stub_only_objects(stub_tk: None) -> None:

@@ -47,6 +47,9 @@ plan says only *when* that decision gets built.
 - [Step 12](#step-12--subtree-validation) — every nested object asked whether
   it is a configuration on its own, which both puts a badge on its row and
   names the member inside it that a validator refused.
+- [Step 13](#step-13--list_element-and-dict_value-nesting) — a list of
+  configuration objects and a dict of them, one description reaching every one
+  of them, and the confirmation that step 11 had already built the mechanism.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -81,8 +84,8 @@ file only says *when* that decision gets built.
   `edit_cfg_json_textual` never drift apart by more than one review.
 - Steps 1 to 9 are built, and each is written up in
   [steps_001-009_done.md](steps_001-009_done.md) as what it decided, what it
-  found while building it and what came of its review. Steps 10 to 12 are
-  built and are written up here, in the same way. Steps 13 onwards are named
+  found while building it and what came of its review. Steps 10 to 13 are
+  built and are written up here, in the same way. Steps 14 onwards are named
   steps with their observable outcome and their main risks; they are detailed
   just before they are started, when the core API is real rather than
   imagined.
@@ -117,7 +120,7 @@ version. Record which one, because the next step's fast iteration with
 | M1 Flat round trip | 1 to 5 | Both backends edit a `Config` with one `str` and one `int`, validate it and save it | done |
 | M2 Flat, fully explained | 6 to 9 | Descriptions, docstrings, field-level diagnostics, automatic-change visibility, explicit loader | done |
 | M3 Structure and folding | 10 to 12 | Lists, dicts, nested `Config` objects, folding with per-subtree badges | done |
-| M4 Configs in containers | 13 to 14 | `LIST_ELEMENT` and `DICT_VALUE` nesting, adding and removing elements | to do |
+| M4 Configs in containers | 13 to 14 | `LIST_ELEMENT` and `DICT_VALUE` nesting, adding and removing elements | 13 done, 14 to do |
 | M5 Release readiness | 15 to 17 | v1 documented, classified and published | to do |
 
 ## 3. Steps 10 to 20, as named steps
@@ -390,14 +393,86 @@ The public names it settled:
 
 #### Step 13 — `LIST_ELEMENT` and `DICT_VALUE` nesting
 
-Step 11 built these along with `MEMBER`, because one walk over the declarations
-answers for all of them, so what is left here is smaller than the plan
-expected: the `'['` step in description paths meaning "every list element or
-every dictionary value at this point", which is what stops the application
-repeating itself per index or per key, and the tests and the example that show
-repeated nested configs being edited. A new example
-`e10_config_containers.py`, modelled on `e34_list_nested_configs.py` and
-`e35_dict_nested_configs.py`.
+Status: **Implemented and committed.**
+
+**Observable outcome.** A new example `e10_config_containers.py`, modelled on
+`e34_list_nested_configs.py` and `e35_dict_nested_configs.py`, whose
+configuration holds a list of three `ReportOutputConfig` objects and a dict of
+two more of them.
+`python3 examples/src/example/e10_config_containers.py --ui dump` shows the
+list folded and the dict open, each object in the dict a row saying its class
+with its own members below it and its own badge;
+`--fold reports --set reports.0.file_name=other.csv` opens the list and edits
+one member of one element; `--set reports_by_id.audit.max_rows=0` is refused by
+the element class's own rule and named as `reports_by_id.audit.max_rows`;
+`--fold reports --set reports_by_id.audit.file_name=participants.csv` makes a
+report of the dict collide with a report of the list, which the class holding
+them both refuses while all five objects say *valid on its own*; and
+`-i ../../data/e10_reports.json` holds two reports and three named ones, which
+folds the other one of the two containers. `--ui tk` and `--ui textual` show
+the same tree.
+
+**What it decided.** Four things, decided before the work started.
+
+- **The core needs no change, and that is the finding rather than a
+  disappointment.** The prediction of design section 4.1 — that steps 13 and 14
+  change what a nested node offers and never how the tree is built — turned out
+  to be empty for this step. Verified against the installed build before any
+  code was written: a list and a dict of objects already had one node per
+  element with its own badge, `'['` already reached inside repeated objects at
+  any depth, a refusal inside one element was already attributed by absolute
+  path, and a save already round-tripped. So the step is the example, the
+  tests, and the write-ups. Design section 4.1.
+- **One class, one list and one dict, in one configuration.** Two examples in
+  the shape of `e34` and `e35` would have shown one nesting kind each and
+  neither would have shown the thing that matters, which is that the same class
+  serves both and that one rule reaches over both.
+- **The example is sized so that the two containers open differently.**
+  `OPEN_AT_MOST` is eight rows below a container, so three objects of three
+  members each opens folded and two opens open. That is the rule of step 10 met
+  where a real configuration meets it: a container of configuration objects
+  reaches the limit at three of them rather than at a dozen numbers. The data
+  file inverts the two counts, so the fold state at the start follows the file
+  and not the member.
+- **Both kinds of rule, per object and over all of them.** The element class
+  refuses a row count out of range, which shows that one plan runs once per
+  object without the class holding them saying anything; and the class holding
+  them refuses two reports that name one file, which is the rule no object
+  could check for itself and the one that makes every object say *valid on its
+  own* while the export cannot be written. `DICT_VALUE_BY_KEY` is deliberately
+  left to step 14, which is where what can and cannot be added is decided.
+
+**Core.** Nothing. The tests that pin the `'['` selector across repeated
+objects went into `test_nested.py`, beside the tests of the containers of
+objects that step 11 added: one description for that member of every element of
+a list, the same through a dict, one for the object itself, a named step
+beating `'['` at that step, and a selector with `'['` at two depths reaching
+into a list of objects each holding a dict of more of them.
+
+No public name was added or changed, which is what a step that only exercises
+the API should look like.
+
+**What building it found.**
+
+- **A container of configuration objects opens folded much sooner than a
+  container of values.** Three objects of three members each is twelve rows,
+  and `OPEN_AT_MOST` is eight. That is `OPEN_AT_MOST` working as designed and
+  it was worth meeting deliberately in an example, because it is the first
+  thing a user of a realistic configuration sees.
+- **A `--set` inside a folded container edits the buffer and shows nothing.**
+  The dump prints only the rows that are on the screen, and `StandInUser`
+  applies the edits before the folds, so `--fold reports` after a `--set`
+  inside it is what makes the edit visible. It is the command line standing in
+  for a user, and a user would open the container first; the example says so
+  rather than leaving the reader to find out.
+- **The examples README had never been given `e09`.** Its table ended at
+  `e08`, so the example that step 11 added and step 12 extended was reachable
+  only by knowing it was there. Both rows are in it now.
+- **Nothing in either backend had ever rendered two objects of one class in
+  one container**, which is why each of them gained a test over the new class:
+  several objects have the same member names, and a backend that identified a
+  widget by anything but its place among the rows would have been wrong about
+  every one of them. Neither was, which the counts now say.
 
 #### Step 14 — Adding and removing elements
 
@@ -439,6 +514,18 @@ packages declare their real dependencies, against the install step rather
 than by assumption; check that `BuildSpec.identical_versions` still holds
 across the three `pyproject.toml` files; and run the three-version sweep one
 final time before release.
+
+Make sure all references to examples from `config_as_json` package/repo
+references the `config_as_json` repo (not necessary with complete URL
+more than first time in document) as future readers will otherwise not
+understand that what references refer to.
+
+Remove references to step numbers in `./doc/design.md` and `readme_parts`
+and also remove any description of order of implementation, but
+information what is implememented and what is planned for future stays.
+The future reader of `./doc/design.md` or `README_pypi` will not be
+interested in the order things were implemented in, what is
+interesting is to know what is implemented and what is only planned.
 
 ### After v1
 

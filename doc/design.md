@@ -222,6 +222,16 @@ state, the rebuild of section 4.8 and the addressing of every description are
 already the shape a list of nested objects needs, and steps 13 and 14 change
 **what a nested node offers** and never **how the tree is built**.
 
+**What step 13 had to change was nothing**, which is the strongest form that
+prediction could have been confirmed in. One walk over the declarations of an
+object answers for `LIST_ELEMENT` and `DICT_VALUE` exactly as it does for
+`MEMBER`, so a member holding several objects was editable, foldable, validated
+per object and addressable by path the day step 11 landed. Step 13 is therefore
+the example that shows it, the description selectors of section 4.3 read across
+repeated objects, and the tests that pin both. What is left of the milestone is
+step 14, where a container gains and loses elements, and that one really is
+about what a node offers.
+
 **The declarations are walked over the object and not matched as selectors.**
 Step 10 found those nodes by turning each declaration into a selector —
 `('outputs', '[')` for a list of them — which was right while a nested object
@@ -517,6 +527,16 @@ Absolute paths only; no recursive plain-string key selector. The literal
 "every list element or every dictionary value at this point", which is
 what keeps repeated `LIST_ELEMENT` and `DICT_VALUE` nested configs from
 forcing the application to repeat itself per index or per key.
+
+**A selector says `'['` at each step it has to**, and step 13 checked that to
+the bottom of the shape this library is written for: a list of objects each
+holding a dict of more of them is reached by `('outputs', '[', 'parts', '[',
+'width')`, one line for that member of every object at any index and any key.
+It crosses two nesting boundaries on the way, which is the divergence the
+paragraph above records, and it is what makes a repeated object cost an
+application nothing extra to explain. A description that names every step still
+wins where both address one node, so one element of a repeated object can be
+singled out while every other keeps the general text.
 
 One deliberate divergence from `serialize_converters()`: description
 paths **cross nesting boundaries**. Converters stop at child-owned

@@ -107,6 +107,15 @@ the same class, one of which may be absent altogether.
 | --- | --- |
 | [e09_with_audit.json](e09_with_audit.json) | Opens with both nested objects present, so the optional one is a node with rows of its own rather than the `no TableOutputConfig` that the declared defaults show. Its format and its encoding differ from the other output's, which is what two objects of one class are for. |
 
+## Files for `e10_config_containers.py`
+
+`CourseReportsConfig` holds one plain member, a list whose elements are
+`ReportOutputConfig` objects and a dict whose values are more of them.
+
+| File | What happens |
+| --- | --- |
+| [e10_reports.json](e10_reports.json) | Opens with two reports in the list and three in the dict, rather than the three and two the class declares. That folds the other one of the two containers: how many rows opening a container would add is what decides which of them opens folded, and neither the member nor the declared default has anything to do with it. |
+
 ## Why a file with a bad value cannot be opened
 
 An editor that refused to open the very file that has to be repaired would

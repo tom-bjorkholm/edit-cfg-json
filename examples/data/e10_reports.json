@@ -1,0 +1,32 @@
+{
+    "course_name": "python-advanced",
+    "reports": [
+        {
+            "file_name": "advanced-participants.csv",
+            "max_rows": 400,
+            "title": "Registered participants"
+        },
+        {
+            "file_name": "advanced-waiting-list.csv",
+            "max_rows": 100,
+            "title": "Waiting list"
+        }
+    ],
+    "reports_by_id": {
+        "audit": {
+            "file_name": "advanced-audit.csv",
+            "max_rows": 5000,
+            "title": "Administrator audit log"
+        },
+        "invoicing": {
+            "file_name": "advanced-invoicing.csv",
+            "max_rows": 400,
+            "title": "What each participant is billed"
+        },
+        "summary": {
+            "file_name": "advanced-summary.csv",
+            "max_rows": 20,
+            "title": "Course summary"
+        }
+    }
+}

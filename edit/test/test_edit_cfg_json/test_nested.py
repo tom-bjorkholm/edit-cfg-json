@@ -12,8 +12,9 @@ class rather than to the class holding it.
 
 from pathlib import Path
 import pytest
-from edit_cfg_json import EditModel, model_as_text, row_describes, \
-    row_description, row_subtree_text, row_validates, row_value_text
+from edit_cfg_json import Descriptions, EditModel, model_as_text, \
+    row_describes, row_description, row_subtree_text, row_validates, \
+    row_value_text
 from .model_helpers import row_at, row_paths, shown_paths, written
 from .container_cfg import CROSS_REFUSAL, ConfigDictCfg, ConfigListCfg, \
     DeepConfigCfg, DeepSubtreeCfg, INNER_LIMIT, InnerCfg, NestedCfg, \
@@ -25,6 +26,15 @@ TOO_WIDE = str(INNER_LIMIT + 1)
 
 OUT_OF_ORDER = '99'
 """A low value above the high value of the other nested class."""
+
+ABOUT_ANY_WIDTH = 'What the width of any one of these is for.'
+"""What an application says once about a member of every repeated object."""
+
+ABOUT_ONE_WIDTH = 'What the width of the second one is for.'
+"""What it says about that member of one of those objects in particular."""
+
+ABOUT_ANY_OBJECT = 'What one of these objects is for.'
+"""What it says about every repeated object itself rather than a member."""
 
 
 def test_nested_holds_rows() -> None:
@@ -249,6 +259,75 @@ def test_deep_nesting() -> None:
     assert ('outputs', '0', 'parts', 'one', 'width') in row_paths(model)
     assert row_at(model, ('outputs', '0', 'parts', 'one')).value_text == \
         'InnerCfg'
+
+
+def test_one_text_per_object() -> None:
+    """Test one `'['` selector describes that member of every object.
+
+    A list of objects is the ordinary shape of a real configuration, so an
+    application that had to write one description per index would be writing
+    text that stopped being true the moment the list grew.
+    """
+    said: Descriptions = {('outputs', '[', 'width'): ABOUT_ANY_WIDTH}
+    model = EditModel(ConfigListCfg(), descriptions=said)
+    assert row_at(model, ('outputs', '0', 'width')).description.startswith(
+        ABOUT_ANY_WIDTH)
+    assert row_at(model, ('outputs', '1', 'width')).description.startswith(
+        ABOUT_ANY_WIDTH)
+    assert not row_at(model, ('outputs', '0', 'height')).description.\
+        startswith(ABOUT_ANY_WIDTH)
+
+
+def test_every_dict_value() -> None:
+    """Test the same selector reaches every value of a dict of objects."""
+    said: Descriptions = {('outputs', '[', 'width'): ABOUT_ANY_WIDTH}
+    model = EditModel(ConfigDictCfg(), descriptions=said)
+    assert row_at(model, ('outputs', 'first', 'width')).description.\
+        startswith(ABOUT_ANY_WIDTH)
+
+
+def test_object_described() -> None:
+    """Test the selector describes the object itself as readily as a member.
+
+    What the application says about one of these objects comes above what its
+    own class says about itself, exactly as it does for a nested object that a
+    member holds.
+    """
+    said: Descriptions = {('outputs', '['): ABOUT_ANY_OBJECT}
+    model = EditModel(ConfigListCfg(), descriptions=said)
+    row = row_at(model, ('outputs', '0'))
+    assert row_describes(row)
+    assert row_description(model=model, row=row).startswith(ABOUT_ANY_OBJECT)
+
+
+def test_named_element_wins() -> None:
+    """Test a selector naming one element beats one that says `'['`.
+
+    Both address that member and the more specific of the two describes it,
+    so one element of a repeated object can be singled out while every other
+    keeps the general text.
+    """
+    said: Descriptions = {('outputs', '[', 'width'): ABOUT_ANY_WIDTH,
+                          ('outputs', '1', 'width'): ABOUT_ONE_WIDTH}
+    model = EditModel(ConfigListCfg(), descriptions=said)
+    assert row_at(model, ('outputs', '1', 'width')).description.startswith(
+        ABOUT_ONE_WIDTH)
+    assert row_at(model, ('outputs', '0', 'width')).description.startswith(
+        ABOUT_ANY_WIDTH)
+
+
+def test_deep_every_element() -> None:
+    """Test a selector says `'['` at each depth it has to.
+
+    A list of objects each holding a dict of more of them is the shape this
+    library is written for, and one selector reaches the bottom of it without
+    the application naming an index or a key anywhere.
+    """
+    said: Descriptions = {('outputs', '[', 'parts', '[', 'width'):
+                          ABOUT_ANY_WIDTH}
+    model = EditModel(DeepConfigCfg(), descriptions=said)
+    deep = ('outputs', '0', 'parts', 'one', 'width')
+    assert row_at(model, deep).description.startswith(ABOUT_ANY_WIDTH)
 
 
 def test_deep_edit_saved(tmp_path: Path) -> None:
