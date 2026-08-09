@@ -108,11 +108,11 @@ that does not fit the window still says where to look.
 
 ## What is deliberately not here
 
-Adding an element and removing one. This step edits what is there, and step 14
-of the delivery plan is where a list grows and shrinks. A nested `Config`
-object is not here either: it serializes as a dict and it is not one, so it
-stays one row that says the editor cannot edit it yet, and step 11 is where it
-becomes a first-class node of its own.
+Adding an element and removing one. This example edits what is there, and
+[e11_add_remove.py](e11_add_remove.py) is where a list grows and shrinks. A
+nested `Config` object is not here either: it serializes as a dict and it is
+not one, so [e09_nested_config.py](e09_nested_config.py) is where it becomes a
+first-class node of its own.
 
 Run this example with one of:
 

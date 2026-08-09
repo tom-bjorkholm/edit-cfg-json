@@ -60,6 +60,15 @@ Every row has one that wide, and the rows that hold nothing to fold have an
 empty one, so that the names of a container and of a value beside it line up.
 """
 
+ELEMENT_WIDTH = 4
+"""Width in characters of one control that changes how many elements there are.
+
+They sit at the end of the line of the node they belong to, so a row that
+offers none of them needs no width held for it and gets none. That is what
+makes four of them affordable where the one control that folds a container has
+to keep a column clear on every row.
+"""
+
 LEAST_WRAP_WIDTH = 200
 """Narrowest line in pixels that a paragraph of the editor is wrapped to.
 

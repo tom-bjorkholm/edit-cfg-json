@@ -16,14 +16,19 @@ of them and fold one of them away.
 # MIT License
 
 from collections.abc import Mapping, Sequence
-from typing import TextIO
+from copy import deepcopy
+from io import StringIO
+from typing import Optional, TextIO
 from config_as_json import Config, ConfigPath, JsonType
 from edit_cfg_json.converting import convert_member
 from edit_cfg_json.descriptions import Descriptions
+from edit_cfg_json.elements import NOT_EXTENDABLE, NOT_MOVABLE, \
+    NOT_REMOVABLE, checked_key, grown, kept_order, moved_paths, object_added, \
+    object_moved, object_removed, refused, shrunk, swapped
 from edit_cfg_json.leaf_value import text_as_value
 from edit_cfg_json.loading import LoadReport
-from edit_cfg_json.rows import MemberRow, built_rows, member_values, stamped
-from edit_cfg_json.tree import assembled, starts_folded
+from edit_cfg_json.rows import MemberRow, built_rows, stamped
+from edit_cfg_json.tree import assembled, member_values, starts_folded
 from edit_cfg_json.validation import SubtreeAnswer
 
 NOT_EDITABLE_ERROR = 'Member {name} is not a value that can be edited.'
@@ -37,6 +42,46 @@ becomes one.
 
 NOT_A_CONTAINER = 'Member {name} is not a list or a dict.'
 """Message of the error raised when a node that holds none is folded."""
+
+
+def _swapped_order(count: int, index: int, later: bool) -> list[int]:
+    """Return the order of one list with one element moved by one place.
+
+    Args:
+        count: How many elements the list holds.
+        index: Where the element that moves is now.
+        later: Whether it changes places with the one after it.
+
+    Returns:
+        The index each element of the new list had in the old one.
+    """
+    order = list(range(count))
+    other = index + 1 if later else index - 1
+    order[index], order[other] = order[other], order[index]
+    return order
+
+
+def _renamed(rows: Mapping[ConfigPath, MemberRow],
+             moved: Mapping[ConfigPath, ConfigPath]
+             ) -> dict[ConfigPath, MemberRow]:
+    """Return the rows under the paths that they have after a change.
+
+    A row whose path has not changed keeps it. A row that has moved is put
+    under its new path, which is what takes the place of the row that used to
+    be there, and the path an element vacated is left to whatever moved into
+    it or to nothing at all.
+
+    Args:
+        rows: The rows as they were before the change.
+        moved: The new path of every row whose path has changed.
+
+    Returns:
+        Those rows by the path each of them has now, which is what the next
+        build compares against.
+    """
+    kept = {path: row for path, row in rows.items() if path not in moved}
+    kept.update({new: rows[old] for old, new in moved.items()})
+    return kept
 
 
 class EditBuffer:
@@ -56,7 +101,8 @@ class EditBuffer:
     """
 
     def __init__(self, config: Config, report: LoadReport,
-                 descriptions: Descriptions, stderr_file: TextIO) -> None:
+                 descriptions: Descriptions, stderr_file: TextIO,
+                 defaults: Mapping[str, JsonType]) -> None:
         """Read the JSON space values of one configuration object.
 
         Args:
@@ -65,6 +111,11 @@ class EditBuffer:
             report: What reading the input file did beyond reading the values.
             descriptions: What the application says about its members.
             stderr_file: Stream used for user-facing diagnostics.
+            defaults: The values that the class declares, which is what a new
+                element of an ordinary list is copied from. They are empty for
+                a class the editor could not construct at all, which costs
+                that configuration the offer to grow such a list and nothing
+                else.
 
         Raises:
             InvalidConfiguration: The configuration object is not valid.
@@ -73,6 +124,7 @@ class EditBuffer:
         """
         self._report = report
         self._descriptions = descriptions
+        self._defaults = defaults
         self._folded: set[ConfigPath] = set()
         self._answers: dict[ConfigPath, SubtreeAnswer] = {}
         self._rows: dict[ConfigPath, MemberRow] = {}
@@ -199,6 +251,154 @@ class EditBuffer:
                         if row.foldable} if self.anything_open else set()
         self._stamp()
 
+    def add_element(self, config: Config, path: ConfigPath,
+                    key: str = '') -> None:
+        """Put one more element into a node that holds them.
+
+        A new element is what the class of the configuration said one is: an
+        object of the declared class where the class declares one, and a copy
+        of what it declares for the member where it does not. A declared member
+        that holds no object is grown by being given the object it is for,
+        which is what design section 4.1 of `doc/design.md` calls adding.
+
+        Args:
+            config: Configuration object of the session. It is modified where
+                the new element is a configuration object, because the tree
+                finds those objects by walking the real ones. It is the
+                editor's own copy and never the caller's.
+            path: Path of the node to put an element into.
+            key: Name of the new entry of a dict, empty for everything else.
+
+        Raises:
+            KeyError: The path is not a node of this configuration.
+            ValueError: Nothing can be added there, or the key is missing,
+                unwanted or one that dict already holds.
+        """
+        row = self._rows[path]
+        refused(offered=row.offer.extend, form=NOT_EXTENDABLE, path=path)
+        checked_key(offer=row.offer, value=row.value, key=key, path=path)
+        object_added(config=config, path=path, key=key, stream=StringIO())
+        made = grown(value=row.value, key=key, template=row.offer.template) \
+            if row.foldable else deepcopy(row.offer.template)
+        self._restructured(config=config, path=path, value=made, moved={})
+
+    def remove_element(self, config: Config, path: ConfigPath) -> None:
+        """Take one element out of the node that holds it.
+
+        Args:
+            config: Configuration object of the session, modified as above.
+            path: Path of the element to remove, or of the declared optional
+                member to put back to holding no object.
+
+        Raises:
+            KeyError: The path is not a node of this configuration.
+            ValueError: That node is not one that can be removed.
+        """
+        row = self._rows[path]
+        refused(offered=row.offer.remove, form=NOT_REMOVABLE, path=path)
+        object_removed(config=config, path=path)
+        held = self._container_of(path)
+        if held is None:
+            self._restructured(config=config, path=path, value=None, moved={})
+            return
+        self._restructured(config=config, path=held.path,
+                           value=shrunk(value=held.value, step=path[-1]),
+                           moved=self._moved(held=held, path=path,
+                                             removing=True))
+
+    def move_element(self, config: Config, path: ConfigPath,
+                     later: bool) -> None:
+        """Make one element of a list change places with a neighbour.
+
+        Args:
+            config: Configuration object of the session, modified as above.
+            path: Path of the element to move.
+            later: Whether it changes places with the one after it rather than
+                with the one before it.
+
+        Raises:
+            KeyError: The path is not a node of this configuration.
+            ValueError: That node cannot be moved that way.
+        """
+        row = self._rows[path]
+        refused(offered=row.offer.later if later else row.offer.earlier,
+                form=NOT_MOVABLE, path=path)
+        object_moved(config=config, path=path, later=later)
+        held = self._rows[path[:-1]]
+        order = swapped(value=held.value, index=int(path[-1]), later=later)
+        self._restructured(config=config, path=held.path, value=order,
+                           moved=self._moved(held=held, path=path,
+                                             removing=False, later=later))
+
+    def _container_of(self, path: ConfigPath) -> Optional[MemberRow]:
+        """Return the row of the container one node is an element of.
+
+        Args:
+            path: Path of the node to ask about.
+
+        Returns:
+            The row of the list or the dict holding it, and None for a
+            declared member, which is held by a configuration object and not
+            by a container.
+        """
+        parent = self._rows.get(path[:-1])
+        if parent is None or parent.config_type is not None or \
+                not parent.foldable:
+            return None
+        return parent
+
+    def _moved(self, held: MemberRow, path: ConfigPath, removing: bool,
+               later: bool = False) -> dict[ConfigPath, ConfigPath]:
+        """Return where each node under one container goes after a change.
+
+        Every node inside the container and not only its elements, because an
+        element of a list holds nodes of its own and all of them are addressed
+        through the index that has just changed.
+
+        A dictionary entry keeps its key whatever happens to the entries
+        beside it, so only a list moves anything.
+
+        Args:
+            held: Row of the container that changed.
+            path: Path of the element that was removed or moved.
+            removing: Whether the element was taken out rather than moved.
+            later: Whether it changed places with the one after it.
+
+        Returns:
+            The new path of every node whose path has changed.
+        """
+        if not isinstance(held.value, list):
+            return {}
+        index = int(path[-1])
+        order = kept_order(count=len(held.value), without=index) if removing \
+            else _swapped_order(count=len(held.value), index=index,
+                                later=later)
+        return moved_paths(paths=self._rows, container=held.path, order=order)
+
+    def _restructured(self, config: Config, path: ConfigPath, value: JsonType,
+                      moved: Mapping[ConfigPath, ConfigPath]) -> None:
+        """Give one node a new value and build the rows around it again.
+
+        Everything the buffer holds about a node is held under the path of
+        that node, and an element of a list is addressed by where it is, so
+        the fold state, what each object said about itself and what each row
+        is compared against all move with the values.
+
+        Args:
+            config: Configuration object of the session, which now holds the
+                objects that this change made or removed.
+            path: Path of the node whose value changed.
+            value: The value it holds now.
+            moved: The new path of every node whose path has changed.
+        """
+        self._rows[path] = self._rows[path]._replace(value=value)
+        self._hold_again(path)
+        self._folded = {moved.get(other, other) for other in self._folded}
+        self._answers = {moved.get(other, other): answer
+                         for other, answer in self._answers.items()}
+        self._rebuild(config=config, members=self.values(),
+                      previous=_renamed(rows=self._rows, moved=moved))
+
     def take_subtrees(self,
                       answers: Mapping[ConfigPath, SubtreeAnswer]) -> None:
         """Keep what asking these objects about themselves found.
@@ -241,10 +441,12 @@ class EditBuffer:
                 them. It is not modified.
             members: One JSON space value per member of the accepted object.
         """
-        self._rebuild(config=config, members=members, previous=self._rows)
+        self._rebuild(config=config, members=members, previous=self._rows,
+                      refreshing=True)
 
     def _rebuild(self, config: Config, members: Mapping[str, JsonType],
-                 previous: Mapping[ConfigPath, MemberRow]) -> None:
+                 previous: Mapping[ConfigPath, MemberRow],
+                 refreshing: bool = False) -> None:
         """Build the rows from one set of values, keeping what was known.
 
         Args:
@@ -252,11 +454,15 @@ class EditBuffer:
                 modified.
             members: One JSON space value per serialized member.
             previous: The rows as they were before, empty for the first build.
+            refreshing: Whether these values are what a validation pass
+                accepted, which is what decides whether a node it changed is
+                marked as one a validator wrote.
         """
         self._rows = built_rows(config=config, members=dict(members),
                                 report=self._report,
                                 descriptions=self._descriptions,
-                                previous=previous)
+                                previous=previous, defaults=self._defaults,
+                                refreshing=refreshing)
         self._fold_new(previous)
         self._forget_gone()
         self._stamp()
@@ -316,6 +522,11 @@ class EditBuffer:
         An object beside it is left alone: nothing inside that one has
         changed, so what it said is as true as it was.
 
+        The object *at* the node is taken back as well, which only a change of
+        structure reaches: an editable node is never a configuration object,
+        and a member that has just been given one has an object that nothing
+        has asked anything of yet.
+
         It is a different lifetime from the verdict of the whole
         configuration, which any edit anywhere takes away, and that is why the
         answers are kept here rather than there.
@@ -329,7 +540,7 @@ class EditBuffer:
             and the second of them has nothing left to take back.
         """
         kept = {other: answer for other, answer in self._answers.items()
-                if not (len(other) < len(path)
+                if not (len(other) <= len(path)
                         and path[:len(other)] == other)}
         if len(kept) == len(self._answers):
             return False

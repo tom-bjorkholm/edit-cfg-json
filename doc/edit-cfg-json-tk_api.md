@@ -28,12 +28,14 @@
     * [subtree](#edit_cfg_json_tk.tk_editor.RowWidgets.subtree)
     * [description](#edit_cfg_json_tk.tk_editor.RowWidgets.description)
     * [diagnostic](#edit_cfg_json_tk.tk_editor.RowWidgets.diagnostic)
+    * [elements](#edit_cfg_json_tk.tk_editor.RowWidgets.elements)
   * [EditorWidgets](#edit_cfg_json_tk.tk_editor.EditorWidgets)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.EditorWidgets.__init__)
     * [label\_text](#edit_cfg_json_tk.tk_editor.EditorWidgets.label_text)
     * [verdict\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.verdict_text_shown)
     * [save\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.save_text_shown)
     * [wrong\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.wrong_shown)
+    * [element\_texts](#edit_cfg_json_tk.tk_editor.EditorWidgets.element_texts)
     * [docstring\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.docstring_shown)
   * [TkEditor](#edit_cfg_json_tk.tk_editor.TkEditor)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.TkEditor.__init__)
@@ -51,6 +53,7 @@
   * [DESCRIPTION\_INDENT](#edit_cfg_json_tk.tk_look.DESCRIPTION_INDENT)
   * [TREE\_INDENT](#edit_cfg_json_tk.tk_look.TREE_INDENT)
   * [FOLD\_WIDTH](#edit_cfg_json_tk.tk_look.FOLD_WIDTH)
+  * [ELEMENT\_WIDTH](#edit_cfg_json_tk.tk_look.ELEMENT_WIDTH)
   * [LEAST\_WRAP\_WIDTH](#edit_cfg_json_tk.tk_look.LEAST_WRAP_WIDTH)
   * [EMPHASIS\_COLOURS](#edit_cfg_json_tk.tk_look.EMPHASIS_COLOURS)
   * [FIELD\_BACKGROUND](#edit_cfg_json_tk.tk_look.FIELD_BACKGROUND)
@@ -62,6 +65,15 @@
   * [wrap\_to\_width](#edit_cfg_json_tk.tk_look.wrap_to_width)
   * [label\_text](#edit_cfg_json_tk.tk_look.label_text)
   * [place\_text](#edit_cfg_json_tk.tk_look.place_text)
+* [edit\_cfg\_json\_tk.tk\_elements](#edit_cfg_json_tk.tk_elements)
+  * [ADD\_TEXT](#edit_cfg_json_tk.tk_elements.ADD_TEXT)
+  * [REMOVE\_TEXT](#edit_cfg_json_tk.tk_elements.REMOVE_TEXT)
+  * [EARLIER\_TEXT](#edit_cfg_json_tk.tk_elements.EARLIER_TEXT)
+  * [LATER\_TEXT](#edit_cfg_json_tk.tk_elements.LATER_TEXT)
+  * [ADD\_KEY\_TITLE](#edit_cfg_json_tk.tk_elements.ADD_KEY_TITLE)
+  * [ADD\_KEY\_PROMPT](#edit_cfg_json_tk.tk_elements.ADD_KEY_PROMPT)
+  * [element\_controls](#edit_cfg_json_tk.tk_elements.element_controls)
+  * [asked\_key](#edit_cfg_json_tk.tk_elements.asked_key)
 * [edit\_cfg\_json\_tk.scrolling](#edit_cfg_json_tk.scrolling)
   * [BODY\_HEIGHT](#edit_cfg_json_tk.scrolling.BODY_HEIGHT)
   * [BODY\_WIDTH](#edit_cfg_json_tk.scrolling.BODY_WIDTH)
@@ -299,6 +311,18 @@ The widget that says what is wrong with this member.
 Every member has one, unlike the description above it: any member can be
 refused, so there is no member for which this could never say anything.
 
+<a id="edit_cfg_json_tk.tk_editor.RowWidgets.elements"></a>
+
+#### elements
+
+The controls that change how many elements this node holds.
+
+A node is given exactly the ones it offers and nothing at all where it
+offers none, because they sit at the end of the line rather than in a
+column that every row has to keep clear. Which of them a node offers can
+change — the first element of a list cannot move up until something is put
+in front of it — and the rows are built again whenever it does.
+
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets"></a>
 
 ## EditorWidgets Objects
@@ -397,6 +421,22 @@ Return what the editor says about each member, in row order.
 
 A member that nothing is known to be wrong with says nothing, so most
 of these are empty most of the time.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets.element_texts"></a>
+
+#### element\_texts
+
+```python
+@property
+def element_texts() -> list[list[str]]
+```
+
+Return what the controls of each node say, in row order.
+
+Most of them are empty, because most nodes offer nothing about how
+many things they hold: a value is not something that holds elements,
+and the members of a configuration object are the ones its class
+declares.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets.docstring_shown"></a>
 
@@ -650,6 +690,17 @@ Width in characters of the control that folds one container.
 Every row has one that wide, and the rows that hold nothing to fold have an
 empty one, so that the names of a container and of a value beside it line up.
 
+<a id="edit_cfg_json_tk.tk_look.ELEMENT_WIDTH"></a>
+
+#### ELEMENT\_WIDTH
+
+Width in characters of one control that changes how many elements there are.
+
+They sit at the end of the line of the node they belong to, so a row that
+offers none of them needs no width held for it and gets none. That is what
+makes four of them affordable where the one control that folds a container has
+to keep a column clear on every row.
+
 <a id="edit_cfg_json_tk.tk_look.LEAST_WRAP_WIDTH"></a>
 
 #### LEAST\_WRAP\_WIDTH
@@ -831,6 +882,121 @@ blank line under every member would have hidden nothing.
 - `label` - Widget that shows one text below a member, or None for a text
   that this member can never have.
 - `text` - Text to show, empty when there is nothing to show.
+
+<a id="edit_cfg_json_tk.tk_elements"></a>
+
+# edit\_cfg\_json\_tk.tk\_elements
+
+The Tk controls that change how many elements a node holds.
+
+They are here rather than in the module that builds the window for the reason
+every other split of this backend was made: one module of a thousand lines is
+one nobody reads to the end. What is here is one row's worth of controls and
+the one question this backend has to ask that the toolkit has no dialog of its
+own for, which is what a new entry of a dict is to be called.
+
+Nothing here decides *whether* a node offers anything. That is
+`edit_cfg_json.MemberRow.offer`, which the core works out once so that the two
+backends cannot offer different things.
+
+<a id="edit_cfg_json_tk.tk_elements.ADD_TEXT"></a>
+
+#### ADD\_TEXT
+
+Text of the control that puts one more element into a node.
+
+It is a word and not the `+` of the fold control beside it, because the two do
+different things and one row can have both: a list of configuration objects
+folds away and grows, and two controls saying `+` on one line would be two
+offers that could not be told apart.
+
+<a id="edit_cfg_json_tk.tk_elements.REMOVE_TEXT"></a>
+
+#### REMOVE\_TEXT
+
+Text of the control that takes one element out of what holds it.
+
+<a id="edit_cfg_json_tk.tk_elements.EARLIER_TEXT"></a>
+
+#### EARLIER\_TEXT
+
+Text of the control that moves one element towards the front.
+
+<a id="edit_cfg_json_tk.tk_elements.LATER_TEXT"></a>
+
+#### LATER\_TEXT
+
+Text of the control that moves one element towards the back.
+
+<a id="edit_cfg_json_tk.tk_elements.ADD_KEY_TITLE"></a>
+
+#### ADD\_KEY\_TITLE
+
+Title of the dialog that asks what a new entry of a dict is called.
+
+<a id="edit_cfg_json_tk.tk_elements.ADD_KEY_PROMPT"></a>
+
+#### ADD\_KEY\_PROMPT
+
+What that dialog asks, naming the member that is about to grow.
+
+<a id="edit_cfg_json_tk.tk_elements.element_controls"></a>
+
+#### element\_controls
+
+```python
+def element_controls(parent: tkinter.Misc, row: core.MemberRow,
+                     model: core.EditModel,
+                     after: Callable[[], None]) -> tuple[tkinter.Button, ...]
+```
+
+Create the controls that change how many elements one node holds.
+
+They are put at the end of the line of the node, after the value and the
+marks, so a node that offers none of them costs the values no width at
+all. That is what makes four of them affordable where the one control
+that folds a container has to keep a column clear on every row.
+
+**Arguments**:
+
+- `parent` - Line of the node that is being shown.
+- `row` - Node to create the controls for.
+- `model` - Model that the change is made in.
+- `after` - What to do once the model has changed, which is to make the
+  widgets again: a change of the elements changes how many rows
+  there are and which controls each of them offers.
+  
+
+**Returns**:
+
+  The controls that node offers, and nothing at all for one that offers
+  none, which is most nodes of most configurations.
+
+<a id="edit_cfg_json_tk.tk_elements.asked_key"></a>
+
+#### asked\_key
+
+```python
+def asked_key(row: core.MemberRow) -> Optional[str]
+```
+
+Ask what a new entry of one dict is to be called.
+
+A new entry of a dict has to be called something, and nothing but the
+person configuring the application knows what. A key the dict already
+holds is asked about again rather than allowed to take the place of what
+is there: the model refuses such a key, and an editor that let the
+question be answered with one would be offering to lose an entry.
+
+**Arguments**:
+
+- `row` - Node that is about to be given an entry.
+  
+
+**Returns**:
+
+  The key that was named, and None where the question was left
+  unanswered or answered with nothing.
 
 <a id="edit_cfg_json_tk.scrolling"></a>
 

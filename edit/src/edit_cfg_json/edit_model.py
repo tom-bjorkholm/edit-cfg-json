@@ -6,12 +6,14 @@
 
 from collections.abc import Sequence
 from copy import deepcopy
+from io import StringIO
 from typing import Optional, TextIO
 import sys
 from config_as_json import Config, ConfigPath, PathOrStr
 from edit_cfg_json.buffer import EditBuffer
 from edit_cfg_json.descriptions import Descriptions, class_docstring, \
     class_summary
+from edit_cfg_json.elements import declared_values
 from edit_cfg_json.loader import ConfigLoader, ConfigSource
 from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.rows import MemberRow
@@ -46,6 +48,11 @@ class EditModel:
     edited a value at a time. Each of those rows is addressed by its own path,
     and every one of those nodes can be folded away, which is state of this
     model so that two backends cannot fold different things.
+
+    How many things such a member holds is editable as well, because that is
+    what a member of that shape exists to let the application's user decide. A
+    new element is copied from what the class declares and never invented, and
+    a node the editor has nothing to copy for offers nothing and says so.
 
     The buffer is validated by running the application's own configuration
     class over it rather than by any rule of the editor's own, so the user
@@ -106,10 +113,14 @@ class EditModel:
                 description reaches is shown without one, which is all that
                 saying nothing costs.
             loader: How this application constructs its configuration, or None
-                when it did not say. The model needs it for one thing only: a
-                save asks it whether the application would read back the file
-                that is about to be written, which is the one question the
-                validation of a buffer cannot answer.
+                when it did not say. The model needs it for two things. A save
+                asks it whether the application would read back the file that
+                is about to be written, which is the one question the
+                validation of a buffer cannot answer; and it is asked here,
+                with no JSON source, for the values the class declares, which
+                is what a new element of an ordinary list is copied from. A
+                class the editor cannot construct answers with nothing and
+                loses that offer and nothing else.
             out_file: File that saving writes, or None when the user has not
                 chosen one yet and the editor has to ask before it can save.
                 It is taken exactly as it is, because a destination that was
@@ -129,9 +140,10 @@ class EditModel:
         """
         own = deepcopy(config)
         self._source = ConfigSource(config=own, loader=loader)
+        declared = declared_values(source=self._source, stream=StringIO())
         self._buffer = EditBuffer(config=own, report=report,
                                   descriptions=descriptions or {},
-                                  stderr_file=stderr_file)
+                                  stderr_file=stderr_file, defaults=declared)
         self._verdict: Optional[ValidationVerdict] = None
         self._settings = settings
         self._saving = SaveState(out_file=out_file)
@@ -382,8 +394,90 @@ class EditModel:
             ValueError: The node is not one that this version can edit.
         """
         if self._buffer.set_text(path=path, text=text):
-            self._verdict = None
-            self._saving.outcome = None
+            self._changed()
+
+    def add_element(self, path: ConfigPath, key: str = '') -> None:
+        """Put one more element into a node that holds them.
+
+        A new element is what the class of the configuration said one is,
+        because it is the only thing that knows: an object of the declared
+        class where a class declares that every element of a list or every
+        value of a dict is one, and a copy of what the class declares for the
+        member itself where it declares no such thing. The editor invents no
+        value that the application never mentioned, and a node it has nothing
+        to copy for offers nothing and says why.
+
+        A declared member holding no configuration object is grown by being
+        given the object it is for. That is adding rather than editing, for
+        the reason a field cannot do it: no text typed into a field becomes a
+        configuration object.
+
+        Which nodes offer this is on the rows, as `MemberRow.offer`, so that
+        two user interfaces of one application cannot offer different things.
+
+        Args:
+            path: Path of the node to put an element into.
+            key: Name of the new entry of a dict, which only the user can
+                give. It is empty for everything else, because an element of a
+                list is addressed by where it is.
+
+        Raises:
+            KeyError: The path is not a node of this configuration.
+            ValueError: Nothing can be added there, or the key is missing,
+                unwanted, or one that dict already holds.
+        """
+        self._buffer.add_element(config=self._source.config, path=path,
+                                 key=key)
+        self._changed()
+
+    def remove_element(self, path: ConfigPath) -> None:
+        """Take one element out of the node that holds it.
+
+        A declared optional member that holds an object is put back to holding
+        none, which is the other half of what adding one does. A member that
+        its class leaves out of the file altogether is not offered this: it
+        would then have no row at all, and a member the editor had taken off
+        the screen could never be given an object again.
+
+        Args:
+            path: Path of the element to remove.
+
+        Raises:
+            KeyError: The path is not a node of this configuration.
+            ValueError: That node is not one that can be removed.
+        """
+        self._buffer.remove_element(config=self._source.config, path=path)
+        self._changed()
+
+    def move_element(self, path: ConfigPath, later: bool) -> None:
+        """Make one element of a list change places with a neighbour.
+
+        The order of a list is part of what the file says, so it is part of
+        what an editor of that file has to be able to change. A dict has no
+        such question, because it is written in the sorted order of its keys.
+
+        Args:
+            path: Path of the element to move.
+            later: Whether it changes places with the one after it rather than
+                with the one before it.
+
+        Raises:
+            KeyError: The path is not a node of this configuration.
+            ValueError: That node cannot be moved that way.
+        """
+        self._buffer.move_element(config=self._source.config, path=path,
+                                  later=later)
+        self._changed()
+
+    def _changed(self) -> None:
+        """Drop what was true of the buffer before this change.
+
+        A verdict and a save are about the values that were there when they
+        were reached, so both of them say nothing true about a buffer that has
+        changed since.
+        """
+        self._verdict = None
+        self._saving.outcome = None
 
     def check_field(self, path: ConfigPath) -> None:
         """Report whether the text of one node means a value of it at all.

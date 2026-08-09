@@ -116,6 +116,15 @@ the same class, one of which may be absent altogether.
 | --- | --- |
 | [e10_reports.json](e10_reports.json) | Opens with two reports in the list and three in the dict, rather than the three and two the class declares. That folds the other one of the two containers: how many rows opening a container would add is what decides which of them opens folded, and neither the member nor the declared default has anything to do with it. |
 
+## Files for `e11_add_remove.py`
+
+`PipelineConfig` holds every shape a member that has several of something can
+have, so that what can be added to each of them can be read side by side.
+
+| File | What happens |
+| --- | --- |
+| [e11_pipeline.json](e11_pipeline.json) | Opens with two machines in `extra_hosts`, which the declared defaults leave empty. That is what makes the member extendable: nothing declares what one host looks like, so the editor has nothing to copy until the file gives it one. It also holds three stages rather than two and an `audit` stage rather than none. |
+
 ## Why a file with a bad value cannot be opened
 
 An editor that refused to open the very file that has to be repaired would

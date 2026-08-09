@@ -18,10 +18,14 @@ import sys
 from config_as_json import Config, ConfigPath, PathOrStr
 from textual.app import App, ComposeResult, SystemCommand
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.screen import ModalScreen, Screen
+from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 import edit_cfg_json as core
+from edit_cfg_json_textual.textual_ask import ASK_BOX_ID, AskScreen
+from edit_cfg_json_textual.textual_elements import ADD_ACTION, ASK_KEY_ID, \
+    ASK_KEY_LEAVE, ASK_KEY_PROMPT, ELEMENT_CLASS, EARLIER_ACTION, \
+    REMOVE_ACTION, element_button, element_id, offered_actions
 from edit_cfg_json_textual.textual_look import COLOUR_RULES, bind_action, \
     description_id, diagnostic_id, fold_glyph, fold_id, mark_id, \
     member_id, plain_widget, show_emphasis, subtree_id, value_id
@@ -48,9 +52,6 @@ They have a container of their own inside the part that scrolls, because a
 validation pass can leave the model with other rows than it had and they are
 then mounted afresh. What is above them is not, so it is not in here.
 """
-
-SAVE_AS_BOX_ID = 'save_as_box'
-"""Identifier of the box that asks which file to write."""
 
 SAVE_AS_ID = 'save_as'
 """Identifier of the field that the file to write is typed into."""
@@ -118,9 +119,6 @@ edits, and `model_as_text` shows every mark in full whatever the terminal.
 
 QUIT_COMMAND = 'Quit'
 """Name of the action that ends the editor."""
-
-CANCEL_COMMAND = 'Cancel'
-"""Name of the action that leaves the question about the output file."""
 
 VALIDATE_COMMAND = 'Validate'
 """Name of the command palette entry that validates the buffer."""
@@ -198,6 +196,8 @@ CSS_RULES = COLOUR_RULES + (
     f'.{NAME_CLASS} {{ width: {NAME_WIDTH}; }}',
     f'.{VALUE_CLASS} {{ width: 1fr; min-width: {LEAST_VALUE_WIDTH}; }}',
     f'.{MARK_CLASS}, .{SUBTREE_CLASS} {{ width: auto; }}',
+    f'.{ELEMENT_CLASS} {{ width: auto; min-width: 0; height: 1;'
+    ' border: none; padding: 0 1; margin: 0; }',
     f'.{FOLD_CLASS} {{ width: {FOLD_WIDTH}; min-width: {FOLD_WIDTH};'
     ' height: 1; border: none; padding: 0; margin: 0;'
     ' text-align: center; }',
@@ -205,8 +205,8 @@ CSS_RULES = COLOUR_RULES + (
     f' padding-left: {DESCRIPTION_INDENT}; }}',
     f'#{DOCSTRING_ID} {{ width: 1fr; height: auto; }}',
     f'.{ROW_CLASS} Input {{ height: 1; border: none; padding: 0; }}',
-    'SaveAsScreen { align: center middle; }',
-    f'#{SAVE_AS_BOX_ID} {{ width: 80%; height: auto; padding: 1 2;'
+    'AskScreen { align: center middle; }',
+    f'#{ASK_BOX_ID} {{ width: 80%; height: auto; padding: 1 2;'
     ' border: round $primary; background: $surface; }')
 """The width and the height of every part of one member row.
 
@@ -239,76 +239,6 @@ the fields inside a member row.
 """
 
 
-class SaveAsScreen(ModalScreen[Optional[str]]):
-    """Ask which file to write, and give back None when none was named.
-
-    The question is a screen of its own rather than a field in the editor,
-    because it is asked, answered and gone: a field that was always there
-    would be a fifth thing to read on every row of every session, for a
-    question that is asked once or never.
-    """
-
-    def __init__(self, out_file: str, cancel_keys: Sequence[str]) -> None:
-        """Start the field at the file that would be written now.
-
-        The keys that leave the question are bound here rather than declared
-        as a class variable, because which keys they are is the
-        application's decision and not this screen's.
-
-        Args:
-            out_file: File that saving would write, empty when there is none
-                yet. Starting from it is what makes saving a copy beside the
-                original a matter of changing a few characters.
-            cancel_keys: Key combinations that leave the question
-                unanswered, empty when the application gave it none.
-        """
-        super().__init__()
-        self._out_file = out_file
-        self._cancel_keys = tuple(cancel_keys)
-        bind_action(self._bindings, keys=self._cancel_keys, action='leave',
-                    description=CANCEL_COMMAND)
-
-    def compose(self) -> ComposeResult:
-        """Create the question and the field that answers it."""
-        with Vertical(id=SAVE_AS_BOX_ID):
-            yield Label(self._prompt())
-            yield Input(value=self._out_file, id=SAVE_AS_ID,
-                        select_on_focus=False)
-
-    def _prompt(self) -> str:
-        """Return what this screen says, naming the key that leaves it."""
-        if not self._cancel_keys:
-            return SAVE_AS_PROMPT
-        return SAVE_AS_LEAVE.format(key=self._cancel_keys[0])
-
-    def on_input_changed(self, event: Input.Changed) -> None:
-        """Keep what happens in this field to this screen.
-
-        The editor underneath writes every field change into the model, and
-        this field is not a member of the configuration: it is the name of a
-        file. A message that reached the editor would be looked for among the
-        members and found nowhere.
-        """
-        event.stop()
-
-    def on_input_blurred(self, event: Input.Blurred) -> None:
-        """Keep leaving this field to this screen, for the same reason.
-
-        The editor underneath asks the model about the member whose field was
-        left, and the name of a file is no member of the configuration.
-        """
-        event.stop()
-
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Give back the file that was named, and leave the screen."""
-        event.stop()
-        self.dismiss(event.value)
-
-    def action_leave(self) -> None:
-        """Leave the screen without naming a file."""
-        self.dismiss(None)
-
-
 class EditorApp(App[None]):
     """Textual application that edits one edit model."""
 
@@ -328,6 +258,7 @@ class EditorApp(App[None]):
         self._model = model
         self._member_rows: dict[str, core.MemberRow] = {}
         self._fold_rows: dict[str, core.MemberRow] = {}
+        self._element_rows: dict[str, tuple[core.MemberRow, str]] = {}
         self._built: tuple[ConfigPath, ...] = ()
         self.title = core.model_title(model)
         self._bind_editor_keys()
@@ -443,6 +374,7 @@ class EditorApp(App[None]):
         """
         self._member_rows = {}
         self._fold_rows = {}
+        self._element_rows = {}
         self._built = tuple(row.path for row in self._model.rows)
         return [self._member_widget(index=index, row=row)
                 for index, row in enumerate(self._model.rows)]
@@ -466,7 +398,8 @@ class EditorApp(App[None]):
                              core.MEMBER_MARK)
         beside = [Label(row.name, classes=NAME_CLASS),
                   self._value_widget(index=index, row=row), marks,
-                  *self._subtree_widgets(index=index, row=row)]
+                  *self._subtree_widgets(index=index, row=row),
+                  *self._element_widgets(index=index, row=row)]
         folding = self._fold_widget(index=index, row=row)
         line = Horizontal(*([folding] if folding is not None else []), *beside,
                           classes=ROW_CLASS)
@@ -477,6 +410,28 @@ class EditorApp(App[None]):
         member.styles.padding = (0, 0, 0, row.depth * TREE_INDENT)
         member.display = row.shown
         return member
+
+    def _element_widgets(self, index: int,
+                         row: core.MemberRow) -> ComposeResult:
+        """Create the controls that change how many elements one node holds.
+
+        They are at the end of the line, after the value and the marks, so a
+        node that offers none of them costs the values no width at all. That
+        is what makes four of them affordable where the one control that folds
+        a container has to keep a column clear on every row.
+
+        Args:
+            index: Place of the node among the rows.
+            row: Node to create the controls for.
+
+        Returns:
+            The controls that node offers, and none at all for one that
+            offers none, which is most nodes of most configurations.
+        """
+        for action in offered_actions(row):
+            widget_id = element_id(index=index, action=action)
+            self._element_rows[widget_id] = (row, action)
+            yield element_button(widget_id=widget_id, action=action)
 
     @staticmethod
     def _subtree_widgets(index: int, row: core.MemberRow) -> ComposeResult:
@@ -685,16 +640,86 @@ class EditorApp(App[None]):
         self._show_folding()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Fold the one container whose control the user pressed.
+        """Do what the control the user pressed is for.
 
-        The only buttons this editor has are the fold controls, and the
-        message is stopped here because nothing above them has any use for it.
+        There are two kinds of them and the identifier says which: the control
+        that folds one container, and the ones that change how many elements
+        a node holds. The message is stopped here because nothing above them
+        has any use for it.
         """
         widget_id = event.button.id
         assert widget_id is not None
         event.stop()
-        self._model.toggle_fold(self._fold_rows[widget_id].path)
-        self._show_folding()
+        if widget_id in self._fold_rows:
+            self._model.toggle_fold(self._fold_rows[widget_id].path)
+            self._show_folding()
+            return
+        row, action = self._element_rows[widget_id]
+        self._change_elements(row=row, action=action)
+
+    def _change_elements(self, row: core.MemberRow, action: str) -> None:
+        """Add, remove or move one element, asking for a key where needed.
+
+        Args:
+            row: Node whose control was pressed.
+            action: What that control is for.
+        """
+        if action == REMOVE_ACTION:
+            self._model.remove_element(row.path)
+            self._rebuilt_elements()
+            return
+        if action != ADD_ACTION:
+            self._model.move_element(path=row.path,
+                                     later=action != EARLIER_ACTION)
+            self._rebuilt_elements()
+            return
+        if not row.offer.keyed:
+            self._model.add_element(row.path)
+            self._rebuilt_elements()
+            return
+        self._ask_key(row)
+
+    def _ask_key(self, row: core.MemberRow) -> None:
+        """Ask what a new entry of one dict is to be called.
+
+        A new entry of a dict has to be called something, and nothing but the
+        person configuring the application knows what.
+
+        Args:
+            row: Node that is about to be given an entry.
+        """
+        cancel = self._model.settings.actions.cancel
+        name = core.path_text(row.path)
+        prompt = ASK_KEY_PROMPT.format(name=name) if not cancel \
+            else ASK_KEY_LEAVE.format(name=name, key=cancel[0])
+
+        def add_named(key: Optional[str]) -> None:
+            """Add the entry that was named, and nothing when none was.
+
+            A key the dict already holds is asked about again rather than
+            allowed to take the place of what is there: the model refuses such
+            a key, and an editor that let the question be answered with one
+            would be offering to lose an entry.
+            """
+            if not key:
+                return
+            if key in (row.value if isinstance(row.value, dict) else {}):
+                self._ask_key(row)
+                return
+            self._model.add_element(path=row.path, key=key)
+            self._rebuilt_elements()
+        self.push_screen(AskScreen(prompt=prompt, field_id=ASK_KEY_ID,
+                                   cancel_keys=cancel), add_named)
+
+    def _rebuilt_elements(self) -> None:
+        """Show the rows the model has now, after an element changed.
+
+        The widgets are always mounted afresh, and not only where the paths
+        differ as a validation pass leaves them: which controls a row offers
+        changes with the elements, so a row that is still at the same path is
+        not necessarily still offering the same things.
+        """
+        self.call_next(self._rebuild_rows)
 
     def _show_folding(self) -> None:
         """Show which containers are folded and what each control now does.
@@ -762,10 +787,13 @@ class EditorApp(App[None]):
 
     def action_save_as(self) -> None:
         """Ask which file to write, and write it when one was named."""
-        self.push_screen(
-            SaveAsScreen(out_file=self._out_file_text(),
-                         cancel_keys=self._model.settings.actions.cancel),
-            self._save_to)
+        cancel = self._model.settings.actions.cancel
+        prompt = SAVE_AS_PROMPT if not cancel \
+            else SAVE_AS_LEAVE.format(key=cancel[0])
+        self.push_screen(AskScreen(prompt=prompt, field_id=SAVE_AS_ID,
+                                   cancel_keys=cancel,
+                                   answer=self._out_file_text()),
+                         self._save_to)
 
     def check_action(self, action: str,
                      parameters: tuple[object, ...]) -> Optional[bool]:
@@ -785,7 +813,7 @@ class EditorApp(App[None]):
             own, and True for every other action at every other time.
         """
         _ = parameters
-        if action in EDITOR_ACTIONS and isinstance(self.screen, SaveAsScreen):
+        if action in EDITOR_ACTIONS and isinstance(self.screen, AskScreen):
             return None
         return True
 

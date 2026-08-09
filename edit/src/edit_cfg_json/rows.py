@@ -18,12 +18,13 @@ over, which is what makes the second build a refresh rather than a new session.
 # MIT License
 
 from collections.abc import Container, Mapping, Sequence
-from typing import NamedTuple, Optional, TextIO
-import json
+from types import MappingProxyType
+from typing import NamedTuple, Optional
 from config_as_json import Config, ConfigPath, JsonType, ParseConverter
 from edit_cfg_json.converting import node_converters
 from edit_cfg_json.descriptions import Descriptions, MemberFacts, \
     member_description, optional_paths
+from edit_cfg_json.elements import ElementOffer, element_offers, tree_facts
 from edit_cfg_json.leaf_value import value_as_text, values_differ
 from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.tree import ConfigNode, NO_OBJECT_FORM, child_values, \
@@ -266,6 +267,20 @@ class MemberRow(NamedTuple):
     there is no object there to ask about.
     """
 
+    offer: ElementOffer = ElementOffer()
+    """What can be done here about how many things this node holds.
+
+    Whether an element can be added, whether this node is an element that can
+    be taken out of what holds it, whether it can change places with a
+    neighbour, and why none of that is offered where none of it is. Most nodes
+    offer nothing: a value is not something that holds elements, and the
+    members of a configuration object are the ones its class declares.
+
+    It belongs to the model rather than to a backend for the same reason the
+    fold state does: two user interfaces of one application that offered to
+    change different things would be worse than either behaviour.
+    """
+
     @property
     def name(self) -> str:
         """Return the name of the node, the last step of its path."""
@@ -391,25 +406,18 @@ class RowContext(NamedTuple):
     optional: frozenset[ConfigPath]
     """Every member that the object holding it may leave out of the file."""
 
+    offers: Mapping[ConfigPath, ElementOffer]
+    """What each node offers about the elements it holds, by its path."""
 
-def member_values(config: Config, stderr_file: TextIO) -> dict[str, JsonType]:
-    """Return one JSON space value per serialized member of one object.
+    refreshing: bool
+    """Whether these rows are what a validation pass left behind.
 
-    Args:
-        config: Configuration object to read. It is not modified, because
-            what is read is the text it writes and not the object.
-        stderr_file: Stream used for user-facing diagnostics.
-
-    Returns:
-        The values that this object would write to a file.
-
-    Raises:
-        InvalidConfiguration: The configuration object is not valid.
-        InvalidConfigurationValue: A member does not hold a valid value.
+    A pass is not read only, so a node whose value it changed is marked, and a
+    node it created is marked as well: a validator that normalizes a list can
+    make one. Every other rebuild is a change the user asked for — an element
+    added, removed or moved — and marking that as a validator's work would be
+    telling the user that something happened to what they just did.
     """
-    members = json.loads(config.as_json_string(stderr_file=stderr_file))
-    assert isinstance(members, dict)
-    return members
 
 
 def _children_of(path: ConfigPath, value: JsonType,
@@ -450,16 +458,23 @@ def _rewritten(was: Optional[MemberRow], value: JsonType,
     had no row at all is one that a pass has just created, which a validator
     that normalizes a list does.
 
+    A build that is not a validation pass marks nothing new. The first build
+    of a session is one of those, and so is the rebuild after an element has
+    been added, removed or moved: what the user asked for is what the rows
+    say, and a validator had no part in it.
+
     Args:
         was: The row of that node before the pass, or None when it had none.
         value: The value the node holds now.
-        refreshing: Whether these rows are a refresh rather than a first build.
+        refreshing: Whether these rows are what a validation pass left behind.
 
     Returns:
         Whether the row is marked as one a validator wrote.
     """
     if was is None:
         return refreshing
+    if not refreshing:
+        return was.changed_by_validator
     return was.changed_by_validator or values_differ(value, was.value)
 
 
@@ -491,7 +506,8 @@ def _row_of(path: ConfigPath, value: JsonType, context: RowContext,
         children=_children_of(path=path, value=value, node=node),
         config_type=None if node is None else node.config_type,
         changed_by_validator=_rewritten(was=was, value=value,
-                                        refreshing=bool(previous)),
+                                        refreshing=context.refreshing),
+        offer=context.offers[path],
         filled_from_default=member in context.report.filled,
         load_reason=context.report.reasons.get(member, ''),
         description=member_description(
@@ -502,10 +518,15 @@ def _row_of(path: ConfigPath, value: JsonType, context: RowContext,
         converter=converter, conversion='' if was is None else was.conversion)
 
 
-def built_rows(config: Config, members: Mapping[str, JsonType],
+# One argument per independent thing that the rows of a configuration are
+# built from, which is what keeps every one of them a fact of the session
+# rather than something this module works out for itself.
+# pylint: disable-next=too-many-arguments
+def built_rows(config: Config, *, members: Mapping[str, JsonType],
                report: LoadReport, descriptions: Descriptions,
-               previous: Mapping[ConfigPath, MemberRow]
-               ) -> dict[ConfigPath, MemberRow]:
+               previous: Mapping[ConfigPath, MemberRow],
+               defaults: Mapping[str, JsonType] = MappingProxyType({}),
+               refreshing: bool = False) -> dict[ConfigPath, MemberRow]:
     """Return one row per node of one configuration, in the order shown.
 
     A mapping by path is what the design asks for, because every node is
@@ -528,15 +549,21 @@ def built_rows(config: Config, members: Mapping[str, JsonType],
             A node that had a row keeps what that row was compared against
             and is marked when a validation pass changed it; a node that had
             none is a node a validation pass created.
+        defaults: The values that the class of the configuration declares,
+            which is what a new element of an ordinary list is copied from.
+        refreshing: Whether these rows are what a validation pass left behind,
+            which is what decides whether a node it changed is marked.
 
     Returns:
         The rows of that configuration, by path.
     """
     nodes = config_nodes(config)
     flat = flat_values(members=members, nodes=nodes)
+    facts = tree_facts(nodes=nodes, flat=flat, defaults=defaults)
     context = RowContext(report=report, descriptions=descriptions, nodes=nodes,
                          converters=node_converters(nodes=nodes, flat=flat),
-                         optional=optional_paths(nodes))
+                         optional=optional_paths(nodes),
+                         offers=element_offers(facts), refreshing=refreshing)
     return {path: _row_of(path=path, value=value, context=context,
                           previous=previous)
             for path, value in flat}

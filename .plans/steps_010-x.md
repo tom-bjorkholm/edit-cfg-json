@@ -50,6 +50,9 @@ plan says only *when* that decision gets built.
 - [Step 13](#step-13--list_element-and-dict_value-nesting) — a list of
   configuration objects and a dict of them, one description reaching every one
   of them, and the confirmation that step 11 had already built the mechanism.
+- [Step 14](#step-14--adding-and-removing-elements) — how many things a member
+  holds, where a new element is copied from, and the containers that say why
+  they cannot be given one.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -84,8 +87,8 @@ file only says *when* that decision gets built.
   `edit_cfg_json_textual` never drift apart by more than one review.
 - Steps 1 to 9 are built, and each is written up in
   [steps_001-009_done.md](steps_001-009_done.md) as what it decided, what it
-  found while building it and what came of its review. Steps 10 to 13 are
-  built and are written up here, in the same way. Steps 14 onwards are named
+  found while building it and what came of its review. Steps 10 to 14 are
+  built and are written up here, in the same way. Steps 15 onwards are named
   steps with their observable outcome and their main risks; they are detailed
   just before they are started, when the core API is real rather than
   imagined.
@@ -120,7 +123,7 @@ version. Record which one, because the next step's fast iteration with
 | M1 Flat round trip | 1 to 5 | Both backends edit a `Config` with one `str` and one `int`, validate it and save it | done |
 | M2 Flat, fully explained | 6 to 9 | Descriptions, docstrings, field-level diagnostics, automatic-change visibility, explicit loader | done |
 | M3 Structure and folding | 10 to 12 | Lists, dicts, nested `Config` objects, folding with per-subtree badges | done |
-| M4 Configs in containers | 13 to 14 | `LIST_ELEMENT` and `DICT_VALUE` nesting, adding and removing elements | 13 done, 14 to do |
+| M4 Configs in containers | 13 to 14 | `LIST_ELEMENT` and `DICT_VALUE` nesting, adding and removing elements | done |
 | M5 Release readiness | 15 to 17 | v1 documented, classified and published | to do |
 
 ## 3. Steps 10 to 20, as named steps
@@ -514,14 +517,89 @@ The public names the review settled:
 
 #### Step 14 — Adding and removing elements
 
-Add and remove elements of uniform lists and dicts, with the template taken
-from the default instance or from the nesting declaration. Where a
-container's default is empty and it has no nesting declaration, there is no
-template and none can be invented: the UI says so and offers reorder and
-remove but not extend. `DICT_VALUE_BY_KEY` members and dicts listed in
-`_unchecked_dicts` are out of v1 scope and must be reported as such rather
-than half-supported. A new example `e11_add_remove.py` demonstrates all
-three cases side by side, including the two that are refused.
+Status: **Implemented and committed.**
+
+**Observable outcome.** A new example `e11_add_remove.py` whose configuration
+holds every shape a member with several of something can have.
+`python3 examples/src/example/e11_add_remove.py --ui dump --add stages` puts one
+more configuration object into a list and the verdict then says that two stages
+share a name, which is the application's rule and not the editor's;
+`--add extra_stages` grows a declared list that holds nothing, `--add
+retry_delays` copies the first element the class declares, `--add runners=nightly`
+names a new entry of a dict, `--remove runners.fast` takes one out, `--move
+stages.0=down` changes two of them round, and `--add audit` gives the optional
+member its object. `--add extra_hosts` is refused, and the member says why below
+itself, until `-i ../../data/e11_pipeline.json` puts something in it to copy.
+`--ui tk` and `--ui textual` show the same controls on the same rows.
+
+**What it decided.** Four things, decided before the work started:
+
+- **Reordering a list and creating or clearing an `OPTIONAL_MEMBER` object are
+  in scope**, beside adding and removing. The first is what the order of a list
+  being part of the file asks for; the second is what design section 4.1 already
+  called adding. A list or a dict declared to hold configuration objects can be
+  given one while it is empty, because what an element is comes from the
+  declaration.
+- **The user names a new entry of a dict**, in a dialog in Tk and in a modal
+  screen in Textual, because nothing else knows what one is called. Inventing a
+  placeholder key was rejected: a dictionary key is not editable in this model,
+  so the invented name would be the name for good.
+- **The controls sit on the row, at the end of the line**, and why a container
+  cannot be given an element is a `MUTED` line below it, under the explain
+  toggle with every other explanation. Design section 4.9.
+- **The pattern for a new element of an ordinary list is the declared values,
+  and failing that what the member holds now.** That is one fallback more than
+  this document first described, and it earns its place: a member the class
+  declares nothing for becomes extendable as soon as a file has put something in
+  it, which is the ordinary way such a list gets its first element.
+
+**Core.** `elements` owns what a node offers, where a new element is copied
+from and what one change does to the values, to the paths and to the
+configuration object of the session; `MemberRow.offer` carries it to the
+backends. `tree` gained `member_nestings` and `unchecked_members`, which are the
+two questions a declaration and a key policy answer, and `member_values` moved
+there from `rows`. `built_rows` is told whether it is refreshing after a
+validation pass, because a row the user added is not a row a validator wrote.
+
+The public names it settled:
+
+| Name | Kind |
+| --- | --- |
+| `ElementOffer` | what one node offers about the elements it holds |
+| `MemberRow.offer` | that offer, on the row a backend reads it from |
+| `EditModel.add_element` | put one more element into a node |
+| `EditModel.remove_element` | take one element out of what holds it |
+| `EditModel.move_element` | make one element change places with a neighbour |
+
+**What building it found.**
+
+- **An ordinary dict member can neither gain nor lose a key.**
+  `Config.check_dict_parse` matches such a member against the keys its class
+  declares, so `config_as_json` itself refuses the next validation pass.
+  Confirmed against the implementation in `./venv` before any code was written.
+  That is why "uniform dicts" means the declared ones: only a `DICT_VALUE`
+  member is a dict of one kind of thing, and the other three kinds each say so
+  below themselves in words of their own. Design section 4.9.
+- **A new element has to be made as an object and not only as JSON.** The tree
+  finds the nested objects by walking the real ones, so an element that existed
+  only in the buffer would be shown as the dictionary it serializes to, with
+  nobody's member order, nobody's parse converters and no badge. The model's own
+  copy of the configuration therefore gains the object with the values.
+- **Everything the buffer holds about a node is held under the path of that
+  node**, and an element of a list is addressed by where it is. Removing or
+  moving one therefore moves the fold state, what each object said about itself
+  and what each row is compared against along with the values. Without that,
+  removing the first element reported every element after it as edited by a user
+  who had touched none of them.
+- **A member that a class omits from JSON while it holds no object cannot be
+  given one**, because it has no row to press. That follows from design section
+  4.1 rather than from this step, and it is why clearing such a member is not
+  offered either: the editor would be taking it off the screen for good.
+- **Both backend modules had to be split again**, at 1000 lines each:
+  `tk_elements` and `textual_elements` hold one row's worth of controls, and
+  `textual_ask` holds the one screen that both of this backend's questions are
+  asked on — the output file and the new dictionary key — which is what kept the
+  second question from being the first one written twice.
 
 ### Milestone 5 — release readiness
 
@@ -630,6 +708,17 @@ derived from `VersionReporter` in `./edit` and classes derived from
 `EcajVersionReporter` in `./edit_tk` and `./edit_textual` so that the
 backends get the dependencies of `edit-cfg-json` without repeating
 the list of dependencies.
+
+#### Step 21 - Add and remove ommitted members
+
+A member that a class omits from JSON while it holds no object shall also
+be possible to add and remove in the editor. Exactly how to achieve this
+is the subject of a design investigation in the beginning of this step.
+
+#### Step 22 - Full support for `DICT_VALUE_BY_KEY`
+
+Add full support for adding and deleting values in a dict that are
+declared by `DICT_VALUE_BY_KEY`
 
 ## 4. Open questions recorded, not answered
 

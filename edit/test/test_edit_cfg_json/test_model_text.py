@@ -95,10 +95,15 @@ def test_container_text() -> None:
     A container says how much it holds and uses a colon rather than an equals
     sign, because it has no value of its own: its value is the rows below it,
     which are indented once for each container they are inside.
+
+    An ordinary dict says below itself that no entry can be added to it, for
+    the reason `edit_cfg_json.elements` gives: its class declares which keys
+    it has. That line is between the container and its first value.
     """
     text = model_as_text(EditModel(ListCfg()))
     assert 'tags: 2 elements\n    0 = first\n' in text
-    assert 'limits: 2 entries\n    high = 9\n' in text
+    assert 'limits: 2 entries\n' in text
+    assert '\n    high = 9\n' in text
     assert 'answer = 3' in text
 
 
@@ -473,9 +478,14 @@ def test_edit_drops_it() -> None:
 
 
 def test_tree_is_indented() -> None:
-    """Test a value is indented once for each container it is inside."""
+    """Test a value is indented once for each container it is inside.
+
+    What a dict says below itself about the entries it cannot be given is
+    indented with it, which is what separates the two lines below.
+    """
     text = model_as_text(EditModel(TreeCfg()))
-    assert 'rules: 2 elements\n    0: 1 entry\n        low = 1\n' in text
+    assert 'rules: 2 elements\n    0: 1 entry\n' in text
+    assert '\n        low = 1\n' in text
 
 
 def test_folded_says_so() -> None:

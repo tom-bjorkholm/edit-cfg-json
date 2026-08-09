@@ -140,12 +140,13 @@ worded *on its own* and never simply *valid*.
 ## What is deliberately not here
 
 **Adding an element and removing one.** This example edits the objects that
-are there; a list that grows and shrinks is step 14 of the delivery plan.
+are there; a list that grows and shrinks is
+[e11_add_remove.py](e11_add_remove.py).
 
 **`DICT_VALUE_BY_KEY`,** the third repeated shape, which declares that one
 named key of a dict is an object. It is edited exactly like the two here, and
-it is out of scope for the adding and removing of step 14, so the example that
-shows what can and cannot be added is where it belongs.
+it is out of scope for adding and removing, so the example that shows what can
+and cannot be added is where it belongs.
 
 Run this example with one of:
 

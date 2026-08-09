@@ -45,7 +45,18 @@ is follows, indented as everything below a node is, once more for the
 container it is inside.
 """
 
-PORT_LINES = ['ports: 2 entries', f'    {ABOUT_PORTS}', '    http = 80',
+NO_ENTRIES = ('    This version adds an entry only to a dict whose class '
+              'declares that every value in it is one configuration object.')
+"""What the editor says below a dict that no entry can be added to.
+
+`config_as_json` checks such a member against the keys its class declares, so
+one that gained or lost a key would be refused by the configuration class
+itself. It is said with the explanations, because it says what this member is
+rather than something to act on.
+"""
+
+PORT_LINES = ['ports: 2 entries', f'    {ABOUT_PORTS}', NO_ENTRIES,
+              '    http = 80',
               f'    {WHOLE_LINE}', '    https = 443',
               f'        {ABOUT_HTTPS}', f'    {WHOLE_LINE}']
 """Every line that the dict of this example is shown as.

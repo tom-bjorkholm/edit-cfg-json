@@ -21,6 +21,7 @@ from config_as_json import Config, ConfigPath, PathOrStr
 import edit_cfg_json as core
 from edit_cfg_json_tk.key_names import bind_key
 from edit_cfg_json_tk.scrolling import scrolling_body
+from edit_cfg_json_tk.tk_elements import element_controls
 from edit_cfg_json_tk.tk_look import FIELD_BACKGROUND, FIELD_BORDER, \
     FIELD_FOREGROUND, FOLD_WIDTH, LEAST_FIELD_WIDTH, NAME_COLUMN_WIDTH, \
     PADDING, TREE_INDENT, label_text, place_text, shown_text, told
@@ -192,6 +193,16 @@ class RowWidgets(NamedTuple):
     refused, so there is no member for which this could never say anything.
     """
 
+    elements: tuple[tkinter.Button, ...] = ()
+    """The controls that change how many elements this node holds.
+
+    A node is given exactly the ones it offers and nothing at all where it
+    offers none, because they sit at the end of the line rather than in a
+    column that every row has to keep clear. Which of them a node offers can
+    change — the first element of a list cannot move up until something is put
+    in front of it — and the rows are built again whenever it does.
+    """
+
 
 def _show_below(widgets: RowWidgets, description: str,
                 diagnostic: str) -> None:
@@ -310,6 +321,18 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         of these are empty most of the time.
         """
         return [label_text(row.diagnostic) for row in self._rows]
+
+    @property
+    def element_texts(self) -> list[list[str]]:
+        """Return what the controls of each node say, in row order.
+
+        Most of them are empty, because most nodes offer nothing about how
+        many things they hold: a value is not something that holds elements,
+        and the members of a configuration object are the ones its class
+        declares.
+        """
+        return [[str(button.cget('text')) for button in row.elements]
+                for row in self._rows]
 
     @property
     def docstring_shown(self) -> str:
@@ -468,11 +491,13 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
     def _build_rows(self) -> None:
         """Make the widgets of every node again and put them on the window.
 
-        A validation pass can change how many rows the model has, because a
-        validator that normalizes a list changes how many values it holds. So
-        the widgets are made again whenever the paths no longer match, and
-        left exactly as they are whenever they do, which is every ordinary
-        refresh and is what keeps the focus where the user put it.
+        Two things change how many rows the model has. A validation pass does,
+        because a validator that normalizes a list changes how many values it
+        holds, and there the widgets are made again only when the paths no
+        longer match: every other refresh leaves them alone, which is what
+        keeps the focus where the user put it. Adding, removing or moving an
+        element does, and there they are always made again, because which
+        controls a row offers changes with them.
         """
         self._create_rows()
         self._show_rows()
@@ -501,9 +526,22 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
             frame=frame, fold=fold, field=field, mark=mark,
             subtree=self._add_subtree(parent=line, row=row),
             description=self._add_description(parent=frame, row=row),
-            diagnostic=shown_text(frame, '', core.MEMBER_DIAGNOSTIC))
+            diagnostic=shown_text(frame, '', core.MEMBER_DIAGNOSTIC),
+            elements=element_controls(parent=line, row=row, model=self._model,
+                                      after=self._element_changed))
         self._show_row_texts(row=row, widgets=widgets)
         return widgets
+
+    def _element_changed(self) -> None:
+        """Show the rows that the model has after an element changed.
+
+        The widgets are always made again, and not only where the paths
+        differ as a validation pass leaves them: which controls a row offers
+        changes with the elements, so a row that is still at the same path is
+        not necessarily still offering the same things.
+        """
+        self._build_rows()
+        self._show_state()
 
     @staticmethod
     def _add_subtree(parent: tkinter.Misc,

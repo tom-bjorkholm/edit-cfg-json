@@ -8,8 +8,9 @@ from pathlib import Path
 import asyncio
 from textual.widgets import Label
 from edit_cfg_json import ActionSettings, EditModel, Settings
+from edit_cfg_json_textual.textual_ask import ASK_BOX_ID
 from edit_cfg_json_textual.textual_editor import EditorApp, HIDE_COMMAND, \
-    SAVE_AS_BOX_ID, SAVE_AS_COMMAND, SAVE_COMMAND, VALIDATE_COMMAND
+    SAVE_AS_COMMAND, SAVE_COMMAND, VALIDATE_COMMAND
 from example.e01_flat_config import FlatConfig
 from .helpers import NO_FILE_TEXT, SAVE_AS_KEY, \
     VALIDATE_ALT_KEY, VALIDATE_KEY, VALID_VERDICT, save_as, saving_of, \
@@ -107,7 +108,7 @@ def test_action_without_key(tmp_path: Path) -> None:
         async with app.run_test() as pilot:
             await pilot.press(SAVE_AS_KEY)
             await pilot.pause()
-            asked = bool(app.screen.query(f'#{SAVE_AS_BOX_ID}'))
+            asked = bool(app.screen.query(f'#{ASK_BOX_ID}'))
             return ([command.title
                      for command in app.get_system_commands(app.screen)],
                     asked, _shownkey_settings(app))

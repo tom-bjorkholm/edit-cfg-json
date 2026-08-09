@@ -1,5 +1,32 @@
 # Table of Contents
 
+* [edit\_cfg\_json\_textual.textual\_elements](#edit_cfg_json_textual.textual_elements)
+  * [ADD\_ACTION](#edit_cfg_json_textual.textual_elements.ADD_ACTION)
+  * [REMOVE\_ACTION](#edit_cfg_json_textual.textual_elements.REMOVE_ACTION)
+  * [EARLIER\_ACTION](#edit_cfg_json_textual.textual_elements.EARLIER_ACTION)
+  * [LATER\_ACTION](#edit_cfg_json_textual.textual_elements.LATER_ACTION)
+  * [ELEMENT\_CLASS](#edit_cfg_json_textual.textual_elements.ELEMENT_CLASS)
+  * [ADD\_LABEL](#edit_cfg_json_textual.textual_elements.ADD_LABEL)
+  * [REMOVE\_LABEL](#edit_cfg_json_textual.textual_elements.REMOVE_LABEL)
+  * [EARLIER\_LABEL](#edit_cfg_json_textual.textual_elements.EARLIER_LABEL)
+  * [LATER\_LABEL](#edit_cfg_json_textual.textual_elements.LATER_LABEL)
+  * [ELEMENT\_LABELS](#edit_cfg_json_textual.textual_elements.ELEMENT_LABELS)
+  * [ASK\_KEY\_ID](#edit_cfg_json_textual.textual_elements.ASK_KEY_ID)
+  * [ASK\_KEY\_PROMPT](#edit_cfg_json_textual.textual_elements.ASK_KEY_PROMPT)
+  * [ASK\_KEY\_LEAVE](#edit_cfg_json_textual.textual_elements.ASK_KEY_LEAVE)
+  * [offered\_actions](#edit_cfg_json_textual.textual_elements.offered_actions)
+  * [element\_id](#edit_cfg_json_textual.textual_elements.element_id)
+  * [element\_button](#edit_cfg_json_textual.textual_elements.element_button)
+* [edit\_cfg\_json\_textual.textual\_ask](#edit_cfg_json_textual.textual_ask)
+  * [ASK\_BOX\_ID](#edit_cfg_json_textual.textual_ask.ASK_BOX_ID)
+  * [CANCEL\_COMMAND](#edit_cfg_json_textual.textual_ask.CANCEL_COMMAND)
+  * [AskScreen](#edit_cfg_json_textual.textual_ask.AskScreen)
+    * [\_\_init\_\_](#edit_cfg_json_textual.textual_ask.AskScreen.__init__)
+    * [compose](#edit_cfg_json_textual.textual_ask.AskScreen.compose)
+    * [on\_input\_changed](#edit_cfg_json_textual.textual_ask.AskScreen.on_input_changed)
+    * [on\_input\_blurred](#edit_cfg_json_textual.textual_ask.AskScreen.on_input_blurred)
+    * [on\_input\_submitted](#edit_cfg_json_textual.textual_ask.AskScreen.on_input_submitted)
+    * [action\_leave](#edit_cfg_json_textual.textual_ask.AskScreen.action_leave)
 * [edit\_cfg\_json\_textual.textual\_editor](#edit_cfg_json_textual.textual_editor)
   * [DOCSTRING\_ID](#edit_cfg_json_textual.textual_editor.DOCSTRING_ID)
   * [VERDICT\_ID](#edit_cfg_json_textual.textual_editor.VERDICT_ID)
@@ -7,7 +34,6 @@
   * [LOAD\_ID](#edit_cfg_json_textual.textual_editor.LOAD_ID)
   * [BODY\_ID](#edit_cfg_json_textual.textual_editor.BODY_ID)
   * [MEMBERS\_ID](#edit_cfg_json_textual.textual_editor.MEMBERS_ID)
-  * [SAVE\_AS\_BOX\_ID](#edit_cfg_json_textual.textual_editor.SAVE_AS_BOX_ID)
   * [SAVE\_AS\_ID](#edit_cfg_json_textual.textual_editor.SAVE_AS_ID)
   * [NAME\_CLASS](#edit_cfg_json_textual.textual_editor.NAME_CLASS)
   * [VALUE\_CLASS](#edit_cfg_json_textual.textual_editor.VALUE_CLASS)
@@ -24,7 +50,6 @@
   * [DESCRIPTION\_INDENT](#edit_cfg_json_textual.textual_editor.DESCRIPTION_INDENT)
   * [LEAST\_VALUE\_WIDTH](#edit_cfg_json_textual.textual_editor.LEAST_VALUE_WIDTH)
   * [QUIT\_COMMAND](#edit_cfg_json_textual.textual_editor.QUIT_COMMAND)
-  * [CANCEL\_COMMAND](#edit_cfg_json_textual.textual_editor.CANCEL_COMMAND)
   * [VALIDATE\_COMMAND](#edit_cfg_json_textual.textual_editor.VALIDATE_COMMAND)
   * [SAVE\_COMMAND](#edit_cfg_json_textual.textual_editor.SAVE_COMMAND)
   * [SAVE\_AS\_COMMAND](#edit_cfg_json_textual.textual_editor.SAVE_AS_COMMAND)
@@ -41,13 +66,6 @@
   * [SAVE\_AS\_LEAVE](#edit_cfg_json_textual.textual_editor.SAVE_AS_LEAVE)
   * [EDITOR\_ACTIONS](#edit_cfg_json_textual.textual_editor.EDITOR_ACTIONS)
   * [CSS\_RULES](#edit_cfg_json_textual.textual_editor.CSS_RULES)
-  * [SaveAsScreen](#edit_cfg_json_textual.textual_editor.SaveAsScreen)
-    * [\_\_init\_\_](#edit_cfg_json_textual.textual_editor.SaveAsScreen.__init__)
-    * [compose](#edit_cfg_json_textual.textual_editor.SaveAsScreen.compose)
-    * [on\_input\_changed](#edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_changed)
-    * [on\_input\_blurred](#edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_blurred)
-    * [on\_input\_submitted](#edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_submitted)
-    * [action\_leave](#edit_cfg_json_textual.textual_editor.SaveAsScreen.action_leave)
   * [EditorApp](#edit_cfg_json_textual.textual_editor.EditorApp)
     * [CSS](#edit_cfg_json_textual.textual_editor.EditorApp.CSS)
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_editor.EditorApp.__init__)
@@ -88,6 +106,298 @@
   * [plain\_widget](#edit_cfg_json_textual.textual_look.plain_widget)
   * [show\_emphasis](#edit_cfg_json_textual.textual_look.show_emphasis)
   * [bind\_action](#edit_cfg_json_textual.textual_look.bind_action)
+
+<a id="edit_cfg_json_textual.textual_elements"></a>
+
+# edit\_cfg\_json\_textual.textual\_elements
+
+The Textual controls that change how many elements a node holds.
+
+They are here rather than in the module that builds the screen for the reason
+every other split of this backend was made: one module of a thousand lines is
+one nobody reads to the end. What is here is one row's worth of controls, the
+identifiers that let a press be traced back to the node it was made on, and
+the words of the one question this backend has to ask about them.
+
+Nothing here decides *whether* a node offers anything. That is
+`edit_cfg_json.MemberRow.offer`, which the core works out once so that the two
+backends cannot offer different things.
+
+<a id="edit_cfg_json_textual.textual_elements.ADD_ACTION"></a>
+
+#### ADD\_ACTION
+
+Name of the action that puts one more element into a node.
+
+<a id="edit_cfg_json_textual.textual_elements.REMOVE_ACTION"></a>
+
+#### REMOVE\_ACTION
+
+Name of the action that takes one element out of what holds it.
+
+<a id="edit_cfg_json_textual.textual_elements.EARLIER_ACTION"></a>
+
+#### EARLIER\_ACTION
+
+Name of the action that moves one element towards the front.
+
+<a id="edit_cfg_json_textual.textual_elements.LATER_ACTION"></a>
+
+#### LATER\_ACTION
+
+Name of the action that moves one element towards the back.
+
+<a id="edit_cfg_json_textual.textual_elements.ELEMENT_CLASS"></a>
+
+#### ELEMENT\_CLASS
+
+Style class of a control that changes how many elements there are.
+
+<a id="edit_cfg_json_textual.textual_elements.ADD_LABEL"></a>
+
+#### ADD\_LABEL
+
+Label of the control that puts one more element into a node.
+
+It is a word and not the `+` of the fold control beside it, because the two do
+different things and one row can have both: a list of configuration objects
+folds away and grows, and two controls saying `+` on one line would be two
+offers that could not be told apart.
+
+<a id="edit_cfg_json_textual.textual_elements.REMOVE_LABEL"></a>
+
+#### REMOVE\_LABEL
+
+Label of the control that takes one element out of what holds it.
+
+<a id="edit_cfg_json_textual.textual_elements.EARLIER_LABEL"></a>
+
+#### EARLIER\_LABEL
+
+Label of the control that moves one element towards the front.
+
+<a id="edit_cfg_json_textual.textual_elements.LATER_LABEL"></a>
+
+#### LATER\_LABEL
+
+Label of the control that moves one element towards the back.
+
+<a id="edit_cfg_json_textual.textual_elements.ELEMENT_LABELS"></a>
+
+#### ELEMENT\_LABELS
+
+What the control of each action says on it.
+
+<a id="edit_cfg_json_textual.textual_elements.ASK_KEY_ID"></a>
+
+#### ASK\_KEY\_ID
+
+Identifier of the field that a new entry of a dict is named in.
+
+<a id="edit_cfg_json_textual.textual_elements.ASK_KEY_PROMPT"></a>
+
+#### ASK\_KEY\_PROMPT
+
+What the screen that asks for a new key says.
+
+<a id="edit_cfg_json_textual.textual_elements.ASK_KEY_LEAVE"></a>
+
+#### ASK\_KEY\_LEAVE
+
+What that screen says while there is a key that leaves it.
+
+The key is named from the settings and not written into the sentence, for the
+same reason the question about the output file names it: an application that
+took `escape` for itself would otherwise be telling its users to press a key
+that does nothing.
+
+<a id="edit_cfg_json_textual.textual_elements.offered_actions"></a>
+
+#### offered\_actions
+
+```python
+def offered_actions(row: core.MemberRow) -> tuple[str, ...]
+```
+
+Return the actions that one node offers about its elements.
+
+**Arguments**:
+
+- `row` - Node to ask about.
+  
+
+**Returns**:
+
+  The name of each action that node offers, in the order the controls
+  are shown, and nothing at all for a node that offers none, which is
+  most nodes of most configurations.
+
+<a id="edit_cfg_json_textual.textual_elements.element_id"></a>
+
+#### element\_id
+
+```python
+def element_id(index: int, action: str) -> str
+```
+
+Return the identifier of one control of one node.
+
+**Arguments**:
+
+- `index` - Place of the node among the rows, which every widget of a node
+  is identified by: two values inside two different dicts can have
+  one name, and a dictionary key holds whatever a dictionary key
+  holds, which Textual does not always accept as an identifier.
+- `action` - Name of the action that control runs.
+  
+
+**Returns**:
+
+  The identifier that press is found by.
+
+<a id="edit_cfg_json_textual.textual_elements.element_button"></a>
+
+#### element\_button
+
+```python
+def element_button(widget_id: str, action: str) -> Button
+```
+
+Return one control that changes how many elements there are.
+
+**Arguments**:
+
+- `widget_id` - Identifier the application finds this control by.
+- `action` - Name of the action it runs.
+  
+
+**Returns**:
+
+  A control that says what it does.
+
+<a id="edit_cfg_json_textual.textual_ask"></a>
+
+# edit\_cfg\_json\_textual.textual\_ask
+
+The one screen this backend asks a question of the user with.
+
+There are two questions so far — which file to write, and what a new entry of
+a dict is to be called — and they are the same shape: a sentence, a field, and
+an answer that may be left ungiven. One screen serves both, because two
+screens differing in a prompt would be the same code twice and the two
+questions would then be free to drift apart in how they behave.
+
+The question is a screen of its own rather than a field in the editor, because
+it is asked, answered and gone: a field that was always there would be one more
+thing to read on every row of every session, for a question that is asked once
+or never.
+
+<a id="edit_cfg_json_textual.textual_ask.ASK_BOX_ID"></a>
+
+#### ASK\_BOX\_ID
+
+Identifier of the box that holds one question and its field.
+
+<a id="edit_cfg_json_textual.textual_ask.CANCEL_COMMAND"></a>
+
+#### CANCEL\_COMMAND
+
+Name of the action that leaves a question of the editor unanswered.
+
+<a id="edit_cfg_json_textual.textual_ask.AskScreen"></a>
+
+## AskScreen Objects
+
+```python
+class AskScreen(ModalScreen[Optional[str]])
+```
+
+Ask one question, and give back None when it is left unanswered.
+
+<a id="edit_cfg_json_textual.textual_ask.AskScreen.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(prompt: str,
+             field_id: str,
+             cancel_keys: Sequence[str],
+             answer: str = '') -> None
+```
+
+Ask the question, with the field holding what it starts from.
+
+The keys that leave the question are bound here rather than declared
+as a class variable, because which keys they are is the application's
+decision and not this screen's.
+
+**Arguments**:
+
+- `prompt` - What this screen asks, as the user reads it.
+- `field_id` - Identifier that the field is found by, which is what
+  lets a test and a caller reach the one that is being asked.
+- `cancel_keys` - Key combinations that leave the question unanswered,
+  empty when the application gave it none.
+- `answer` - What the field starts out holding, which is what makes
+  changing an answer a matter of changing a few characters.
+
+<a id="edit_cfg_json_textual.textual_ask.AskScreen.compose"></a>
+
+#### compose
+
+```python
+def compose() -> ComposeResult
+```
+
+Create the question and the field that answers it.
+
+<a id="edit_cfg_json_textual.textual_ask.AskScreen.on_input_changed"></a>
+
+#### on\_input\_changed
+
+```python
+def on_input_changed(event: Input.Changed) -> None
+```
+
+Keep what happens in this field to this screen.
+
+The editor underneath writes every field change into the model, and
+this field is not a member of the configuration: it is the name of a
+file or of a new entry. A message that reached the editor would be
+looked for among the members and found nowhere.
+
+<a id="edit_cfg_json_textual.textual_ask.AskScreen.on_input_blurred"></a>
+
+#### on\_input\_blurred
+
+```python
+def on_input_blurred(event: Input.Blurred) -> None
+```
+
+Keep leaving this field to this screen, for the same reason.
+
+The editor underneath asks the model about the member whose field was
+left, and neither of these fields is a member of the configuration.
+
+<a id="edit_cfg_json_textual.textual_ask.AskScreen.on_input_submitted"></a>
+
+#### on\_input\_submitted
+
+```python
+def on_input_submitted(event: Input.Submitted) -> None
+```
+
+Give back what was typed, and leave the screen.
+
+<a id="edit_cfg_json_textual.textual_ask.AskScreen.action_leave"></a>
+
+#### action\_leave
+
+```python
+def action_leave() -> None
+```
+
+Leave the screen without answering the question.
 
 <a id="edit_cfg_json_textual.textual_editor"></a>
 
@@ -141,12 +451,6 @@ Identifier of the part of the body that holds the nodes.
 They have a container of their own inside the part that scrolls, because a
 validation pass can leave the model with other rows than it had and they are
 then mounted afresh. What is above them is not, so it is not in here.
-
-<a id="edit_cfg_json_textual.textual_editor.SAVE_AS_BOX_ID"></a>
-
-#### SAVE\_AS\_BOX\_ID
-
-Identifier of the box that asks which file to write.
 
 <a id="edit_cfg_json_textual.textual_editor.SAVE_AS_ID"></a>
 
@@ -258,12 +562,6 @@ edits, and `model_as_text` shows every mark in full whatever the terminal.
 #### QUIT\_COMMAND
 
 Name of the action that ends the editor.
-
-<a id="edit_cfg_json_textual.textual_editor.CANCEL_COMMAND"></a>
-
-#### CANCEL\_COMMAND
-
-Name of the action that leaves the question about the output file.
 
 <a id="edit_cfg_json_textual.textual_editor.VALIDATE_COMMAND"></a>
 
@@ -405,101 +703,6 @@ The question about the output file sits in the middle of the screen and takes
 most of its width, so that a long path is still readable in a narrow
 terminal. Its own field is untouched by the rule above, which reaches only
 the fields inside a member row.
-
-<a id="edit_cfg_json_textual.textual_editor.SaveAsScreen"></a>
-
-## SaveAsScreen Objects
-
-```python
-class SaveAsScreen(ModalScreen[Optional[str]])
-```
-
-Ask which file to write, and give back None when none was named.
-
-The question is a screen of its own rather than a field in the editor,
-because it is asked, answered and gone: a field that was always there
-would be a fifth thing to read on every row of every session, for a
-question that is asked once or never.
-
-<a id="edit_cfg_json_textual.textual_editor.SaveAsScreen.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(out_file: str, cancel_keys: Sequence[str]) -> None
-```
-
-Start the field at the file that would be written now.
-
-The keys that leave the question are bound here rather than declared
-as a class variable, because which keys they are is the
-application's decision and not this screen's.
-
-**Arguments**:
-
-- `out_file` - File that saving would write, empty when there is none
-  yet. Starting from it is what makes saving a copy beside the
-  original a matter of changing a few characters.
-- `cancel_keys` - Key combinations that leave the question
-  unanswered, empty when the application gave it none.
-
-<a id="edit_cfg_json_textual.textual_editor.SaveAsScreen.compose"></a>
-
-#### compose
-
-```python
-def compose() -> ComposeResult
-```
-
-Create the question and the field that answers it.
-
-<a id="edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_changed"></a>
-
-#### on\_input\_changed
-
-```python
-def on_input_changed(event: Input.Changed) -> None
-```
-
-Keep what happens in this field to this screen.
-
-The editor underneath writes every field change into the model, and
-this field is not a member of the configuration: it is the name of a
-file. A message that reached the editor would be looked for among the
-members and found nowhere.
-
-<a id="edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_blurred"></a>
-
-#### on\_input\_blurred
-
-```python
-def on_input_blurred(event: Input.Blurred) -> None
-```
-
-Keep leaving this field to this screen, for the same reason.
-
-The editor underneath asks the model about the member whose field was
-left, and the name of a file is no member of the configuration.
-
-<a id="edit_cfg_json_textual.textual_editor.SaveAsScreen.on_input_submitted"></a>
-
-#### on\_input\_submitted
-
-```python
-def on_input_submitted(event: Input.Submitted) -> None
-```
-
-Give back the file that was named, and leave the screen.
-
-<a id="edit_cfg_json_textual.textual_editor.SaveAsScreen.action_leave"></a>
-
-#### action\_leave
-
-```python
-def action_leave() -> None
-```
-
-Leave the screen without naming a file.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp"></a>
 
@@ -674,10 +877,12 @@ Fold every container away, or open every one of them.
 def on_button_pressed(event: Button.Pressed) -> None
 ```
 
-Fold the one container whose control the user pressed.
+Do what the control the user pressed is for.
 
-The only buttons this editor has are the fold controls, and the
-message is stopped here because nothing above them has any use for it.
+There are two kinds of them and the identifier says which: the control
+that folds one container, and the ones that change how many elements
+a node holds. The message is stopped here because nothing above them
+has any use for it.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.action_save_as"></a>
 

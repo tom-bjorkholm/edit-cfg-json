@@ -24,9 +24,7 @@ repository only.
 | [e08_lists_and_dicts.py](e08_lists_and_dicts.py) | A member that holds a list or a dict, shown as a tree of rows with a field at every value. How a value inside one is addressed, by the whole path to it, which is also how one description can reach every element of a list. Folding a container away and opening it again, and why a long one opens folded. What a validator that sorts and de-duplicates a list does to the rows, and why what a validator of a container refuses is shown at the container and not at one value inside it. |
 | [e09_nested_config.py](e09_nested_config.py) | A member that holds a nested `Config` object, shown as the object it is rather than as the dict it serializes to: its class where its value would be, its own docstring below it, its own members as the rows under that, and a badge saying what it is on its own. Why everything inside it belongs to its own class, why a description path is the one thing that crosses that boundary, and why an object can be valid on its own inside a configuration that is refused. Also an optional member holding no object at all. |
 | [e10_config_containers.py](e10_config_containers.py) | A list whose elements are configuration objects and a dict whose values are them, which is what a configuration of any real size is made of. The member stays an ordinary container that folds and says how much it holds, and each object inside it is a node of its own. How one description with the `'['` step reaches every element and every value, and how naming every step singles one of them out again. Why a container of objects opens folded at three of them, why the rule of the element class runs once per object, and why a rule about all of them belongs to the class holding them. |
-
-More examples arrive with the steps that they demonstrate: adding and removing
-elements of a list or a dict.
+| [e11_add_remove.py](e11_add_remove.py) | Changing **how many** things a member holds: adding an element, removing one and moving one along a list. Where a new element comes from — the class a nesting declaration names, or the elements the class declares for the member itself — and the one member that has neither, which says so instead of guessing. Also the three dicts that cannot gain a key and the three different reasons why, and an optional member that is given its object and put back to holding none. |
 
 ## Shared command line handling
 
@@ -41,6 +39,9 @@ takes the same options:
 | `--ui tk` | Open the editor in a Tkinter window. |
 | `--ui textual` | Open the editor in the terminal, with Textual. |
 | `--set member=value` | Edit one value before showing it. Repeatable. A value inside a list or a dict is named by the whole path to it, with a dot between the steps. |
+| `--add PATH` | Add one element to a list. `--add PATH=KEY` adds one entry to a dict, which needs a key. Repeatable. |
+| `--remove PATH` | Remove one element or entry. Repeatable. |
+| `--move PATH=up` | Move one element of a list one place earlier, or `=down` one place later. Repeatable. |
 | `--toggle-explain` | Hide the explanations, as the explain key does. |
 | `--toggle-fold` | Fold every list and dict away, as the fold key does. |
 | `--fold PATH` | Fold one list or dict away, or open it. Repeatable. |
@@ -89,6 +90,10 @@ that the editor runs inside. A real application does not parse these from a
 command line: it knows its own answers and builds one `edit_cfg_json.Settings`
 from them. They are options here so that each answer can be tried without a
 program per answer.
+
+`--add`, `--remove` and `--move` stand in for pressing the controls on a row,
+and they are applied before `--set`, so that a value inside a new element can
+be typed into in the same run. That is also the order a user would work in.
 
 `--toggle-explain` stands in for the key that shows or hides the explanatory
 text, in the same way that `--set` stands in for a user typing into a field.

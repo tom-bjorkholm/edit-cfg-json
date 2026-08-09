@@ -6,7 +6,8 @@ what is inside it may be a list or a dict again, so what the editor shows is a
 tree and not a row per member. This module owns the two operations that make
 that tree, and they are inverses of each other: taking the values of one
 configuration apart into one entry per node, and putting the edit buffer back
-together into the values of one configuration.
+together into the values of one configuration. Where those values come from in
+the first place is `member_values`, which is what the object would write.
 
 Every node is addressed by a `config_as_json.ConfigPath`, which is what
 section 4.2 of `doc/design.md` asks for: a member inside a list or a dict needs
@@ -44,7 +45,8 @@ which is a different thing from a member that has both.
 # MIT License
 
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, TextIO
+import json
 from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
     ConfigPath, JsonType
 
@@ -130,6 +132,31 @@ def text_path(text: str) -> ConfigPath:
         The path that text stands for.
     """
     return tuple(text.split(PATH_SEPARATOR))
+
+
+def member_values(config: Config, stderr_file: TextIO) -> dict[str, JsonType]:
+    """Return one JSON space value per serialized member of one object.
+
+    This is where the values that the tree is built from come from, and it is
+    the values the object would write rather than the attributes it holds: the
+    serialize converters have run, and a nested configuration object has
+    written itself as the dictionary a file holds it as.
+
+    Args:
+        config: Configuration object to read. It is not modified, because
+            what is read is the text it writes and not the object.
+        stderr_file: Stream used for user-facing diagnostics.
+
+    Returns:
+        The values that this object would write to a file.
+
+    Raises:
+        InvalidConfiguration: The configuration object is not valid.
+        InvalidConfigurationValue: A member does not hold a valid value.
+    """
+    members = json.loads(config.as_json_string(stderr_file=stderr_file))
+    assert isinstance(members, dict)
+    return members
 
 
 def is_container(value: JsonType) -> bool:
@@ -331,6 +358,73 @@ def _add_nodes_below(config: Config, prefix: ConfigPath,
         if node.config is not None:
             _add_nodes_below(config=node.config, prefix=prefix + path,
                              found=found)
+
+
+def member_nestings(nodes: Mapping[ConfigPath, ConfigNode]
+                    ) -> dict[ConfigPath, ConfigNesting]:
+    """Return what each object of the tree declares about a member of its own.
+
+    A declaration is the question a member holding several things is answered
+    by: a list whose elements are configuration objects can be given another
+    one, made from the class the declaration names, and a list of plain values
+    is a different question altogether. `config_nodes` answers where the
+    objects *are* and this answers what the class *said*, which is what a
+    member that holds none of them yet has instead.
+
+    Only the first declaration of a member is answered with. More than one is
+    `DICT_VALUE_BY_KEY`, and every one of those says the same thing about the
+    member that holds them, which is that its keys are not all one kind of
+    thing.
+
+    Args:
+        nodes: Every configuration object of the tree, by its path.
+
+    Returns:
+        One declaration per declared member, under the absolute path of that
+        member, which is the path of the object holding it and its own name.
+    """
+    return {path + (name,): _first_nesting(declared)
+            for path, node in nodes.items() if node.config is not None
+            for name, declared in node.config.nested_configs().items()}
+
+
+def _first_nesting(declared: ConfigNesting | list[ConfigNesting]
+                   ) -> ConfigNesting:
+    """Return the one declaration that answers for a member."""
+    return declared[0] if isinstance(declared, list) else declared
+
+
+def unchecked_members(nodes: Mapping[ConfigPath, ConfigNode]
+                      ) -> frozenset[ConfigPath]:
+    """Return every dict member whose keys its own class does not check.
+
+    `config_as_json` checks a dict member of a configuration against the keys
+    the class declares for it, and `_unchecked_dicts` is how a class takes that
+    check away and defines the key policy with validators of its own instead.
+    It is read here for the same reason `_omit_none_from_json()` is read: it is
+    a protected name, nothing else answers the question, and the answer decides
+    what the editor may offer.
+
+    The whole of such a member is unchecked and not only its outermost
+    dictionary, because the check returns at the member rather than recursing
+    into it.
+
+    Args:
+        nodes: Every configuration object of the tree, by its path.
+
+    Returns:
+        The absolute path of every member whose keys are the application's own
+        to decide.
+    """
+    return frozenset(path + (name,) for path, node in nodes.items()
+                     if node.config is not None
+                     for name in _unchecked_of(node.config))
+
+
+def _unchecked_of(config: Config) -> list[str]:
+    """Return the dict members whose keys this class does not check."""
+    # pylint: disable-next=protected-access
+    return config._unchecked_dicts
 
 
 def owner_path(path: ConfigPath,

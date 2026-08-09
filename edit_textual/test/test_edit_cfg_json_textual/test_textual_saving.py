@@ -13,8 +13,8 @@ from textual.widgets import Input
 from edit_cfg_json import EditModel, EditorBackend
 from edit_cfg_json_textual import TextualEditor
 from edit_cfg_json_textual import edit as textual_edit
-from edit_cfg_json_textual.textual_editor import EditorApp, SAVE_AS_BOX_ID, \
-    SAVE_AS_ID
+from edit_cfg_json_textual.textual_ask import ASK_BOX_ID
+from edit_cfg_json_textual.textual_editor import EditorApp, SAVE_AS_ID
 from example.e01_flat_config import FlatConfig
 from .helpers import ESCAPE_KEY, EXPLAIN_KEY, NARROW_SIZE, \
     NO_FILE_TEXT, QUIT_KEY, REFUSED_VERDICT, ROOMY_SIZE, SAVE_AS_KEY, \
@@ -176,7 +176,7 @@ def test_save_as_on_screen(size: tuple[int, int]) -> None:
         async with app.run_test(size=size) as pilot:
             await pilot.press(SAVE_AS_KEY)
             await pilot.pause()
-            box = app.screen.query_one(f'#{SAVE_AS_BOX_ID}')
+            box = app.screen.query_one(f'#{ASK_BOX_ID}')
             return box.region, app.screen.region
     region, screen = asyncio.run(placed())
     assert screen.contains_region(region)

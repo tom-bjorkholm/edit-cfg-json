@@ -251,10 +251,10 @@ def row_describes(row: MemberRow) -> bool:
         row: Node to ask about.
 
     Returns:
-        Whether the application, the type of the node or the class of the
-        object at it has anything to say.
+        Whether the application, the type of the node, the class of the object
+        at it or what cannot be added to it has anything to say.
     """
-    return bool(row.description) or bool(
+    return bool(row.description) or bool(row.offer.refusal) or bool(
         row.config_type is not None and class_docstring(row.config_type))
 
 
@@ -272,6 +272,12 @@ def row_description(model: EditModel, row: MemberRow) -> str:
     about itself cannot depend on the fold state that is stamped onto it
     afterwards.
 
+    A member that holds several of something and cannot be given another says
+    so last. It is explanation and not a refusal to act on: it says what this
+    member is, in the same way as the line saying what kind of value a member
+    holds, and a user who knows this configuration wants it out of the way
+    with the rest.
+
     Args:
         model: Model that the node belongs to.
         row: Node to describe.
@@ -282,7 +288,7 @@ def row_description(model: EditModel, row: MemberRow) -> str:
     """
     if not model.explanations_shown:
         return ''
-    said = [row.description, _class_text(row)]
+    said = [row.description, _class_text(row), row.offer.refusal]
     return '\n'.join(line for line in said if line)
 
 

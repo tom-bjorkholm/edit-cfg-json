@@ -228,9 +228,9 @@ object answers for `LIST_ELEMENT` and `DICT_VALUE` exactly as it does for
 `MEMBER`, so a member holding several objects was editable, foldable, validated
 per object and addressable by path the day step 11 landed. Step 13 is therefore
 the example that shows it, the description selectors of section 4.3 read across
-repeated objects, and the tests that pin both. What is left of the milestone is
-step 14, where a container gains and loses elements, and that one really is
-about what a node offers.
+repeated objects, and the tests that pin both. Step 14 is where a container
+gains and loses elements, and that one really is about what a node offers:
+section 4.9.
 
 **The declarations are walked over the object and not matched as selectors.**
 Step 10 found those nodes by turning each declaration into a selector —
@@ -759,8 +759,105 @@ differ.** Neither of them can write into a widget for a value that is not in
 the buffer any more, and neither may keep one. They leave the widgets alone
 whenever the paths match, which is every ordinary refresh, and that is what
 keeps the focus in the field the user is typing into. It is also the machinery
-that step 14 needs when the user adds and removes elements, so it is built once
-and here.
+that section 4.9 needs when the user adds and removes elements, so it is built
+once and here.
+
+### 4.9 How many things a member holds
+
+A member is a list or a dict because **how many** of them there are is a
+decision of whoever configures the application. An editor that could change
+every one of them and add none would be refusing the decision that the shape of
+the member exists to allow, so a container can be given an element, one of its
+elements can be taken out, and an element of a list can change places with a
+neighbour. Built at step 14.
+
+**A new element is copied and never invented**, and there are exactly two
+places it can be copied from, both of them the application's. Where the class
+declares that every element of a list or every value of a dict is a
+configuration object, the declaration names the class and a new element is one
+object of it holding the values it declares — which works for a container that
+is *empty*, because what an element is comes from the declaration and not from
+what the member happens to hold. Where it declares no such thing, the values
+the class declares for the member itself are the pattern: the first element of
+them, and failing that the first element the member holds now.
+
+A member with neither is the one case section 11 puts permanently out of scope,
+and the reason is not that it is difficult: only the application knows what an
+element of its own list looks like, and a member it never gave one for has
+never said. Such a member says so and offers removing and moving. The fallback
+to what the member holds now is a step 14 addition to what this document first
+said, and it earns its place: a member the class declares nothing for becomes
+extendable as soon as a file has put something in it, which is the ordinary way
+such a list gets its first element.
+
+**What cannot be done is said and not left to be discovered.** Three kinds of
+dict cannot be given an entry, for three different reasons, and each of them
+says which below its own row:
+
+- an ordinary dict member, because `config_as_json` checks such a member
+  against the keys its class declares — `Config.check_dict_parse` does it while
+  parsing — so a dict that gained or lost one would be refused by the
+  configuration class itself. Confirmed against the implementation in `./venv`
+  at step 14, and it is why "uniform dicts" in section 11 means the declared
+  ones and not every dict.
+- a member of `_unchecked_dicts`, whose key policy the application defines with
+  validators of its own. Out of v1 scope.
+- a `DICT_VALUE_BY_KEY` member, where one named key holds an object and the
+  others hold ordinary values. Out of v1 scope.
+
+That sentence is **explanation and not a refusal to act on**: it says what this
+member is, in the same way as the line saying what kind of value a member
+holds, so it is `Emphasis.MUTED`, it sits below the member with the
+description, and the toggle of section 4.4 covers it. Nothing is
+half-supported: a node that cannot be given an element gets no control at all
+rather than one that refuses every press.
+
+**A declared member holding no configuration object is grown by being given
+one**, which is what section 4.1 already called adding, and cleared by being
+put back to holding none. Clearing is offered only where the class writes
+`null` for the member: one that lists it in `_omit_none_from_json()` leaves it
+out of the file altogether and it then has no row, so a member the editor had
+cleared could never be given an object again. That also means such a member
+cannot be given its first object through the editor at all, which is a
+consequence of section 4.1's decision that an omitted member has no row rather
+than a decision of this section.
+
+**Where an object is added, an object is made.** The tree finds the nested
+configuration objects by walking the real objects (section 4.1), so an element
+that existed only in the edit buffer would be shown as the dictionary it
+serializes to, with the member order of nobody, the parse converters of nobody
+and no badge of its own — and nothing would ever ask it whether it is a
+configuration on its own. So the model's own configuration object, which is
+the copy the caller never sees, gains the object as the buffer gains its
+values. Principle 5 of section 3 is untouched: it is the editor's copy that is
+changed and never the caller's.
+
+**What the editor holds about a node is held under the path of that node**, and
+an element of a list is addressed by where it is, so a removal or a move takes
+all of it along: what each row is compared against, which containers are
+folded, and what each object said about itself. Without that, removing the
+first element of a list would leave every element after it comparing itself
+with the element that used to be there, and would report every one of them as
+edited by a user who touched none of them.
+
+**A change of the elements is not a validation pass**, and the rows say so. The
+rows are built again after both, and only one of the two is a validator's work,
+so a row that a validation pass created is marked as one a validator wrote and
+a row the user added is not. What the application makes of what was added is
+the ordinary verdict: the editor copies what the class declares, and a class
+that refuses two elements with one name refuses the copy until it is given a
+name of its own.
+
+**Where the new entry of a dict is named is the user**, because nothing else
+knows. Each backend asks in the way its own toolkit asks a question — a dialog
+in Tk, a modal screen in Textual — and a key the dict already holds is asked
+about again rather than allowed to take the place of what is there. A list is
+never asked, because an element of a list is addressed by where it is.
+
+**The controls sit at the end of the line of the node**, unlike the fold
+control, which keeps a column clear on every row. There is no alignment to
+keep, so a node that offers none of them costs the values no width at all, and
+that is what makes four controls on one row affordable.
 
 ## 5. Loading
 
@@ -810,10 +907,15 @@ class has one. Writing the protocol out by hand stays the door for anything
 this cannot express, which in practice means a class chosen by looking at the
 JSON. Settled at step 9.
 
-**Loading is the only thing that needs the loader**, which is what makes it
-affordable. Section 6.1 does not construct the class at all, so an application
-that has a loader needs it for reading a file and for nothing else, and one
-that has no loader is no worse off anywhere else.
+**Reading a file and the declared defaults are what need the loader**, which
+is what makes it affordable. Section 6.1 does not construct the class at all,
+so an application that has a loader needs it for those two and for nothing
+else, and one that has no loader is no worse off anywhere else. The second of
+the two arrived at step 14: the values a class declares are what a new element
+of an ordinary list is copied from (section 4.9), and a loader is asked for
+them with no JSON source, which is exactly what the paragraph below says a
+loader answers. A class the editor cannot construct answers with nothing and
+loses that one offer.
 
 **A loader answers a call with no JSON source.** That answer is the
 configuration the editor edits when it was given no file, so the protocol asks
@@ -1925,19 +2027,24 @@ In scope:
 - read, edit and save with full validation
 - lists and dicts as a tree of rows, with a field at every value
 - folding with per-subtree validation badges
-- add and remove elements of uniform lists and dicts
+- add and remove elements of uniform lists and dicts, move an element of a
+  list, and give a declared optional member its object or take it away
 - descriptions, class docstrings, and a docstring visibility toggle
 - automatic-change and filled-default visibility
 - modal `edit()` with both backends
 
 Deliberately out of scope for v1:
 
-- **Containers whose default is empty and which have no nesting
-  declaration.** There is no template for a new element and no way to
-  invent one. Such members can be reordered and have elements removed,
-  but not extended. The UI must say so rather than guess.
+- **Containers with nothing to copy a new element from.** Only the
+  application knows what an element of its own list looks like, and a
+  member it neither declares an element for nor holds one of has never
+  said. Such members can be reordered and have elements removed, but not
+  extended, and the UI says so rather than guessing. Section 4.9.
 - **`DICT_VALUE_BY_KEY` members and dicts listed in
   `_unchecked_dicts`.** These have per-key rather than uniform policy.
+  An ordinary dict member is not out of scope but out of reach: its keys
+  are the ones its class declares and `config_as_json` refuses any other,
+  which section 4.9 records.
 - **Embedding.** The model is designed for it and section 8.2 designs the
   rest of it; only the modal wrapper ships first.
 - **The draft file** of section 7.1.

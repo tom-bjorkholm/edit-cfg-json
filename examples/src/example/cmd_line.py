@@ -50,6 +50,14 @@ already, in the same way that pressing its control in a window does.
 `--toggle-fold` stands in for the key that folds every one of them, and is
 repeatable because a key is.
 
+`--add PATH` puts one more element into a list, and `--add PATH=KEY` puts one
+more entry into a dict, which needs a key because nothing but the person
+configuring the application knows what a new entry is called. `--remove PATH`
+takes one element out again, and `--move PATH=up` and `--move PATH=down` make
+one element of a list change places with a neighbour. All four stand in for
+pressing the control on that row, and all four are applied before `--set`, so
+that a value inside a new element can be typed into in the same run.
+
 `-i/--input` names the file that the values are read from, and `--policy`
 says what to do about a declared value that the file does not hold. There is
 a file for every case in [examples/data/](../../data/), including the ones
@@ -165,6 +173,17 @@ given. Neither is a declared member that holds no configuration object.
 NOT_A_CONTAINER_MESSAGE = '{name} is not a list or a dict.'
 """Message used to refuse a `--fold` of something that holds nothing."""
 
+MOVE_FORM_MESSAGE = ('--move needs PATH={up} or PATH={down}, and got '
+                     '{value}.')
+"""Message used to refuse a `--move` that says no direction."""
+
+MOVE_UP = 'up'
+"""What `--move` is told to make an element change places with the one
+before it."""
+
+MOVE_DOWN = 'down'
+"""What it is told to make it change places with the one after it."""
+
 KEY_FORM_MESSAGE = ('--key needs one of {names} followed by =combinations, '
                     'and got {value}.')
 """Message used to refuse a `--key` that names no action of the editor."""
@@ -177,9 +196,10 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
         example_name: Name of the example, used in help and error text.
 
     Returns:
-        A parser for `--ui`, `--set`, `--toggle-explain`, `--policy`,
-        `--save`, `--extension`, `--enforce-extension`, `--key`,
-        `-i/--input` and `-o/--output`.
+        A parser for `--ui`, `--set`, `--add`, `--remove`, `--move`,
+        `--toggle-explain`, `--toggle-fold`, `--fold`, `--policy`, `--save`,
+        `--extension`, `--enforce-extension`, `--key`, `-i/--input` and
+        `-o/--output`.
     """
     # The last three of those are added by the core, in `add_file_options`,
     # because the programs the core installs have the very same three options
@@ -198,6 +218,15 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
     parser.add_argument('--fold', action='append', dest='folds',
                         metavar='PATH',
                         help='Fold or open one list or dict. Repeatable.')
+    parser.add_argument('--add', action='append', dest='adds',
+                        metavar='PATH[=KEY]',
+                        help='Add one element or entry. Repeatable.')
+    parser.add_argument('--remove', action='append', dest='removes',
+                        metavar='PATH',
+                        help='Remove one element or entry. Repeatable.')
+    parser.add_argument('--move', action='append', dest='moves',
+                        metavar='PATH=up|down',
+                        help='Move one element of a list. Repeatable.')
     parser.add_argument('--extension', default=None,
                         help='File name extension this application uses.')
     parser.add_argument('--enforce-extension', action='store_true',
@@ -269,6 +298,72 @@ def _apply_edits(parser: argparse.ArgumentParser, model: EditModel,
         if not separator:
             parser.error(SET_FORM_MESSAGE.format(setting=setting))
         _set_member(parser=parser, model=model, name=name, text=text)
+
+
+def _apply_adds(parser: argparse.ArgumentParser, model: EditModel,
+                adds: Optional[list[str]]) -> None:
+    """Put one more element into every node that one command line names.
+
+    A list is named on its own and a dict is named with the key of the new
+    entry after an equals sign, because a new entry of a dict has to be
+    called something and nothing but the person configuring the application
+    knows what. It is the same notation as `--set`, for the same reason: what
+    follows the equals sign is what the user would have typed.
+
+    Args:
+        parser: Parser used to report the error and exit.
+        model: Model whose buffer is edited.
+        adds: The `--add` values, or None when the option was not used.
+    """
+    for value in adds or []:
+        name, _, key = value.partition('=')
+        try:
+            model.add_element(path=text_path(name), key=key)
+        except KeyError:
+            parser.error(NO_MEMBER_MESSAGE.format(name=name))
+        except ValueError as error:
+            parser.error(str(error))
+
+
+def _apply_removes(parser: argparse.ArgumentParser, model: EditModel,
+                   removes: Optional[list[str]]) -> None:
+    """Take one element out of what holds it, for every name of one run.
+
+    Args:
+        parser: Parser used to report the error and exit.
+        model: Model whose buffer is edited.
+        removes: The `--remove` values, or None when unused.
+    """
+    for name in removes or []:
+        try:
+            model.remove_element(text_path(name))
+        except KeyError:
+            parser.error(NO_MEMBER_MESSAGE.format(name=name))
+        except ValueError as error:
+            parser.error(str(error))
+
+
+def _apply_moves(parser: argparse.ArgumentParser, model: EditModel,
+                 moves: Optional[list[str]]) -> None:
+    """Move one element of a list by one place, for every name of one run.
+
+    Args:
+        parser: Parser used to report the error and exit.
+        model: Model whose buffer is edited.
+        moves: The `--move` values, or None when the option was not used.
+    """
+    for value in moves or []:
+        name, separator, direction = value.partition('=')
+        if not separator or direction not in (MOVE_UP, MOVE_DOWN):
+            parser.error(MOVE_FORM_MESSAGE.format(value=value, up=MOVE_UP,
+                                                  down=MOVE_DOWN))
+        try:
+            model.move_element(path=text_path(name),
+                               later=direction == MOVE_DOWN)
+        except KeyError:
+            parser.error(NO_MEMBER_MESSAGE.format(name=name))
+        except ValueError as error:
+            parser.error(str(error))
 
 
 def _apply_folds(parser: argparse.ArgumentParser, model: EditModel,
@@ -354,9 +449,14 @@ class StandInUser:  # pylint: disable=too-few-public-methods
     What it does belongs on this side of `edit()` rather than before it,
     because `edit()` owns the model: it reads the file and builds the model
     itself, which is what gives a load its policy and its change reporting.
-    `--set` stands in for a user typing, `--toggle-explain` for a user pressing
-    the explain key, and `--save` for a user pressing Save, and all three of
-    those happen in an editor that is already open.
+    `--set` stands in for a user typing, `--add`, `--remove` and `--move` for a
+    user pressing the controls of a row, `--toggle-explain` for a user pressing
+    the explain key, and `--save` for a user pressing Save, and every one of
+    those happens in an editor that is already open.
+
+    How many elements there are is changed before anything is typed, so that a
+    value inside a new element can be set in the same run. That is also the
+    order a user would work in.
 
     Saving is here rather than in `DumpEditor` for the same reason as the other
     two: the dump prints the model it is given, and pressing Save is not
@@ -384,6 +484,11 @@ class StandInUser:  # pylint: disable=too-few-public-methods
         Args:
             model: Model to edit and then to show.
         """
+        _apply_adds(parser=self._parser, model=model, adds=self._parsed.adds)
+        _apply_removes(parser=self._parser, model=model,
+                       removes=self._parsed.removes)
+        _apply_moves(parser=self._parser, model=model,
+                     moves=self._parsed.moves)
         _apply_edits(parser=self._parser, model=model,
                      edits=self._parsed.edits)
         for _ in range(self._parsed.toggle_explain):

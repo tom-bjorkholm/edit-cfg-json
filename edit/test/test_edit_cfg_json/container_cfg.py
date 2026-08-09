@@ -538,3 +538,58 @@ class ConfigDictCfg(SampleCfg):
         """Return the declaration that every value of the dict is one."""
         return {'outputs': ConfigNesting(kind=ConfigNestingKind.DICT_VALUE,
                                          config_type=InnerCfg)}
+
+
+class ElementCfg(SampleCfg):
+    """A configuration holding every kind of container that cannot grow.
+
+    The four members are the four different answers the editor gives about
+    adding an element, and they are together in one class so that a test can
+    read all four of one model.
+    """
+
+    def declare_members(self) -> None:
+        """Assign one list of each kind and one dict of each kind."""
+        self.tags: list[str] = ['first', 'second']
+        self.spare: list[str] = []
+        self.limits: dict[str, int] = {'low': 1}
+        self.labels: dict[str, str] = {'team': 'platform'}
+        self._unchecked_dicts = ['labels']
+
+
+class EmptyObjectsCfg(SampleCfg):
+    """A configuration whose declared list of objects holds none of them.
+
+    What an element of it is comes from the declaration and not from what the
+    member happens to hold, so it can be given one while it is empty. That is
+    the case that a container of plain values cannot answer.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the empty list of nested objects."""
+        self.outputs: list[InnerCfg] = []
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration that every element of the list is one."""
+        return {'outputs': ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
+                                         config_type=InnerCfg)}
+
+
+class ByKeyCfg(SampleCfg):
+    """A configuration whose dict holds an object under one named key.
+
+    `DICT_VALUE_BY_KEY` is what declares that shape, and it is the one that
+    makes the keys of a dict a policy of their own: one of them holds a
+    configuration object and the others hold ordinary values.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the dict whose one named key holds a nested object."""
+        self.hooks: dict[str, InnerCfg | str] = {'main': InnerCfg(),
+                                                 'note': 'nothing'}
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration of the one key that holds an object."""
+        by_key = ConfigNestingKind.DICT_VALUE_BY_KEY
+        return {'hooks': ConfigNesting(kind=by_key, config_type=InnerCfg,
+                                       discriminator_key='main')}

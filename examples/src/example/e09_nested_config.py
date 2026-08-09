@@ -145,10 +145,10 @@ audit_output: no TableOutputConfig
 ````
 
 It cannot be edited, because no text typed into a field becomes a
-configuration object. Making one is *adding*, which is step 14 of the delivery
-plan and is not here yet. A class that listed the member in
-`_omit_none_from_json()` would write nothing for it at all, and it would then
-have no row — which is what any member a class omits already does.
+configuration object. Making one is *adding*, which
+[e11_add_remove.py](e11_add_remove.py) is about. A class that listed the
+member in `_omit_none_from_json()` would write nothing for it at all, and it
+would then have no row — which is what any member a class omits already does.
 
 The file in [examples/data/](../../data/) has an audit output, so reading it
 shows the same member as a real object with rows of its own:

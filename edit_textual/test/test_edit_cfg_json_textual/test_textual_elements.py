@@ -1,0 +1,196 @@
+#! /usr/bin/env python3
+"""Tests for the controls that change how many elements a node holds.
+
+Textual runs headlessly in process, so the application is really started and
+its controls are really pressed. The configuration class comes from the
+example rather than from one of its own, so that the same containers are used
+by the core tests, by both backends and by the example itself.
+"""
+
+# Copyright (c) 2026 Tom Björkholm
+# MIT License
+
+from collections.abc import Awaitable, Callable
+from typing import Optional
+import asyncio
+from textual.pilot import Pilot
+from textual.widgets import Button, Input
+from config_as_json import ConfigPath
+from edit_cfg_json import EditModel
+from edit_cfg_json_textual.textual_ask import ASK_BOX_ID
+from edit_cfg_json_textual.textual_editor import EditorApp
+from edit_cfg_json_textual.textual_elements import ADD_ACTION, ADD_LABEL, \
+    ASK_KEY_ID, EARLIER_ACTION, LATER_ACTION, LATER_LABEL, REMOVE_ACTION, \
+    REMOVE_LABEL, element_id
+from example.e11_add_remove import PipelineConfig
+from .helpers import ENTER_KEY, ESCAPE_KEY, ROOMY_SIZE
+
+NEW_KEY = 'nightly'
+"""Key that the question about a new entry is answered with."""
+
+STAGES: ConfigPath = ('stages',)
+"""The member of the example that holds a list of configuration objects."""
+
+RUNNERS: ConfigPath = ('runners',)
+"""The member of it that holds a dict of them, keyed by a name."""
+
+
+def _index_of(model: EditModel, path: ConfigPath) -> int:
+    """Return where among the rows one node of one model is.
+
+    Every widget of a node is identified by that place and not by its name,
+    because two values inside two different dicts can have one name.
+    """
+    return [row.path for row in model.rows].index(path)
+
+
+def _value_of(model: EditModel, path: ConfigPath) -> str:
+    """Return what one node of one model shows where a value would be."""
+    return {row.path: row.value_text for row in model.rows}[path]
+
+
+def _run(model: EditModel,
+         driving: Callable[[EditorApp, Pilot[None]],
+                           Awaitable[None]]) -> None:
+    """Run one application headlessly and drive it with one coroutine.
+
+    Args:
+        model: Model to run the application on.
+        driving: What to do to the application once it is running.
+    """
+    async def started() -> None:
+        """Start the application and hand it to the coroutine."""
+        app = EditorApp(model)
+        async with app.run_test(size=ROOMY_SIZE) as pilot:
+            await driving(app, pilot)
+    asyncio.run(started())
+
+
+async def _press(app: EditorApp, pilot: Pilot[None], index: int,
+                 action: str) -> None:
+    """Press one control of one node and let the application settle.
+
+    Args:
+        app: Application that is showing the model.
+        pilot: What drives that application.
+        index: Place of the node among the rows.
+        action: Name of the action that control runs.
+    """
+    named = element_id(index=index, action=action)
+    app.query_one(f'#{named}', Button).press()
+    await pilot.pause()
+    await pilot.pause()
+
+
+def _presser(model: EditModel, path: ConfigPath, action: str,
+             answer: Optional[str] = None
+             ) -> Callable[[EditorApp, Pilot[None]], Awaitable[None]]:
+    """Return a coroutine that presses one control of one node.
+
+    Args:
+        model: Model whose rows say where that node is.
+        path: Path of the node whose control is pressed.
+        action: Name of the action that control runs.
+        answer: What to type into the question about a new dict entry, or
+            None for a control that asks nothing.
+
+    Returns:
+        A coroutine that presses that control and answers what it asks.
+    """
+    async def driving(app: EditorApp, pilot: Pilot[None]) -> None:
+        """Press the control, and answer the question where there is one."""
+        await _press(app=app, pilot=pilot, index=_index_of(model, path),
+                     action=action)
+        if answer is None:
+            return
+        app.screen.query_one(f'#{ASK_KEY_ID}', Input).value = answer
+        await pilot.pause()
+        await pilot.press(ENTER_KEY if answer else ESCAPE_KEY)
+        await pilot.pause()
+    return driving
+
+
+def test_controls_are_offered() -> None:
+    """Test a list that can grow has the controls its offer names."""
+    model = EditModel(PipelineConfig())
+    seen: list[str] = []
+
+    async def look(app: EditorApp, pilot: Pilot[None]) -> None:
+        """Collect what every control of the application says."""
+        _ = pilot
+        seen.extend(str(button.label) for button in app.query(Button))
+    _run(model, look)
+    assert ADD_LABEL in seen
+    assert REMOVE_LABEL in seen
+    assert LATER_LABEL in seen
+
+
+def test_added_element() -> None:
+    """Test pressing the control of a list puts one more element in it."""
+    model = EditModel(PipelineConfig())
+    _run(model, _presser(model, STAGES, ADD_ACTION))
+    assert _value_of(model, STAGES) == '3 elements'
+
+
+def test_removed_element() -> None:
+    """Test pressing the control of an element takes it out of the list."""
+    model = EditModel(PipelineConfig())
+    _run(model, _presser(model, (*STAGES, '0'), REMOVE_ACTION))
+    assert _value_of(model, STAGES) == '1 element'
+
+
+def test_moved_element() -> None:
+    """Test pressing the control of an element changes its place."""
+    model = EditModel(PipelineConfig())
+    _run(model, _presser(model, (*STAGES, '0'), LATER_ACTION))
+    assert _value_of(model, (*STAGES, '0', 'name')) == 'test'
+
+
+def test_no_control_at_end() -> None:
+    """Test the first element of a list is offered no way of moving up.
+
+    There is nothing in front of it to change places with, so the control
+    that would do that is not created at all.
+    """
+    model = EditModel(PipelineConfig())
+    found: list[int] = []
+
+    async def look(app: EditorApp, pilot: Pilot[None]) -> None:
+        """Count the controls that would move the first element up."""
+        _ = pilot
+        widget_id = element_id(index=_index_of(model, (*STAGES, '0')),
+                               action=EARLIER_ACTION)
+        found.append(len(app.query(f'#{widget_id}')))
+    _run(model, look)
+    assert found == [0]
+
+
+def test_key_is_asked() -> None:
+    """Test a dict of objects is given the entry that the question named."""
+    model = EditModel(PipelineConfig())
+    _run(model, _presser(model, RUNNERS, ADD_ACTION, answer=NEW_KEY))
+    assert (*RUNNERS, NEW_KEY) in [row.path for row in model.rows]
+
+
+def test_key_unanswered() -> None:
+    """Test a question about a new entry that is left unanswered adds none."""
+    model = EditModel(PipelineConfig())
+    before = len(model.rows)
+    _run(model, _presser(model, RUNNERS, ADD_ACTION, answer=''))
+    assert len(model.rows) == before
+
+
+def test_question_is_a_screen() -> None:
+    """Test the question about a new entry is shown on a screen of its own."""
+    model = EditModel(PipelineConfig())
+    asked: list[int] = []
+
+    async def look(app: EditorApp, pilot: Pilot[None]) -> None:
+        """Press the control and see whether the question is up."""
+        await _press(app=app, pilot=pilot, action=ADD_ACTION,
+                     index=_index_of(model, RUNNERS))
+        asked.append(len(app.screen.query(f'#{ASK_BOX_ID}')))
+        await pilot.press(ESCAPE_KEY)
+        await pilot.pause()
+    _run(model, look)
+    assert asked == [1]

@@ -11,6 +11,7 @@
   * [OPEN\_AT\_MOST](#edit_cfg_json.tree.OPEN_AT_MOST)
   * [path\_text](#edit_cfg_json.tree.path_text)
   * [text\_path](#edit_cfg_json.tree.text_path)
+  * [member\_values](#edit_cfg_json.tree.member_values)
   * [is\_container](#edit_cfg_json.tree.is_container)
   * [container\_text](#edit_cfg_json.tree.container_text)
   * [rows\_below](#edit_cfg_json.tree.rows_below)
@@ -21,6 +22,8 @@
     * [config\_type](#edit_cfg_json.tree.ConfigNode.config_type)
     * [config](#edit_cfg_json.tree.ConfigNode.config)
   * [config\_nodes](#edit_cfg_json.tree.config_nodes)
+  * [member\_nestings](#edit_cfg_json.tree.member_nestings)
+  * [unchecked\_members](#edit_cfg_json.tree.unchecked_members)
   * [owner\_path](#edit_cfg_json.tree.owner_path)
   * [ordered\_names](#edit_cfg_json.tree.ordered_names)
   * [flat\_values](#edit_cfg_json.tree.flat_values)
@@ -66,6 +69,50 @@
     * [run\_editor](#edit_cfg_json.backend.DumpEditor.run_editor)
 * [edit\_cfg\_json.editing](#edit_cfg_json.editing)
   * [edit](#edit_cfg_json.editing.edit)
+* [edit\_cfg\_json.elements](#edit_cfg_json.elements)
+  * [BUILD\_ERRORS](#edit_cfg_json.elements.BUILD_ERRORS)
+  * [OBJECT\_KINDS](#edit_cfg_json.elements.OBJECT_KINDS)
+  * [NO\_PATTERN](#edit_cfg_json.elements.NO_PATTERN)
+  * [NO\_CLASS\_FORM](#edit_cfg_json.elements.NO_CLASS_FORM)
+  * [FIXED\_KEYS](#edit_cfg_json.elements.FIXED_KEYS)
+  * [BY\_KEY\_SCOPE](#edit_cfg_json.elements.BY_KEY_SCOPE)
+  * [UNCHECKED\_SCOPE](#edit_cfg_json.elements.UNCHECKED_SCOPE)
+  * [NOT\_EXTENDABLE](#edit_cfg_json.elements.NOT_EXTENDABLE)
+  * [NOT\_REMOVABLE](#edit_cfg_json.elements.NOT_REMOVABLE)
+  * [NOT\_MOVABLE](#edit_cfg_json.elements.NOT_MOVABLE)
+  * [KEY\_NEEDED](#edit_cfg_json.elements.KEY_NEEDED)
+  * [KEY\_UNWANTED](#edit_cfg_json.elements.KEY_UNWANTED)
+  * [KEY\_TAKEN](#edit_cfg_json.elements.KEY_TAKEN)
+  * [ElementOffer](#edit_cfg_json.elements.ElementOffer)
+    * [extend](#edit_cfg_json.elements.ElementOffer.extend)
+    * [keyed](#edit_cfg_json.elements.ElementOffer.keyed)
+    * [remove](#edit_cfg_json.elements.ElementOffer.remove)
+    * [earlier](#edit_cfg_json.elements.ElementOffer.earlier)
+    * [later](#edit_cfg_json.elements.ElementOffer.later)
+    * [refusal](#edit_cfg_json.elements.ElementOffer.refusal)
+    * [template](#edit_cfg_json.elements.ElementOffer.template)
+  * [TreeFacts](#edit_cfg_json.elements.TreeFacts)
+    * [values](#edit_cfg_json.elements.TreeFacts.values)
+    * [nodes](#edit_cfg_json.elements.TreeFacts.nodes)
+    * [nestings](#edit_cfg_json.elements.TreeFacts.nestings)
+    * [unchecked](#edit_cfg_json.elements.TreeFacts.unchecked)
+    * [omitted](#edit_cfg_json.elements.TreeFacts.omitted)
+    * [defaults](#edit_cfg_json.elements.TreeFacts.defaults)
+    * [made](#edit_cfg_json.elements.TreeFacts.made)
+  * [declared\_values](#edit_cfg_json.elements.declared_values)
+  * [tree\_facts](#edit_cfg_json.elements.tree_facts)
+  * [element\_offers](#edit_cfg_json.elements.element_offers)
+  * [new\_object](#edit_cfg_json.elements.new_object)
+  * [grown](#edit_cfg_json.elements.grown)
+  * [shrunk](#edit_cfg_json.elements.shrunk)
+  * [swapped](#edit_cfg_json.elements.swapped)
+  * [moved\_paths](#edit_cfg_json.elements.moved_paths)
+  * [kept\_order](#edit_cfg_json.elements.kept_order)
+  * [object\_added](#edit_cfg_json.elements.object_added)
+  * [object\_removed](#edit_cfg_json.elements.object_removed)
+  * [object\_moved](#edit_cfg_json.elements.object_moved)
+  * [checked\_key](#edit_cfg_json.elements.checked_key)
+  * [refused](#edit_cfg_json.elements.refused)
 * [edit\_cfg\_json.saving](#edit_cfg_json.saving)
   * [NO\_DESTINATION](#edit_cfg_json.saving.NO_DESTINATION)
   * [NOT\_VALID](#edit_cfg_json.saving.NOT_VALID)
@@ -170,6 +217,9 @@
     * [check\_all](#edit_cfg_json.buffer.EditBuffer.check_all)
     * [toggle\_fold](#edit_cfg_json.buffer.EditBuffer.toggle_fold)
     * [toggle\_fold\_all](#edit_cfg_json.buffer.EditBuffer.toggle_fold_all)
+    * [add\_element](#edit_cfg_json.buffer.EditBuffer.add_element)
+    * [remove\_element](#edit_cfg_json.buffer.EditBuffer.remove_element)
+    * [move\_element](#edit_cfg_json.buffer.EditBuffer.move_element)
     * [take\_subtrees](#edit_cfg_json.buffer.EditBuffer.take_subtrees)
     * [keep\_saved](#edit_cfg_json.buffer.EditBuffer.keep_saved)
     * [take\_validated](#edit_cfg_json.buffer.EditBuffer.take_validated)
@@ -269,6 +319,9 @@
     * [saved\_config](#edit_cfg_json.edit_model.EditModel.saved_config)
     * [verdict](#edit_cfg_json.edit_model.EditModel.verdict)
     * [set\_text](#edit_cfg_json.edit_model.EditModel.set_text)
+    * [add\_element](#edit_cfg_json.edit_model.EditModel.add_element)
+    * [remove\_element](#edit_cfg_json.edit_model.EditModel.remove_element)
+    * [move\_element](#edit_cfg_json.edit_model.EditModel.move_element)
     * [check\_field](#edit_cfg_json.edit_model.EditModel.check_field)
     * [set\_out\_file](#edit_cfg_json.edit_model.EditModel.set_out_file)
     * [validate](#edit_cfg_json.edit_model.EditModel.validate)
@@ -292,6 +345,7 @@
     * [subtree\_valid](#edit_cfg_json.rows.MemberRow.subtree_valid)
     * [subtree\_refusal](#edit_cfg_json.rows.MemberRow.subtree_refusal)
     * [has\_objects](#edit_cfg_json.rows.MemberRow.has_objects)
+    * [offer](#edit_cfg_json.rows.MemberRow.offer)
     * [name](#edit_cfg_json.rows.MemberRow.name)
     * [depth](#edit_cfg_json.rows.MemberRow.depth)
     * [foldable](#edit_cfg_json.rows.MemberRow.foldable)
@@ -306,7 +360,8 @@
     * [nodes](#edit_cfg_json.rows.RowContext.nodes)
     * [converters](#edit_cfg_json.rows.RowContext.converters)
     * [optional](#edit_cfg_json.rows.RowContext.optional)
-  * [member\_values](#edit_cfg_json.rows.member_values)
+    * [offers](#edit_cfg_json.rows.RowContext.offers)
+    * [refreshing](#edit_cfg_json.rows.RowContext.refreshing)
   * [built\_rows](#edit_cfg_json.rows.built_rows)
   * [stamped](#edit_cfg_json.rows.stamped)
 * [edit\_cfg\_json.constructing](#edit_cfg_json.constructing)
@@ -382,7 +437,8 @@ what is inside it may be a list or a dict again, so what the editor shows is a
 tree and not a row per member. This module owns the two operations that make
 that tree, and they are inverses of each other: taking the values of one
 configuration apart into one entry per node, and putting the edit buffer back
-together into the values of one configuration.
+together into the values of one configuration. Where those values come from in
+the first place is `member_values`, which is what the object would write.
 
 Every node is addressed by a `config_as_json.ConfigPath`, which is what
 section 4.2 of `doc/design.md` asks for: a member inside a list or a dict needs
@@ -531,6 +587,38 @@ cannot express.
 **Returns**:
 
   The path that text stands for.
+
+<a id="edit_cfg_json.tree.member_values"></a>
+
+#### member\_values
+
+```python
+def member_values(config: Config, stderr_file: TextIO) -> dict[str, JsonType]
+```
+
+Return one JSON space value per serialized member of one object.
+
+This is where the values that the tree is built from come from, and it is
+the values the object would write rather than the attributes it holds: the
+serialize converters have run, and a nested configuration object has
+written itself as the dictionary a file holds it as.
+
+**Arguments**:
+
+- `config` - Configuration object to read. It is not modified, because
+  what is read is the text it writes and not the object.
+- `stderr_file` - Stream used for user-facing diagnostics.
+  
+
+**Returns**:
+
+  The values that this object would write to a file.
+  
+
+**Raises**:
+
+- `InvalidConfiguration` - The configuration object is not valid.
+- `InvalidConfigurationValue` - A member does not hold a valid value.
 
 <a id="edit_cfg_json.tree.is_container"></a>
 
@@ -720,6 +808,72 @@ of the configuration or a member of something nested inside it.
 
   One entry per declared nested configuration object, and one for the
   configuration itself.
+
+<a id="edit_cfg_json.tree.member_nestings"></a>
+
+#### member\_nestings
+
+```python
+def member_nestings(
+        nodes: Mapping[ConfigPath,
+                       ConfigNode]) -> dict[ConfigPath, ConfigNesting]
+```
+
+Return what each object of the tree declares about a member of its own.
+
+A declaration is the question a member holding several things is answered
+by: a list whose elements are configuration objects can be given another
+one, made from the class the declaration names, and a list of plain values
+is a different question altogether. `config_nodes` answers where the
+objects *are* and this answers what the class *said*, which is what a
+member that holds none of them yet has instead.
+
+Only the first declaration of a member is answered with. More than one is
+`DICT_VALUE_BY_KEY`, and every one of those says the same thing about the
+member that holds them, which is that its keys are not all one kind of
+thing.
+
+**Arguments**:
+
+- `nodes` - Every configuration object of the tree, by its path.
+  
+
+**Returns**:
+
+  One declaration per declared member, under the absolute path of that
+  member, which is the path of the object holding it and its own name.
+
+<a id="edit_cfg_json.tree.unchecked_members"></a>
+
+#### unchecked\_members
+
+```python
+def unchecked_members(
+        nodes: Mapping[ConfigPath, ConfigNode]) -> frozenset[ConfigPath]
+```
+
+Return every dict member whose keys its own class does not check.
+
+`config_as_json` checks a dict member of a configuration against the keys
+the class declares for it, and `_unchecked_dicts` is how a class takes that
+check away and defines the key policy with validators of its own instead.
+It is read here for the same reason `_omit_none_from_json()` is read: it is
+a protected name, nothing else answers the question, and the answer decides
+what the editor may offer.
+
+The whole of such a member is unchecked and not only its outermost
+dictionary, because the check returns at the member rather than recursing
+into it.
+
+**Arguments**:
+
+- `nodes` - Every configuration object of the tree, by its path.
+  
+
+**Returns**:
+
+  The absolute path of every member whose keys are the application's own
+  to decide.
 
 <a id="edit_cfg_json.tree.owner_path"></a>
 
@@ -1425,6 +1579,639 @@ and the backend asks the user for a destination before it can save.
 **Raises**:
 
 - `ConfigLoadError` - The input file cannot be opened for editing.
+
+<a id="edit_cfg_json.elements"></a>
+
+# edit\_cfg\_json.elements
+
+What a container offers, and what adding or removing an element does.
+
+A member that holds several of something is not finished when its values can
+be edited. A list of report outputs is a list because the number of them is a
+decision of whoever configures the application, so an editor that could change
+every one of them and add none would be refusing the decision the shape of the
+member exists to allow.
+
+**A new element is copied and never invented.** Where the class declares that
+every element of a list or every value of a dict is a configuration object,
+the declaration says which class to make one of, and one of that class holding
+its own declared values is what a new element is. Where it declares nothing,
+the values the class declares for the member itself are the pattern: the first
+element of them, and failing that the first element the member holds now. A
+member that has neither is a member the editor has nothing to copy for, and it
+says so rather than inventing a value that the application never mentioned.
+
+**What cannot be done is said and not left to be discovered.** A dict whose
+keys are the ones its class declares cannot gain or lose one at all —
+`config_as_json` checks a dict member against those keys while it parses — and
+a dict whose keys the application decides with validators of its own, or one
+where a single named key holds an object, is a key policy that this version
+does not serve. Each of those is a sentence below that member, in the same
+place and under the same toggle as everything else explanatory.
+
+**Where an object is added, an object is made.** The tree finds the nested
+configuration objects by walking the real objects rather than by matching a
+declaration, so an element that existed only in the edit buffer would be shown
+as the dictionary it serializes to, with the member order of nobody, the parse
+converters of nobody and no badge of its own. So the model's own configuration
+object — the copy the caller never sees — gains the object as the buffer gains
+its values, and everything that walks the tree finds it there.
+
+<a id="edit_cfg_json.elements.BUILD_ERRORS"></a>
+
+#### BUILD\_ERRORS
+
+Every way in which constructing a configuration class can fail.
+
+A class that needs a constructor argument this library knows nothing about
+raises `TypeError`, one that declares no public member raises `AttributeError`,
+and declared values that a validator refuses raise a `ValueError` subclass.
+`NotImplementedError` is deliberately not one of them, for the same reason as
+in the validation of a buffer: it says the configuration class is incomplete,
+which is a defect of the application that no editing can put right.
+
+<a id="edit_cfg_json.elements.OBJECT_KINDS"></a>
+
+#### OBJECT\_KINDS
+
+The declarations that say every value inside one member is an object.
+
+They are what makes a member of that shape extendable at all, and they are the
+two that a new element is made from the declared class for. The other three
+declarations are about the member itself rather than about what is inside it.
+
+<a id="edit_cfg_json.elements.NO_PATTERN"></a>
+
+#### NO\_PATTERN
+
+What a list with nothing to copy says instead of offering to grow.
+
+It is the one case that design section 11 of `doc/design.md` puts out of scope
+for good rather than for now, because the missing thing cannot be supplied by
+any amount of work here: only the application knows what an element of its own
+list looks like, and a member it never gave one for has never said.
+
+<a id="edit_cfg_json.elements.NO_CLASS_FORM"></a>
+
+#### NO\_CLASS\_FORM
+
+What a container of objects says when their class cannot be constructed.
+
+`config_as_json` asks a nested class for the constructor that it builds one
+with while it parses, so this is a class that could not be read from a file
+either. It is said here rather than found out when the control is pressed,
+because a control that refuses every press is worse than no control.
+
+<a id="edit_cfg_json.elements.FIXED_KEYS"></a>
+
+#### FIXED\_KEYS
+
+What an ordinary dict member says instead of offering to grow.
+
+`Config.check_dict_parse` matches such a member against the keys the class
+declares for it, so a dict that gained or lost one would be refused by
+`config_as_json` itself on the next validation pass. The editor says so rather
+than offering a control that produces a refusal.
+
+<a id="edit_cfg_json.elements.BY_KEY_SCOPE"></a>
+
+#### BY\_KEY\_SCOPE
+
+What a `DICT_VALUE_BY_KEY` member says, which is out of scope for v1.
+
+<a id="edit_cfg_json.elements.UNCHECKED_SCOPE"></a>
+
+#### UNCHECKED\_SCOPE
+
+What a member of `_unchecked_dicts` says, which is out of scope for v1.
+
+<a id="edit_cfg_json.elements.NOT_EXTENDABLE"></a>
+
+#### NOT\_EXTENDABLE
+
+Message of the error raised when a node that offers no element is grown.
+
+<a id="edit_cfg_json.elements.NOT_REMOVABLE"></a>
+
+#### NOT\_REMOVABLE
+
+Message of the error raised when a node that is no element is removed.
+
+<a id="edit_cfg_json.elements.NOT_MOVABLE"></a>
+
+#### NOT\_MOVABLE
+
+Message of the error raised when a node that is no element is moved.
+
+<a id="edit_cfg_json.elements.KEY_NEEDED"></a>
+
+#### KEY\_NEEDED
+
+Message of the error raised when a dict is grown without a key.
+
+<a id="edit_cfg_json.elements.KEY_UNWANTED"></a>
+
+#### KEY\_UNWANTED
+
+Message of the error raised when a list is grown with a key.
+
+<a id="edit_cfg_json.elements.KEY_TAKEN"></a>
+
+#### KEY\_TAKEN
+
+Message of the error raised when a new key is one the dict has.
+
+<a id="edit_cfg_json.elements.ElementOffer"></a>
+
+## ElementOffer Objects
+
+```python
+class ElementOffer(NamedTuple)
+```
+
+What one node of the tree offers to do with the elements it holds.
+
+It is one object rather than one attribute each on the row, because the
+five of them are read together and answer one question between them: what
+can be done here about how many things there are.
+
+A backend reads it to decide which controls one row gets, and creates none
+where nothing is offered: there is no column to keep clear, because these
+controls sit at the end of the line where a row without them needs no
+space held for it.
+
+<a id="edit_cfg_json.elements.ElementOffer.extend"></a>
+
+#### extend
+
+Whether an element can be added here.
+
+It is true for a list that something can be copied for, for a dict whose
+class says that every value in it is a configuration object, and for a
+declared member that holds no object yet, where adding is making the one
+object that member is for.
+
+<a id="edit_cfg_json.elements.ElementOffer.keyed"></a>
+
+#### keyed
+
+Whether adding here needs a key that only the user can give.
+
+A new entry of a dict has to be called something, and nothing but the
+person configuring the application knows what. The two backends ask, each
+in the way its own toolkit asks a question, and a list is never keyed
+because an element of a list is addressed by where it is.
+
+<a id="edit_cfg_json.elements.ElementOffer.remove"></a>
+
+#### remove
+
+Whether this node can be taken out of the thing that holds it.
+
+An element of a list and a value of a dict of configuration objects can
+be. So can a declared optional member that holds an object, where removing
+is putting it back to holding none — but only where its class writes
+`null` for it. A class that leaves such a member out of the file
+altogether would leave it with no row at all, and a member the editor had
+taken off the screen for good could never be given an object again.
+
+<a id="edit_cfg_json.elements.ElementOffer.earlier"></a>
+
+#### earlier
+
+Whether this element can change places with the one before it.
+
+<a id="edit_cfg_json.elements.ElementOffer.later"></a>
+
+#### later
+
+Whether this element can change places with the one after it.
+
+The order of a list is part of what the file says, so it is part of what
+an editor of that file has to be able to change. A dict has no such
+question: it is written in the sorted order of its keys, so where an entry
+is shown follows from what it is called.
+
+<a id="edit_cfg_json.elements.ElementOffer.refusal"></a>
+
+#### refusal
+
+Why nothing can be added here, empty where something can.
+
+It is empty for every node that is no container as well, because a value
+that holds nothing is not a member somebody expected to be able to grow.
+It is explanatory text and is shown with the explanations, below the
+member it is about, rather than as something to act on: it says what this
+member is, in the same way as the line saying what kind of value a member
+holds.
+
+<a id="edit_cfg_json.elements.ElementOffer.template"></a>
+
+#### template
+
+What a new element here would hold, None where none can be added.
+
+It is kept with the offer because it is the same answer: what can be added
+is exactly what there is something to copy. A backend never reads it, and
+the buffer copies it rather than using it, since a list and a dict are
+values that the next edit would otherwise reach through both of them.
+
+<a id="edit_cfg_json.elements.TreeFacts"></a>
+
+## TreeFacts Objects
+
+```python
+class TreeFacts(NamedTuple)
+```
+
+Everything that saying what one tree offers needs.
+
+It is one object rather than one argument each, because every one of them
+is read once per node and none of them changes while the offers are made.
+
+<a id="edit_cfg_json.elements.TreeFacts.values"></a>
+
+#### values
+
+The value of every node of the tree, by its path.
+
+<a id="edit_cfg_json.elements.TreeFacts.nodes"></a>
+
+#### nodes
+
+Every configuration object of the tree, by its path.
+
+<a id="edit_cfg_json.elements.TreeFacts.nestings"></a>
+
+#### nestings
+
+What each object declares about a member of its own, by that path.
+
+<a id="edit_cfg_json.elements.TreeFacts.unchecked"></a>
+
+#### unchecked
+
+Every dict member whose keys its own class does not check.
+
+<a id="edit_cfg_json.elements.TreeFacts.omitted"></a>
+
+#### omitted
+
+Every member that the object holding it may leave out of the file.
+
+<a id="edit_cfg_json.elements.TreeFacts.defaults"></a>
+
+#### defaults
+
+The values that the class of the configuration declares.
+
+They are what a new element of an ordinary list is copied from, and they
+are empty for a class the editor could not construct at all, which costs
+that configuration the offer and nothing else.
+
+<a id="edit_cfg_json.elements.TreeFacts.made"></a>
+
+#### made
+
+What one of each declared class holds, once it has been made.
+
+The offers are worked out again whenever the rows are, so a class that is
+declared in three places would otherwise be constructed three times per
+rebuild. None is a class that could not be constructed at all.
+
+<a id="edit_cfg_json.elements.declared_values"></a>
+
+#### declared\_values
+
+```python
+def declared_values(source: ConfigSource,
+                    stream: TextIO) -> dict[str, JsonType]
+```
+
+Return the values that the class of one session declares.
+
+They are asked for through the loader of the application where there is
+one, because that is what the loader protocol promises to answer with when
+it is given no JSON source, and a class that needs a constructor argument
+this library knows nothing about is reached no other way.
+
+A class that cannot be constructed answers with nothing, which is principle
+4 of section 3 of `doc/design.md`: what the editor cannot find out it does
+without, and here that costs the offer to grow an ordinary list and
+nothing else.
+
+**Arguments**:
+
+- `source` - The configuration of this session and how it is constructed.
+- `stream` - Stream that collects what the construction says.
+  
+
+**Returns**:
+
+  One JSON space value per declared member, and nothing at all for a
+  class the editor could not construct.
+
+<a id="edit_cfg_json.elements.tree_facts"></a>
+
+#### tree\_facts
+
+```python
+def tree_facts(nodes: Mapping[ConfigPath, ConfigNode],
+               flat: Sequence[tuple[ConfigPath, JsonType]],
+               defaults: Mapping[str, JsonType]) -> TreeFacts
+```
+
+Return everything that saying what one tree offers needs.
+
+**Arguments**:
+
+- `nodes` - Every configuration object of the tree, by its path.
+- `flat` - The path and the value of every node, in row order.
+- `defaults` - The values that the class of the configuration declares.
+  
+
+**Returns**:
+
+  The facts that one offer per node is made from.
+
+<a id="edit_cfg_json.elements.element_offers"></a>
+
+#### element\_offers
+
+```python
+def element_offers(facts: TreeFacts) -> dict[ConfigPath, ElementOffer]
+```
+
+Return what every node of one tree offers, by the path of that node.
+
+**Arguments**:
+
+- `facts` - What the tree is, and what its class declares.
+  
+
+**Returns**:
+
+  One offer per node, most of them offering nothing at all: a value is
+  not something that holds elements, and neither is a node of a
+  configuration object, whose members are the ones its class declares.
+
+<a id="edit_cfg_json.elements.new_object"></a>
+
+#### new\_object
+
+```python
+def new_object(nesting: ConfigNesting, stream: TextIO) -> Config
+```
+
+Return one new configuration object of a declared class.
+
+The factory the declaration names is asked where it named one, exactly as
+`config_as_json` asks it while it reads a file, so an application that
+answers with a subclass answers with it here too.
+
+**Arguments**:
+
+- `nesting` - What the class declared about the member that holds these.
+- `stream` - Stream that collects what the construction says.
+  
+
+**Returns**:
+
+  One object of that class, holding the values it declares.
+  
+
+**Raises**:
+
+- `TypeError` - The class cannot be constructed this way.
+- `ValueError` - The declared values are ones the class refuses.
+- `AttributeError` - The class declares no public member at all.
+
+<a id="edit_cfg_json.elements.grown"></a>
+
+#### grown
+
+```python
+def grown(value: JsonType, key: str, template: JsonType) -> JsonType
+```
+
+Return one container with one more element in it.
+
+A list grows at the end, because that is where a new element is put when
+nothing says otherwise, and it can be moved from there. A dict is written
+again in the sorted order of its keys, which is the order a file holds it
+in and therefore the order the rows are shown in.
+
+**Arguments**:
+
+- `value` - Value of the container as it is now.
+- `key` - Name of the new entry of a dict, empty for a list.
+- `template` - What the new element holds, which is copied rather than
+  used, so that editing it cannot reach whatever it came from.
+  
+
+**Returns**:
+
+  That container with the new element in it.
+
+<a id="edit_cfg_json.elements.shrunk"></a>
+
+#### shrunk
+
+```python
+def shrunk(value: JsonType, step: str) -> JsonType
+```
+
+Return one container with one element taken out of it.
+
+**Arguments**:
+
+- `value` - Value of the container as it is now.
+- `step` - Last step of the path of the element, which is the index of a
+  list element written out or the key of a dictionary entry.
+  
+
+**Returns**:
+
+  That container without that element.
+
+<a id="edit_cfg_json.elements.swapped"></a>
+
+#### swapped
+
+```python
+def swapped(value: JsonType, index: int, later: bool) -> JsonType
+```
+
+Return one list with one element in the place of a neighbour.
+
+**Arguments**:
+
+- `value` - Value of the list as it is now.
+- `index` - Where the element to move is now.
+- `later` - Whether it changes places with the one after it rather than
+  with the one before it.
+  
+
+**Returns**:
+
+  That list in its new order.
+
+<a id="edit_cfg_json.elements.moved_paths"></a>
+
+#### moved\_paths
+
+```python
+def moved_paths(paths: Iterable[ConfigPath], container: ConfigPath,
+                order: Sequence[int]) -> dict[ConfigPath, ConfigPath]
+```
+
+Return where each node under one list goes when its order changes.
+
+Everything the editor holds about a node is held under the path of that
+node — what it is compared against, whether its container is folded, what
+the object at it said about itself — and an element of a list is addressed
+by where it is. So a change to how many elements there are, or to the order
+of them, moves all of that along with the values.
+
+Without it a removal would leave every element after it comparing itself
+with the element that used to be there, and would report every one of them
+as edited by a user who touched none of them.
+
+**Arguments**:
+
+- `paths` - Path of every node there is.
+- `container` - Path of the list whose elements have moved.
+- `order` - The index each element of the new list had in the old one, one
+  entry per element the list holds now.
+  
+
+**Returns**:
+
+  The new path of every node whose path has changed, by its old path.
+  An element that stayed where it was is not in it, and neither is one
+  that has gone.
+
+<a id="edit_cfg_json.elements.kept_order"></a>
+
+#### kept\_order
+
+```python
+def kept_order(count: int, without: int) -> list[int]
+```
+
+Return the order of one list with one element taken out of it.
+
+<a id="edit_cfg_json.elements.object_added"></a>
+
+#### object\_added
+
+```python
+def object_added(config: Config, path: ConfigPath, key: str,
+                 stream: TextIO) -> None
+```
+
+Put a new configuration object where one has just been added.
+
+Nothing happens where the member holds no configuration objects, because
+there is then nothing about it that the object of the session says: what a
+list of numbers holds is what the buffer holds, and the tree asks the
+object only about the objects inside it.
+
+**Arguments**:
+
+- `config` - Configuration object of the session, which this modifies. It
+  is the editor's own copy and never the caller's.
+- `path` - Path of the member that has gained an element.
+- `key` - Name of the new entry of a dict, empty for a list.
+- `stream` - Stream that collects what the construction says.
+  
+
+**Raises**:
+
+- `TypeError` - The declared class cannot be constructed this way.
+- `ValueError` - Its declared values are ones it refuses.
+- `AttributeError` - It declares no public member at all.
+
+<a id="edit_cfg_json.elements.object_removed"></a>
+
+#### object\_removed
+
+```python
+def object_removed(config: Config, path: ConfigPath) -> None
+```
+
+Take the configuration object of a removed element out of the tree.
+
+**Arguments**:
+
+- `config` - Configuration object of the session, which this modifies. It
+  is the editor's own copy and never the caller's.
+- `path` - Path of the element that has been removed, or of the declared
+  member that has been put back to holding no object.
+
+<a id="edit_cfg_json.elements.object_moved"></a>
+
+#### object\_moved
+
+```python
+def object_moved(config: Config, path: ConfigPath, later: bool) -> None
+```
+
+Move the configuration object of a moved element with its values.
+
+**Arguments**:
+
+- `config` - Configuration object of the session, which this modifies. It
+  is the editor's own copy and never the caller's.
+- `path` - Path of the element that has been moved.
+- `later` - Whether it changed places with the one after it.
+
+<a id="edit_cfg_json.elements.checked_key"></a>
+
+#### checked\_key
+
+```python
+def checked_key(offer: ElementOffer, value: JsonType, key: str,
+                path: ConfigPath) -> None
+```
+
+Refuse a key that cannot name the new element of one container.
+
+**Arguments**:
+
+- `offer` - What that container offers, which says whether it is keyed.
+- `value` - Value of the container as it is now.
+- `key` - Name that the new entry was asked to have.
+- `path` - Path of the container, for the message.
+  
+
+**Raises**:
+
+- `ValueError` - A list was given a key, a dict was given none, or the key
+  is one that dict already holds. The last of those is a refusal and
+  not a replacement: a new entry that quietly overwrote an existing
+  one would lose what the user had.
+
+<a id="edit_cfg_json.elements.refused"></a>
+
+#### refused
+
+```python
+def refused(offered: bool, form: str, path: ConfigPath) -> None
+```
+
+Raise the refusal of one change that a node does not offer.
+
+**Arguments**:
+
+- `offered` - Whether the node offers it after all.
+- `form` - Form of the message that says it does not.
+- `path` - Path of the node that was asked.
+  
+
+**Raises**:
+
+- `ValueError` - The node does not offer that change.
 
 <a id="edit_cfg_json.saving"></a>
 
@@ -2727,7 +3514,7 @@ change.
 
 ```python
 def __init__(config: Config, report: LoadReport, descriptions: Descriptions,
-             stderr_file: TextIO) -> None
+             stderr_file: TextIO, defaults: Mapping[str, JsonType]) -> None
 ```
 
 Read the JSON space values of one configuration object.
@@ -2739,6 +3526,11 @@ Read the JSON space values of one configuration object.
 - `report` - What reading the input file did beyond reading the values.
 - `descriptions` - What the application says about its members.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `defaults` - The values that the class declares, which is what a new
+  element of an ordinary list is copied from. They are empty for
+  a class the editor could not construct at all, which costs
+  that configuration the offer to grow such a list and nothing
+  else.
   
 
 **Raises**:
@@ -2911,6 +3703,83 @@ Fold every container away, or open every one of them.
 One action and not two, because a user who wants the values back
 wants all of them back: which of the two it does is decided by what
 is on the screen, so a press always changes something.
+
+<a id="edit_cfg_json.buffer.EditBuffer.add_element"></a>
+
+#### add\_element
+
+```python
+def add_element(config: Config, path: ConfigPath, key: str = '') -> None
+```
+
+Put one more element into a node that holds them.
+
+A new element is what the class of the configuration said one is: an
+object of the declared class where the class declares one, and a copy
+of what it declares for the member where it does not. A declared member
+that holds no object is grown by being given the object it is for,
+which is what design section 4.1 of `doc/design.md` calls adding.
+
+**Arguments**:
+
+- `config` - Configuration object of the session. It is modified where
+  the new element is a configuration object, because the tree
+  finds those objects by walking the real ones. It is the
+  editor's own copy and never the caller's.
+- `path` - Path of the node to put an element into.
+- `key` - Name of the new entry of a dict, empty for everything else.
+  
+
+**Raises**:
+
+- `KeyError` - The path is not a node of this configuration.
+- `ValueError` - Nothing can be added there, or the key is missing,
+  unwanted or one that dict already holds.
+
+<a id="edit_cfg_json.buffer.EditBuffer.remove_element"></a>
+
+#### remove\_element
+
+```python
+def remove_element(config: Config, path: ConfigPath) -> None
+```
+
+Take one element out of the node that holds it.
+
+**Arguments**:
+
+- `config` - Configuration object of the session, modified as above.
+- `path` - Path of the element to remove, or of the declared optional
+  member to put back to holding no object.
+  
+
+**Raises**:
+
+- `KeyError` - The path is not a node of this configuration.
+- `ValueError` - That node is not one that can be removed.
+
+<a id="edit_cfg_json.buffer.EditBuffer.move_element"></a>
+
+#### move\_element
+
+```python
+def move_element(config: Config, path: ConfigPath, later: bool) -> None
+```
+
+Make one element of a list change places with a neighbour.
+
+**Arguments**:
+
+- `config` - Configuration object of the session, modified as above.
+- `path` - Path of the element to move.
+- `later` - Whether it changes places with the one after it rather than
+  with the one before it.
+  
+
+**Raises**:
+
+- `KeyError` - The path is not a node of this configuration.
+- `ValueError` - That node cannot be moved that way.
 
 <a id="edit_cfg_json.buffer.EditBuffer.take_subtrees"></a>
 
@@ -3602,8 +4471,8 @@ has a class docstring of its own.
 
 **Returns**:
 
-  Whether the application, the type of the node or the class of the
-  object at it has anything to say.
+  Whether the application, the type of the node, the class of the object
+  at it or what cannot be added to it has anything to say.
 
 <a id="edit_cfg_json.model_text.row_description"></a>
 
@@ -3625,6 +4494,12 @@ how much of that is said depends on whether the node is open. That is why
 it is put together here rather than carried by the row: what a row says
 about itself cannot depend on the fold state that is stamped onto it
 afterwards.
+
+A member that holds several of something and cannot be given another says
+so last. It is explanation and not a refusal to act on: it says what this
+member is, in the same way as the line saying what kind of value a member
+holds, and a user who knows this configuration wants it out of the way
+with the rest.
 
 **Arguments**:
 
@@ -4157,6 +5032,11 @@ edited a value at a time. Each of those rows is addressed by its own path,
 and every one of those nodes can be folded away, which is state of this
 model so that two backends cannot fold different things.
 
+How many things such a member holds is editable as well, because that is
+what a member of that shape exists to let the application's user decide. A
+new element is copied from what the class declares and never invented, and
+a node the editor has nothing to copy for offers nothing and says so.
+
 The buffer is validated by running the application's own configuration
 class over it rather than by any rule of the editor's own, so the user
 sees the diagnostics the application would produce and the editor cannot
@@ -4221,10 +5101,14 @@ before this and what reading it did arrives as the report.
   description reaches is shown without one, which is all that
   saying nothing costs.
 - `loader` - How this application constructs its configuration, or None
-  when it did not say. The model needs it for one thing only: a
-  save asks it whether the application would read back the file
-  that is about to be written, which is the one question the
-  validation of a buffer cannot answer.
+  when it did not say. The model needs it for two things. A save
+  asks it whether the application would read back the file that
+  is about to be written, which is the one question the
+  validation of a buffer cannot answer; and it is asked here,
+  with no JSON source, for the values the class declares, which
+  is what a new element of an ordinary list is copied from. A
+  class the editor cannot construct answers with nothing and
+  loses that offer and nothing else.
 - `out_file` - File that saving writes, or None when the user has not
   chosen one yet and the editor has to ask before it can save.
   It is taken exactly as it is, because a destination that was
@@ -4556,6 +5440,98 @@ that what the whole configuration holds is always what its rows say.
 
 - `KeyError` - The path is not a node of this configuration.
 - `ValueError` - The node is not one that this version can edit.
+
+<a id="edit_cfg_json.edit_model.EditModel.add_element"></a>
+
+#### add\_element
+
+```python
+def add_element(path: ConfigPath, key: str = '') -> None
+```
+
+Put one more element into a node that holds them.
+
+A new element is what the class of the configuration said one is,
+because it is the only thing that knows: an object of the declared
+class where a class declares that every element of a list or every
+value of a dict is one, and a copy of what the class declares for the
+member itself where it declares no such thing. The editor invents no
+value that the application never mentioned, and a node it has nothing
+to copy for offers nothing and says why.
+
+A declared member holding no configuration object is grown by being
+given the object it is for. That is adding rather than editing, for
+the reason a field cannot do it: no text typed into a field becomes a
+configuration object.
+
+Which nodes offer this is on the rows, as `MemberRow.offer`, so that
+two user interfaces of one application cannot offer different things.
+
+**Arguments**:
+
+- `path` - Path of the node to put an element into.
+- `key` - Name of the new entry of a dict, which only the user can
+  give. It is empty for everything else, because an element of a
+  list is addressed by where it is.
+  
+
+**Raises**:
+
+- `KeyError` - The path is not a node of this configuration.
+- `ValueError` - Nothing can be added there, or the key is missing,
+  unwanted, or one that dict already holds.
+
+<a id="edit_cfg_json.edit_model.EditModel.remove_element"></a>
+
+#### remove\_element
+
+```python
+def remove_element(path: ConfigPath) -> None
+```
+
+Take one element out of the node that holds it.
+
+A declared optional member that holds an object is put back to holding
+none, which is the other half of what adding one does. A member that
+its class leaves out of the file altogether is not offered this: it
+would then have no row at all, and a member the editor had taken off
+the screen could never be given an object again.
+
+**Arguments**:
+
+- `path` - Path of the element to remove.
+  
+
+**Raises**:
+
+- `KeyError` - The path is not a node of this configuration.
+- `ValueError` - That node is not one that can be removed.
+
+<a id="edit_cfg_json.edit_model.EditModel.move_element"></a>
+
+#### move\_element
+
+```python
+def move_element(path: ConfigPath, later: bool) -> None
+```
+
+Make one element of a list change places with a neighbour.
+
+The order of a list is part of what the file says, so it is part of
+what an editor of that file has to be able to change. A dict has no
+such question, because it is written in the sorted order of its keys.
+
+**Arguments**:
+
+- `path` - Path of the element to move.
+- `later` - Whether it changes places with the one after it rather than
+  with the one before it.
+  
+
+**Raises**:
+
+- `KeyError` - The path is not a node of this configuration.
+- `ValueError` - That node cannot be moved that way.
 
 <a id="edit_cfg_json.edit_model.EditModel.check_field"></a>
 
@@ -4973,6 +5949,22 @@ anything is a piece of the window spent on nothing.
 A member declared to hold an object and holding none has it false, because
 there is no object there to ask about.
 
+<a id="edit_cfg_json.rows.MemberRow.offer"></a>
+
+#### offer
+
+What can be done here about how many things this node holds.
+
+Whether an element can be added, whether this node is an element that can
+be taken out of what holds it, whether it can change places with a
+neighbour, and why none of that is offered where none of it is. Most nodes
+offer nothing: a value is not something that holds elements, and the
+members of a configuration object are the ones its class declares.
+
+It belongs to the model rather than to a backend for the same reason the
+fold state does: two user interfaces of one application that offered to
+change different things would be worse than either behaviour.
+
 <a id="edit_cfg_json.rows.MemberRow.name"></a>
 
 #### name
@@ -5153,43 +6145,37 @@ One parse converter per node of the tree that has one.
 
 Every member that the object holding it may leave out of the file.
 
-<a id="edit_cfg_json.rows.member_values"></a>
+<a id="edit_cfg_json.rows.RowContext.offers"></a>
 
-#### member\_values
+#### offers
 
-```python
-def member_values(config: Config, stderr_file: TextIO) -> dict[str, JsonType]
-```
+What each node offers about the elements it holds, by its path.
 
-Return one JSON space value per serialized member of one object.
+<a id="edit_cfg_json.rows.RowContext.refreshing"></a>
 
-**Arguments**:
+#### refreshing
 
-- `config` - Configuration object to read. It is not modified, because
-  what is read is the text it writes and not the object.
-- `stderr_file` - Stream used for user-facing diagnostics.
-  
+Whether these rows are what a validation pass left behind.
 
-**Returns**:
-
-  The values that this object would write to a file.
-  
-
-**Raises**:
-
-- `InvalidConfiguration` - The configuration object is not valid.
-- `InvalidConfigurationValue` - A member does not hold a valid value.
+A pass is not read only, so a node whose value it changed is marked, and a
+node it created is marked as well: a validator that normalizes a list can
+make one. Every other rebuild is a change the user asked for — an element
+added, removed or moved — and marking that as a validator's work would be
+telling the user that something happened to what they just did.
 
 <a id="edit_cfg_json.rows.built_rows"></a>
 
 #### built\_rows
 
 ```python
-def built_rows(
-        config: Config, members: Mapping[str, JsonType], report: LoadReport,
-        descriptions: Descriptions,
-        previous: Mapping[ConfigPath,
-                          MemberRow]) -> dict[ConfigPath, MemberRow]
+def built_rows(config: Config,
+               *,
+               members: Mapping[str, JsonType],
+               report: LoadReport,
+               descriptions: Descriptions,
+               previous: Mapping[ConfigPath, MemberRow],
+               defaults: Mapping[str, JsonType] = MappingProxyType({}),
+               refreshing: bool = False) -> dict[ConfigPath, MemberRow]
 ```
 
 Return one row per node of one configuration, in the order shown.
@@ -5215,6 +6201,10 @@ configuration objects of that one are the objects that own its values.
   A node that had a row keeps what that row was compared against
   and is marked when a validation pass changed it; a node that had
   none is a node a validation pass created.
+- `defaults` - The values that the class of the configuration declares,
+  which is what a new element of an ordinary list is copied from.
+- `refreshing` - Whether these rows are what a validation pass left behind,
+  which is what decides whether a node it changed is marked.
   
 
 **Returns**:

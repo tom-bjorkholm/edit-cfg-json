@@ -1,0 +1,60 @@
+{
+    "audit": {
+        "command": "make audit",
+        "minutes": 15,
+        "name": "audit"
+    },
+    "extra_hosts": [
+        "spare-1.example.org",
+        "spare-2.example.org"
+    ],
+    "extra_stages": [],
+    "hooks": {
+        "notify": "ops@example.org",
+        "on_failure": {
+            "command": "make rollback",
+            "minutes": 5,
+            "name": "rollback"
+        }
+    },
+    "labels": {
+        "team": "platform"
+    },
+    "limits": {
+        "cpu": 2,
+        "memory": 512
+    },
+    "pipeline_name": "nightly",
+    "retry_delays": [
+        1,
+        5,
+        15
+    ],
+    "runners": {
+        "fast": {
+            "host": "build-1.example.org",
+            "parallel": 4
+        },
+        "slow": {
+            "host": "build-2.example.org",
+            "parallel": 1
+        }
+    },
+    "stages": [
+        {
+            "command": "make",
+            "minutes": 10,
+            "name": "build"
+        },
+        {
+            "command": "make check",
+            "minutes": 30,
+            "name": "test"
+        },
+        {
+            "command": "make dist",
+            "minutes": 20,
+            "name": "package"
+        }
+    ]
+}
