@@ -488,6 +488,26 @@ class DeepSubtreeCfg(SampleCfg):
                                        config_type=HoldingInnerCfg)}
 
 
+class RangedObjectsCfg(SampleCfg):
+    """A configuration whose list holds objects that have a rule of their own.
+
+    It is what folding a member has to reach. The member is a list and is no
+    configuration, so it has nothing to say about itself and asking the node
+    that was folded would ask nothing at all, while folding it hides every
+    object that does have something to say.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the list of objects that each obey a rule of their class."""
+        self.outputs: list[RangedInnerCfg] = [RangedInnerCfg(),
+                                              RangedInnerCfg()]
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration that every element of the list is one."""
+        return {'outputs': ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
+                                         config_type=RangedInnerCfg)}
+
+
 class ConfigListCfg(SampleCfg):
     """A configuration whose member holds a list of nested objects.
 

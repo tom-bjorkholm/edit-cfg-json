@@ -13,13 +13,13 @@ class rather than to the class holding it.
 from pathlib import Path
 import pytest
 from edit_cfg_json import Descriptions, EditModel, model_as_text, \
-    row_describes, row_description, row_subtree_text, row_validates, \
-    row_value_text
+    row_describes, row_description, row_diagnostic, row_subtree_text, \
+    row_validates, row_value_text
 from .model_helpers import row_at, row_paths, shown_paths, written
 from .container_cfg import CROSS_REFUSAL, ConfigDictCfg, ConfigListCfg, \
     DeepConfigCfg, DeepSubtreeCfg, INNER_LIMIT, InnerCfg, NestedCfg, \
     NoDocNestedCfg, NullNestedCfg, ORDER_REFUSAL, OmitNestedCfg, \
-    OwnedEnumCfg, OwnedOptionCfg, SubtreeCfg
+    OwnedEnumCfg, OwnedOptionCfg, RangedObjectsCfg, SubtreeCfg
 
 TOO_WIDE = str(INNER_LIMIT + 1)
 """A width that the nested class of `SubtreeCfg` refuses."""
@@ -35,6 +35,23 @@ ABOUT_ONE_WIDTH = 'What the width of the second one is for.'
 
 ABOUT_ANY_OBJECT = 'What one of these objects is for.'
 """What it says about every repeated object itself rather than a member."""
+
+INSIDE_VALID = ' [valid inside]'
+"""What a container of objects says when every one of them passes.
+
+A list or a dict is no configuration and says nothing about itself, so what it
+says is about the objects it holds. That row is what a folded container leaves
+on the screen, where every object it is about is hidden.
+"""
+
+INSIDE_REFUSED = ' [refused inside]'
+"""What such a container says when one of the objects it holds is refused."""
+
+FIRST_WIDTH = ('outputs', '0', 'width')
+"""The member of the first object of the list that its class has a rule for."""
+
+OTHER_WIDTH = ('outputs', '1', 'width')
+"""The same member of the second object of that list."""
 
 
 def test_nested_holds_rows() -> None:
@@ -444,11 +461,92 @@ def test_missing_not_asked() -> None:
 
 
 def test_container_unasked() -> None:
-    """Test a list or a dict is no configuration and is never asked."""
+    """Test a container of values has no object at it or inside it.
+
+    A list of numbers holds no configuration that could be asked anything, so
+    nothing can ever be said about it and a backend creates no widget for it.
+    A container of objects is the other case, and it says what it holds.
+    """
     model = EditModel(NestedCfg())
     model.validate()
     assert not row_validates(row_at(model, ('limits',)))
     assert row_validates(row_at(model, ('inner',)))
+    assert row_validates(row_at(EditModel(RangedObjectsCfg()), ('outputs',)))
+
+
+def test_fold_says_why() -> None:
+    """Test folding an object keeps what it refused and not only that it did.
+
+    A badge saying that something is wrong while nothing says what would leave
+    the user to validate the whole configuration to find out, which is a
+    second question about something they have just been told.
+    """
+    model = EditModel(SubtreeCfg())
+    model.set_text(path=('ranged', 'width'), text=TOO_WIDE)
+    model.toggle_fold(('ranged',))
+    assert model.verdict is None
+    wrong = row_diagnostic(model=model, row=row_at(model, ('ranged', 'width')))
+    assert 'width' in wrong
+    assert TOO_WIDE in wrong
+
+
+def test_fold_says_own_why() -> None:
+    """Test what an object refuses about no member of it is said at it."""
+    model = EditModel(SubtreeCfg())
+    model.set_text(path=('ordered', 'low'), text=OUT_OF_ORDER)
+    model.toggle_fold(('ordered',))
+    said = row_diagnostic(model=model, row=row_at(model, ('ordered',)))
+    assert ORDER_REFUSAL.format(low=99, high=9) in said
+
+
+def test_edit_forgets_why() -> None:
+    """Test an edit inside an object takes back what it said and why at once.
+
+    The two are one answer and have one lifetime, so a state saying that
+    something is wrong must not outlive the sentence that says what. An object
+    beside it is left alone, because nothing inside that one has changed.
+    """
+    model = EditModel(SubtreeCfg())
+    model.set_text(path=('ranged', 'width'), text=TOO_WIDE)
+    model.toggle_fold_all()
+    assert row_diagnostic(model=model, row=row_at(model, ('ranged', 'width')))
+    model.set_text(path=('ranged', 'width'), text='3')
+    assert row_at(model, ('ranged',)).subtree_valid is None
+    assert not row_diagnostic(model=model,
+                              row=row_at(model, ('ranged', 'width')))
+    assert row_at(model, ('ordered',)).subtree_valid is True
+
+
+def test_fold_asks_inside() -> None:
+    """Test folding a list of objects asks every object that it holds.
+
+    The member itself is a list and is no configuration, so asking only the
+    node that was folded would ask nothing at all, while folding it is exactly
+    what hides every object that does have something to say.
+    """
+    model = EditModel(RangedObjectsCfg())
+    model.set_text(path=OTHER_WIDTH, text=TOO_WIDE)
+    model.toggle_fold(('outputs',))
+    assert model.verdict is None
+    assert row_at(model, ('outputs', '1')).subtree_valid is False
+    assert row_at(model, ('outputs', '0')).subtree_valid is True
+    assert row_diagnostic(model=model, row=row_at(model, OTHER_WIDTH))
+
+
+def test_container_inside() -> None:
+    """Test a container says what the objects it holds are, not what it is.
+
+    That row is the only one a folded container leaves on the screen, so
+    without it folding a member would hide the one thing the user has to act
+    on and leave nothing at all in its place.
+    """
+    model = EditModel(RangedObjectsCfg())
+    model.toggle_fold(('outputs',))
+    assert row_subtree_text(row_at(model, ('outputs',))) == INSIDE_VALID
+    model.set_text(path=FIRST_WIDTH, text=TOO_WIDE)
+    assert row_subtree_text(row_at(model, ('outputs',))) == ''
+    model.toggle_fold(('outputs',))
+    assert row_subtree_text(row_at(model, ('outputs',))) == INSIDE_REFUSED
 
 
 def test_member_refused_in() -> None:

@@ -104,7 +104,7 @@ def verdict_emphasis(model: EditModel) -> Emphasis:
 
 
 def subtree_emphasis(row: MemberRow) -> Emphasis:
-    """Return how what one nested object is on its own is shown.
+    """Return how what the objects at or inside one node amount to is shown.
 
     The same three states as the validation of the whole configuration, and
     the same three ways of showing them, because they are the same kind of
@@ -112,11 +112,14 @@ def subtree_emphasis(row: MemberRow) -> Emphasis:
     something inside it changed is what has not happened yet rather than
     something wrong.
 
+    A list or a dict of configuration objects is shown the same way, and says
+    the same three things about the objects it holds rather than about itself.
+
     Args:
         row: Node whose own state is shown.
 
     Returns:
-        The emphasis of what that object is on its own.
+        The emphasis of what that node is on its own, or of what it holds.
     """
     if row.subtree_valid is None:
         return Emphasis.MUTED

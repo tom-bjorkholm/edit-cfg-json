@@ -17,7 +17,7 @@ over, which is what makes the second build a refresh rather than a new session.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Container, Mapping
+from collections.abc import Container, Mapping, Sequence
 from typing import NamedTuple, Optional, TextIO
 import json
 from config_as_json import Config, ConfigPath, JsonType, ParseConverter
@@ -28,6 +28,7 @@ from edit_cfg_json.leaf_value import value_as_text, values_differ
 from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.tree import ConfigNode, NO_OBJECT_FORM, child_values, \
     config_nodes, container_text, flat_values, is_container, ordered_names
+from edit_cfg_json.validation import SubtreeAnswer
 
 NOT_A_MEMBER = ''
 """What a node that is not a member of the configuration is named by.
@@ -228,6 +229,41 @@ class MemberRow(NamedTuple):
     deliberately not the same question: a rule of the class above may relate
     two of these objects across the boundary between them, so both of them can
     be valid on their own while the configuration holding them is refused.
+
+    A list or a dict of such objects carries it too, and there it is about the
+    objects inside rather than about the container, which is no configuration
+    and has nothing to say about itself. It is false as soon as one of them is
+    refused, true once every one of them has been asked and accepted, and None
+    while any of them is unasked and none is refused. Folding such a member
+    hides every object in it, so folding it asks every object in it.
+    """
+
+    subtree_refusal: str = ''
+    """Why the object owning this node refused it, empty when it did not.
+
+    It is what asking one nested configuration object about itself found, kept
+    at the node that answer was about: a member of that object where a member
+    validator refused one, and the object itself where its class refused it
+    for a reason that is about no member of it.
+
+    It is a third thing beside the two that `conversion` and the verdict of the
+    whole configuration answer, because it lives for a third length of time. A
+    conversion is answered by one node alone and stays true until that node is
+    edited; a verdict is dropped by any edit anywhere; and this is dropped by
+    an edit inside the object it came from and by nothing else, which is the
+    same lifetime as the state above it and for the same reason.
+    """
+
+    has_objects: bool = False
+    """Whether a configuration object is at this node or inside it.
+
+    A nested configuration object has it, and so does a list or a dict that
+    holds them, at any depth. It is what a backend asks before it creates the
+    widget that says what those objects are: a widget which could never hold
+    anything is a piece of the window spent on nothing.
+
+    A member declared to hold an object and holding none has it false, because
+    there is no object there to ask about.
     """
 
     @property
@@ -254,6 +290,16 @@ class MemberRow(NamedTuple):
         for folding to hide.
         """
         return self.children is not None
+
+    @property
+    def is_object(self) -> bool:
+        """Return whether a configuration object is really at this node.
+
+        A member declared to hold one and holding none is not, because it has
+        a class and no object, and everything the editor asks of such a node
+        is asked of the object that is not there.
+        """
+        return self.config_type is not None and self.foldable
 
     @property
     def editable(self) -> bool:
@@ -453,8 +499,7 @@ def _row_of(path: ConfigPath, value: JsonType, context: RowContext,
             facts=MemberFacts(value=value, converter=converter,
                               optional=path in context.optional,
                               nested=node is not None)),
-        converter=converter, conversion='' if was is None else was.conversion,
-        subtree_valid=None if was is None else was.subtree_valid)
+        converter=converter, conversion='' if was is None else was.conversion)
 
 
 def built_rows(config: Config, members: Mapping[str, JsonType],
@@ -502,21 +547,99 @@ def _shown(path: ConfigPath, folded: Container[ConfigPath]) -> bool:
     return not any(path[:depth] in folded for depth in range(1, len(path)))
 
 
-def stamped(rows: Mapping[ConfigPath, MemberRow],
-            folded: Container[ConfigPath]) -> dict[ConfigPath, MemberRow]:
-    """Return the rows with the fold state of the buffer written onto them.
+def _objects_below(rows: Mapping[ConfigPath, MemberRow]
+                   ) -> dict[ConfigPath, list[ConfigPath]]:
+    """Return the configuration objects below each node, by that node's path.
 
-    A backend reads what is folded and what is shown from the row it is
-    about, exactly as it reads the marks and the description from there, so
-    that the two backends cannot fold or hide different things.
+    It is built from the objects outwards rather than asked of each node,
+    because a node has few ancestors and a configuration has many nodes: the
+    same answer costs one walk up per object instead of one walk over every
+    object per row, and these are written again on every keystroke.
+
+    Args:
+        rows: The rows of the configuration, by path.
+
+    Returns:
+        The path of every object strictly inside one node, for each node that
+        has any. A node with none is not a key of it.
+    """
+    below: dict[ConfigPath, list[ConfigPath]] = {}
+    for path, row in rows.items():
+        if not row.is_object:
+            continue
+        for depth in range(len(path)):
+            below.setdefault(path[:depth], []).append(path)
+    return below
+
+
+def _state_of(row: MemberRow, held: Sequence[ConfigPath],
+              answers: Mapping[ConfigPath, SubtreeAnswer]) -> Optional[bool]:
+    """Return what the objects at or inside one node are on their own.
+
+    An object answers for itself. A list or a dict answers for the objects it
+    holds: it is refused as soon as one of them is, valid once every one of
+    them has been asked and accepted, and unasked while any of them is unasked
+    and none is refused. Nothing else has anything to answer.
+
+    Args:
+        row: The row of the node to answer for.
+        held: The path of every configuration object inside that node.
+        answers: What each object that has been asked said about itself.
+
+    Returns:
+        What that node says, and None for one that has not been asked and for
+        one that can never say anything.
+    """
+    if row.is_object:
+        answer = answers.get(row.path)
+        return None if answer is None else answer.valid
+    if any(not answers[other].valid for other in held if other in answers):
+        return False
+    if held and all(other in answers for other in held):
+        return True
+    return None
+
+
+def stamped(rows: Mapping[ConfigPath, MemberRow],
+            folded: Container[ConfigPath],
+            answers: Mapping[ConfigPath, SubtreeAnswer]
+            ) -> dict[ConfigPath, MemberRow]:
+    """Return the rows with the state of the buffer written onto them.
+
+    A backend reads what is folded, what is shown and what the configuration
+    objects amount to from the row each of those is about, exactly as it reads
+    the marks and the description from there, so that the two backends cannot
+    fold, hide or judge different things.
+
+    Both are written here rather than carried by the rows they are about,
+    because both belong to the buffer: the rows are built again after every
+    validation pass, and a fold the user asked for and an answer an object
+    gave outlive the rows that were there when they were given.
 
     Args:
         rows: The rows of the configuration, by path.
         folded: Paths of the containers that are folded away.
+        answers: What each nested object that has been asked said about
+            itself, by the path of its node.
 
     Returns:
-        The same rows, each saying whether it is folded and whether it shows.
+        The same rows, each saying whether it is folded, whether it shows, and
+        what the configuration objects at or inside it are on their own.
     """
-    return {path: row._replace(folded=path in folded,
-                               shown=_shown(path=path, folded=folded))
+    below = _objects_below(rows)
+    refused = {path: message for answer in answers.values()
+               for path, message in answer.refused.items()}
+    return {path: _stamped_row(row=row, folded=folded, answers=answers,
+                               held=below.get(path, ()),
+                               refusal=refused.get(path, ''))
             for path, row in rows.items()}
+
+
+def _stamped_row(row: MemberRow, folded: Container[ConfigPath],
+                 answers: Mapping[ConfigPath, SubtreeAnswer],
+                 held: Sequence[ConfigPath], refusal: str) -> MemberRow:
+    """Return one row with the state of the buffer written onto it."""
+    return row._replace(
+        folded=row.path in folded, shown=_shown(path=row.path, folded=folded),
+        subtree_valid=_state_of(row=row, held=held, answers=answers),
+        subtree_refusal=refusal, has_objects=row.is_object or bool(held))

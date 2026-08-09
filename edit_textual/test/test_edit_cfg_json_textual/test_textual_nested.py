@@ -20,7 +20,7 @@ from edit_cfg_json_textual.textual_look import fold_id, member_id, \
     subtree_id, value_id
 from example.e09_nested_config import CourseExportConfig, TableOutputConfig
 from example.e10_config_containers import CourseReportsConfig
-from .helpers import ROOMY_SIZE, description_of, index_of
+from .helpers import ROOMY_SIZE, description_of, index_of, wrong_of
 
 OUTPUT_CLASS = TableOutputConfig.__name__
 """What the row of a nested object of the example says instead of a value."""
@@ -77,6 +77,14 @@ LIST_REPORTS = 3
 
 DICT_REPORTS = 2
 """How many objects its dict holds, which is few enough to open open."""
+
+REPORT_CONTAINERS = 2
+"""How many members of that example hold objects rather than being one.
+
+A list and a dict of objects each get a badge of their own, because that row
+is the only one left on the screen once the container is folded and every
+object it is about is hidden.
+"""
 
 
 def _nested_app() -> EditorApp:
@@ -210,6 +218,30 @@ def test_badge_refused() -> None:
     assert after == OWN_REFUSED
 
 
+async def _wrong_on_fold() -> tuple[str, str]:
+    """Fold the refused object, open it again, and read what is wrong."""
+    app = _refused_app()
+    async with app.run_test(size=ROOMY_SIZE) as pilot:
+        before = wrong_of(app, REFUSED_MEMBER[-1])
+        control = f'#{fold_id(index_of(app, OBJECT_MEMBER))}'
+        await pilot.click(control)
+        await pilot.click(control)
+        await pilot.pause()
+        return before, wrong_of(app, REFUSED_MEMBER[-1])
+
+
+def test_wrong_shown_on_fold() -> None:
+    """Test folding says why an object was refused and not only that it was.
+
+    Folding asks the object, and what it refused is said at the member it is
+    about, which is a row this backend has to write again when the fold
+    changes: nothing has been typed and no validation pass has run.
+    """
+    before, after = asyncio.run(_wrong_on_fold())
+    assert before == ''
+    assert 'output_format' in after
+
+
 async def _badge_widgets() -> int:
     """Return how many nodes the application gave a badge widget at all."""
     app = _nested_app()
@@ -237,7 +269,7 @@ def test_repeated_objects() -> None:
     folded, opened, badges = asyncio.run(_repeated())
     assert folded.count(REPEATED_MEMBER) == DICT_REPORTS
     assert opened.count(REPEATED_MEMBER) == DICT_REPORTS + LIST_REPORTS
-    assert badges == DICT_REPORTS + LIST_REPORTS
+    assert badges == DICT_REPORTS + LIST_REPORTS + REPORT_CONTAINERS
 
 
 def test_only_objects_say() -> None:

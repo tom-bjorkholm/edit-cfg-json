@@ -474,6 +474,44 @@ the API should look like.
   widget by anything but its place among the rows would have been wrong about
   every one of them. Neither was, which the counts now say.
 
+**What its review found.** Two defects in what folding asks and in what it does
+with the answer, both of which only a container of configuration objects could
+show — which is what the example this step added was for.
+
+- **A fold kept the answer and threw the sentences away.** A folded object said
+  *refused on its own* and nothing said what was wrong with it, so the user had
+  to validate the whole configuration to be told the rest of something they had
+  just been told half of. The two are one answer with one lifetime, and they
+  are now kept together: `SubtreeAnswer` is the state and what that object
+  refused, the buffer holds one per object beside the fold state, and `stamped`
+  writes both onto the rows. That also removed the carrying over of the state
+  through a rebuild, and it fixed a smaller inconsistency of step 12 on the
+  way — an edit outside an object used to leave its badge standing while the
+  sentence under its member vanished with the verdict. Design section 6.2.
+- **Folding a list or a dict asked nothing at all.** `subtree_verdict` asked
+  the one node that was folded, and such a member is no configuration, so
+  folding the member that holds several objects — the ordinary shape of design
+  section 4.1 — found nothing. A fold answers *what is being hidden* rather
+  than *what is this node*, so `subtree_answers` asks every object at or inside
+  the node, and one function replaced both `subtree_states` and
+  `subtree_verdict`. Design section 4.7.
+- **A container of objects needed a badge of its own**, because its row is the
+  only one a fold leaves on the screen. It says *valid inside* and *refused
+  inside*, which cannot be read as a verdict about the container itself, and
+  `row_validates` is now `MemberRow.has_objects` so that a backend creates the
+  widget for a container of objects and for nothing else. Design section 6.2.
+- **The Textual backend did not write the diagnostics again on a fold.** It
+  wrote the descriptions and the badges, because until now nothing else below a
+  row could change without a key being typed. The Tk backend already did.
+
+The public names the review settled:
+
+| Name | Kind |
+| --- | --- |
+| `MemberRow.subtree_refusal` | why the object owning this node refused it |
+| `MemberRow.has_objects` | whether an object is at this node or inside it |
+| `MemberRow.is_object` | whether an object is really at this node |
+
 #### Step 14 — Adding and removing elements
 
 Add and remove elements of uniform lists and dicts, with the template taken

@@ -10,8 +10,8 @@ import pytest
 from config_as_json import Config, ConfigPath, JsonType
 from edit_cfg_json import Descriptions, EditModel, LoadReport, MemberRow, \
     docstring_text, load_text, model_as_text, model_title, row_description, \
-    row_diagnostic, row_marks, row_subtree_text, row_validates, \
-    row_value_text, save_text, verdict_text
+    row_diagnostic, row_marks, row_subtree_text, row_value_text, save_text, \
+    verdict_text
 from .container_cfg import KeyedEnumCfg, TreeCfg
 from .sample_cfg import HIGHEST, TOO_LARGE_MESSAGE, DocumentedCfg, FlatCfg, \
     IntEnumCfg, ListCfg, NoDocCfg, NoneCfg, RangeCfg, RewriteCfg, RulesCfg
@@ -508,14 +508,29 @@ def test_row_subtree_text(state: Optional[bool], expected: str) -> None:
     assert row_subtree_text(row) == expected
 
 
-@pytest.mark.parametrize('config_type, children, validates',
+@pytest.mark.parametrize('state, expected',
+                         [(None, ''), (True, ' [valid inside]'),
+                          (False, ' [refused inside]')])
+def test_row_inside_text(state: Optional[bool], expected: str) -> None:
+    """Test a container of objects says what it holds and not what it is.
+
+    A list and a dict are no configuration and have nothing to say about
+    themselves, and the words have to say so: a folded container shows none of
+    the objects that the answer is really about.
+    """
+    row = MemberRow(path=('outputs',), value=[], original=[], children=(),
+                    subtree_valid=state)
+    assert row_subtree_text(row) == expected
+
+
+@pytest.mark.parametrize('config_type, children, is_object',
                          [(DocumentedCfg, (), True),
                           (DocumentedCfg, None, False), (None, (), False),
                           (None, None, False)])
-def test_row_validates(config_type: Optional[type[Config]],
+def test_row_is_object(config_type: Optional[type[Config]],
                        children: Optional[tuple[ConfigPath, ...]],
-                       validates: bool) -> None:
-    """Test only a nested object that is really there can be asked at all.
+                       is_object: bool) -> None:
+    """Test only a nested object that is really there is one at all.
 
     A list and a dict have no class of their own to ask, and a declared
     member holding no object has no object to ask, which is the case with a
@@ -523,7 +538,7 @@ def test_row_validates(config_type: Optional[type[Config]],
     """
     row = MemberRow(path=('inner',), value={}, original={}, children=children,
                     config_type=config_type)
-    assert row_validates(row) is validates
+    assert row.is_object is is_object
 
 
 def test_leaf_marked_at_depth() -> None:

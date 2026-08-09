@@ -124,6 +124,28 @@ is at the member it is about, or below the object where it is about no member
 of it.
 """
 
+INSIDE_VALID_MARK = ' [valid inside]'
+"""What a list or a dict of configuration objects says when all of them pass.
+
+A container is no configuration and can say nothing about itself, so what it
+says is about the objects it holds. *Inside* is what keeps the two apart: a
+rule of the class above may refuse the configuration while every object in this
+container is a perfectly good one, exactly as it may for a single object.
+"""
+
+INSIDE_REFUSED_MARK = ' [refused inside]'
+"""What such a container says when one of the objects it holds is refused.
+
+It is on the row of the container because that row is what a folded container
+leaves on the screen. Without it, folding a member would hide the one thing the
+user has to act on and leave nothing at all in its place, and a user who folds
+a member to get it out of the way is not asking to be told that everything in
+it is fine.
+
+What is wrong is still at the object it is about, and is read by opening the
+container: this says that there is something to open it for.
+"""
+
 
 def row_value_text(row: MemberRow) -> str:
     """Return the value of one node as the text a field would show.
@@ -265,31 +287,38 @@ def row_description(model: EditModel, row: MemberRow) -> str:
 
 
 def row_validates(row: MemberRow) -> bool:
-    """Return whether one node can ever say what it is on its own.
+    """Return whether one node can ever say what its objects amount to.
 
     A backend asks this before it creates the widget that says it, by the same
     rule as `row_describes`: a widget that could never hold anything is a
     piece of the window spent on nothing.
 
-    Only a declared nested configuration object that is really there can, and
-    nothing else. A list, a dict and a value have no class of their own to ask,
-    and a declared member that holds no object has no object to ask.
+    A declared nested configuration object that is really there can, and so
+    can a list or a dict that holds such objects at any depth, which is the
+    ordinary shape of a configuration worth editing. A value cannot, an empty
+    container cannot, and a declared member that holds no object has no object
+    to ask.
 
     Args:
         row: Node to ask about.
 
     Returns:
-        Whether that node is a configuration object of its own.
+        Whether a configuration object is at that node or inside it.
     """
-    return row.config_type is not None and row.foldable
+    return row.has_objects
 
 
 def row_subtree_text(row: MemberRow) -> str:
-    """Return what one nested object says about itself, as it is shown.
+    """Return what the objects at or inside one node amount to, as shown.
 
     A node that has not been asked since something inside it last changed says
     nothing, because that is a state and not an answer, and a line saying so
     under every object would be a line spent on nothing.
+
+    A container of objects is worded differently from an object, because it is
+    saying a different thing: an object answers for itself and a container
+    answers for what it holds. Nothing else could tell them apart, since a
+    folded container shows none of the objects the words are about.
 
     Both backends read it from here, so that neither of them decides on its
     own how a valid object and a refused one are told apart.
@@ -298,12 +327,15 @@ def row_subtree_text(row: MemberRow) -> str:
         row: Node to render.
 
     Returns:
-        What that object is on its own, and nothing for every other node and
-        for one that has not been asked.
+        What that node is on its own or what it holds, and nothing for a node
+        that has no object at it or inside it and for one not asked yet.
     """
     if row.subtree_valid is None:
         return ''
-    return SUBTREE_VALID_MARK if row.subtree_valid else SUBTREE_REFUSED_MARK
+    if row.is_object:
+        return SUBTREE_VALID_MARK if row.subtree_valid \
+            else SUBTREE_REFUSED_MARK
+    return INSIDE_VALID_MARK if row.subtree_valid else INSIDE_REFUSED_MARK
 
 
 def row_fold_text(row: MemberRow) -> str:
@@ -355,13 +387,18 @@ def fold_hides(model: EditModel) -> bool:
 def row_diagnostic(model: EditModel, row: MemberRow) -> str:
     """Return what is wrong with one member, and nothing when nothing is.
 
-    Two things can be wrong with a node and they are not the same thing.
+    Three things can be wrong with a node and they are not the same thing.
     Its text may mean no value of that node at all, which is answered by
-    the node alone and stays true until the node is edited again; or the
+    the node alone and stays true until the node is edited again; the
     application may have refused the value it holds, which is answered by the
     whole configuration and is only known for as long as the rest of the
-    buffer stands still. The first is preferred when both are there, because
-    a value that does not exist yet is what has to be corrected first.
+    buffer stands still; or the nested configuration object that owns the node
+    may have refused it when it was asked about itself, which is known for as
+    long as nothing inside that object changes. The first is preferred when
+    more than one is there, because a value that does not exist yet is what
+    has to be corrected first, and the verdict comes before the answer of one
+    object because a pass over the whole buffer is the more recent of the two
+    whenever both are there.
 
     What a member validator refused is about the whole member, because that
     is what the validator is given, so it is shown at the member and not at
@@ -382,7 +419,9 @@ def row_diagnostic(model: EditModel, row: MemberRow) -> str:
     if row.conversion:
         return row.conversion
     verdict = model.verdict
-    return '' if verdict is None else verdict.refused.get(row.path, '')
+    if verdict is not None and row.path in verdict.refused:
+        return verdict.refused[row.path]
+    return row.subtree_refusal
 
 
 def _indented(text: str, indent: str) -> str:

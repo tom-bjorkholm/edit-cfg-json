@@ -88,7 +88,7 @@
     * [\_rebuild\_rows](#edit_cfg_json_textual.textual_editor.EditorApp._rebuild_rows)
     * [\_field](#edit_cfg_json_textual.textual_editor.EditorApp._field)
     * [\_show\_state](#edit_cfg_json_textual.textual_editor.EditorApp._show_state)
-    * [\_show\_diagnostic](#edit_cfg_json_textual.textual_editor.EditorApp._show_diagnostic)
+    * [\_show\_diagnostics](#edit_cfg_json_textual.textual_editor.EditorApp._show_diagnostics)
     * [\_told](#edit_cfg_json_textual.textual_editor.EditorApp._told)
   * [TextualEditor](#edit_cfg_json_textual.textual_editor.TextualEditor)
     * [run\_editor](#edit_cfg_json_textual.textual_editor.TextualEditor.run_editor)
@@ -984,7 +984,10 @@ Show which containers are folded and what each control now does.
 
 What is said below the nodes is shown again as well, because folding a
 nested configuration object changes it: an object that is showing less
-of itself says less about itself.
+of itself says less about itself. What is wrong with a node is shown
+again for a second reason: folding asks every object at or inside the
+node that was folded, and what one of them refuses is said at the node
+it is about.
 
 This is not part of `_show_state`, which runs on every key the user
 types: nothing typed into a field folds anything.
@@ -1157,15 +1160,15 @@ explanations: a description says what a node is for and stays until
 the user asks for it to go, while a refusal is answered afresh by
 every pass and by every field that is left.
 
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._show_diagnostic"></a>
+<a id="edit_cfg_json_textual.textual_editor.EditorApp._show_diagnostics"></a>
 
-#### \_show\_diagnostic
+#### \_show\_diagnostics
 
 ```python
-def _show_diagnostic(index: int, row: core.MemberRow) -> None
+def _show_diagnostics() -> None
 ```
 
-Show what is wrong with one node, or nothing when nothing is.
+Show what is wrong with every node, as the model says it now.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp._told"></a>
 

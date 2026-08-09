@@ -701,7 +701,10 @@ class EditorApp(App[None]):
 
         What is said below the nodes is shown again as well, because folding a
         nested configuration object changes it: an object that is showing less
-        of itself says less about itself.
+        of itself says less about itself. What is wrong with a node is shown
+        again for a second reason: folding asks every object at or inside the
+        node that was folded, and what one of them refuses is said at the node
+        it is about.
 
         This is not part of `_show_state`, which runs on every key the user
         types: nothing typed into a field folds anything.
@@ -713,6 +716,7 @@ class EditorApp(App[None]):
                 self.query_one(f'#{fold_id(index)}',
                                Button).label = fold_glyph(row)
         self._show_descriptions()
+        self._show_diagnostics()
         self._show_subtrees()
         self._bind_fold()
 
@@ -859,15 +863,16 @@ class EditorApp(App[None]):
         for index, row in enumerate(self._model.rows):
             self.query_one(f'#{mark_id(index)}',
                            Static).update(core.row_marks(row))
-            self._show_diagnostic(index=index, row=row)
+        self._show_diagnostics()
         self._show_subtrees()
 
-    def _show_diagnostic(self, index: int, row: core.MemberRow) -> None:
-        """Show what is wrong with one node, or nothing when nothing is."""
-        wrong = core.row_diagnostic(model=self._model, row=row)
-        widget = self.query_one(f'#{diagnostic_id(index)}', Static)
-        widget.update(wrong)
-        widget.display = bool(wrong)
+    def _show_diagnostics(self) -> None:
+        """Show what is wrong with every node, as the model says it now."""
+        for index, row in enumerate(self._model.rows):
+            wrong = core.row_diagnostic(model=self._model, row=row)
+            widget = self.query_one(f'#{diagnostic_id(index)}', Static)
+            widget.update(wrong)
+            widget.display = bool(wrong)
 
     def _told(self, widget_id: str, text: str,
               emphasis: core.Emphasis) -> None:

@@ -701,12 +701,22 @@ step 10 for a list and a dict, and step 11 made a nested configuration object
 one of them without changing anything here — which is what settling it as "a
 node that holds rows" rather than "a container" bought.
 
-**Folding a nested configuration object also asks it about itself**, which is
-section 6.2 and the one thing folding does beyond deciding what is on the
-screen. Opening one asks as well: the answer is the same question either way,
-and changing how much of an object is shown is the moment the user is looking
-at it. A list and a dict are asked nothing, because neither is a configuration
-that has anything to say about itself.
+**Folding a node also asks every configuration object at or inside it about
+itself**, which is section 6.2 and the one thing folding does beyond deciding
+what is on the screen. Opening one asks as well: the answer is the same
+question either way, and changing how much of a node is shown is the moment the
+user is looking at it.
+
+**A region and not the one node that was folded**, which a review of step 13
+corrected. A list and a dict have nothing to say about themselves, so the first
+version asked them nothing — which meant that folding the member holding
+several configuration objects asked nothing at all, for exactly the shape
+section 4.1 says a real configuration has. The question a fold answers is not
+*what is this node* but *what is being hidden*, and what such a container hides
+is every object in it. So it asks all of them, and what it finds is put on
+their rows, where it is read as soon as the container is opened again. A
+container of plain values is still asked nothing, because there is nothing in
+it that could be asked.
 
 **The editor opens with a container open unless opening it would flood the
 window.** That is the same decision as section 4.4's, made once more where it
@@ -1091,8 +1101,35 @@ across a boundary belongs.
 that `verdict` and `save_outcome` already have. It is taken back whenever
 anything inside that object is edited, which is a different lifetime from the
 verdict of the whole configuration: that one is dropped by an edit anywhere,
-and this one only by an edit inside the object it is about. That difference is
-why it is carried by the row rather than by the verdict.
+and this one only by an edit inside the object it is about.
+
+**What the object refused is kept with the state and never apart from it**,
+which a review of step 13 corrected. The first version kept the answer of a
+fold and threw the sentences away, so an object that was folded said that
+something was wrong and nothing said what — and the user had to ask a second
+question, about the whole configuration, to be told something they had just
+been told half of. The two are one answer: they are found by one pass, they
+are true for exactly as long as each other, and an edit inside the object
+takes both back together. That third lifetime is why they are the buffer's and
+are stamped onto the rows rather than being carried by them, beside the fold
+state and for the same reason: the rows are built again after every validation
+pass, and an answer outlives the rows it was given about.
+
+The sentence is shown where section 6.5 puts every other refusal, which is at
+the node it is about — a member of the object, or the object itself where it
+is about no member of it. A folded object therefore shows the state and not
+the sentence, because the member the sentence is about is one of the rows that
+folding hid, and opening the object is what shows it.
+
+**A list or a dict of such objects carries the same state, about them.** It is
+no configuration and can say nothing about itself, so the words differ: it is
+*valid inside* and *refused inside*, refused as soon as one object in it is,
+valid once every one of them has been asked and accepted, and unasked while
+any of them is unasked and none is refused. That row is the only one a folded
+container leaves on the screen, and without it folding a member would hide the
+one thing the user has to act on and leave nothing at all in its place. A user
+who folds a member to get it out of the way is not asking to be told that
+everything in it is fine, and is very much asking to be told that it is not.
 
 ### 6.3 Field-level attribution
 
@@ -1182,14 +1219,18 @@ explained is taken out of the block, and the block keeps what it could not
 explain — a whole-configuration validator, a key that does not match, text
 that is not JSON, a class the editor cannot construct.
 
-One member can have two things wrong with it, and they are not the same thing:
-its text may mean no value of it at all (section 4.2), or the application may
-have refused the value it holds. **The first is preferred when both are
-there**, because a value that does not exist yet is what has to be corrected
-first. The two also live for different lengths of time, which is the reason
-they are kept apart rather than merged: the first stays true until that member
-is edited again, and the second is dropped as soon as anything in the buffer
-changes.
+One member can have three things wrong with it, and they are not the same
+thing: its text may mean no value of it at all (section 4.2), the application
+may have refused the value it holds, or the nested configuration object that
+owns it may have refused it when it was asked about itself (section 6.2).
+**The first is preferred when more than one is there**, because a value that
+does not exist yet is what has to be corrected first, and the verdict comes
+before what one object said because a pass over the whole buffer is the more
+recent of the two whenever both are there. They also live for three different
+lengths of time, which is the reason they are kept apart rather than merged:
+the first stays true until that member is edited again, the second is dropped
+as soon as anything in the buffer changes, and the third as soon as anything
+inside that one object does.
 
 A refusal is **not** covered by the explanations toggle of section 4.4. A
 description says what a member is for and is what a user who knows the

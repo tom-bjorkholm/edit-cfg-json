@@ -32,6 +32,17 @@ OWN_VALID = ' [valid on its own]'
 OWN_REFUSED = ' [refused on its own]'
 """What an object that its own class refuses says instead."""
 
+INSIDE_VALID = ' [valid inside]'
+"""What a container of objects says when every one of them passes.
+
+A list or a dict is no configuration and says nothing about itself, so what it
+says is about the objects it holds. That is what a folded container leaves on
+the screen, where every object it is about is hidden.
+"""
+
+INSIDE_REFUSED = ' [refused inside]'
+"""What such a container says when one of the objects it holds is refused."""
+
 ABOUT_ONE_REPORT = DESCRIPTIONS[('reports', '[')]
 """What this example says about every element of the list, once."""
 
@@ -98,8 +109,8 @@ def test_two_containers(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the two containers say how much they hold and fold differently."""
     printed = _dump(capsys)
     assert printed.startswith(f'{HEAD}\ncourse_name = python-intro')
-    assert FOLDED_REPORTS in printed
-    assert f'{OPEN_BY_ID}\n' in printed
+    assert f'{FOLDED_REPORTS}{INSIDE_VALID}\n' in printed
+    assert f'{OPEN_BY_ID}{INSIDE_VALID}\n' in printed
     assert printed.endswith(f'validation: valid\n{DUMP_TAIL}')
 
 
@@ -192,6 +203,20 @@ def test_own_rule_per_object(capsys: pytest.CaptureFixture[str]) -> None:
     assert f'is less than minimum {FEWEST_ROWS}' in printed
 
 
+def test_container_inside(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the container of a refused object says that much on its own row.
+
+    That row is what a folded container leaves on the screen, and every object
+    it is about is then hidden, so without it folding a member would hide the
+    one thing the user has to act on and leave nothing in its place. The other
+    container holds nothing that was refused and says so.
+    """
+    printed = _dump(capsys, '--set',
+                    f'reports_by_id.audit.max_rows={FEWEST_ROWS - 1}')
+    assert f'{OPEN_BY_ID} (edited){INSIDE_REFUSED}' in printed
+    assert f'{FOLDED_REPORTS}{INSIDE_VALID}' in printed
+
+
 def test_rule_over_all(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a rule about every report refuses while each one is valid.
 
@@ -216,7 +241,7 @@ def test_read_file(capsys: pytest.CaptureFixture[str]) -> None:
     everything.
     """
     printed = _dump(capsys, '-i', data_file('e10_reports.json'))
-    assert f'reports: {DICT_REPORTS} elements\n' in printed
+    assert f'reports: {DICT_REPORTS} elements{INSIDE_VALID}\n' in printed
     assert f'reports_by_id: {LIST_REPORTS} entries (folded)' in printed
     assert '        title = What each participant is billed' not in printed
     assert printed.endswith(input_tail('e10_reports.json'))

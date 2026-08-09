@@ -62,7 +62,30 @@ this one mapping and a default that could be changed would be a defect
 waiting to happen.
 """
 
-NO_SUBTREES: Mapping[ConfigPath, bool] = MappingProxyType({})
+
+class SubtreeAnswer(NamedTuple):
+    """What asking one nested configuration object about itself found."""
+
+    valid: bool
+    """Whether that object is a configuration on its own."""
+
+    refused: Mapping[ConfigPath, str] = NOTHING_REFUSED
+    """What it refused, by the absolute path of the node it is about.
+
+    It is a member of that object wherever a member validator refused one, and
+    the object itself where its class refused it for a reason that is about no
+    member of it. It is empty for an object that was accepted, and empty for
+    one that is refused only because an object inside it is: that mistake is
+    reported once, at the object it is really about.
+
+    It is kept beside the state rather than thrown away, because the state on
+    its own says that something is wrong and never says what, and a user who
+    folds an object to be told that much has to open it again and ask a second
+    question to find out.
+    """
+
+
+NO_SUBTREES: Mapping[ConfigPath, SubtreeAnswer] = MappingProxyType({})
 """What a pass over a configuration with no nested object at all reports.
 
 It cannot be written to, for the same reason as the mapping above.
@@ -127,8 +150,8 @@ class ValidationPass(NamedTuple):
     which then needs no load of its own to see what was saved.
     """
 
-    subtrees: Mapping[ConfigPath, bool] = NO_SUBTREES
-    """Whether each nested object is a configuration on its own, by its path.
+    subtrees: Mapping[ConfigPath, SubtreeAnswer] = NO_SUBTREES
+    """What each nested object is on its own, by the path of its node.
 
     A subtree can be valid while the whole configuration is not, which is what
     a rule relating two of them across the boundary does, and that is the
@@ -470,18 +493,9 @@ def _single_pass(config: Config,
                           candidate=candidate)
 
 
-class SubtreeFindings(NamedTuple):
-    """What asking each nested configuration object on its own found."""
-
-    valid: dict[ConfigPath, bool]
-    """Whether each of them is a configuration on its own, by its path."""
-
-    refused: dict[ConfigPath, str]
-    """What they refused, by the path of the node each refusal is about."""
-
-
-def _deepest_first(nodes: Mapping[ConfigPath, ConfigNode]) -> list[ConfigPath]:
-    """Return the path of every nested object, the innermost ones first.
+def _deepest_first(nodes: Mapping[ConfigPath, ConfigNode],
+                   inside: ConfigPath) -> list[ConfigPath]:
+    """Return the path of every nested object of one region, innermost first.
 
     An object holding a refused object is refused whatever else is true of it,
     so the innermost are asked first and one with a refused object inside it
@@ -490,19 +504,25 @@ def _deepest_first(nodes: Mapping[ConfigPath, ConfigNode]) -> list[ConfigPath]:
 
     Args:
         nodes: Every configuration object of the tree, by its path.
+        inside: Path of the node to ask about, the empty path for the whole
+            configuration. Every object at or inside it is asked, which is
+            what makes one list or dict of objects answerable: such a member
+            is no configuration itself and every element of it is one.
 
     Returns:
-        The path of every nested object, the longest paths first. The
-        configuration itself is left out: it is the whole configuration and
-        not a subtree of one.
+        The path of every nested object of that region, the longest paths
+        first. The configuration itself is left out: it is the whole
+        configuration and not a subtree of one.
     """
-    return sorted((path for path in nodes if path), key=len, reverse=True)
+    return sorted((path for path in nodes
+                   if path and path[:len(inside)] == inside),
+                  key=len, reverse=True)
 
 
 def _refused_inside(path: ConfigPath,
-                    valid: Mapping[ConfigPath, bool]) -> bool:
+                    answers: Mapping[ConfigPath, SubtreeAnswer]) -> bool:
     """Return whether an object inside one node has already been refused."""
-    return any(not state for other, state in valid.items()
+    return any(not answer.valid for other, answer in answers.items()
                if len(other) > len(path) and other[:len(path)] == path)
 
 
@@ -529,53 +549,68 @@ def _own_refusal(path: ConfigPath,
 
 
 def _record_subtree(path: ConfigPath, node: ConfigNode, value: JsonType,
-                    findings: SubtreeFindings) -> None:
+                    answers: dict[ConfigPath, SubtreeAnswer]) -> None:
     """Ask one nested object about its own part of the buffer.
 
     Args:
         path: Path of the node the object is at.
         node: What the class declares there, and what is really there.
         value: What the buffer holds for that node.
-        findings: What the objects inside it found, which this adds to.
+        answers: What the objects inside it said, which this adds to.
     """
     if node.config is None or not isinstance(value, dict):
         return
-    if _refused_inside(path=path, valid=findings.valid):
-        findings.valid[path] = False
+    if _refused_inside(path=path, answers=answers):
+        answers[path] = SubtreeAnswer(valid=False)
         return
     verdict = _single_pass(config=node.config, members=value).verdict
-    findings.valid[path] = verdict.valid
     if verdict.valid:
+        answers[path] = SubtreeAnswer(valid=True)
         return
     inside = {path + node_path: message
               for node_path, message in verdict.refused.items()}
-    own = _own_refusal(path=path, verdict=verdict)
-    findings.refused.update(inside or own)
+    answers[path] = SubtreeAnswer(
+        valid=False, refused=inside or _own_refusal(path=path,
+                                                    verdict=verdict))
 
 
-def _subtree_findings(config: Config,
-                      members: dict[str, JsonType]) -> SubtreeFindings:
-    """Return what every nested object of one buffer says about itself.
+def subtree_answers(config: Config, members: dict[str, JsonType],
+                    inside: ConfigPath = ()
+                    ) -> dict[ConfigPath, SubtreeAnswer]:
+    """Return what every nested object of one region says about itself.
+
+    This is what folding asks, and it is the cheap local question that
+    section 6.2 of `doc/design.md` makes folding the trigger for: it needs no
+    candidate configuration and says nothing about the file.
+
+    A region and not a single node, because the member that holds several
+    configuration objects is a list or a dict and is no configuration itself.
+    Folding one of those hides every object in it, so folding one of those has
+    to ask every object in it; asking only the node that was folded would
+    answer nothing at all for exactly the shape a real configuration has.
 
     Args:
         config: Configuration object of this session, which says which nodes
             are configuration objects of their own. It is not modified.
         members: The edit buffer, as one JSON space value per member.
+        inside: Path of the node being asked about, the empty path for the
+            whole configuration. Every object at or inside it is asked.
 
     Returns:
-        Whether each of them is a configuration on its own, and what those
-        that are not refused, by the path of the node it is about.
+        One answer per nested object of that region that is really there. A
+        member declared to hold an object and holding none is not here,
+        because there is nothing to ask.
     """
     nodes = config_nodes(config)
     values = dict(flat_values(members=members, nodes=nodes))
-    findings = SubtreeFindings(valid={}, refused={})
-    for path in _deepest_first(nodes):
+    answers: dict[ConfigPath, SubtreeAnswer] = {}
+    for path in _deepest_first(nodes=nodes, inside=inside):
         _record_subtree(path=path, node=nodes[path], value=values.get(path),
-                        findings=findings)
-    return findings
+                        answers=answers)
+    return answers
 
 
-def _accepted_subtrees(candidate: Config) -> dict[ConfigPath, bool]:
+def _accepted_subtrees(candidate: Config) -> dict[ConfigPath, SubtreeAnswer]:
     """Return every nested object of an accepted configuration, as valid.
 
     A pass the class accepted built and validated every nested object inside
@@ -590,12 +625,21 @@ def _accepted_subtrees(candidate: Config) -> dict[ConfigPath, bool]:
     Returns:
         The path of every nested object of it, each of them valid.
     """
-    return {path: True for path, node in config_nodes(candidate).items()
+    return {path: SubtreeAnswer(valid=True)
+            for path, node in config_nodes(candidate).items()
             if path and node.config is not None}
 
 
+def _every_refusal(answers: Mapping[ConfigPath, SubtreeAnswer]
+                   ) -> dict[ConfigPath, str]:
+    """Return what every nested object refused, by the node it is about."""
+    return {path: message for answer in answers.values()
+            for path, message in answer.refused.items()}
+
+
 def _with_subtrees(verdict: ValidationVerdict,
-                   findings: SubtreeFindings) -> ValidationVerdict:
+                   answers: Mapping[ConfigPath, SubtreeAnswer]
+                   ) -> ValidationVerdict:
     """Return one refused verdict with what the nested objects refused in it.
 
     What the whole pass printed is dropped wherever a nested object explained
@@ -606,14 +650,15 @@ def _with_subtrees(verdict: ValidationVerdict,
 
     Args:
         verdict: What applying the whole buffer found.
-        findings: What each nested object said about itself.
+        answers: What each nested object said about itself.
 
     Returns:
         That verdict, with every refusal from inside a nested object in it.
     """
-    if not findings.refused:
+    inside = _every_refusal(answers)
+    if not inside:
         return verdict
-    refused = dict(findings.refused)
+    refused = dict(inside)
     refused.update(verdict.refused)
     said = verdict.diagnostics if verdict.refused else ''
     return verdict._replace(refused=refused, diagnostics=said)
@@ -659,52 +704,7 @@ def validate_buffer(config: Config,
         assert outcome.candidate is not None
         accepted = _accepted_subtrees(outcome.candidate)
         return outcome._replace(subtrees=accepted)
-    findings = _subtree_findings(config=config, members=members)
+    answers = subtree_answers(config=config, members=members)
     return outcome._replace(
-        verdict=_with_subtrees(verdict=outcome.verdict, findings=findings),
-        subtrees=findings.valid)
-
-
-def subtree_states(config: Config,
-                   members: dict[str, JsonType]) -> dict[ConfigPath, bool]:
-    """Return whether each nested object of one buffer is valid on its own.
-
-    This is what folding every node at once asks, where the verdict of the
-    whole configuration is not what was asked for and would be a great deal
-    more work than the question deserves.
-
-    Args:
-        config: Configuration object of this session. It is not modified.
-        members: The edit buffer, as one JSON space value per member.
-
-    Returns:
-        One answer per nested object that is there, by the path of its node.
-    """
-    return _subtree_findings(config=config, members=members).valid
-
-
-def subtree_verdict(config: Config, members: dict[str, JsonType],
-                    path: ConfigPath) -> Optional[bool]:
-    """Return whether the object at one node is a configuration on its own.
-
-    This is what folding one node asks, and it is the cheap local question
-    that section 6.2 of `doc/design.md` makes folding the trigger for: it
-    needs no candidate configuration and says nothing about the file.
-
-    Args:
-        config: Configuration object of this session. It is not modified.
-        members: The edit buffer, as one JSON space value per member.
-        path: Path of the node to ask about.
-
-    Returns:
-        What that object says about itself, and None where there is no object
-        to ask, which a declared member holding none is.
-    """
-    nodes = config_nodes(config)
-    node = nodes.get(path)
-    if node is None or node.config is None:
-        return None
-    value = dict(flat_values(members=members, nodes=nodes)).get(path)
-    if not isinstance(value, dict):
-        return None
-    return _single_pass(config=node.config, members=value).verdict.valid
+        verdict=_with_subtrees(verdict=outcome.verdict, answers=answers),
+        subtrees=answers)

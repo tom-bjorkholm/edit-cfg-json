@@ -20,7 +20,7 @@ from edit_cfg_json.saving import NOT_VALID, NO_DESTINATION, SaveOutcome, \
 from edit_cfg_json.settings import Settings, SettingsSource, checked_file, \
     chosen_file, current_settings
 from edit_cfg_json.validation import ValidationPass, ValidationVerdict, \
-    subtree_states, subtree_verdict, validate_buffer
+    subtree_answers, validate_buffer
 
 
 # The model is where every piece of state that both backends read lives, so
@@ -202,10 +202,16 @@ class EditModel:
         differently. Every row says whether it is folded and whether it is
         shown, which is where a backend reads it.
 
-        A nested configuration object is asked whether it is a configuration
-        on its own at the same time. That is the cheap local question, it
-        needs no candidate configuration, and changing how much of an object
-        is on the screen is the moment at which a user is looking at it.
+        Every nested configuration object at or inside that container is asked
+        whether it is a configuration on its own at the same time, and what it
+        refused is kept with the answer. That is the cheap local question, it
+        needs no candidate configuration, and changing how much of a node is
+        on the screen is the moment at which a user is looking at it.
+
+        Every object inside it and not only the node itself, because the
+        member that holds several objects is a list or a dict and is no
+        configuration of its own. Folding one of those hides every object in
+        it, so folding one of those has to ask every object in it.
 
         Args:
             path: Path of the container to fold or open.
@@ -215,7 +221,7 @@ class EditModel:
             ValueError: The node is not a container.
         """
         self._buffer.toggle_fold(path)
-        self._ask_subtree(path)
+        self._ask_subtrees(path)
 
     def toggle_fold_all(self) -> None:
         """Fold every container away, or open every one of them.
@@ -228,22 +234,20 @@ class EditModel:
         reason folding one of them asks that one.
         """
         self._buffer.toggle_fold_all()
-        self._buffer.take_subtrees(
-            subtree_states(config=self._source.config,
-                           members=self._buffer.values()))
+        self._ask_subtrees()
 
-    def _ask_subtree(self, path: ConfigPath) -> None:
-        """Say whether the object at one node is a configuration on its own.
+    def _ask_subtrees(self, path: ConfigPath = ()) -> None:
+        """Say what the objects at or inside one node are on their own.
 
         Args:
-            path: Path of the node to ask about. A node that holds no
-                configuration object is left exactly as it was, because there
-                is nothing there to ask.
+            path: Path of the node to ask about, the empty path for the whole
+                configuration. A node with no configuration object at it or
+                inside it is left exactly as it was, because there is nothing
+                there to ask.
         """
-        state = subtree_verdict(config=self._source.config,
-                                members=self._buffer.values(), path=path)
-        if state is not None:
-            self._buffer.take_subtrees({path: state})
+        self._buffer.take_subtrees(
+            subtree_answers(config=self._source.config,
+                            members=self._buffer.values(), inside=path))
 
     @property
     def settings(self) -> Settings:
