@@ -11,11 +11,8 @@ that is not a widget:
 - loading, including making automatic changes to an old format file
   visible to the user, and saving
 
-The one backend this package ships is `DumpEditor`, which is a very limited
-non-interactive user interface: it prints the model once and returns, with
-no field to type into and nobody to answer a question. It is what makes
-this API reachable from a script and from a test on a machine with no
-display, and it is what the `{{dist_name}}` program runs.
+This package has the utility  `python3 -m {{import_name}}.dump` that
+runs non-interactively on top of the backend API.
 
 Install this package on its own if you are writing a new user interface
 backend. If you want an editor, install one of the backends instead; they

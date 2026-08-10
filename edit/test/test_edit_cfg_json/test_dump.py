@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-"""Tests for what the `edit-cfg-json` program does when it runs.
+"""Tests for what `python3 -m edit_cfg_json.dump` does when it runs.
 
 What the shared command line does is tested in `test_cli`, and that each of the
 three packages ships the program it promises is tested in `test_programs`. What
@@ -15,7 +15,7 @@ from pathlib import Path
 import json
 import pytest
 from edit_cfg_json import ExitCode
-from edit_cfg_json.__main__ import main
+from edit_cfg_json.dump import main
 
 SAMPLE = 'test_edit_cfg_json.sample_cfg'
 """Module that these tests reach a configuration class through."""

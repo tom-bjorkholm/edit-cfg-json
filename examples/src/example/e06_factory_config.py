@@ -59,33 +59,6 @@ Typing `alp` and validating rewrites the field to `alpha` and marks it as a
 value a validator changed; typing `delta` is refused with the three names that
 exist. Both happen in the fields, because the loader is only about how the
 object was made and not about how it is edited.
-
-`--ui dump` is the very limited non-interactive user interface, and these two
-make the same two edits:
-
-````sh
-cd examples/src/example
-python3 e06_factory_config.py --ui dump -i ../../data/e06_teams.json \
-    --set team=alp
-python3 e06_factory_config.py --ui dump -i ../../data/e06_teams.json \
-    --set team=delta
-````
-
-And this is the same class through the non-interactive program that the core
-installs, which is where the difference between having a loader and not having
-one is plainest. The first run is refused, because a program cannot construct
-this class either; the second opens it; the third says which class it insists
-on getting. `edit-cfg-json-tk` and `edit-cfg-json-textual` answer exactly the
-same way and then open an editor:
-
-````sh
-PYTHONPATH=examples/src edit-cfg-json --module example.e06_factory_config \
-    --class TeamConfig
-PYTHONPATH=examples/src edit-cfg-json --module example.e06_factory_config \
-    --loader team_loader -i examples/data/e06_teams.json
-PYTHONPATH=examples/src edit-cfg-json --module example.e06_factory_config \
-    --class TeamConfig --loader team_loader -i examples/data/e06_teams.json
-````
 """
 
 # Copyright (c) 2026 Tom Björkholm

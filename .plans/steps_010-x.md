@@ -62,6 +62,9 @@ plan says only *when* that decision gets built.
 - [Step 16](#step-16--oldbackup-file-when-overwriting) — the file that a save
   writes over kept under the name the application chose, once per destination
   per session, and a question before it happens.
+- [Step 16B](#step-16b---fix-ux-problem-with-edit_cfg_json) — the name
+  `edit-cfg-json` freed for the editor it promises, and the backend that prints
+  once reached as the small utility it is.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -134,7 +137,7 @@ version. Record which one, because the next step's fast iteration with
 | M2 Flat, fully explained | 6 to 9 | Descriptions, docstrings, field-level diagnostics, automatic-change visibility, explicit loader | done |
 | M3 Structure and folding | 10 to 12 | Lists, dicts, nested `Config` objects, folding with per-subtree badges | done |
 | M4 Configs in containers | 13 to 14 | `LIST_ELEMENT` and `DICT_VALUE` nesting, adding and removing elements | done |
-| M5 Release readiness | 15 to 17 | Closing keeps what was not saved, files are not overwritten unannounced, and v1 is documented, classified and published | steps 15, 15B and 16 done |
+| M5 Release readiness | 15 to 17 | Closing keeps what was not saved, files are not overwritten unannounced, and v1 is documented, classified and published | steps 15, 15B, 16 and 16B done |
 
 ## 3. Steps 10 to 20, as named steps
 
@@ -903,6 +906,8 @@ The public names it settled:
 
 #### Step 16B - fix UX problem with edit_cfg_json
 
+Status: **Implemented and committed.**
+
 Users are mislead by the available command `edig_cfg_json`. Users think that
 this is a smart program running the best interactive editor with internal
 logic to choose between tk and textual. Considering the naming they are
@@ -915,6 +920,73 @@ change the code so that DumpEditor is started with
 Adding logic so that command `edig_cfg_json` uses smart logic to run
 the best interactive editor, is out of scope for this step, but may be
 added in a later step.
+
+**Observable outcome.** What changes is a command and not an editor, so this
+step is reviewed the way step 15B was, by running the thing that moved.
+`PYTHONPATH=examples/src ./venv/bin/python3 -m edit_cfg_json.dump --module
+example.e01_flat_config --class FlatConfig` prints exactly what
+`./venv/bin/edit-cfg-json` printed, `--help` says
+`usage: python3 -m edit_cfg_json.dump`, and there is no
+`./venv/bin/edit-cfg-json` any more and no `python3 -m edit_cfg_json` either. `edit-cfg-json-tk` and
+`edit-cfg-json-textual` are untouched, and every `--ui dump` command line in
+the repository prints what it printed before.
+
+**What it decided.** Four things.
+
+- **The name is freed and not reassigned.** Nothing is installed under
+  `edit-cfg-json` until there is something that deserves it, which is the
+  launcher that would pick whichever editor the machine can run. A command that
+  existed and pointed elsewhere would still be a command named after the
+  library that is not the library's product. Design section 8.3.
+- **The utility is not the program of the package.** It is a small thing for
+  whoever is writing a program on top of this library — and for a continuous
+  integration job, where an exit code is all there is to read — so it is one
+  line of `README_pypi.md` and not a section of it. The shared `program.md`
+  fragment is therefore included by the two editor packages only, which also
+  makes its `{{dist_name}}` right again: it writes that name wherever it names
+  the command, which was true of all three packages and is now true of the two
+  that install one.
+- **`python3 -m edit_cfg_json.dump` and not a second installed command.**
+  `edit-cfg-json-dump` was considered: it would keep the completion
+  registration and read like the other two. It was rejected because a third
+  program name beside two editors is a third program in the reader's head, and
+  whoever this utility is for has the package installed and can name a module.
+- **The usage line says how it is run**, so `PROGRAM` is
+  `python3 -m edit_cfg_json.dump` rather than a short name that is installed
+  nowhere. A help text whose first line cannot be copied and run would be
+  making the same kind of promise this step exists to stop making.
+
+**Core.** No library code at all. `dump.py` is what `__main__.py` was,
+`__main__.py` is gone, and `[project.scripts]` is out of `edit/pyproject.toml`;
+`run_cli`, `DumpEditor`, every exit code and every option are what they were.
+
+| Name | Kind |
+| --- | --- |
+| `edit_cfg_json.dump` | the module that is the utility, run with `python3 -m` |
+
+**What building it found.**
+
+- **A `-m` run is completed through a different door.**
+  `register-python-argcomplete` needs an installed script, and a module is
+  completed by argcomplete's *global* completion, which runs
+  `argcomplete._check_module` and reads the `PYTHON_ARGCOMPLETE_OK` marker of
+  the file it would run. The marker therefore stays at the top of the module
+  where it already was, the two editor packages keep the registration line in
+  their readme because they do install a script, and design section 8.3.1 says
+  which of the two doors each program uses.
+- **The test table said `package` where it meant two different things.** It was
+  the name `python -m` is given and the module that holds `main` at once, which
+  is only the same name where a package has a `__main__`. They are
+  `run_module` and `main_module` now, and the table is still the one place the
+  three programs are described.
+- **A `{{program_cmd}}` template variable was written and then thrown away.**
+  It existed to let one shared fragment name three different commands, and it
+  stopped being needed the moment the core's readme kept one line instead of
+  the whole section: a variable that lets a fragment say three things is worth
+  less than a fragment that is true of the two packages that include it.
+- **The stale script is removed by the build.** `pip` uninstalls before it
+  installs, so `./venv/bin/edit-cfg-json` was gone after the first
+  `./run_build.py` and nothing had to be cleaned by hand.
 
 #### Step 17 — v1 polish
 

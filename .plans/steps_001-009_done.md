@@ -811,6 +811,11 @@ example.e33_nested_configs ExampleConfig33` opens a configuration with nested
 objects in it, showing each of them as a row that cannot be edited yet, which is
 what step 11 is for.
 
+**What step 16B later changed about that**, so that a command line copied from
+this section still runs: the core installs no program, and what
+`edit-cfg-json` did is `python3 -m edit_cfg_json.dump` now. The two editor
+programs are as this section describes them.
+
 **What it was planned to be.**
 
 **Why it is here and not at the end.** Steps 4, 5, 6 and 7 each recorded a

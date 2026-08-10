@@ -190,6 +190,9 @@
   * [node\_converters](#edit_cfg_json.converting.node_converters)
   * [convert\_member](#edit_cfg_json.converting.convert_member)
   * [refusal\_text](#edit_cfg_json.converting.refusal_text)
+* [edit\_cfg\_json.dump](#edit_cfg_json.dump)
+  * [PROGRAM](#edit_cfg_json.dump.PROGRAM)
+  * [main](#edit_cfg_json.dump.main)
 * [edit\_cfg\_json.cli](#edit_cfg_json.cli)
   * [DESCRIPTION](#edit_cfg_json.cli.DESCRIPTION)
   * [PYTHON\_SUFFIX](#edit_cfg_json.cli.PYTHON_SUFFIX)
@@ -492,9 +495,6 @@
   * [\_arguments](#edit_cfg_json.constructing._arguments)
   * [built\_config](#edit_cfg_json.constructing.built_config)
   * [parsed\_config](#edit_cfg_json.constructing.parsed_config)
-* [edit\_cfg\_json.\_\_main\_\_](#edit_cfg_json.__main__)
-  * [PROGRAM](#edit_cfg_json.__main__.PROGRAM)
-  * [main](#edit_cfg_json.__main__.main)
 * [edit\_cfg\_json.descriptions](#edit_cfg_json.descriptions)
   * [CHOICES\_FORM](#edit_cfg_json.descriptions.CHOICES_FORM)
   * [OPTIONAL\_TEXT](#edit_cfg_json.descriptions.OPTIONAL_TEXT)
@@ -3679,6 +3679,56 @@ would otherwise arrive wrapped in quotation marks that nobody wrote.
 **Returns**:
 
   What that failure says.
+
+<a id="edit_cfg_json.dump"></a>
+
+# edit\_cfg\_json.dump
+
+A small utility for whoever is writing a program on top of this package.
+
+It runs `DumpEditor` over the command line of `edit_cfg_json.cli`, so it needs
+no display: it prints what a configuration class makes of a file, with what
+the application's own validators say about the values, and with `--save` it
+writes the validated file. That is worth having while a program of one's own
+is being written, and it is worth having in a continuous integration job,
+where an exit code is the whole of what can be read.
+
+**It is no editor, and the editors are `edit-cfg-json-tk` and
+`edit-cfg-json-textual`.** They take the very same command line and open a
+window and a terminal screen. This utility has no field to type into and
+nobody to press Save, which is why it is the one of the three that offers
+`--save` at all.
+
+Run it as `python3 -m edit_cfg_json.dump`. This package installs no command of
+its own, and the name `edit-cfg-json` in particular is deliberately free: it
+promises the editor this library is for, and a user who typed it and got a
+printout would have been misled by the name rather than by anything the
+program did.
+
+<a id="edit_cfg_json.dump.PROGRAM"></a>
+
+#### PROGRAM
+
+How this program is run, which is what its own help text says.
+
+<a id="edit_cfg_json.dump.main"></a>
+
+#### main
+
+```python
+def main(args: Optional[Sequence[str]] = None) -> int
+```
+
+Run this program and return what it ends with.
+
+**Arguments**:
+
+- `args` - Optional replacement for `sys.argv[1:]`, mainly for tests.
+  
+
+**Returns**:
+
+  What this run ends with, as one of `edit_cfg_json.ExitCode`.
 
 <a id="edit_cfg_json.cli"></a>
 
@@ -9020,51 +9070,6 @@ that are not callable.
 - `ValueError` - A value of the text is one the class refuses. Every
   refusal of `config_as_json` is a subclass of this, and text that
   is not JSON at all raises `ConfigBadJson`, which is one of them.
-
-<a id="edit_cfg_json.__main__"></a>
-
-# edit\_cfg\_json.\_\_main\_\_
-
-The `edit-cfg-json` program: say what a configuration file amounts to.
-
-It is the program of the package that imports no user interface library, so it
-needs no display: it prints the configuration as text, with what the
-application's own validators make of it, and with `--save` it writes the
-validated file. That makes it a configuration checker for a terminal or for a
-continuous integration job, and not an editor.
-
-**For an editor, run `edit-cfg-json-tk` or `edit-cfg-json-textual`**, which
-take the very same command line and open a window and a terminal screen. This
-program has no field to type into and nobody to press Save, which is why it is
-the one of the three that offers `--save` at all.
-
-Run it as `edit-cfg-json`, or as `python -m edit_cfg_json` on a machine whose
-script folder is not on the path.
-
-<a id="edit_cfg_json.__main__.PROGRAM"></a>
-
-#### PROGRAM
-
-Name that this program is installed under.
-
-<a id="edit_cfg_json.__main__.main"></a>
-
-#### main
-
-```python
-def main(args: Optional[Sequence[str]] = None) -> int
-```
-
-Run this program and return what it ends with.
-
-**Arguments**:
-
-- `args` - Optional replacement for `sys.argv[1:]`, mainly for tests.
-  
-
-**Returns**:
-
-  What this run ends with, as one of `edit_cfg_json.ExitCode`.
 
 <a id="edit_cfg_json.descriptions"></a>
 

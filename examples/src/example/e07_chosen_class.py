@@ -72,18 +72,19 @@ python3 e07_chosen_class.py --ui dump -i ../../data/e07_drawing.json \
     --set mode=3D -o /tmp/out.json --save
 ````
 
-The same through the non-interactive program that the core installs, where
+The same through the small non-interactive utility of the core package, where
 `--class` is how a script says which of the two classes it is prepared to go
 on with. The first opens whichever class the file selects, the second insists
 on that class and opens it, and the third insists on the other one and stops
 with a message and an exit code of its own:
 
 ````sh
-PYTHONPATH=examples/src edit-cfg-json --module example.e07_chosen_class \
+export PYTHONPATH=examples/src
+python3 -m edit_cfg_json.dump --module example.e07_chosen_class \
     --loader chosen_config -i examples/data/e07_model.json
-PYTHONPATH=examples/src edit-cfg-json --module example.e07_chosen_class \
+python3 -m edit_cfg_json.dump --module example.e07_chosen_class \
     --class Cad3DConfig --loader chosen_config -i examples/data/e07_model.json
-PYTHONPATH=examples/src edit-cfg-json --module example.e07_chosen_class \
+python3 -m edit_cfg_json.dump --module example.e07_chosen_class \
     --class Cad2DConfig --loader chosen_config -i examples/data/e07_model.json
 ````
 """

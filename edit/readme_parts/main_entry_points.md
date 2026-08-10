@@ -53,34 +53,10 @@ from a file, edits it, validates it and writes it. A member whose value is a
 list or a dict is reported as a row that cannot be edited yet rather than
 being left out.
 
-## The {{dist_name}} program
-
-Installing this package installs a program of the same name. **It is a
-configuration checker and not an editor**: it runs `DumpEditor`, so it needs no
-display and it prints the configuration class you name, with what that class's
-own validators make of the values, and answers with an exit code that says
-whether the file is one the application would accept. With `--save` it writes
-the validated file. Nobody has to write a line of code to use it:
-
-````sh
-{{dist_name}} --module myapp.config --class AppConfig -i /etc/myapp.json
-{{dist_name}} --module myapp.config --class AppConfig -i partial.json \
-    --save
-````
-
-The second of those writes the file the class itself would have written: what
-the file left out is filled in from the declared defaults, and what a validator
-rewrites is rewritten. `--save` exists only in this program of the three,
-because a run that prints once and returns has no later moment at which a user
-could press Save.
-
-**For an editor, install `edit-cfg-json-tk` or `edit-cfg-json-textual`.** Their
-programs take this very same command line and open a window and a terminal
-screen, where the fields are typed into, the containers are folded, and Save is
-a button. This one is for a terminal or a continuous integration job, which is
-what neither of the other two can be.
-
-{{include: program.md}}
+This package installs no program: the editors are `edit-cfg-json-tk` and
+`edit-cfg-json-textual`, and `python3 -m edit_cfg_json.dump --help` is a small
+utility for whoever is writing a program on top of this one, printing what a
+class makes of a file and answering with an exit code.
 
 ## Reading the input file
 

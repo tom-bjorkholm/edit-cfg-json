@@ -51,10 +51,15 @@ two things:
   behind, in one non-interactive run
 
 It is `DumpEditor` in the core, `--ui dump` in the examples of this repository,
-and the backend of the `edit-cfg-json` program (section 8.3). Being limited is
+and the backend of the `python3 -m edit_cfg_json.dump` utility (section 8.3).
+Being limited is
 not a fault of it — a checker that prints a verdict and an exit code is a
 useful thing to be — and it is a fault to present it as the way this editor is
 seen or judged.
+
+**When describing functionality it must be described focusing only on
+interactive editors**. Describing functionality using `DumpEditor` or
+`python3 -m edit_cfg_json.dump` is plain wrong.
 
 ## 2. Repository and package structure
 
@@ -1621,9 +1626,10 @@ about the layering we are paying three packages for.
 An `edit_cfg_json.ui` entry-point group would let backends register
 themselves for discovery (`--ui=auto`). It is additive and breaks
 nothing, and is only worth building once there is a generic launcher or
-a third-party backend in the wild. The three programs of section 8.3 are not
+a third-party backend in the wild. The programs of section 8.3 are not
 that launcher: each of them supplies its own backend, so none of them has
-anything to discover.
+anything to discover. An `edit-cfg-json` that chose an editor for the machine
+it was run on would be that launcher, and step 16B left the name free for it.
 
 ### 8.2 Embedding in an application that already runs a UI
 
@@ -1791,20 +1797,28 @@ warns that a `CSS` class variable is ignored; and
 `tkinter.Variable.__init__` calls `_get_default_root('create variable')`
 when it is given no master.
 
-### 8.3 A ready-to-run program in every package
+### 8.3 A ready-to-run program in each editor package
 
 An application author should not have to write a program to get an editor for
-their own configuration class, so each of the three distributions installs one:
-`edit-cfg-json`, `edit-cfg-json-tk` and `edit-cfg-json-textual`. They are a
-product and not only a development tool, and the second benefit is what built
-them at step 7B: every question about a configuration that is not two members
-long used to cost a hand-written example, and now any class in reach answers it.
+their own configuration class, so each of the two editor distributions installs
+one: `edit-cfg-json-tk` and `edit-cfg-json-textual`. They are a product and not
+only a development tool, and the second benefit is what built them at step 7B:
+every question about a configuration that is not two members long used to cost
+a hand-written example, and now any class in reach answers it.
 
-**Two of the three open an editor**, and they are the two an application author
-usually wants. The third runs the non-interactive backend of section 1.1, so it
-is a configuration checker rather than an editor: it says what a class makes of
-a file and answers with an exit code, which is what a script and a continuous
-integration job can use and what neither of the other two can offer.
+**The core installs no program, and the name it would have installed under is
+the reason.** The same command line over the non-interactive backend of section
+1.1 is worth having, because it says what a class makes of a file and answers
+with an exit code, which is what a continuous integration job can read and what
+neither editor can offer. But that is a small utility for whoever is writing a
+program on top of this library, and `edit-cfg-json` is the name of the editor
+this library is for: a user who typed it and got a printout was misled by the
+name rather than by anything the program did, and they were right to expect an
+editor, because a command named after a library is taken for that library's
+product. So the utility is `python3 -m edit_cfg_json.dump`, which says which
+backend it runs, and the name is left free for the launcher that picks the
+editor the machine can run. Settled at step 16B, after the program's own users
+expected of the name exactly what it promised.
 
 #### 8.3.1 The command line owns no logic
 
@@ -1817,9 +1831,13 @@ duplicate code between the backends by moving logic into the core rather than by
 suppressing the warning. It is also what makes the whole program testable with
 no display and no toolkit, by handing `run_cli` a backend that is a stub.
 
-Each program is reachable as `python -m` on its own package as well, so a
-machine whose script folder is not on `PATH` can still run it, and all three
-complete their own command lines with `argcomplete`.
+Each editor program is reachable as `python -m` on its own package as well, so
+a machine whose script folder is not on `PATH` can still run it, and the
+utility of the core is reached that way and no other. All three complete their
+own command lines with `argcomplete`: the two installed programs through
+`register-python-argcomplete`, and the utility through the global completion,
+which finds the `PYTHON_ARGCOMPLETE_OK` marker of the module it is asked to
+run.
 
 #### 8.3.2 The class is told, and never guessed
 

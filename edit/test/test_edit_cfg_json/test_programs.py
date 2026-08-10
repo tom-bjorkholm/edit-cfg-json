@@ -1,10 +1,11 @@
 #! /usr/bin/env python3
 """Tests that each of the three packages ships the program it promises.
 
-The three programs differ in one thing, which is the backend, so what they are
-is one table and not three test modules. Written per package these tests were
-near copies of each other, and pylint said so: three copies of one shape would
-have been free to drift apart, and a table cannot.
+The three programs differ in the backend and in how they are reached, and
+everything else about them is one command line, so what they are is one table
+and not three test modules. Written per package these tests were near copies
+of each other, and pylint said so: three copies of one shape would have been
+free to drift apart, and a table cannot.
 
 They live in the core's test folder for the same reason the layering tests do.
 The backends may not import each other, so a shape they share cannot live in
@@ -21,7 +22,7 @@ text, both of which happen before there is anything to show.
 from pathlib import Path
 from types import ModuleType
 from typing import NamedTuple
-import importlib
+import importlib.util
 import os
 import subprocess
 import sys
@@ -35,11 +36,14 @@ MISSING_MODULE = 'no_such_module_here'
 class ProgramSpec(NamedTuple):
     """What one of the three programs of this repository is."""
 
-    package: str
-    """Import name of the package that ships it, and its `python -m` name."""
+    run_module: str
+    """What `python -m` is given to run it."""
+
+    main_module: str
+    """Module that holds its `main`, which is `__main__` where there is one."""
 
     program: str
-    """Name it is installed under, which is what its own help text says."""
+    """How it is run, which is what its own help text says."""
 
     backend: str
     """Class name of the backend it hands over."""
@@ -48,16 +52,26 @@ class ProgramSpec(NamedTuple):
     """Whether its backend gives the user a session to press Save in."""
 
 
-PROGRAMS = (ProgramSpec(package='edit_cfg_json', program='edit-cfg-json',
+PROGRAMS = (ProgramSpec(run_module='edit_cfg_json.dump',
+                        main_module='edit_cfg_json.dump',
+                        program='python3 -m edit_cfg_json.dump',
                         backend='DumpEditor', interactive=False),
-            ProgramSpec(package='edit_cfg_json_tk', program='edit-cfg-json-tk',
-                        backend='TkEditor', interactive=True),
-            ProgramSpec(package='edit_cfg_json_textual',
+            ProgramSpec(run_module='edit_cfg_json_tk',
+                        main_module='edit_cfg_json_tk.__main__',
+                        program='edit-cfg-json-tk', backend='TkEditor',
+                        interactive=True),
+            ProgramSpec(run_module='edit_cfg_json_textual',
+                        main_module='edit_cfg_json_textual.__main__',
                         program='edit-cfg-json-textual',
                         backend='TextualEditor', interactive=True))
-"""Every program this repository installs, and what each of them is."""
+"""Every program this repository ships, and what each of them is.
 
-PROGRAM_IDS = tuple(spec.package for spec in PROGRAMS)
+The two editors are installed under the names their help text says and are
+reachable with `python -m` as well. The checker is reachable only that way: it
+is no editor, so the name `edit-cfg-json` would promise what it cannot give.
+"""
+
+PROGRAM_IDS = tuple(spec.run_module for spec in PROGRAMS)
 """Names of the parametrized cases, so a failure says which program it was."""
 
 
@@ -68,9 +82,9 @@ def _entry_point(spec: ProgramSpec) -> ModuleType:
         spec: The program to reach.
 
     Returns:
-        The `__main__` module of that package, imported.
+        The module that holds its `main`, imported.
     """
-    return importlib.import_module(f'{spec.package}.__main__')
+    return importlib.import_module(spec.main_module)
 
 
 def _module_run(spec: ProgramSpec, *args: str) -> subprocess.CompletedProcess[
@@ -89,7 +103,7 @@ def _module_run(spec: ProgramSpec, *args: str) -> subprocess.CompletedProcess[
     """
     environment = dict(os.environ)
     environment['PYTHONPATH'] = str(Path(__file__).resolve().parents[1])
-    return subprocess.run([sys.executable, '-m', spec.package, *args],
+    return subprocess.run([sys.executable, '-m', spec.run_module, *args],
                           check=False, capture_output=True, text=True,
                           env=environment)
 
@@ -119,6 +133,17 @@ def test_supplies_own_backend(spec: ProgramSpec,
     assert type(given['backend']).__name__ == spec.backend
     assert given['prog'] == spec.program
     assert given['interactive'] is spec.interactive
+
+
+def test_no_misleading_name() -> None:
+    """Test the core package runs nothing under the name of an editor.
+
+    `python3 -m edit_cfg_json` printed the configuration and returned, which
+    is the one thing a name must not do: it promises the editor this library
+    is for, and what it gave was a printout. There is no `__main__` in the
+    core at all now, so the utility is reached by naming it.
+    """
+    assert importlib.util.find_spec('edit_cfg_json.__main__') is None
 
 
 @pytest.mark.parametrize('spec', PROGRAMS, ids=PROGRAM_IDS)

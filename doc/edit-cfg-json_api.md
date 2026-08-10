@@ -149,6 +149,9 @@
   * [node\_converters](#edit_cfg_json.converting.node_converters)
   * [convert\_member](#edit_cfg_json.converting.convert_member)
   * [refusal\_text](#edit_cfg_json.converting.refusal_text)
+* [edit\_cfg\_json.dump](#edit_cfg_json.dump)
+  * [PROGRAM](#edit_cfg_json.dump.PROGRAM)
+  * [main](#edit_cfg_json.dump.main)
 * [edit\_cfg\_json.cli](#edit_cfg_json.cli)
   * [DESCRIPTION](#edit_cfg_json.cli.DESCRIPTION)
   * [PYTHON\_SUFFIX](#edit_cfg_json.cli.PYTHON_SUFFIX)
@@ -2783,6 +2786,56 @@ would otherwise arrive wrapped in quotation marks that nobody wrote.
 **Returns**:
 
   What that failure says.
+
+<a id="edit_cfg_json.dump"></a>
+
+# edit\_cfg\_json.dump
+
+A small utility for whoever is writing a program on top of this package.
+
+It runs `DumpEditor` over the command line of `edit_cfg_json.cli`, so it needs
+no display: it prints what a configuration class makes of a file, with what
+the application's own validators say about the values, and with `--save` it
+writes the validated file. That is worth having while a program of one's own
+is being written, and it is worth having in a continuous integration job,
+where an exit code is the whole of what can be read.
+
+**It is no editor, and the editors are `edit-cfg-json-tk` and
+`edit-cfg-json-textual`.** They take the very same command line and open a
+window and a terminal screen. This utility has no field to type into and
+nobody to press Save, which is why it is the one of the three that offers
+`--save` at all.
+
+Run it as `python3 -m edit_cfg_json.dump`. This package installs no command of
+its own, and the name `edit-cfg-json` in particular is deliberately free: it
+promises the editor this library is for, and a user who typed it and got a
+printout would have been misled by the name rather than by anything the
+program did.
+
+<a id="edit_cfg_json.dump.PROGRAM"></a>
+
+#### PROGRAM
+
+How this program is run, which is what its own help text says.
+
+<a id="edit_cfg_json.dump.main"></a>
+
+#### main
+
+```python
+def main(args: Optional[Sequence[str]] = None) -> int
+```
+
+Run this program and return what it ends with.
+
+**Arguments**:
+
+- `args` - Optional replacement for `sys.argv[1:]`, mainly for tests.
+  
+
+**Returns**:
+
+  What this run ends with, as one of `edit_cfg_json.ExitCode`.
 
 <a id="edit_cfg_json.cli"></a>
 

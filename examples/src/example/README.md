@@ -163,7 +163,7 @@ tests in [examples/test/test_example/](../../test/test_example/) do.
 
 ## Opening these classes without running an example
 
-Each of the three packages installs a program that takes the *name* of a
+Each of the two editor packages installs a program that takes the *name* of a
 configuration class, so any class in this folder can be opened without running
 the file it lives in:
 
@@ -172,14 +172,12 @@ PYTHONPATH=examples/src ./venv/bin/edit-cfg-json-textual \
     --module example.e02_enum_config --class EnumConfig
 ./venv/bin/edit-cfg-json-tk --file \
     examples/src/example/e03_described_config.py --class DescribedConfig
-PYTHONPATH=examples/src ./venv/bin/edit-cfg-json \
+PYTHONPATH=examples/src ./venv/bin/python3 -m edit_cfg_json.dump \
     --module example.e03_described_config --class DescribedConfig
 ```
 
-The first two open an editor. The third runs the non-interactive backend and
-prints what that class makes of the values, which is what a script or a
-continuous integration job can read, and is the same relation `--ui dump` has
-to `--ui tk` and `--ui textual` above.
+The first two open an editor. The third is the small utility of the core
+package, which runs the non-interactive backend and prints.
 
 A class that the editor cannot construct on its own is named through its
 loader instead, and `--class` beside it says which class the run insists on

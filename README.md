@@ -16,26 +16,29 @@ folding editor for configuration objects based on `config_as_json.Config`:
 | [edit_tk/](edit_tk/) | `edit-cfg-json-tk` | `edit_cfg_json_tk` |
 | [edit_textual/](edit_textual/) | `edit-cfg-json-textual` | `edit_cfg_json_textual` |
 
-Each package also installs a program of its own name, which takes any
-`config_as_json.Config` class it is told the name of, with no code written by
-anybody:
+The two editor packages each install a program of their own name, which takes
+any `config_as_json.Config` class it is told the name of, with no code written
+by anybody:
 
 ```sh
 edit-cfg-json-tk --module myapp.config --class AppConfig -i /etc/myapp.json
 edit-cfg-json-textual --module myapp.config --class AppConfig
-edit-cfg-json --module myapp.config --class AppConfig -i /etc/myapp.json
 ```
 
-The first two open an editor, in a window and in the terminal, and they are
-what this repository is for. The third is a configuration checker rather than
-an editor: it runs the very limited non-interactive backend that the core
-ships, so it needs no display, prints the configuration and what the
-application's own validators make of it, and ends with an exit code that says
-whether the file is one the application would accept — which is what a script
-or a continuous integration job can use.
+They open an editor, in a window and in the terminal, and they are what this
+repository is for. The core installs no program at all, because the name
+`edit-cfg-json` promises an editor and the core has none to give. The same
+command line over the very limited non-interactive backend is a small utility.
 
-Inside this repository they are `./venv/bin/edit-cfg-json-tk` and so on, and
-any class under [examples/src/example/](examples/src/example/) or
+```sh
+python3 -m edit_cfg_json.dump --module myapp.config --class AppConfig \
+    -i /etc/myapp.json
+```
+
+Inside this repository they are `./venv/bin/edit-cfg-json-tk`,
+`./venv/bin/edit-cfg-json-textual` and
+`./venv/bin/python3 -m edit_cfg_json.dump`, and any class under
+[examples/src/example/](examples/src/example/) or
 [https://github.com/tom-bjorkholm/config_as_json/tree/master/example/src/example](https://github.com/tom-bjorkholm/config_as_json/tree/master/example/src/example)
 can be opened with them, which is the quickest way to see the editor against a
 configuration that is not two members long.
@@ -172,7 +175,7 @@ browsed through `reports/index.html`.
 
 ## Test summary
 
-- Test result: 1464 passed, 3 deselected in 37s
+- Test result: 1465 passed, 3 deselected in 38s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

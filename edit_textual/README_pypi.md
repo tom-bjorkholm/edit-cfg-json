@@ -196,16 +196,16 @@ exit code of its own:
 The numbers are `edit_cfg_json.ExitCode`, so a program that runs this one can
 name them instead of writing them out.
 
-Codes `10` and `11` are answered by `edit-cfg-json` alone, because it is the
-one of the three that runs the non-interactive backend and therefore the one
-whose exit code can carry a verdict: nobody was there to read one. A program
-that gave the user a session ends with success when the user closes it,
-whatever is left in the fields, because closing an editor is not a failure.
+Codes `10` and `11` are never answered by this program. They belong to a run
+whose backend prints once and returns, which is the
+`python3 -m edit_cfg_json.dump` utility of the core package.
+A program that gave the user a session ends with success when the user closes
+it, whatever is left in the fields, because closing an editor is not a failure.
 
 ### If the script folder is not on the path
 
-Every one of these programs is also reachable through the package it belongs
-to, which needs nothing to be on `PATH`:
+This program is also reachable through the package it belongs to, which needs
+nothing to be on `PATH`:
 
 ````sh
 python3 -m edit_cfg_json_textual --module myapp.config --class AppConfig
@@ -392,7 +392,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 1464 passed, 3 deselected in 37s
+- Test result: 1465 passed, 3 deselected in 38s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

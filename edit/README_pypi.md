@@ -49,11 +49,8 @@ that is not a widget:
 - loading, including making automatic changes to an old format file
   visible to the user, and saving
 
-The one backend this package ships is `DumpEditor`, which is a very limited
-non-interactive user interface: it prints the model once and returns, with
-no field to type into and nobody to answer a question. It is what makes
-this API reachable from a script and from a test on a machine with no
-display, and it is what the `edit-cfg-json` program runs.
+This package has the utility  `python3 -m edit_cfg_json.dump` that
+runs non-interactively on top of the backend API.
 
 Install this package on its own if you are writing a new user interface
 backend. If you want an editor, install one of the backends instead; they
@@ -114,156 +111,10 @@ from a file, edits it, validates it and writes it. A member whose value is a
 list or a dict is reported as a row that cannot be edited yet rather than
 being left out.
 
-## The edit-cfg-json program
-
-Installing this package installs a program of the same name. **It is a
-configuration checker and not an editor**: it runs `DumpEditor`, so it needs no
-display and it prints the configuration class you name, with what that class's
-own validators make of the values, and answers with an exit code that says
-whether the file is one the application would accept. With `--save` it writes
-the validated file. Nobody has to write a line of code to use it:
-
-````sh
-edit-cfg-json --module myapp.config --class AppConfig -i /etc/myapp.json
-edit-cfg-json --module myapp.config --class AppConfig -i partial.json \
-    --save
-````
-
-The second of those writes the file the class itself would have written: what
-the file left out is filled in from the declared defaults, and what a validator
-rewrites is rewritten. `--save` exists only in this program of the three,
-because a run that prints once and returns has no later moment at which a user
-could press Save.
-
-**For an editor, install `edit-cfg-json-tk` or `edit-cfg-json-textual`.** Their
-programs take this very same command line and open a window and a terminal
-screen, where the fields are typed into, the containers are folded, and Save is
-a button. This one is for a terminal or a continuous integration job, which is
-what neither of the other two can be.
-
-### Telling it which class to edit
-
-The class is told and never guessed. `--module` names a module that is
-importable, `--file` names a Python file that is not, exactly one of the two is
-required, and `--class` names the class in it:
-
-````sh
-edit-cfg-json --module myapp.config --class AppConfig -i /etc/myapp.json
-edit-cfg-json --file ./somewhere/cfg.py --class AppConfig
-````
-
-`--module` uses the ordinary import path, so `PYTHONPATH` reaches a package
-that is not installed. `--file` puts the folder of the file at the front of the
-path and imports the file by its own name, so a file that imports its
-neighbours works — but a file that belongs to a package and uses a relative
-import cannot be loaded from a bare path at all, and is refused with a message
-saying to use `--module` with `PYTHONPATH` instead.
-
-**Importing a module runs it.** That is the same exposure as running the file
-with `python`, and it is not guarded against, because a configuration class is
-Python and reaching it means importing the module it is in.
-
-### The rest of the command line
-
-| Option | Meaning |
-| --- | --- |
-| `-i`, `--input` | Configuration file to read. Without it the editor starts from the values the class declares. |
-| `-o`, `--output` | Configuration file to write. Without it the input file is written, which is what an editor is normally asked to do. |
-| `--policy` | What to do about a declared value the file does not hold: `strict-then-defaults`, which is the default, `strict` or `defaults`. |
-| `--descriptions` | Name of an `edit_cfg_json.Descriptions` mapping beside the class, saying what its members are for. Without it the members are shown with whatever their own types say about them, which for most of them is nothing. |
-
-A member has no docstring at runtime, so what a member is for is either in a
-mapping like that or nowhere at all, which is why `--descriptions` exists: it is
-the one thing an application knows that this program could not otherwise pass
-on. The docstring of the configuration class needs no option, because the class
-carries it.
-
-An application that has more to say about its own configuration — the file name
-extension it uses and the key combinations its own user interface has taken —
-says it in `edit_cfg_json.Settings`, and gets there through `edit` rather than
-through this program. Options for those are what the next version of this
-program adds.
-
-### A class this editor cannot construct on its own
-
-Most configuration classes take the keyword arguments that `config_as_json`
-documents and nothing else, and this program constructs them from the signature
-it reads. A class that needs an argument of the application's own — a folder, a
-connection, the list of names its own validators accept — is reached through
-`--loader NAME` instead, which names an `edit_cfg_json.ConfigLoader` in the same
-module or file:
-
-````sh
-edit-cfg-json --module myapp.config --loader make_config -i /etc/myapp.json
-````
-
-Whatever the loader needs beyond the five keyword arguments of that protocol has
-to be bound where the loader is written, for instance with
-`functools.partial`, because a command line cannot supply an argument this
-library knows nothing about. `edit_cfg_json.derived_loader` is one line for the
-ordinary case:
-
-````python
-make_config = derived_loader(partial(AppConfig, known_teams=TEAMS))
-````
-
-At least one of `--class` and `--loader` is needed and both are allowed. A
-loader may choose its class by looking at the file it is given, and `--class`
-beside it is then how a script says which class it is prepared to go on with:
-the run stops with its own exit code if the loader answers with another one.
-
-### How the run ends
-
-The program is meant to be usable from a script, so each way of refusing has an
-exit code of its own:
-
-| Code | What it means |
-| --- | --- |
-| `0` | Everything the program was asked to do was done. |
-| `1` | The input file cannot be opened for editing. |
-| `2` | The command line itself is wrong. |
-| `3` | The module that `--module` names cannot be imported. |
-| `4` | The file that `--file` names cannot be read. |
-| `5` | That file is not Python that can be imported. |
-| `6` | That file needs the package it belongs to. |
-| `7` | The module holds no such name. |
-| `8` | That name is not a class based on `config_as_json.Config`. |
-| `9` | The editor cannot construct that class on its own. |
-| `10` | The values are not ones the application would accept. |
-| `11` | The output file was asked for and was not written. |
-| `12` | The values of that class cannot be written as JSON, so there is nothing to show. |
-| `13` | The name that `--loader` names cannot be called at all. |
-| `14` | The loader needs arguments that a command line cannot supply. |
-| `15` | The loader did not construct the class that `--class` asked for. |
-| `16` | The name that `--descriptions` names is no mapping of any kind. |
-
-The numbers are `edit_cfg_json.ExitCode`, so a program that runs this one can
-name them instead of writing them out.
-
-Codes `10` and `11` are answered by `edit-cfg-json` alone, because it is the
-one of the three that runs the non-interactive backend and therefore the one
-whose exit code can carry a verdict: nobody was there to read one. A program
-that gave the user a session ends with success when the user closes it,
-whatever is left in the fields, because closing an editor is not a failure.
-
-### If the script folder is not on the path
-
-Every one of these programs is also reachable through the package it belongs
-to, which needs nothing to be on `PATH`:
-
-````sh
-python3 -m edit_cfg_json --module myapp.config --class AppConfig
-````
-
-### Completing the command line
-
-The program completes its own options and file names with
-[argcomplete](https://pypi.org/project/argcomplete), which is installed with
-it. Register it once for your shell:
-
-````sh
-eval "$(register-python-argcomplete edit-cfg-json)"
-````
+This package installs no program: the editors are `edit-cfg-json-tk` and
+`edit-cfg-json-textual`, and `python3 -m edit_cfg_json.dump --help` is a small
+utility for whoever is writing a program on top of this one, printing what a
+class makes of a file and answering with an exit code.
 
 ## Reading the input file
 
@@ -617,7 +468,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 1464 passed, 3 deselected in 37s
+- Test result: 1465 passed, 3 deselected in 38s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
