@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
   name='edit-cfg-json-tk',
-  version='0.0.2',
+  version='0.0.3',
   description='Library for editing config-as-json with Tkinter.',
   author='Tom Björkholm',
   author_email='klausuler_linnet0q@icloud.com',
@@ -14,7 +14,7 @@ setup(
   package_dir={'edit_cfg_json_tk': 'src/edit_cfg_json_tk'},
   package_data={'edit_cfg_json_tk': ['py.typed']},
   install_requires=[
-    'edit-cfg-json >= 0.0.2, == 0.0.*',
+    'edit-cfg-json >= 0.0.3, == 0.0.*',
     'argcomplete >= 3.7.2',
     'wizard-tk-bridge >= 1.3',
     'wizard-ui-bridge >= 1.3'
