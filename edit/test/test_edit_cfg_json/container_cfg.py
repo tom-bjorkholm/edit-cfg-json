@@ -13,8 +13,9 @@ from typing import Optional, TextIO
 import sys
 from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
     IntFloatValidator, InvalidConfiguration, ListOrderingValidator, \
-    ListValueValidator, MemberValidationStep, NestedConfigs, ParseConverter, \
-    ValidationPlan, WholeConfigValidationStep, WholeConfigValidator
+    ListValueValidator, MemberValidationStep, MemberValidator, NestedConfigs, \
+    ParseConverter, ValidationPlan, WholeConfigValidationStep, \
+    WholeConfigValidator
 from .sample_cfg import Colour, SampleCfg
 
 MANY_LABELS = 12
@@ -105,6 +106,69 @@ class NormalizeCfg(SampleCfg):
                                          keep_only_unique=True)
         return [MemberValidationStep(member_names=['words'],
                                      validator=ordering)]
+
+
+GROUP_FORM = 'group-{stage}'
+"""Form of the key that the validator of `GrowingCfg` fills in.
+
+Which key it is follows the value of another member, so a stage the
+configuration has not been at yet is a node that the rows had nothing for at
+all. That is what a container appearing means, and a validator that wrote the
+same key every time could not show it: the class validates itself as it is
+constructed, so a key that does not follow a value is already there before the
+editor has run a pass of its own.
+"""
+
+
+def _stage_labels() -> list[str]:
+    """Return the labels of one stage, too many for the editor to open.
+
+    Returns:
+        More labels than a container may add before it starts folded.
+    """
+    return [f'label-{index}' for index in range(MANY_LABELS)]
+
+
+# A validator has one method, which is what a validator is.
+# pylint: disable-next=too-few-public-methods
+class FillsInAStage(MemberValidator):
+    """A validator that fills in the labels of the stage it is told.
+
+    An application that works out a part of its own configuration from another
+    member of it is what this stands for. A member validator returns the value
+    that is stored back into the member, so it is also how a validation pass
+    creates a container that the rows before it had no node for.
+    """
+
+    def validate_member(self, config: Config, member_name: str,
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
+        """Return the dict with the labels of the stage added to it."""
+        _ = (member_name, stderr_file)
+        assert isinstance(member_value, dict)
+        key = GROUP_FORM.format(stage=getattr(config, 'stage'))
+        return dict(member_value) | {key: _stage_labels()}
+
+
+class GrowingCfg(SampleCfg):
+    """A configuration whose validator creates a container of its own.
+
+    The container it creates is long enough to open folded, which is what a
+    program that shows the buffer once has to be able to say it does not want:
+    such a program validates before it prints, so a container the pass created
+    would be folded away in the one printout there is.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the stage and the dict that the validator fills in."""
+        self.stage: int = 1
+        self.groups: dict[str, list[str]] = {}
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return the one step that fills in the labels of the stage."""
+        _ = stderr_file
+        return [MemberValidationStep(member_names=['groups'],
+                                     validator=FillsInAStage())]
 
 
 class RangedListCfg(SampleCfg):

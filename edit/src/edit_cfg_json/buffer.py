@@ -126,6 +126,7 @@ class EditBuffer:
         self._descriptions = descriptions
         self._defaults = defaults
         self._folded: set[ConfigPath] = set()
+        self._folds_new = True
         self._answers: dict[ConfigPath, SubtreeAnswer] = {}
         self._rows: dict[ConfigPath, MemberRow] = {}
         self._rebuild(config=config, previous={},
@@ -247,8 +248,26 @@ class EditBuffer:
         wants all of them back: which of the two it does is decided by what
         is on the screen, so a press always changes something.
         """
+        if not self.anything_open:
+            self.open_all()
+            return
         self._folded = {row.path for row in self._rows.values()
-                        if row.foldable} if self.anything_open else set()
+                        if row.foldable}
+        self._stamp()
+
+    def open_all(self, no_more_folding: bool = False) -> None:
+        """Open every container of the buffer, whatever is folded now.
+
+        Args:
+            no_more_folding: Whether a container that appears later is to be
+                open as well. It stays on once it has been asked for, because
+                what asks for it is a program that shows the buffer once: a
+                validation pass can create a container, and the rule that
+                decides the fold of a new one would fold a big one away again
+                after the only moment at which anything is shown.
+        """
+        self._folded = set()
+        self._folds_new = self._folds_new and not no_more_folding
         self._stamp()
 
     def add_element(self, config: Config, path: ConfigPath,
@@ -485,13 +504,17 @@ class EditBuffer:
         because folding is what the user asked for and a pass answers a
         different question. One that a pass created is decided the way every
         container is decided when the editor opens, and one that a pass
-        removed is forgotten.
+        removed is forgotten. A buffer that was opened for good decides
+        nothing: everything in it is open, including whatever has just
+        appeared.
 
         Args:
             previous: The rows as they were before, empty for the first build.
         """
         containers = {path for path, row in self._rows.items() if row.foldable}
         self._folded &= containers
+        if not self._folds_new:
+            return
         self._folded |= {path for path in containers - set(previous)
                          if starts_folded(path=path, paths=self._rows)}
 

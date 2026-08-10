@@ -332,9 +332,11 @@ def _create_parser(prog: str, interactive: bool) -> ArgumentParser:
 
     `--save` belongs to a program whose backend prints once and returns,
     because there is then no later moment at which a user could press Save.
-    A program that opens an editor does not offer the option at all, so it is
-    `argparse` that refuses it rather than a check written by hand; the
-    default is set instead, so that the rest of this module can read it
+    `--unfold` belongs to one for the same reason: a container that would
+    flood a window opens folded, and such a program has no control to press
+    on it. A program that opens an editor offers neither option at all, so it
+    is `argparse` that refuses them rather than a check written by hand; the
+    defaults are set instead, so that the rest of this module can read them
     either way.
 
     Args:
@@ -362,11 +364,14 @@ def _create_parser(prog: str, interactive: bool) -> ArgumentParser:
                              'there, saying what the members are for.')
     add_file_options(parser)
     if interactive:
-        parser.set_defaults(save=False)
+        parser.set_defaults(save=False, unfold=False)
     else:
         parser.add_argument('--save', action='store_true',
                             help='Write the output file, since this program '
                                  'has no Save to press.')
+        parser.add_argument('--unfold', action='store_true',
+                            help='Show what every folded container holds, '
+                                 'since this program has no control to press.')
     return parser
 
 
@@ -757,7 +762,10 @@ def _session(backend: EditorBackend, parsed: Namespace,
 
     Saving happens before the backend runs, because a program that is asked
     to save has no user to press Save and the backend has to be able to
-    report what the save did.
+    report what the save did. Opening every container happens after the save
+    and for the same reason, and it is asked for good: the backend of such a
+    program validates the buffer before it shows it, and a container that a
+    validation pass creates would otherwise be folded away again.
 
     Args:
         backend: User interface to run this session in.
@@ -781,6 +789,8 @@ def _session(backend: EditorBackend, parsed: Namespace,
                          wanted=wanted, descriptions=said)
     if parsed.save:
         model.save()
+    if parsed.unfold:
+        model.open_all(no_more_folding=True)
     backend.run_editor(model)
     return _outcome(model=model, save_asked=parsed.save,
                     interactive=interactive)
@@ -803,8 +813,9 @@ def run_cli(backend: EditorBackend, prog: str, *,
         args: Optional replacement for `sys.argv[1:]`, mainly for tests.
         interactive: Whether this backend gives the user a session. A backend
             that prints once and returns does not, so its program offers
-            `--save` and answers with the verdict in its exit code, because
-            there is nobody to press Save and nobody to read a verdict.
+            `--save` and `--unfold` and answers with the verdict in its exit
+            code, because there is nobody to press Save, nobody to open a
+            container that is folded away and nobody to read a verdict.
 
     Returns:
         What this run of the program ends with, as one of `ExitCode`.

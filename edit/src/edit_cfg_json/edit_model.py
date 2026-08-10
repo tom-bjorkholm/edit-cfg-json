@@ -250,6 +250,27 @@ class EditModel:
         self._buffer.toggle_fold_all()
         self._ask_subtrees()
 
+    def open_all(self, no_more_folding: bool = False) -> None:
+        """Open every container, whatever is folded now.
+
+        It is what a backend that shows the model once asks for, and the
+        toggle above is what a user interface with a control offers: the
+        toggle answers what the next press does, which is a question only a
+        session that goes on can ask.
+
+        Every nested configuration object is asked about itself, for the same
+        reason folding one of them asks that one.
+
+        Args:
+            no_more_folding: Whether a container that a later pass creates is
+                to be open as well. A validation pass can add one, and a new
+                container is folded away when it is large, so a program that
+                shows the buffer once and then ends asks for this and a
+                session that a user is looking at does not.
+        """
+        self._buffer.open_all(no_more_folding=no_more_folding)
+        self._ask_subtrees()
+
     def _ask_subtrees(self, path: ConfigPath = ()) -> None:
         """Say what the objects at or inside one node are on their own.
 

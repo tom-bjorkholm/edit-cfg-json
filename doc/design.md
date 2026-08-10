@@ -784,6 +784,20 @@ and no column for the controls. A control that could never do anything would be
 offering something that is not there, and the column would be width taken from
 the values for nothing.
 
+**A backend that shows the model once asks a third thing**, and it is not the
+toggle: `open_all` opens every container, because the question the toggle
+answers — what does the next press do — belongs to a session that goes on. It
+takes `no_more_folding`, which also stops a container that appears later from
+being folded away, and such a program is what needs it: it validates the buffer
+before it shows it, a pass can create a container (section 4.8), and a new one
+that is large is folded the way the editor decides every container. That would
+fold something away after the one moment at which anything is shown. Asked for
+once it stays on, because there is no later moment to ask again in either. It is
+`--unfold` of section 8.3.3, and what it is for is the whole listing of a
+configuration: every value, and the explanation each node is shown with.
+Folding by hand still works afterwards, because a container the user folded is
+what the user asked for and nothing about this says otherwise.
+
 ### 4.8 A validation pass can change how many rows there are
 
 `ListOrderingValidator` sorts a list and removes its duplicates, and a member
@@ -1890,9 +1904,15 @@ because there is nobody to read one. A program that gives the user a session
 ends with success when the user closes it, whatever is left in the fields:
 closing an editor is not a failure.
 
-That one fact about a backend is what `run_cli` is told, and `--save` is then not
-added to the parser at all for the other two, so it is `argparse` that refuses
-it rather than a check written by hand.
+`--unfold` belongs to that same program and to no other, for the same kind of
+reason: a container that would flood a window opens folded (section 4.7), and a
+printout has no control to press on it. It opens every container for good, after
+the save and before the backend runs, so that the pass the backend makes before
+it prints cannot fold a container it created away again.
+
+That one fact about a backend is what `run_cli` is told, and neither `--save`
+nor `--unfold` is then added to the parser at all for the other two, so it is
+`argparse` that refuses them rather than a check written by hand.
 
 #### 8.3.4 What a corpus of real configuration classes shows
 

@@ -16,9 +16,14 @@ import json
 import pytest
 from edit_cfg_json import ExitCode
 from edit_cfg_json.dump import main
+from edit_cfg_json.model_text import FOLDED_MARK
+from .container_cfg import MANY_LABELS
 
 SAMPLE = 'test_edit_cfg_json.sample_cfg'
 """Module that these tests reach a configuration class through."""
+
+CONTAINERS = 'test_edit_cfg_json.container_cfg'
+"""Module that these tests reach a class holding a long list through."""
 
 
 def test_prints_the_model(capsys: pytest.CaptureFixture[str]) -> None:
@@ -28,6 +33,31 @@ def test_prints_the_model(capsys: pytest.CaptureFixture[str]) -> None:
     assert 'FlatCfg' in printed
     assert 'name = flat text' in printed
     assert 'validation: valid' in printed
+
+
+def test_unfolded_prints_all(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test `--unfold` prints what a container that opens folded holds.
+
+    That is what this program is asked for by whoever is writing an
+    application on top of this library: every value of a configuration and the
+    explanation that every one of its nodes is shown with, which a printout of
+    a folded container says nothing of.
+    """
+    assert main(['--module', CONTAINERS, '--class', 'BigListCfg',
+                 '--unfold']) == ExitCode.OK
+    printed = capsys.readouterr().out
+    assert FOLDED_MARK not in printed
+    assert f'label-{MANY_LABELS - 1}' in printed
+    assert printed.count('label-') == MANY_LABELS
+
+
+def test_folded_prints_less(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the same run without `--unfold` says the container holds more."""
+    assert main(['--module', CONTAINERS,
+                 '--class', 'BigListCfg']) == ExitCode.OK
+    printed = capsys.readouterr().out
+    assert FOLDED_MARK in printed
+    assert 'label-' not in printed
 
 
 def test_saves_when_asked(tmp_path: Path) -> None:

@@ -15,6 +15,13 @@ window and a terminal screen. This utility has no field to type into and
 nobody to press Save, which is why it is the one of the three that offers
 `--save` at all.
 
+`--unfold` is there for the same reason. A container that would flood a window
+opens folded, so a printout of a configuration of any size is mostly a line
+saying that it holds more, and there is no control here to open it with. With
+`--unfold` every container is open and stays open, which is what says what this
+library makes of a whole configuration: every value of it, and the explanation
+that every one of its nodes is shown with.
+
 Run it as `python3 -m edit_cfg_json.dump`. This package installs no command of
 its own, and the name `edit-cfg-json` in particular is deliberately free: it
 promises the editor this library is for, and a user who typed it and got a

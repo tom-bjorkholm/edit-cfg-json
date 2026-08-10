@@ -291,6 +291,7 @@
     * [check\_all](#edit_cfg_json.buffer.EditBuffer.check_all)
     * [toggle\_fold](#edit_cfg_json.buffer.EditBuffer.toggle_fold)
     * [toggle\_fold\_all](#edit_cfg_json.buffer.EditBuffer.toggle_fold_all)
+    * [open\_all](#edit_cfg_json.buffer.EditBuffer.open_all)
     * [add\_element](#edit_cfg_json.buffer.EditBuffer.add_element)
     * [remove\_element](#edit_cfg_json.buffer.EditBuffer.remove_element)
     * [move\_element](#edit_cfg_json.buffer.EditBuffer.move_element)
@@ -418,6 +419,7 @@
     * [toggle\_explanations](#edit_cfg_json.edit_model.EditModel.toggle_explanations)
     * [toggle\_fold](#edit_cfg_json.edit_model.EditModel.toggle_fold)
     * [toggle\_fold\_all](#edit_cfg_json.edit_model.EditModel.toggle_fold_all)
+    * [open\_all](#edit_cfg_json.edit_model.EditModel.open_all)
     * [\_ask\_subtrees](#edit_cfg_json.edit_model.EditModel._ask_subtrees)
     * [settings](#edit_cfg_json.edit_model.EditModel.settings)
     * [load\_message](#edit_cfg_json.edit_model.EditModel.load_message)
@@ -3699,6 +3701,13 @@ window and a terminal screen. This utility has no field to type into and
 nobody to press Save, which is why it is the one of the three that offers
 `--save` at all.
 
+`--unfold` is there for the same reason. A container that would flood a window
+opens folded, so a printout of a configuration of any size is mostly a line
+saying that it holds more, and there is no control here to open it with. With
+`--unfold` every container is open and stays open, which is what says what this
+library makes of a whole configuration: every value of it, and the explanation
+that every one of its nodes is shown with.
+
 Run it as `python3 -m edit_cfg_json.dump`. This package installs no command of
 its own, and the name `edit-cfg-json` in particular is deliberately free: it
 promises the editor this library is for, and a user who typed it and got a
@@ -4145,9 +4154,11 @@ Return the parser of one program of this library.
 
 `--save` belongs to a program whose backend prints once and returns,
 because there is then no later moment at which a user could press Save.
-A program that opens an editor does not offer the option at all, so it is
-`argparse` that refuses it rather than a check written by hand; the
-default is set instead, so that the rest of this module can read it
+`--unfold` belongs to one for the same reason: a container that would
+flood a window opens folded, and such a program has no control to press
+on it. A program that opens an editor offers neither option at all, so it
+is `argparse` that refuses them rather than a check written by hand; the
+defaults are set instead, so that the rest of this module can read them
 either way.
 
 **Arguments**:
@@ -4576,7 +4587,10 @@ Run one editing session and return what it says about the run.
 
 Saving happens before the backend runs, because a program that is asked
 to save has no user to press Save and the backend has to be able to
-report what the save did.
+report what the save did. Opening every container happens after the save
+and for the same reason, and it is asked for good: the backend of such a
+program validates the buffer before it shows it, and a container that a
+validation pass creates would otherwise be folded away again.
 
 **Arguments**:
 
@@ -4621,8 +4635,9 @@ written twice is therefore here.
 - `args` - Optional replacement for `sys.argv[1:]`, mainly for tests.
 - `interactive` - Whether this backend gives the user a session. A backend
   that prints once and returns does not, so its program offers
-  `--save` and answers with the verdict in its exit code, because
-  there is nobody to press Save and nobody to read a verdict.
+  `--save` and `--unfold` and answers with the verdict in its exit
+  code, because there is nobody to press Save, nobody to open a
+  container that is folded away and nobody to read a verdict.
   
 
 **Returns**:
@@ -5385,6 +5400,25 @@ One action and not two, because a user who wants the values back
 wants all of them back: which of the two it does is decided by what
 is on the screen, so a press always changes something.
 
+<a id="edit_cfg_json.buffer.EditBuffer.open_all"></a>
+
+#### open\_all
+
+```python
+def open_all(no_more_folding: bool = False) -> None
+```
+
+Open every container of the buffer, whatever is folded now.
+
+**Arguments**:
+
+- `no_more_folding` - Whether a container that appears later is to be
+  open as well. It stays on once it has been asked for, because
+  what asks for it is a program that shows the buffer once: a
+  validation pass can create a container, and the rule that
+  decides the fold of a new one would fold a big one away again
+  after the only moment at which anything is shown.
+
 <a id="edit_cfg_json.buffer.EditBuffer.add_element"></a>
 
 #### add\_element
@@ -5648,7 +5682,9 @@ A container the user folded stays folded across a validation pass,
 because folding is what the user asked for and a pass answers a
 different question. One that a pass created is decided the way every
 container is decided when the editor opens, and one that a pass
-removed is forgotten.
+removed is forgotten. A buffer that was opened for good decides
+nothing: everything in it is open, including whatever has just
+appeared.
 
 **Arguments**:
 
@@ -7583,6 +7619,32 @@ is on the screen, so a press always changes something.
 
 Every nested configuration object is asked about itself, for the same
 reason folding one of them asks that one.
+
+<a id="edit_cfg_json.edit_model.EditModel.open_all"></a>
+
+#### open\_all
+
+```python
+def open_all(no_more_folding: bool = False) -> None
+```
+
+Open every container, whatever is folded now.
+
+It is what a backend that shows the model once asks for, and the
+toggle above is what a user interface with a control offers: the
+toggle answers what the next press does, which is a question only a
+session that goes on can ask.
+
+Every nested configuration object is asked about itself, for the same
+reason folding one of them asks that one.
+
+**Arguments**:
+
+- `no_more_folding` - Whether a container that a later pass creates is
+  to be open as well. A validation pass can add one, and a new
+  container is folded away when it is large, so a program that
+  shows the buffer once and then ends asks for this and a
+  session that a user is looking at does not.
 
 <a id="edit_cfg_json.edit_model.EditModel._ask_subtrees"></a>
 

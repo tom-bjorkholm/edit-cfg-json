@@ -41,6 +41,13 @@ It is this test package's own module, so the `--module` door is tested against
 something that is really importable rather than against a stand-in for one.
 """
 
+CONTAINERS = 'test_edit_cfg_json.container_cfg'
+"""Module of the classes whose members hold lists and dicts.
+
+The options that are about how much of a configuration is shown need one of
+those, because a configuration of scalar members has nothing to fold.
+"""
+
 FILE_MODULE = '''"""A configuration class in a file of its own."""
 
 from typing import Optional, TextIO
@@ -408,6 +415,42 @@ def test_save_is_not_offered(capsys: pytest.CaptureFixture[str]) -> None:
         _run(Recorder(), *_named('FlatCfg', '--save'))
     assert exit_info.value.code == ExitCode.USAGE
     assert '--save' in capsys.readouterr().err
+
+
+def test_unfold_option_opens() -> None:
+    """Test `--unfold` opens what a program with no control to press folded.
+
+    `BigListCfg` holds a list too long for a window, so the editor opens it
+    folded and a printout of it says that it holds more and nothing else.
+    """
+    backend = Recorder()
+    arguments = ['--module', CONTAINERS, '--class', 'BigListCfg', '--unfold']
+    assert _run(backend, *arguments, interactive=False) == ExitCode.OK
+    assert backend.model is not None
+    assert not any(row.folded for row in backend.model.rows)
+    assert all(row.shown for row in backend.model.rows)
+
+
+def test_folded_without_it() -> None:
+    """Test the same class is folded as usual when `--unfold` is not asked."""
+    backend = Recorder()
+    arguments = ['--module', CONTAINERS, '--class', 'BigListCfg']
+    assert _run(backend, *arguments, interactive=False) == ExitCode.OK
+    assert backend.model is not None
+    assert any(row.folded for row in backend.model.rows)
+
+
+def test_unfold_not_offered(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a program whose user can open a container has no `--unfold`.
+
+    It is `argparse` that refuses it, for the same reason it refuses `--save`
+    there: the option is not added at all, which is better than one that exists
+    and says it means nothing here.
+    """
+    with pytest.raises(SystemExit) as exit_info:
+        _run(Recorder(), *_named('FlatCfg', '--unfold'))
+    assert exit_info.value.code == ExitCode.USAGE
+    assert '--unfold' in capsys.readouterr().err
 
 
 def test_nothing_to_write() -> None:

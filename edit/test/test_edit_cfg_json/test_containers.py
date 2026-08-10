@@ -14,9 +14,19 @@ import pytest
 from edit_cfg_json import EditModel, can_fold, fold_hides, model_as_text
 from edit_cfg_json.tree import OPEN_AT_MOST
 from .model_helpers import row_at, row_paths, shown_paths, written
-from .container_cfg import BigListCfg, EmptyCfg, KeyedEnumCfg, NormalizeCfg, \
-    RangedListCfg, SMALL_LIMIT, TreeCfg
+from .container_cfg import BigListCfg, EmptyCfg, GROUP_FORM, GrowingCfg, \
+    KeyedEnumCfg, NormalizeCfg, RangedListCfg, SMALL_LIMIT, TreeCfg
 from .sample_cfg import FlatCfg, ListCfg
+
+GROWN_STAGE = 2
+"""Stage that the tests of `GrowingCfg` ask a validation pass to fill in.
+
+It is not the stage the class declares, so the entry the pass fills in is one
+that the rows of the model had no node for at all.
+"""
+
+GROWN_PATH = ('groups', GROUP_FORM.format(stage=GROWN_STAGE))
+"""Path of the container that a pass over `GrowingCfg` creates."""
 
 
 def test_tree_of_rows() -> None:
@@ -191,6 +201,69 @@ def test_fold_all_after_one() -> None:
     model.toggle_fold(('rules',))
     model.toggle_fold_all()
     assert shown_paths(model) == [('rules',), ('groups',), ('answer',)]
+
+
+def test_open_all_opens() -> None:
+    """Test opening everything opens what the editor started folded."""
+    model = EditModel(BigListCfg())
+    model.open_all()
+    assert not row_at(model, ('many',)).folded
+    assert shown_paths(model) == row_paths(model)
+    assert fold_hides(model)
+
+
+def _grown_stage(model: EditModel, stage: int) -> None:
+    """Run one pass that fills in the labels of one stage of a model.
+
+    Args:
+        model: Model of a `GrowingCfg`, which fills in the stage it is told.
+        stage: Stage to ask for, which is a container the model has no node
+            for until the pass has run.
+    """
+    model.set_text(path=('stage',), text=str(stage))
+    assert model.validate().valid
+
+
+def test_new_one_folds() -> None:
+    """Test a long container a pass created is folded the ordinary way.
+
+    It is decided the way every container is decided when the editor opens,
+    which is what a user looking at a window wants: one that would flood it
+    starts folded, whatever created it.
+    """
+    model = EditModel(GrowingCfg())
+    model.open_all()
+    _grown_stage(model, GROWN_STAGE)
+    assert row_at(model, GROWN_PATH).folded
+
+
+def test_open_all_stays_open() -> None:
+    """Test a buffer opened for good is open after a pass creates a container.
+
+    That is what a program printing the buffer once needs: it validates before
+    it prints, so a container the pass created would be folded away in the one
+    printout there is.
+    """
+    model = EditModel(GrowingCfg())
+    model.open_all(no_more_folding=True)
+    _grown_stage(model, GROWN_STAGE)
+    assert shown_paths(model) == row_paths(model)
+    assert GROWN_PATH + ('0',) in shown_paths(model)
+
+
+def test_open_all_holds_on() -> None:
+    """Test folding by hand still works after everything was opened for good.
+
+    What was asked for is that nothing folds itself, and not that the model
+    stops answering: a container the user folded is what the user asked for,
+    and a pass leaves it exactly as it was.
+    """
+    model = EditModel(GrowingCfg())
+    model.open_all(no_more_folding=True)
+    model.toggle_fold(('groups',))
+    _grown_stage(model, GROWN_STAGE)
+    assert row_at(model, ('groups',)).folded
+    assert GROWN_PATH not in shown_paths(model)
 
 
 def test_nothing_to_fold() -> None:
