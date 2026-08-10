@@ -186,8 +186,6 @@ loader instead, and `--class` beside it says which class the run insists on
 getting:
 
 ```sh
-PYTHONPATH=examples/src ./venv/bin/edit-cfg-json \
-    --module example.e06_factory_config --loader team_loader
 PYTHONPATH=examples/src ./venv/bin/edit-cfg-json-tk \
     --module example.e07_chosen_class --loader chosen_config \
     --class Cad3DConfig -i examples/data/e07_model.json

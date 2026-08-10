@@ -89,8 +89,9 @@ file only says *when* that decision gets built.
   ask for review, commit. The next step does not start until the previous
   one is committed.
 - Every step changes what an example program does. If a step cannot be
-  observed from `examples/src/example/`, it is the wrong step boundary and
-  should be merged into a neighbour or split differently.
+  observed from `examples/src/example/` with `--ui tk` or `--ui textual`,
+  it is the wrong step boundary and should be merged into a neighbour or
+  split differently.
 - Every step touches all three packages where the capability is
   user-visible, so `edit_cfg_json`, `edit_cfg_json_tk` and
   `edit_cfg_json_textual` never drift apart by more than one review.
@@ -810,13 +811,14 @@ files (xx.cfg.bak_1, xx.cfg.bak_2, xx.cfg.bak_3...) in the Settings dataclass.
 has decided how its own files are looked after and says so in a `Settings` of
 its own, in Python, as a real application does.
 `cp examples/data/e12_archive.cfg /tmp/archive.cfg` and then
-`python3 examples/src/example/e12_backup_files.py --ui dump -i
-/tmp/archive.cfg --set keep_days=60 --save` writes the file and says on the
-line below that the previous content is in `/tmp/archive.cfg.old_1`; a second
-run with `--save --save` presses Save twice and keeps one file, so `old_1` and
+`python3 examples/src/example/e12_backup_files.py --ui tk` then change something
+in the editor and press `Save`. It writes the file and says that the previous
+content is in `/tmp/archive.cfg.old_1`; a second
+run with an edit and pressing Save twice and keeps one file, so `old_1` and
 `old_2` hold the two configurations that were really there and there is no
-`old_3`; `--set keep_days=soon --save` is refused and leaves every one of them
-where it was. `--ui tk` and `--ui textual` ask before they overwrite, in a
+`old_3`; editing keep_days to "soon" and then pressing Save, causes save to
+be refused and leaves every one of the where it was.
+`--ui tk` and `--ui textual` ask before they overwrite, in a
 dialog and on a modal screen, with the answer that leaves the file alone
 offered first, and ask nothing on the second press of Save.
 
@@ -898,6 +900,21 @@ The public names it settled:
   about the file it writes is `test_model_saving.py` now: saving, keeping,
   the destination and the file name settings, which are also the tests of that
   module that have a file system in them.
+
+#### Step 16B - fix UX problem with edit_cfg_json
+
+Users are mislead by the available command `edig_cfg_json`. Users think that
+this is a smart program running the best interactive editor with internal
+logic to choose between tk and textual. Considering the naming they are
+really right to think that.
+
+Move the starting of DumpEditor from `__main__.py` to another file, and
+change the code so that DumpEditor is started with
+`python3 -m edit_cfg_json.dump`
+
+Adding logic so that command `edig_cfg_json` uses smart logic to run
+the best interactive editor, is out of scope for this step, but may be
+added in a later step.
 
 #### Step 17 — v1 polish
 

@@ -63,56 +63,6 @@ other existing file asks again.
 
 Answer *Overwrite* — or *Do not save*, and watch the file stay as it was.
 
-## The same thing from a script
-
-`--ui dump` is the very limited non-interactive user interface: it prints the
-model once and returns, so `--save` stands in for pressing Save. It has nobody
-to ask, so it writes; keeping the previous content is the model's work and
-happens exactly as it does for a user who answered.
-
-````sh
-cd examples/src/example
-cp ../../data/e12_archive.cfg /tmp/archive.cfg
-python3 e12_backup_files.py --ui dump -i /tmp/archive.cfg --set keep_days=60 \
-    --save
-python3 e12_backup_files.py --ui dump -i /tmp/archive.cfg --set keep_days=90 \
-    --save --save
-ls /tmp/archive.cfg*
-````
-
-The first run says `Saved to /tmp/archive.cfg.` and, on the line below it,
-`The previous content is in /tmp/archive.cfg.old_1.` The second run presses
-Save twice, and what it prints is what the second press said: `Saved to
-/tmp/archive.cfg.` and nothing about keeping anything, because by then there
-was nothing there to keep. The `ls` is what shows the rest of it. `old_1`
-holds the 60 days that the first run wrote, `old_2` holds the 30 days the data
-file has, and there is no `old_3`, because two runs have written over
-something twice and pressing Save twice in one of them made that no
-difference.
-
-A save that writes nothing keeps nothing, which is worth trying, because a
-backup pushed one number further back by a save that never happened would cost
-the user the oldest of the three for nothing:
-
-````sh
-python3 e12_backup_files.py --ui dump -i /tmp/archive.cfg \
-    --set keep_days=soon --save
-ls /tmp/archive.cfg*
-````
-
-Saving is validating and then writing, and the file is kept between the two:
-after this run `keep_days` is refused, nothing is written, and `old_1` still
-holds what it held before. The same is true of every other reason a save can
-be refused.
-
-A destination that holds no file at all is nothing to keep and nothing to ask
-about, which is the ordinary case of writing a configuration for the first
-time:
-
-````sh
-python3 e12_backup_files.py --ui dump -o /tmp/first.cfg --save
-````
-
 ## What is not in this file
 
 The configuration class below is as small as it can be, and deliberately so:
