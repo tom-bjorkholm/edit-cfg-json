@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
   name='edit-cfg-json-textual',
-  version='0.0.1',
+  version='0.0.2',
   description='Library for editing config-as-json with textual.',
   author='Tom Björkholm',
   author_email='klausuler_linnet0q@icloud.com',
@@ -14,7 +14,7 @@ setup(
   package_dir={'edit_cfg_json_textual': 'src/edit_cfg_json_textual'},
   package_data={'edit_cfg_json_textual': ['py.typed']},
   install_requires=[
-    'edit-cfg-json >= 0.0.1, == 0.0.*',
+    'edit-cfg-json >= 0.0.2, == 0.0.*',
     'textual >= 8.2.8',
     'argcomplete >= 3.7.2',
     'wizard-ui-bridge[textual] >= 1.3'
