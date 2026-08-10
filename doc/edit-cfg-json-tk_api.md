@@ -1020,9 +1020,9 @@ been laid out asks for about the width it already has, whatever it would have
 liked. Following that answer is what made showing the explanations flicker
 between two window sizes for ever: the wrapped paragraph asked for a little
 less than it was given, the canvas asked for that, the window narrowed, the
-paragraph wrapped into one more line and asked for something else again. Found
-at step 9 in a window and measured: one toggle cost 19099 resizes of the window
-in two seconds and never stopped.
+paragraph wrapped into one more line and asked for something else again.
+Measured in a window: one toggle cost 19099 resizes of the window in two
+seconds and never stopped.
 
 So the width is this, the height is what the body asks for up to a window's
 worth, and a user who wants another width resizes the window — after which

@@ -176,7 +176,7 @@ def test_nested_refusal(capsys: pytest.CaptureFixture[str]) -> None:
     assert 'validation: invalid, see participant_output.output_format' \
         in printed
     # The refusal is on the line below that member, indented under it, which
-    # is where what is wrong with a member is shown and what step 12 added.
+    # is where what is wrong with a member is shown.
     assert '    output_format = xml (edited)\n        ' in printed
     assert ', '.join(OUTPUT_FORMATS) in printed
 

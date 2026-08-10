@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 """Tests for editing a configuration built out of nested configuration objects.
 
-What is tested here is what step 11 of the delivery plan added: a declared
+What is tested here is what such an object is to the model: a declared
 nested `Config` object is a node with a class and a docstring of its own, its
 members are the rows below it, and everything inside it belongs to its own
 class rather than to the class holding it.

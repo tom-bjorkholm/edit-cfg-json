@@ -721,8 +721,8 @@ class NoTextCfg(Config):
     The editor never passes a JSON text to a constructor, so this class is
     constructed, edited, validated and saved exactly as any other: a buffer
     reaches it through `Config.parse_json`, which every configuration class
-    has. It was refused until step 9, when the construction of a candidate
-    became a copy of the object instead.
+    has. It is editable because a candidate is a copy of the object and never
+    a construction of the class.
     """
 
     def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
@@ -906,6 +906,6 @@ extra_arg_loader = derived_loader(partial(ExtraArgCfg, home=HOME_VALUE))
 """How an application would let the editor read a file of `ExtraArgCfg`.
 
 `functools.partial` binds the argument that the editor knows nothing about, and
-`derived_loader` makes the five keyword arguments of a loader out of the rest.
+`derived_loader` makes the four keyword arguments of a loader out of the rest.
 It is a module level name so that the programs of this library can be told it.
 """

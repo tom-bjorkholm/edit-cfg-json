@@ -36,10 +36,10 @@ on. The docstring of the configuration class needs no option, because the class
 carries it.
 
 An application that has more to say about its own configuration — the file name
-extension it uses and the key combinations its own user interface has taken —
-says it in `edit_cfg_json.Settings`, and gets there through `edit` rather than
-through this program. Options for those are what the next version of this
-program adds.
+extension it uses, the key combinations its own user interface has taken, and
+what becomes of a file that a save writes over — says it in
+`edit_cfg_json.Settings`, and gets there through `edit` rather than through this
+program. Options for those are what a later version of this program adds.
 
 ### A class this editor cannot construct on its own
 
@@ -54,7 +54,7 @@ module or file:
 {{dist_name}} --module myapp.config --loader make_config -i /etc/myapp.json
 ````
 
-Whatever the loader needs beyond the five keyword arguments of that protocol has
+Whatever the loader needs beyond the four keyword arguments of that protocol has
 to be bound where the loader is written, for instance with
 `functools.partial`, because a command line cannot supply an argument this
 library knows nothing about. `edit_cfg_json.derived_loader` is one line for the

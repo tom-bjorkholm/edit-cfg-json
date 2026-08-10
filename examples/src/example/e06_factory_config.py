@@ -139,7 +139,7 @@ team_loader = derived_loader(partial(TeamConfig, KNOWN_TEAMS))
 """How this application constructs its configuration.
 
 `functools.partial` binds the argument that the editor knows nothing about, and
-`derived_loader` makes the five keyword arguments of
+`derived_loader` makes the four keyword arguments of
 `edit_cfg_json.ConfigLoader` out of what is left. It is a module level name so
 that the programs of this library can be told it with `--loader`.
 """

@@ -511,7 +511,7 @@ def test_loader_needs_args(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a callable that is not a loader yet says what has to be done.
 
     A configuration class is exactly that case: it can be called, and it takes
-    none of the five keyword arguments that a loader takes. What a command line
+    none of the four keyword arguments that a loader takes. What a command line
     cannot supply has to be bound where the loader is written, and saying so
     plainly is better than a half answer.
     """

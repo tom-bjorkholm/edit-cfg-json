@@ -2869,7 +2869,7 @@ both are allowed: a class alone is constructed on the values it declares, a
 loader alone is asked for a configuration and its class is whatever it answers
 with, and the two together mean that the loader has to answer with that class
 or the program stops. `--loader` is for a class the editor cannot construct on
-its own, so whatever it needs beyond the five keyword arguments of
+its own, so whatever it needs beyond the four keyword arguments of
 `edit_cfg_json.ConfigLoader` has to be bound in the module it is named in — a
 command line cannot supply an argument this library knows nothing about.
 
@@ -3133,7 +3133,7 @@ The name that `--loader` names cannot be called at all.
 
 The loader needs arguments that a command line cannot supply.
 
-A loader takes the five keyword arguments of `ConfigLoader` and nothing
+A loader takes the four keyword arguments of `ConfigLoader` and nothing
 else, so whatever it needs besides them is bound where it is written. A
 program cannot bind an argument it knows nothing about, and saying so
 plainly is better than a half answer.
@@ -6856,9 +6856,9 @@ rest.
 What a type says is the names of an enum where the member holds one, and what
 kind of value the member holds where it does not: text, a whole number, a
 number, or true or false. That last one is the least the editor can say about
-any member and it is never nothing, which is what a review of step 9 asked for:
-a program that is told a class and no mapping showed the members with nothing
-under them at all, and the editor does know something about each of them.
+any member and it is never nothing, which is what it is for: a program that is
+told a class and no mapping would otherwise show the members with nothing under
+them at all, and the editor does know something about each of them.
 
 It takes a mapping for the members because a member has no docstring at
 runtime. A class has one and every reader of the code can see it, while a

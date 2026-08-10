@@ -65,6 +65,9 @@ plan says only *when* that decision gets built.
 - [Step 16B](#step-16b---fix-ux-problem-with-edit_cfg_json) — the name
   `edit-cfg-json` freed for the editor it promises, and the backend that prints
   once reached as the small utility it is.
+- [Step 17](#step-17--v1-polish) — every document rewritten against what was
+  actually built, the order of the work taken out of all of them but this one,
+  and the release readiness of the three packages checked rather than assumed.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -100,8 +103,8 @@ file only says *when* that decision gets built.
   `edit_cfg_json_textual` never drift apart by more than one review.
 - Steps 1 to 9 are built, and each is written up in
   [steps_001-009_done.md](steps_001-009_done.md) as what it decided, what it
-  found while building it and what came of its review. Steps 10 to 15 are
-  built and are written up here, in the same way. Steps 16 onwards are named
+  found while building it and what came of its review. Steps 10 to 17 are
+  built and are written up here, in the same way. Steps 18 onwards are named
   steps with their observable outcome and their main risks; they are detailed
   just before they are started, when the core API is real rather than
   imagined.
@@ -137,9 +140,9 @@ version. Record which one, because the next step's fast iteration with
 | M2 Flat, fully explained | 6 to 9 | Descriptions, docstrings, field-level diagnostics, automatic-change visibility, explicit loader | done |
 | M3 Structure and folding | 10 to 12 | Lists, dicts, nested `Config` objects, folding with per-subtree badges | done |
 | M4 Configs in containers | 13 to 14 | `LIST_ELEMENT` and `DICT_VALUE` nesting, adding and removing elements | done |
-| M5 Release readiness | 15 to 17 | Closing keeps what was not saved, files are not overwritten unannounced, and v1 is documented, classified and published | steps 15, 15B, 16 and 16B done |
+| M5 Release readiness | 15 to 17 | Closing keeps what was not saved, files are not overwritten unannounced, and v1 is documented, classified and published | done, apart from the publishing itself |
 
-## 3. Steps 10 to 20, as named steps
+## 3. Steps 10 onwards, as named steps
 
 Each of these is detailed just before it is started. What is fixed now is
 the order, the observable outcome and the main risk.
@@ -988,7 +991,9 @@ the repository prints what it printed before.
   installs, so `./venv/bin/edit-cfg-json` was gone after the first
   `./run_build.py` and nothing had to be cleaned by hand.
 
-#### Step 17 — v1 polish
+#### Step 17 — first version polish
+
+Status: **Implemented and committed.**
 
 Rewrite the `readme_parts/` of all three packages against what was actually
 built; regenerate the API documents in `doc/`; confirm that the Alpha
@@ -1011,6 +1016,90 @@ information what is implememented and what is planned for future stays.
 The future reader of `./doc/design.md` or `README_pypi` will not be
 interested in the order things were implemented in, what is
 interesting is to know what is implemented and what is only planned.
+
+**Observable outcome.** No library code changes, so this step is read rather
+than run — and what a review runs is the two editors, to check that what is now
+written about them is true.
+`python3 examples/src/example/e11_add_remove.py --ui tk` shows the button row
+in the order the Tk page now lists it, the fold control at the left of every
+container row and the element controls at the end of the line, and
+`--ui textual` shows the same tree with the fold action in its footer and in its
+command palette. `python3 examples/src/example/e09_nested_config.py --ui tk`
+shows the badge of a nested object beside its class, where the Tk page now says
+it is. Every `--ui dump` command line in the repository prints exactly what it
+printed before.
+
+**What it decided.** Four things, decided before the work started.
+
+- **The version stays `0.0.1` and the classifiers stay `3 - Alpha`.** "v1" is
+  the scope of design section 11 and not a version number, so this step
+  confirms the three statements of Alpha status agree with each other — the
+  classifier in all three `pyproject.toml`, `readme_parts/alpha_status.md`, and
+  design section 2.5 — and changes none of them. Publishing to PyPI is a
+  separate act and not part of the step.
+- **The step numbers go from everywhere except `./.plans`.** The plan is the
+  one document whose subject really is the order of the work. `doc/design.md`
+  had 54 of them, and four docstrings and two test modules had one each; the
+  two source docstrings mattered most, because they are published verbatim in
+  the generated `doc/*_api.md`.
+- **Where a passage's subject was the history, the passage is rewritten and
+  not merely stripped.** "Built at step 14" loses four words, but "this
+  document first said X, and step 9 found Y" has to become a plain statement of
+  Y, and two subsections of design section 8.2 — *What this costs today* and
+  *A defect this uncovered, fixed now* — had to be reframed as the two rules
+  they really state.
+- **The three `main_entry_points.md` are rewritten and not patched.** All three
+  described the library as it was at the flat-configuration stage, so
+  correcting the wrong sentences would have left the tree, folding, nested
+  objects, the badges, the element controls, the question before closing and
+  the kept file undescribed on the PyPI pages of a v1 release.
+
+**Core.** No code at all: `doc/design.md`, the seven root `readme_parts/`
+fragments, the three per-package `readme_parts/` trees, six docstrings, and
+this plan. `doc/*_api.md` and the three `README_pypi.md` are generated by the
+build from exactly those sources, so they follow without being edited — which
+is again the check that the docstrings really are where this lives.
+
+**What building it found.**
+
+- **`ConfigLoader` takes four keyword arguments and nine places said five.**
+  The fifth was the hook that reports automatic changes, which
+  `config_as_json` 1.5 made something every configuration object has, and the
+  protocol lost the parameter without the prose following it. Design section
+  5.1 and `loader.py` said four; `cli.py` said five in four places, including
+  the `--loader` help text that a user reads, and so did two test docstrings,
+  `readme_parts/program.md`, the core's readme and `e06_factory_config.py` —
+  which contradicted itself, saying four in its module docstring and five
+  further down. All of them say four now.
+- **The core's readme was two steps behind its own `__all__`**, missing
+  `ConfigLoader` and `derived_loader` as well as everything the tree, the
+  folding, the badges and the elements added. Thirteen exported names had no
+  row in its table and the import example would not have imported them.
+- **The core's readme repeated a `config_as_json` behaviour that 1.5
+  reversed**: that `Config.__init__` deep copies the hook it is given, so an
+  application reading a report of its own has to say that a copy of the hook is
+  itself. The packages require `config-as-json >= 1.5`, where the hook is kept
+  by reference, so the warning was telling applications to work around
+  something that no longer happens.
+- **Two statements of design section 2.3 were not true of this repository.**
+  The versions are in the three `setup.py` and not in the `pyproject.toml`
+  files, which declare them `dynamic`; and the compatible-release pin is
+  written `>= 0.0.1, == 0.0.*` rather than with `~=`, which means the same
+  thing and is not the same text.
+- **`additional_venv_packages` is redundant for a better reason than the one
+  the design predicted.** The step that creates `./venv` installs the declared
+  dependencies of the discovered packages, minus the ones internal to this
+  repository, so `config-as-json` and `textual` reach the environment *because*
+  the packages declare them. That is the install step answering the question,
+  which is what design section 2.3 asked for rather than assuming.
+- **The Tk button row is not in the order a reader would guess.** It is
+  Validate, Save, Save as..., the Explain tick-box, the fold button, Close —
+  the tick-box before the fold button — which the first draft of the Tk page
+  got the wrong way round and reading `_add_buttons` corrected.
+- **Rewrapping is part of the work.** Removing "settled at step 6" from the
+  middle of a hand-wrapped paragraph leaves a short line, and a documentation
+  step that left thirty of those behind would have made its own diff harder to
+  read than it needed to be.
 
 ### After v1
 

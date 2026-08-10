@@ -4,8 +4,9 @@ This document records the design decisions for the folding configuration
 editor built on top of
 [`config-as-json`](https://pypi.org/project/config-as-json). It is a
 design document, not an API reference. Where it states a fact about
-`config_as_json`, the source is the documentation and examples in
-`dep_lib_doc/config_as_json/`.
+`config_as_json`, the source is that project's own documentation, examples and
+implementation:
+[github.com/tom-bjorkholm/config_as_json](https://github.com/tom-bjorkholm/config_as_json).
 
 ## 1. Purpose and scope
 
@@ -97,19 +98,25 @@ matters under this repository's strict checker configuration).
 
 - `BuildSpec.identical_versions` stays at its default `True`, so the
   three packages release in lockstep and the in-house compatibility
-  matrix is trivially one-to-one. Each `pyproject.toml` carries the same
-  version and the build verifies it.
-- The UI packages pin the core with a compatible-release constraint
-  (`~=`), not `==`, so a core patch release does not strand them.
+  matrix is trivially one-to-one. The version of each package is in its
+  `setup.py`, because `pyproject.toml` declares it `dynamic`, and the build
+  refuses a build in which the three differ.
+- The UI packages pin the core with a compatible-release constraint and not
+  with an exact one, so a core patch release does not strand them.
 - After Alpha (section 2.5) the core follows semantic versioning. This
   is a promise third-party backend authors need more than the in-house
   backends do.
 - `BuildSpec.package_folders` stays unset; the three `pyproject.toml`
   files are auto-discovered.
-- Once the packages declare `config-as-json` and `textual` as real
-  dependencies, the corresponding entries in `additional_venv_packages`
-  in `custom_build_tools/custom_spec.py` should become redundant. Verify
-  against the install step rather than assuming.
+- `additional_venv_packages` in `custom_build_tools/custom_spec.py` is unset,
+  and it is redundant rather than merely unused. The step that creates `./venv`
+  installs the declared dependencies of the discovered packages, minus the
+  three that are internal to this repository, so `config-as-json`, `textual`
+  and the rest reach the environment because the packages declare them and for
+  no other reason. Checked against that step rather than assumed: a clean build
+  creates the environment from nothing, and the tests that import
+  `config_as_json` and drive `textual` headlessly are what would fail if it
+  were not so.
 - Tk tests are split into three categories with different display
   requirements. See section 10.
 
@@ -137,10 +144,14 @@ it is how we keep the eventual contract small and deliberate — but
 crossing a major version is not required to change a public name during
 Alpha.
 
-The Alpha period is what makes it safe to publish three packages before
-the model has been proven by two real backends. Section 2.3's semantic
-versioning promise starts when Alpha ends, and the README and PyPI
-classifiers must say so plainly while it lasts.
+The Alpha period is what makes it safe to publish three packages before the
+public API of the core has been proven by a backend that somebody else wrote.
+The two in-house backends exercise it and cannot test the one thing that
+matters most about it, which is whether it is enough for a backend written
+without reading the core. Section 2.3's semantic versioning promise starts when
+Alpha ends, and the README and the PyPI classifiers say so plainly while it
+lasts: `Development Status :: 3 - Alpha` in all three `pyproject.toml`, and
+`readme_parts/alpha_status.md` in all three generated readme files.
 
 ### 2.6 Shared type aliases
 
@@ -208,7 +219,7 @@ Sources of structural information, in order of authority:
 | `_unchecked_dicts` | Which dict members have relaxed key policy |
 | `_omit_none_from_json()` | Which members are genuinely optional |
 
-**Ordinary JSON structure is a tree of rows**, built at step 10. A member that
+**Ordinary JSON structure is a tree of rows.** A member that
 holds a list or a dict is one row, and every value inside it is a row of its
 own, indented once for each container it is inside, with a field at every
 value. The container row has no field, because it has no value of its own:
@@ -231,7 +242,7 @@ Section 4.1's declaration order is about the members, because a member has a
 declaration to be read from; a dictionary key has none, and the order that a
 save writes is the order that is shown.
 
-**A nested configuration object is a node of its own**, built at step 11. It
+**A nested configuration object is a node of its own.** It
 serializes as a dict and it is not one: it has a class and a docstring of its
 own, its members are the rows below it in the order that class declares them,
 and showing it as the dict it writes would be showing it as something it is
@@ -251,32 +262,30 @@ The member that holds them is then an ordinary container of the tree — it
 folds, it says how much it holds, and its rows are its elements — and each
 object inside it is one node with rows of its own. So the paths, the fold
 state, the rebuild of section 4.8 and the addressing of every description are
-already the shape a list of nested objects needs, and steps 13 and 14 change
+the shape a list of nested objects needs. What a nesting kind changes is
 **what a nested node offers** and never **how the tree is built**.
 
-**What step 13 had to change was nothing**, which is the strongest form that
-prediction could have been confirmed in. One walk over the declarations of an
-object answers for `LIST_ELEMENT` and `DICT_VALUE` exactly as it does for
-`MEMBER`, so a member holding several objects was editable, foldable, validated
-per object and addressable by path the day step 11 landed. Step 13 is therefore
-the example that shows it, the description selectors of section 4.3 read across
-repeated objects, and the tests that pin both. Step 14 is where a container
-gains and loses elements, and that one really is about what a node offers:
-section 4.9.
+**One walk over the declarations of an object answers for every nesting
+kind.** `LIST_ELEMENT` and `DICT_VALUE` ask nothing that `MEMBER` does not, so
+a member holding several objects is editable, foldable, validated per object
+and addressable by path through the same mechanism as a member holding one. The
+description selectors of section 4.3 read across repeated objects for the same
+reason. What does ask something of a node beyond that is a container gaining
+and losing elements, which really is about what a node offers: section 4.9.
 
 **The declarations are walked over the object and not matched as selectors.**
-Step 10 found those nodes by turning each declaration into a selector —
-`('outputs', '[')` for a list of them — which was right while a nested object
-was one row. It stops being enough once the object owns the region below it,
-because *ownership is asked of an object*: `parse_converters()`,
-`_omit_none_from_json()` and the declaration order of the members are all
-methods and attributes of an instance, and a declaration says only which class
-was expected. So step 11 asks the configuration object itself, which answers
-with the absolute path of every nested object there really is, and with the
-object at it. That also tells the truth where a `factory_function` answered
-with a subclass, and it distinguishes an `OPTIONAL_MEMBER` that holds an object
-from one that holds none. The `'['` selector keeps its meaning where it is
-still the right question, which is the description mapping of section 4.3.
+Turning each declaration into a selector — `('outputs', '[')` for a list of
+them — is enough only while a nested object is one row. It stops being enough
+once the object owns the region below it, because *ownership is asked of an
+object*: `parse_converters()`, `_omit_none_from_json()` and the declaration
+order of the members are all methods and attributes of an instance, and a
+declaration says only which class was expected. So the configuration object
+itself is asked, and it answers with the absolute path of every nested object
+there really is, and with the object at it. That also tells the truth where a
+`factory_function` answered with a subclass, and it distinguishes an
+`OPTIONAL_MEMBER` that holds an object from one that holds none. The `'['`
+selector keeps its meaning where it is still the right question, which is the
+description mapping of section 4.3.
 
 **Ownership is the rule for everything inside such a node.** A converter
 belongs to the class that owns the subtree, exactly as `serialize_converters()`
@@ -294,7 +303,7 @@ nothing for it and it then has no row at all, which is what any omitted member
 already does.
 
 **What a validator inside a nested object refuses is attributed by asking that
-object on its own**, built at step 12. Such an object validates itself while
+object on its own.** Such an object validates itself while
 the whole configuration is parsed, so the object that could say which member
 was refused is one the editor never holds — the same problem section 6.3
 solved at the top level, and the same answer does not reach inside, because
@@ -315,9 +324,10 @@ nested `Config`s is the normal case, not a special case.
 records it nowhere at runtime. `typing.get_type_hints()` therefore
 returns nothing useful for the ordinary `Config` pattern, and the type of
 the *default value* is the only type source. Config classes built on the
-dataclass pattern (see `e04_third_party_class.py`) do expose real types
-through `dataclasses.fields()`. Support both; do not assume annotations
-exist.
+dataclass pattern — `e04_third_party_class.py` of the
+[`config_as_json` examples](https://github.com/tom-bjorkholm/config_as_json/tree/master/example/src/example)
+is one — do expose real types through `dataclasses.fields()`. Support both; do
+not assume annotations exist.
 
 ### 4.2 Edit buffer
 
@@ -331,12 +341,12 @@ the digits `1` and `0` as`10` for both the string `'10'` and the
 integer `10`. The edit buffer needs to hold additional metadata/flags
 with type information for each leaf.
 
-**Whether that type information is shown to the user** was left open here and
-is answered at step 9: it is, as a line of explanatory text below the member,
-in the same place and under the same toggle as everything else explanatory.
-Section 4.3 is where it says what. It is not shown as a label beside the field,
-because it is text about the value and not part of it, and because a narrow
-window would then squeeze the field for it. There is still no decision to allow
+**That type information is shown to the user**, as a line of explanatory text
+below the member, in the same place and under the same toggle as everything
+else explanatory. Section 4.3 is where it says what. It is not shown as a label
+beside the field, because it is text about the value and not part of it, and
+because a narrow window would then squeeze the field for it. There is still no
+decision to allow
 the user of the editor to try to change this type metadata (which in many cases
 would trigger an error at validation, but might be useful for separating between
 a None value and an empty string value of an `Optional[str]`.)
@@ -362,8 +372,7 @@ orders and two values that differ only in one are the same value. The editor
 really does hold another order — the members of a nested configuration object
 are kept in the order its class declares them, which is section 4.1 — so
 without this every nested object would report itself as changed by a validator
-the first time anything in it was validated. Found and fixed at step 12, where
-the example that shows a nested object being edited showed it.
+the first time anything in it was validated.
 
 A successful save moves that value to what was written, which is what makes
 the second question keep answering itself: what has just reached the file is
@@ -389,7 +398,7 @@ field** reports itself, because that is when the user has moved on from that
 field. It arises with the leaves that `parse_converters()` turns into rich
 Python types, an enum being the obvious one: its member name is not a member
 of the enum for most of the time it takes to type it, so converting on every
-change would report a failure that is not one yet. **Built at step 7**, as
+change would report a failure that is not one yet. It is
 `EditModel.check_field`, which each backend calls from the event its own
 toolkit has for a field losing the focus — `<FocusOut>` in Tk and
 `Input.Blurred` in Textual.
@@ -476,9 +485,9 @@ Two complementary, independently optional sources of explanatory text:
   broken is a fact about the width of a source file and not about the text,
   and a label of one row has one line.
 
-  **Which of the two a nested node shows is decided by its fold**, settled at
-  step 11: the whole docstring while the node is open, the summary while it is
-  folded, and both of them under the explain toggle of section 4.4 like every
+  **Which of the two a nested node shows is decided by its fold**: the whole
+  docstring while the node is open, the summary while it is folded, and both of
+  them under the explain toggle of section 4.4 like every
   other explanation. An object that is showing less of itself says less about
   itself, which is the same thing folding already does to the values. The root
   configuration is the one that is never folded, so its summary stays on its
@@ -507,7 +516,7 @@ Two complementary, independently optional sources of explanatory text:
   the member holds an enum, `parse_converters()` is what says so, because it is
   what turns the name in the file back into a member of it, and the enum class
   then says the rest itself: the summary of its own docstring and the names it
-  accepts. Settled at step 7.
+  accepts.
 
   Where it holds anything else, what is said is **what kind of value it is** —
   text, a whole number, a number, or true or false — read from the value the
@@ -515,9 +524,10 @@ Two complementary, independently optional sources of explanatory text:
   keeps as the only type information there is. A member that may be left out of
   the file says that as well, from the `_omit_none_from_json()` of the class
   that owns it, which section 4.1 lists as a source and nothing else uses.
-  Added at step 9, after a review found a program that had been told a class
-  and no description mapping showing its members with nothing under them at
-  all, when the editor did know something about each of them.
+  It matters most where the application described nothing: without it, a
+  program that has been told a class and no description mapping shows its
+  members with nothing under them at all, when the editor does know something
+  about each of them.
 
   It is the least that can be said and it is worth saying, because it answers
   the one question a value cannot answer about itself: whether `10` in a field
@@ -560,9 +570,9 @@ Absolute paths only; no recursive plain-string key selector. The literal
 what keeps repeated `LIST_ELEMENT` and `DICT_VALUE` nested configs from
 forcing the application to repeat itself per index or per key.
 
-**A selector says `'['` at each step it has to**, and step 13 checked that to
-the bottom of the shape this library is written for: a list of objects each
-holding a dict of more of them is reached by `('outputs', '[', 'parts', '[',
+**A selector says `'['` at each step it has to**, to the bottom of the shape
+this library is written for: a list of objects each holding a dict of more of
+them is reached by `('outputs', '[', 'parts', '[',
 'width')`, one line for that member of every object at any index and any key.
 It crosses two nesting boundaries on the way, which is the divergence the
 paragraph above records, and it is what makes a repeated object cost an
@@ -579,9 +589,9 @@ resolve in favour of the more specific one rather than raising. A wrong
 description is a cosmetic bug; refusing to open the editor over one is
 not.
 
-**Which of two selectors is the more specific one** is settled at step 6, and
-it has to be, because two selectors of the same length can both address one
-member and be equally short. A step that names a key is more specific than the
+**Which of two selectors is the more specific one** has to be said, because two
+selectors of the same length can both address one member and be equally short.
+A step that names a key is more specific than the
 `'['` step, and an earlier step decides before a later one, so
 `('a', 'b', '[')` wins over `('a', '[', 'c')` for the member `('a', 'b', 'c')`:
 the selector that agrees with the member sooner is the one that is about it
@@ -600,7 +610,7 @@ rule that already holds for the marks, the title and the messages, and for the
 same reason: two user interfaces that disagreed about whether they were
 explaining themselves would be worse than either behaviour.
 
-What the toggle covers, settled at step 6:
+What the toggle covers:
 
 - **shown** — the whole class docstring, and the description of every
   described member below that member
@@ -625,9 +635,9 @@ not do. Tk has a button row, so it gets a tick-box: one text, true in both
 states, and the tick says which state it is in. Textual has a footer of key
 bindings and no button row, so its action is *renamed* instead — "Explain"
 while they are hidden, "Hide explanation" while they are shown — and the same
-name reaches its command palette. Settled at step 6 after review: the two
-answers differ because the two toolkits offer an action differently, and the
-question each of them answers is the same one.
+name reaches its command palette. The two answers differ because the two
+toolkits offer an action differently, and the question each of them answers is
+the same one.
 
 ### 4.5 Telling the kinds of text apart
 
@@ -670,7 +680,7 @@ open for Tk. Textual's theme colours are right in both, because the terminal
 decides which theme is in use. Tk gets colour values chosen for the light window
 it is given, and a Tk that a platform has put into a dark mode would want other
 values. That is a theming decision of exactly the kind section 9 is for and is
-left to the step that has an application asking for it; what is not left is the
+left until an application asks for it; what is not left is the
 legibility of a **field**, which states its own background, text and caret
 colour so that it cannot end up as light text on a light field.
 
@@ -692,10 +702,10 @@ Three things about the Tk side had to be learnt from a window rather than from
 a design, and are recorded because none of them is obvious:
 
 - **The part that does not scroll is packed first.** Tk gives each child the
-  space it asks for in the order they were packed, so the verdict, the saving
-  and the buttons were laid out below the bottom edge of any window too short
-  for everything, where no scrolling could reach them. It is created second,
-  so that the widgets are still created in the order they are read in.
+  space it asks for in the order they were packed, so packing it last would lay
+  the verdict, the saving and the buttons below the bottom edge of any window
+  too short for everything, where no scrolling could reach them. It is created
+  second, so that the widgets are still created in the order they are read in.
 - **The size the editor opens at has to be said.** A canvas asks for a width
   and a height of its own that have nothing to do with what is on it, so the
   body is measured and the canvas asks for that, up to the size of a window.
@@ -728,10 +738,9 @@ belongs to the model**, by the same rule as the explain toggle of section 4.4
 and for the same reason: two user interfaces of one application that were
 folded differently would be worse than either behaviour. Every row carries
 whether it is folded and whether it is shown, which is where a backend reads
-it, so that neither of them works out for itself what folding hides. Settled at
-step 10 for a list and a dict, and step 11 made a nested configuration object
-one of them without changing anything here — which is what settling it as "a
-node that holds rows" rather than "a container" bought.
+it, so that neither of them works out for itself what folding hides. What can
+be folded is **a node that holds rows** and not "a container", which is what
+makes a nested configuration object one of them as well.
 
 **Folding a node also asks every configuration object at or inside it about
 itself**, which is section 6.2 and the one thing folding does beyond deciding
@@ -739,16 +748,15 @@ what is on the screen. Opening one asks as well: the answer is the same
 question either way, and changing how much of a node is shown is the moment the
 user is looking at it.
 
-**A region and not the one node that was folded**, which a review of step 13
-corrected. A list and a dict have nothing to say about themselves, so the first
-version asked them nothing — which meant that folding the member holding
-several configuration objects asked nothing at all, for exactly the shape
-section 4.1 says a real configuration has. The question a fold answers is not
-*what is this node* but *what is being hidden*, and what such a container hides
-is every object in it. So it asks all of them, and what it finds is put on
-their rows, where it is read as soon as the container is opened again. A
-container of plain values is still asked nothing, because there is nothing in
-it that could be asked.
+**A region and not the one node that was folded.** A list and a dict have
+nothing to say about themselves, so asking only the node that was folded would
+ask nothing at all where the member holds several configuration objects, which
+is exactly the shape section 4.1 says a real configuration has. The question a
+fold answers is not *what is this node* but *what is being hidden*, and what
+such a container hides is every object in it. So it asks all of them, and what
+it finds is put on their rows, where it is read as soon as the container is
+opened again. A container of plain values is asked nothing, because there is
+nothing in it that could be asked.
 
 **The editor opens with a container open unless opening it would flood the
 window.** That is the same decision as section 4.4's, made once more where it
@@ -801,7 +809,7 @@ decision of whoever configures the application. An editor that could change
 every one of them and add none would be refusing the decision that the shape of
 the member exists to allow, so a container can be given an element, one of its
 elements can be taken out, and an element of a list can change places with a
-neighbour. Built at step 14.
+neighbour.
 
 **A new element is copied and never invented**, and there are exactly two
 places it can be copied from, both of them the application's. Where the class
@@ -817,10 +825,9 @@ A member with neither is the one case section 11 puts permanently out of scope,
 and the reason is not that it is difficult: only the application knows what an
 element of its own list looks like, and a member it never gave one for has
 never said. Such a member says so and offers removing and moving. The fallback
-to what the member holds now is a step 14 addition to what this document first
-said, and it earns its place: a member the class declares nothing for becomes
-extendable as soon as a file has put something in it, which is the ordinary way
-such a list gets its first element.
+to what the member holds now earns its place: a member the class declares
+nothing for becomes extendable as soon as a file has put something in it, which
+is the ordinary way such a list gets its first element.
 
 **What cannot be done is said and not left to be discovered.** Three kinds of
 dict cannot be given an entry, for three different reasons, and each of them
@@ -829,9 +836,9 @@ says which below its own row:
 - an ordinary dict member, because `config_as_json` checks such a member
   against the keys its class declares — `Config.check_dict_parse` does it while
   parsing — so a dict that gained or lost one would be refused by the
-  configuration class itself. Confirmed against the implementation in `./venv`
-  at step 14, and it is why "uniform dicts" in section 11 means the declared
-  ones and not every dict.
+  configuration class itself. Confirmed against the implementation of
+  `config_as_json`, and it is why "uniform dicts" in section 11 means the
+  declared ones and not every dict.
 - a member of `_unchecked_dicts`, whose key policy the application defines with
   validators of its own. Out of v1 scope.
 - a `DICT_VALUE_BY_KEY` member, where one named key holds an object and the
@@ -914,10 +921,11 @@ class ConfigLoader(Protocol):
 
 This is `config_as_json.ConfigFactory` plus the one parameter it lacks.
 Adding it here means factory-constructed configurations get load-policy
-control, which they cannot get through `ConfigFactory` today. It had a fifth
-parameter for the hook that reports automatic changes until `config_as_json`
-1.5 made that hook something every configuration object has (section 5.3);
-what a loader is never asked for is one parameter less to explain.
+control, which they cannot get through `ConfigFactory` at all. There is no
+parameter for the hook that reports automatic changes, because
+`config_as_json` 1.5 makes that hook something every configuration object has
+(section 5.3), and what a loader is never asked for is one parameter less to
+explain.
 
 When no loader is supplied, the editor derives one from `type(config)`,
 reading `inspect.signature()` to decide what that class can be told. The name
@@ -937,14 +945,14 @@ loader = derived_loader(partial(TeamConfig, KNOWN_TEAMS))
 It reads the signature of whatever it is given, and `functools.partial` over a
 class has one. Writing the protocol out by hand stays the door for anything
 this cannot express, which in practice means a class chosen by looking at the
-JSON. Settled at step 9.
+JSON.
 
 **Reading a file and the declared defaults are what need the loader**, which
 is what makes it affordable. Section 6.1 does not construct the class at all,
 so an application that has a loader needs it for those two and for nothing
 else, and one that has no loader is no worse off anywhere else. The second of
-the two arrived at step 14: the values a class declares are what a new element
-of an ordinary list is copied from (section 4.9), and a loader is asked for
+the two is section 4.9's: the values a class declares are what a new element
+of an ordinary list is copied from, and a loader is asked for
 them with no JSON source, which is exactly what the paragraph below says a
 loader answers. A class the editor cannot construct answers with nothing and
 loses that one offer.
@@ -969,7 +977,7 @@ one function, which turns `SystemExit` into the `ValueError` that every caller
 already reports as values the configuration would not accept.
 
 **`Config.__init__` takes no `ok_to_use_defaults`.** Confirmed against the
-implementation in `./venv` at step 4: the parameter belongs to
+implementation of `config_as_json`: the parameter belongs to
 `Config.parse_json()` and `Config.read()`, and `__init__` calls both of them
 with the default `False`. So the derived loader has one path for both
 policies: construct the class with no JSON source, which leaves it holding
@@ -1031,18 +1039,17 @@ The outcomes, each with a message of its own:
   values cannot be converted, an enum name that names no member being the
   case that arises in practice, since `parse_converters()` runs inside
   `json.loads()`. The message says that much and the diagnostics say which
-  of the two it was. Step 7 improved the enum case for a field being *edited*
-  and deliberately left this one alone: a file that cannot be opened is not a
-  field the user can correct, and reading the diagnostics of the load is
-  exactly what they have to do. See section 4.2.
+  of the two it was. A field that is being *edited* reports the enum case for
+  itself (section 4.2), and this one is deliberately left as it is: a file that
+  cannot be opened is not a field the user can correct, and reading the
+  diagnostics of the load is exactly what they have to do.
 - **values a validator refuses** → the file cannot be opened. `parse_json()`
   ends with `validate()`, so there is no valid object to build a model from.
-  Settled at step 4, and the reason it is a refusal rather than an editor
-  opened on the file's own values: a member validator returns the value that
-  is stored back into the member, so a load that stopped part way through
-  leaves it unknown which values were already rewritten and which were not,
-  and there is then nothing honest to show. The user is told to correct the
-  file in a text editor first.
+  The reason it is a refusal rather than an editor opened on the file's own
+  values: a member validator returns the value that is stored back into the
+  member, so a load that stopped part way through leaves it unknown which values
+  were already rewritten and which were not, and there is then nothing honest to
+  show. The user is told to correct the file in a text editor first.
 - **a file that cannot be read, or that is not UTF-8 text** → the file
   cannot be opened. This is the editor's own message, because
   `Config.read()` would end the process (section 5.1).
@@ -1059,9 +1066,9 @@ into a member or supplied a value for one the file never held. So the parse is
 asked, by a copy of the loaded object whose `check_key_match` records what it
 was given and stops the parse there — the same borrowing as section 6.3, and
 stopping is what keeps the application's own validators running once, on the
-object that is really being edited. Settled at step 8, where computing the flag
-from the keys of the file turned out to claim that a renamed member had been
-filled in from a default, which is untrue of it.
+object that is really being edited. Computing the flag from the keys of the file
+instead would claim that a renamed member had been filled in from a default,
+which is untrue of it.
 
 ### 5.3 Making automatic changes visible
 
@@ -1093,20 +1100,16 @@ The editor must still **construct** the configuration rather than receive an
 already-loaded one, because the load policy of section 5.2 is decided while the
 file is read; but the records reach it whatever it constructs.
 
-Built at step 8 and rebuilt against `config_as_json` 1.5, which is what settled
-the first two of the five things below.
-
 **Nothing is opted into and nothing is passed.** `Config.__init__` creates a
 hook when the application names none, keeps by reference the one it is given,
 and publishes both through `auto_change_hook()`. So a class that declares
 `auto_ch_hook` and hands it on is reported on exactly as fully as the ordinary
 three-keyword constructor shape that does not, the editor passes no hook
-anywhere, and `ConfigLoader` has no parameter for one (section 5.1). Until 1.5
-`Config.__init__` deep copied the hook it was given and recorded into the copy,
-so the editor's own hook had to say that a copy of it was itself; that
-work-around is gone, and with it the rule that the hook had to be read before
-anything parsed the file again — a copy of the configuration now carries a copy
-of the hook, so a later parse cannot disturb what the load recorded.
+anywhere, and `ConfigLoader` has no parameter for one (section 5.1). Keeping it
+by reference is what `config-as-json` 1.5 promises and is why the editor needs
+no rule about reading the hook before anything parses the file again: a copy of
+the configuration carries a copy of the hook, so a later parse cannot disturb
+what the load recorded.
 
 **A record reaches a member or it reaches the message.** That one rule places
 all of them. A record that produced a member of this configuration explains
@@ -1165,15 +1168,14 @@ section 1.1 has no later moment in which to be asked, so it validates once
 before it prints — which is a consequence of printing once and returning, and
 not a second policy about when to validate.
 
-**The class is not constructed, and it does not have to be.** This document
-first said "construct a candidate config from that text", and step 9 found
-that the construction adds nothing: the declaring of the members is the whole
+**The class is not constructed, and it does not have to be.** Constructing it
+would add nothing: the declaring of the members is the whole
 of what a constructor does before `parse_json`, and a copy has that already.
 Even the derived loader of section 5.1 never gives the text to a constructor,
 because the load policy belongs to `parse_json` and not to `__init__`.
 
-Copying instead of constructing is what makes two classes editable that were
-refused before: one whose constructor needs an argument this library knows
+Copying instead of constructing is what makes two kinds of class editable at
+all: one whose constructor needs an argument this library knows
 nothing about, and one with no JSON text parameter at all. Both are validated
 and saved like any other, and the loader an application supplies is then for
 reading a file and for nothing else. Copying is also what keeps a session on
@@ -1183,17 +1185,14 @@ gives the probe of section 6.3 the object it needs.
 ### 6.2 Subtree validation, and why folding is the natural trigger
 
 A nested config subtree can be validated **in isolation**, by applying that
-subtree's JSON to the nested object itself. Built at step 12.
+subtree's JSON to the nested object itself.
 
-**The object is copied and not constructed**, which is the same correction
-step 9 made to section 6.1 and for the same reason: the object is there to be
-copied, so a class whose constructor needs an argument this library knows
-nothing about is asked about itself exactly as well as any other, a
-`factory_function` that answered with a subclass is asked as the subclass it
-really is, and there is one way of applying a buffer to an object rather than
-two. This document first said "constructing `config_type` from that subtree's
-JSON", which was written before that correction and would have been the second
-way.
+**The object is copied and not constructed**, for the same reason as in
+section 6.1: the object is there to be copied, so a class whose constructor
+needs an argument this library knows nothing about is asked about itself exactly
+as well as any other, a `factory_function` that answered with a subclass is
+asked as the subclass it really is, and there is one way of applying a buffer to
+an object rather than two.
 
 That makes folding and validating the same operation: when the user folds a
 nested config away — or opens it again, since changing how much of an object
@@ -1245,12 +1244,11 @@ anything inside that object is edited, which is a different lifetime from the
 verdict of the whole configuration: that one is dropped by an edit anywhere,
 and this one only by an edit inside the object it is about.
 
-**What the object refused is kept with the state and never apart from it**,
-which a review of step 13 corrected. The first version kept the answer of a
-fold and threw the sentences away, so an object that was folded said that
-something was wrong and nothing said what — and the user had to ask a second
-question, about the whole configuration, to be told something they had just
-been told half of. The two are one answer: they are found by one pass, they
+**What the object refused is kept with the state and never apart from it.**
+Keeping the state and throwing the sentences away would leave a folded object
+saying that something was wrong with nothing saying what, and the user asking a
+second question, about the whole configuration, to be told something they had
+just been told half of. The two are one answer: they are found by one pass, they
 are true for exactly as long as each other, and an edit inside the object
 takes both back together. That third lifetime is why they are the buffer's and
 are stamped onto the rows rather than being carried by them, beside the fold
@@ -1293,8 +1291,8 @@ Note that `validate_member` receives the whole `config` object and may
 inspect other members, so a complete candidate must be built first;
 individual fields cannot be validated in isolation.
 
-**The candidate this needs cannot be held the ordinary way**, and that is
-what step 7 had to solve. `Config.parse_json()` ends in `validate()`, which
+**The candidate this needs cannot be held the ordinary way.**
+`Config.parse_json()` ends in `validate()`, which
 raises at the first step that refuses — so the object that could say which
 member was refused is exactly the object that a refusal keeps the editor from
 ever holding. A copy whose `get_validation_plan` returns nothing is that
@@ -1313,9 +1311,9 @@ does, and it would put a plain `dict` where a nested `Config` object belongs.
 The subtraction of one method is the whole of what this borrows; everything
 else is the library's.
 
-**The method is left out on the object and not on a class.** Step 7 built this
-as a throwaway subclass, and step 9 replaced that with one attribute of one
-copy, for two reasons. It works for a class the editor cannot construct, which
+**The method is left out on the object and not on a class.** It is one
+attribute of one copy rather than a throwaway subclass, for two reasons.
+It works for a class the editor cannot construct, which
 a subclass of it does not: the loader an application supplies constructs the
 application's class and not the editor's subclass of it. And it leaves the real
 method where the walk needs it, because the class of the copy is untouched.
@@ -1341,10 +1339,10 @@ What is refused about one member is shown **at that member**, and what is
 refused about no single member stays in the block below them. The verdict line
 names the members it was about, because a configuration of any size does not
 fit a window (section 4.6) and a user who has just asked what is wrong should
-be told where to look rather than have to go looking. Settled at step 7.
+be told where to look rather than have to go looking.
 
-**What is refused is addressed by a path and not by a name**, settled at step
-10, because a value inside a list or a dict is a node of its own and two of
+**What is refused is addressed by a path and not by a name**,
+because a value inside a list or a dict is a node of its own and two of
 them can share a name: a dictionary key called `cpu` must not be told what the
 application said about a member of that name. The verdict line writes the whole
 path of each of them, so a value the user has to correct can be found.
@@ -1414,8 +1412,8 @@ behaviour.
   Save answers "is there anything to write" and the session ends only when
   the user closes it. `edit()` then returns the object that really reached
   the file, whatever was typed afterwards and not saved.
-- **`Config.write()` does validate.** Confirmed against the implementation in
-  `./venv` at step 5: `write()` calls `as_json_string()`, whose first
+- **`Config.write()` does validate.** Confirmed against the implementation of
+  `config_as_json`: `write()` calls `as_json_string()`, whose first
   statement is `self.validate(stderr_file=stderr_file)`, and it opens the
   destination only after the text exists. So the editor's own gate is belt
   and braces rather than the only guard, and a configuration that `write()`
@@ -1434,7 +1432,7 @@ behaviour.
   about, are both a refused save with a message; `isinstance` is what the second
   of those asks, so a loader that answers with a subclass is answering with the
   class. An application that supplied no loader is asked nothing, and the class
-  it edits is the class it gets. Settled at step 9.
+  it edits is the class it gets.
 
 ### 7.1 Draft file (room left, not implemented in v1)
 
@@ -1513,7 +1511,7 @@ look at tells those apart. So the file is **kept** before it is overwritten,
 and the user is **asked** before it happens. Both are the application's
 decision, for the reason section 9.6 gives about `Settings` as a whole: how its
 own configuration files are looked after is something an application knows and
-the editor cannot find out. Built at step 16.
+the editor cannot find out.
 
 **It is once per destination per session, and that is what makes it about the
 user's own work.** From the second save onwards the file being written over is
@@ -1594,20 +1592,20 @@ given, because the protocol says a loader answers a call with no JSON source
 well; `load_config` and `EditModel` take the loader for the same reason and on
 the same terms.
 
-`descriptions` is an optional keyword and not the required positional argument
-this document first gave it. An application that describes none of its members
+`descriptions` is an optional keyword and not a required positional argument.
+An application that describes none of its members
 is a perfectly good caller: the docstring of its configuration class still
 labels the object, and principle 4 of section 3 says that what the editor
-cannot be told it does without. Requiring the argument would also have made
-every existing call site pass an empty mapping to say nothing. Settled at
-step 6, where the same reasoning made `EditModel`'s arguments after the load
+cannot be told it does without. Requiring the argument would also make every
+call site pass an empty mapping to say nothing. The same
+reasoning makes `EditModel`'s arguments after the load
 report keyword-only: each of them says one independent thing about the session,
 and none of them is worth passing by position.
 
-The `backend` argument is one this document originally left out, and it has
-to be there: the core never imports a user interface library, so it cannot
-name one. Each backend package therefore also exports an `edit` of its own
-that supplies itself and forwards everything else, which is the shorter door
+The `backend` argument has to be there: the core never imports a user interface
+library, so it cannot name one. Each backend package therefore also exports an
+`edit` of its own that supplies itself and forwards everything else, which is
+the shorter door
 for an application that has already chosen its user interface. Those wrappers
 are a signature and one call, so section 8's warning about logic drifting into
 the backends does not apply to them; if either of them ever grows a decision
@@ -1629,15 +1627,15 @@ nothing, and is only worth building once there is a generic launcher or
 a third-party backend in the wild. The programs of section 8.3 are not
 that launcher: each of them supplies its own backend, so none of them has
 anything to discover. An `edit-cfg-json` that chose an editor for the machine
-it was run on would be that launcher, and step 16B left the name free for it.
+it was run on would be that launcher, and the name is kept free for it.
 
 ### 8.2 Embedding in an application that already runs a UI
 
 Embedding is out of v1 scope (section 11) and is **designed here before it
 is built**, because two of its questions have answers that are cheaper to
 give now than to retrofit: which toolkit instance the editor attaches to,
-and where in an existing window it is placed. What that costs today is
-recorded in section 8.2.5; everything else is additive.
+and where in an existing window it is placed. What embedding asks of the
+design that is here is recorded in section 8.2.5; everything else is additive.
 
 The two questions are the same in both toolkits, and so are the answers.
 
@@ -1713,7 +1711,7 @@ The Tk backend already builds below an arbitrary parent widget, so its
 panel is a wrapper. The Textual backend is an `App`, and five things live
 at App level that an embedded editor cannot have:
 
-| On `EditorApp` today | Why it cannot stay there |
+| On `EditorApp` | Why it cannot stay there |
 | --- | --- |
 | `CSS` | Textual ignores `CSS` on a widget and says so; a widget uses `DEFAULT_CSS`. |
 | priority bindings on `self._bindings` | App-level priority bindings fire wherever the focus is. Verified against `App._check_bindings` in 8.2.8: the priority pass walks the whole binding chain, so a priority binding on a **widget** still beats the focused `Input`, and only while the focus is inside the editor. That is what embedding wants. |
@@ -1728,25 +1726,26 @@ composes the screen. One body, so the two backends cannot drift and the
 CSS and the bindings exist once. The model title moves from `App.title`
 into a label of the panel, which is what the Tk backend already does.
 
-#### 8.2.5 What this costs today, and why
+#### 8.2.5 What embedding asks of the design that is here
 
-Only what would otherwise become a change to a published promise:
+Two rules, and both of them hold for a modal editor as well, so nothing has to
+change meaning when the panel is added:
 
-- **`EditorBackend`'s docstring** said an application could "mount the
-  backend as a widget". It cannot, and that sentence is published in
-  `doc/edit-cfg-json_api.md`. It now says what section 8.2.3 settles.
+- **`EditorBackend` promises a modal editor**, and it does not promise that an
+  application can mount the backend as a widget. Mounting is the separate entry
+  point of section 8.2.3, and the docstring that is published in
+  `doc/edit-cfg-json_api.md` says exactly that.
 - **`EditorWidgets` is told what closing does** rather than deriving it
-  from `parent.winfo_toplevel()`. The default is unchanged and is what
-  `TkEditor` needs, but the rule of section 8.2.2 is now stated where the
-  editor acts on it, so the panel is an addition rather than a rewrite.
+  from `parent.winfo_toplevel()`. The default is what `TkEditor` needs, and
+  stating the rule of section 8.2.2 where the editor acts on it is what makes
+  the panel an addition rather than a rewrite.
 
 Everything else is genuinely additive: the public surface of both backend
 packages is `TkEditor`, `TextualEditor` and `edit`, none of them changes
-meaning, and every name section 8.2.3 introduces is new. That is what
-section 8's decision to phrase the protocol against the model already
-bought.
+meaning under embedding, and every name section 8.2.3 introduces is new. That
+is what section 8's decision to phrase the protocol against the model bought.
 
-#### 8.2.6 A defect this uncovered, fixed now
+#### 8.2.6 A Tk variable names its parent
 
 `tkinter.StringVar` built without a `master` is created in the **first**
 Tcl interpreter of the process, not in the one its field belongs to —
@@ -1754,11 +1753,11 @@ Tcl interpreter of the process, not in the one its field belongs to —
 application's root already present, every field's variable would be
 created in the application's interpreter while its `Entry` lived in the
 editor's, so the field would show nothing and the callback that writes it
-into the model would never run. The fields now name their parent. This is
-a defect today and not only under embedding, which is why it is not
-waiting for the step.
+into the model would never run. The fields therefore name their parent. That
+is as true of a window the editor owns as of one it shares, so it is not a
+rule that waits for embedding.
 
-#### 8.2.7 Left open for the step that builds it
+#### 8.2.7 Left open until embedding is built
 
 - **Which widget the Tk key bindings are made on.** They are made on the
   toplevel, which is right for a window the editor owns and wrong for one
@@ -1802,9 +1801,10 @@ when it is given no master.
 An application author should not have to write a program to get an editor for
 their own configuration class, so each of the two editor distributions installs
 one: `edit-cfg-json-tk` and `edit-cfg-json-textual`. They are a product and not
-only a development tool, and the second benefit is what built them at step 7B:
-every question about a configuration that is not two members long used to cost
-a hand-written example, and now any class in reach answers it.
+only a development tool, and the second benefit is what makes them worth the
+code: a question about a configuration that is not two members long would
+otherwise cost a hand-written example, and any class in reach answers it
+instead.
 
 **The core installs no program, and the name it would have installed under is
 the reason.** The same command line over the non-interactive backend of section
@@ -1817,8 +1817,7 @@ name rather than by anything the program did, and they were right to expect an
 editor, because a command named after a library is taken for that library's
 product. So the utility is `python3 -m edit_cfg_json.dump`, which says which
 backend it runs, and the name is left free for the launcher that picks the
-editor the machine can run. Settled at step 16B, after the program's own users
-expected of the name exactly what it promised.
+editor the machine can run.
 
 #### 8.3.1 The command line owns no logic
 
@@ -1857,7 +1856,7 @@ program stops. The check is made on the object that is really going to be
 edited, so a loader that chose its class from the input file is answered for
 that file, and `isinstance` is what it asks.
 
-The class was a positional argument until step 9 and is a named option now, so
+The class is a named option and not a positional argument, so
 that the two ways of saying what to edit are symmetric. `argparse` can be asked
 for exactly one of two options and not for at least one of them, so the refusal
 of a command line that names neither is the one that is written by hand.
@@ -1895,21 +1894,20 @@ That one fact about a backend is what `run_cli` is told, and `--save` is then no
 added to the parser at all for the other two, so it is `argparse` that refuses
 it rather than a check written by hand.
 
-#### 8.3.4 What the corpus showed, which is why the step exists
+#### 8.3.4 What a corpus of real configuration classes shows
 
-Opening the 47 configuration classes of `dep_lib_doc/config_as_json/example/`
-found two things that no example in this repository would have.
+Opening the 47 configuration classes of the
+[`config_as_json` examples](https://github.com/tom-bjorkholm/config_as_json/tree/master/example/src/example)
+shows two things that no example in this repository would have.
 
 - **The constructor has more than one shape.** `Config.__init__` names the JSON
   text `from_json_data_text`; the example classes that `config_as_json` ships
   name it `from_json_text` in the constructors they declare, as does
-  `ConfigFactory`. 32 of those classes were refused by the editor over the name
-  of a parameter. The editor now reads the signature and passes every parameter
-  it knows the meaning of, which is principle 4 of section 3 applied to a
-  constructor. Step 7B answered that by passing the text under whichever name
-  the class declares, and refusing a class that declares neither, because a
-  buffer validated against the declared defaults would be accepted whatever the
-  user typed. Step 9 removed both: no text is passed to a constructor at all
+  `ConfigFactory`. An editor that insisted on the one name that
+  `Config.__init__` uses would refuse 32 of those 47 classes over the name of a
+  parameter, so the editor reads the signature and passes every parameter it
+  knows the meaning of, which is principle 4 of section 3 applied to a
+  constructor. No text is passed to a constructor at all
   (sections 5.1 and 6.1), so a class with nowhere to put it is edited like any
   other, and the names are looked for only to pass `None` under one that has no
   default of its own.
@@ -1921,19 +1919,19 @@ found two things that no example in this repository would have.
   itself and knows its own class.
 
 The places that construct the application's class ask one internal module what
-to call it with, so the answer cannot differ between them. Step 7B had four of
-them; two are left after step 9, the declared defaults and the load, because
-the validation of a buffer and the walk that attributes a refusal now copy an
-object rather than construct one.
+to call it with, so the answer cannot differ between them. There are two of
+them, the declared defaults and the load, because the validation of a buffer
+and the walk that attributes a refusal copy an object rather than construct
+one.
 
 ## 9. Settings the application owns
 
 The editor does not run on its own. It runs inside an application that has
 already made decisions the editor has no right to overrule: which key
 combinations that application's own user interface has taken, and what a
-configuration file of that application is called. The first steps of this
-library made both of those decisions inside the editor. That was the right
-size of decision for a walking skeleton and the wrong one for a library.
+configuration file of that application is called. An editor that decided
+either of those for itself would be overruling the application, which is the
+one thing a library in this position must not do.
 
 `Settings` is what the application says about them. Every attribute has a
 default, so an application with no opinion passes nothing at all and gets
@@ -1976,34 +1974,32 @@ Both classes are frozen. The editor is given what an application decided and
 has no business changing it, and a frozen dataclass says so in the one place
 where saying it costs nothing.
 
-`explain` is the attribute that step 6 added, and it is what the promise above
-was written for: an action added later is an added attribute, and no
-application that was written before it breaks. Its keys are `f1`, because a
-function key is what asks for help everywhere else and because a field claims
-most of the control letters, and `ctrl+g`, because a terminal or a keyboard
-that does not deliver a function key would otherwise leave the action to the
-button and the command palette.
+`explain` is what the promise above was written for: an action added later is
+an added attribute, and no application that was written before it breaks. Its
+keys are `f1`, because a function key is what asks for help everywhere else and
+because a field claims most of the control letters, and `ctrl+g`, because a
+terminal or a keyboard that does not deliver a function key would otherwise
+leave the action to the button and the command palette.
 
-The last three are what step 16 added, and they make the same point a third
-time: three attributes, three defaults, and an application written before them
+The last three make the same point about the files: three attributes, three
+defaults, and an application that says nothing about them
 gets what the editor would have chosen anyway. What they say is section 7.3's;
 that they are here is because only an application knows how its own
 configuration files are looked after. Two of the three defaults are the answers
 that lose nothing — one kept file, and a question before it is written — which
 is the right way for a default about something that cannot be undone to lean.
 
-`fold` is the attribute that step 10 added, and it makes the same point a
-second time. Its keys are `f2`, the function key beside the one that explains,
-because the two actions are the same kind of thing — both of them decide how
-much of the configuration is on the screen — and `ctrl+t`, for the reason
-`explain` has a control letter as well and because the tree is what the action
-is about. A configuration with no list and no dict in it is never offered the
-action at all (section 4.7), so those keys are free wherever there would be
-nothing to fold.
+`fold` makes the same point again. Its keys are `f2`, the function key beside
+the one that explains, because the two actions are the same kind of thing —
+both of them decide how much of the configuration is on the screen — and
+`ctrl+t`, for the reason `explain` has a control letter as well and because the
+tree is what the action is about. A configuration with no list and no dict in it
+is never offered the action at all (section 4.7), so those keys are free
+wherever there would be nothing to fold.
 
-**It is deliberately not `ctrl+f`**, which was its second key until the review
-of step 10 asked why the editor was spending the one combination that means
-find everywhere. `ctrl+shift+f` was considered and rejected for the reason
+**It is deliberately not `ctrl+f`**, which is the one combination that means
+find everywhere and is therefore not the editor's to spend.
+`ctrl+shift+f` was considered and rejected for the reason
 `save_as` already records above: a terminal that encodes a control letter as a
 single byte has nowhere to put the shift, so that combination would arrive as
 `ctrl+f` and the fold key would run the search. See section 9.7.
@@ -2219,7 +2215,7 @@ confirmed against the pinned `textual` version rather than assumed.
 
 ## 11. Version 1 scope
 
-In scope:
+In scope, and implemented:
 
 - read, edit and save with full validation
 - lists and dicts as a tree of rows, with a field at every value
@@ -2233,7 +2229,7 @@ In scope:
   (section 7.3)
 - modal `edit()` with both backends
 
-Deliberately out of scope for v1:
+Deliberately out of scope for v1, and therefore not implemented:
 
 - **Containers with nothing to copy a new element from.** Only the
   application knows what an element of its own list looks like, and a

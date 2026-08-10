@@ -1,10 +1,9 @@
 #! /usr/bin/env python3
 """Tests for editing a configuration whose members hold lists and dicts.
 
-What is tested here is the whole of what step 10 of the delivery plan added
-to the model: the tree of rows, editing a value inside a container, folding
-one away, and what a validator that changes how many values a list holds
-does to the rows.
+What is tested here is what a container is to the model: the tree of rows,
+editing a value inside a container, folding one away, and what a validator that
+changes how many values a list holds does to the rows.
 """
 
 # Copyright (c) 2026 Tom Björkholm

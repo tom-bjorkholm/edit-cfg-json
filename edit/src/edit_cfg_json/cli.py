@@ -27,7 +27,7 @@ both are allowed: a class alone is constructed on the values it declares, a
 loader alone is asked for a configuration and its class is whatever it answers
 with, and the two together mean that the loader has to answer with that class
 or the program stops. `--loader` is for a class the editor cannot construct on
-its own, so whatever it needs beyond the five keyword arguments of
+its own, so whatever it needs beyond the four keyword arguments of
 `edit_cfg_json.ConfigLoader` has to be bound in the module it is named in — a
 command line cannot supply an argument this library knows nothing about.
 
@@ -124,7 +124,7 @@ NOT_LOADER_MESSAGE = '{module}.{name} cannot be called, so it is no loader.'
 LOADER_ARGS_MESSAGE = (
     'Loader {name} cannot be called by this program: it needs arguments that '
     'a command line cannot supply. Bind them where the loader is written, for '
-    'example with functools.partial, so that what is left is the five keyword '
+    'example with functools.partial, so that what is left is the four keyword '
     'arguments of edit_cfg_json.ConfigLoader.')
 """Message of the refusal of a loader whose own arguments are not bound."""
 
@@ -245,7 +245,7 @@ class ExitCode(IntEnum):
     LOADER_ARGS = 14
     """The loader needs arguments that a command line cannot supply.
 
-    A loader takes the five keyword arguments of `ConfigLoader` and nothing
+    A loader takes the four keyword arguments of `ConfigLoader` and nothing
     else, so whatever it needs besides them is bound where it is written. A
     program cannot bind an argument it knows nothing about, and saying so
     plainly is better than a half answer.
@@ -493,7 +493,7 @@ def _loader_in(module: ModuleType, name: str) -> ConfigLoader:
     """Return one configuration loader of one module, or refuse to run.
 
     What can be checked here is that the name can be called at all. Whether it
-    takes the five keyword arguments of a loader is answered by calling it,
+    takes the four keyword arguments of a loader is answered by calling it,
     which is what `_loader_config` below does and reports.
 
     Args:
