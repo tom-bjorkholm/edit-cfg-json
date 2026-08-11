@@ -1,4 +1,4 @@
-# Delivering the v1 scope in small steps
+# Delivering the first release scope in small steps
 
 ## Where everything is
 
@@ -65,7 +65,7 @@ plan says only *when* that decision gets built.
 - [Step 16B](#step-16b---fix-ux-problem-with-edit_cfg_json) — the name
   `edit-cfg-json` freed for the editor it promises, and the backend that prints
   once reached as the small utility it is.
-- [Step 17](#step-17--v1-polish) — every document rewritten against what was
+- [Step 17](#step-17--first-release-polish) — every document rewritten against what was
   actually built, the order of the work taken out of all of them but this one,
   and the release readiness of the three packages checked rather than assumed.
 
@@ -140,7 +140,8 @@ version. Record which one, because the next step's fast iteration with
 | M2 Flat, fully explained | 6 to 9 | Descriptions, docstrings, field-level diagnostics, automatic-change visibility, explicit loader | done |
 | M3 Structure and folding | 10 to 12 | Lists, dicts, nested `Config` objects, folding with per-subtree badges | done |
 | M4 Configs in containers | 13 to 14 | `LIST_ELEMENT` and `DICT_VALUE` nesting, adding and removing elements | done |
-| M5 Release readiness | 15 to 17 | Closing keeps what was not saved, files are not overwritten unannounced, and v1 is documented, classified and published | done, apart from the publishing itself |
+| M5 Release readiness | 15 to 17 | Closing keeps what was not saved, files are not overwritten unannounced, and first release is documented, classified and published | done |
+| First release 0.0.2 | release on PyPI.org | [https://pypi.org/project/edit-cfg-json/](https://pypi.org/project/edit-cfg-json/) | done |
 
 ## 3. Steps 10 onwards, as named steps
 
@@ -991,7 +992,7 @@ the repository prints what it printed before.
   installs, so `./venv/bin/edit-cfg-json` was gone after the first
   `./run_build.py` and nothing had to be cleaned by hand.
 
-#### Step 17 — first version polish
+#### Step 17 — first release polish
 
 Status: **Implemented and committed.**
 
@@ -1031,12 +1032,12 @@ printed before.
 
 **What it decided.** Four things, decided before the work started.
 
-- **The version stays `0.0.1` and the classifiers stay `3 - Alpha`.** "v1" is
-  the scope of design section 11 and not a version number, so this step
-  confirms the three statements of Alpha status agree with each other — the
-  classifier in all three `pyproject.toml`, `readme_parts/alpha_status.md`, and
-  design section 2.5 — and changes none of them. Publishing to PyPI is a
-  separate act and not part of the step.
+- **The version stays `0.0.1` and the classifiers stay `3 - Alpha`.**
+  "first release" is the scope of design section 11 and not a version number,
+  so this step confirms the three statements of Alpha status agree with
+  each other — the classifier in all three `pyproject.toml`,
+  `readme_parts/alpha_status.md`, and design section 2.5 — and changes none
+  of them. Publishing to PyPI is a separate act and not part of the step.
 - **The step numbers go from everywhere except `./.plans`.** The plan is the
   one document whose subject really is the order of the work. `doc/design.md`
   had 54 of them, and four docstrings and two test modules had one each; the
@@ -1052,7 +1053,7 @@ printed before.
   described the library as it was at the flat-configuration stage, so
   correcting the wrong sentences would have left the tree, folding, nested
   objects, the badges, the element controls, the question before closing and
-  the kept file undescribed on the PyPI pages of a v1 release.
+  the kept file undescribed on the PyPI pages of a first release.
 
 **Core.** No code at all: `doc/design.md`, the seven root `readme_parts/`
 fragments, the three per-package `readme_parts/` trees, six docstrings, and
@@ -1101,7 +1102,17 @@ is again the check that the docstrings really are where this lives.
   step that left thirty of those behind would have made its own diff harder to
   read than it needed to be.
 
-### After v1
+#### First release published
+
+The first release is published
+
+- [https://pypi.org/project/edit-cfg-json/0.0.2/](https://pypi.org/project/edit-cfg-json/0.0.2/)
+
+- [https://pypi.org/project/edit-cfg-json-tk/0.0.2/](https://pypi.org/project/edit-cfg-json-tk/0.0.2/)
+
+- [https://pypi.org/project/edit-cfg-json-textual/0.0.2/](https://pypi.org/project/edit-cfg-json-textual/0.0.2/)
+
+### After first release
 
 #### Step 18 — Embedding in an application's own window
 
@@ -1138,10 +1149,32 @@ here: `add_file_options` and `named_policy` are shared already, and each
 option this step adds is a candidate for the same treatment. Consider if
 adding a class derived from `config_as_json.Config` for storing the
 `Settings` of the 7B programs instead of passing them as arguments. Using
-such a configuration file may be a better idea than a very long command
+such a configuration file is probably a better idea than a very long command
 line.
 
-#### Step 20 — The program asks for what the command line left out
+#### Step 20 - version command line flag
+
+Add version reporting using
+[https://pypi.org/project/versionreporter/](https://pypi.org/project/versionreporter/)
+as a `--version` flag to all 3 programs (created at step 7B):
+`edit-cfg-json.dump`, `edit-cfg-json-tk` and `edit-cfg-json-textual`.
+Implement as a class `EcajVersionReporter` derived from `VersionReporter` in
+`./edit` and classes derived from `EcajVersionReporter` in `./edit_tk` and
+`./edit_textual` so that the backends get the dependencies of `edit-cfg-json`
+without repeating the list of dependencies.
+
+#### Step 21 - Add and remove ommitted members
+
+A member that a class omits from JSON while it holds no object shall also
+be possible to add and remove in the editor. Exactly how to achieve this
+is the subject of a design investigation in the beginning of this step.
+
+#### Step 22 - Full support for `DICT_VALUE_BY_KEY`
+
+Add full support for adding and deleting values in a dict that are
+declared by `DICT_VALUE_BY_KEY`.
+
+#### Step 23 — The program asks for what the command line left out
 
 A wizard: the program opens with no location, no class name and no files,
 and asks for them in the toolkit it was started in. What has been chosen,
@@ -1155,28 +1188,14 @@ is a bigger step than the program it completes — roughly the whole of step
 users who would rather not type a module path. It is the reason step 7B puts
 the loading and the reporting in the core: a wizard replaces the argument
 parsing and nothing else. When we get here investigate if using
-https://pypi.org/project/wizard-ui-bridge/ and
-https://pypi.org/project/wizard-tk-bridge/ makes implementing the wizards
-simpler.
-
-Step 20 also adds version reporting using
-https://pypi.org/project/versionreporter/ as a `--version` flag to all
-3 programs (created at step 7B). Implement as a class `EcajVersionReporter`
-derived from `VersionReporter` in `./edit` and classes derived from
-`EcajVersionReporter` in `./edit_tk` and `./edit_textual` so that the
-backends get the dependencies of `edit-cfg-json` without repeating
-the list of dependencies.
-
-#### Step 21 - Add and remove ommitted members
-
-A member that a class omits from JSON while it holds no object shall also
-be possible to add and remove in the editor. Exactly how to achieve this
-is the subject of a design investigation in the beginning of this step.
-
-#### Step 22 - Full support for `DICT_VALUE_BY_KEY`
-
-Add full support for adding and deleting values in a dict that are
-declared by `DICT_VALUE_BY_KEY`.
+[https://pypi.org/project/wizard-ui-bridge/](https://pypi.org/project/wizard-ui-bridge/)
+and
+[https://pypi.org/project/wizard-tk-bridge/](https://pypi.org/project/wizard-tk-bridge/)
+makes implementing the wizards simpler.
+If step 19 did select the use a configuration file for the editor
+the need for the wizard may be smaller.
+Alternatively, consider if we should use the menubar and menu items like
+File - Open. (Using the menubar may feel very natural in the Tk version.)
 
 ## 4. Open questions recorded, not answered
 
@@ -1187,7 +1206,7 @@ step that needs it. They are listed here so they are not forgotten.
 | --- | --- |
 | ~~When does a field report that its text means no value at all, and is that on focus loss?~~ Answered at step 7: it does, on focus loss, through `EditModel.check_field`. See `doc/design.md` sections 4.2 and 6.5. | done |
 | ~~Does `Config.write()` validate, making the editor's gate belt and braces?~~ | step 5 done |
-| ~~Is `ConfigNestingKind.OPTIONAL_MEMBER` in v1 scope?~~ Answered at step 11: it is. A member holding an object is a node like any other, one the class omits from JSON has no row, and one written as `null` has a row that says which class is missing and cannot be edited. | done |
+| ~~Is `ConfigNestingKind.OPTIONAL_MEMBER` in first release scope?~~ Answered at step 11: it is. A member holding an object is a node like any other, one the class omits from JSON has no row, and one written as `null` has a row that says which class is missing and cannot be edited. | done |
 | ~~Does the Textual headless driver in the pinned 8.2.8 behave as the design assumes?~~ | step 1 done |
 | ~~Will the README test summary stop updating on a headless machine, per design section 10.2?~~ | step 1, as a known consequence |
 | Which widget does the Tk backend bind its keys on when it shares a window? See `doc/design.md` section 8.2.7. | step 18 |
