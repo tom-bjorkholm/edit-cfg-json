@@ -26,6 +26,19 @@ repository only.
 | [e10_config_containers.py](e10_config_containers.py) | A list whose elements are configuration objects and a dict whose values are them, which is what a configuration of any real size is made of. The member stays an ordinary container that folds and says how much it holds, and each object inside it is a node of its own. How one description with the `'['` step reaches every element and every value, and how naming every step singles one of them out again. Why a container of objects opens folded at three of them, why the rule of the element class runs once per object, and why a rule about all of them belongs to the class holding them. |
 | [e11_add_remove.py](e11_add_remove.py) | Changing **how many** things a member holds: adding an element, removing one and moving one along a list. Where a new element comes from — the class a nesting declaration names, or the elements the class declares for the member itself — and the one member that has neither, which says so instead of guessing. Also the three dicts that cannot gain a key and the three different reasons why, and an optional member that is given its object and put back to holding none. |
 | [e12_backup_files.py](e12_backup_files.py) | What becomes of the file that a save writes over. The application says how its own files are looked after, in one `edit_cfg_json.Settings` that this example builds in Python as a real application does: what the previous content is kept as, how many of those are kept and how they rotate, and that the editor asks before it overwrites a file this session did not write. Why that happens once per destination per session and not once per press of Save, and why a save that is refused keeps nothing either. |
+| [e13_embedded_tk.py](e13_embedded_tk.py) | The editor inside a Tkinter window that the application already owns, which is what `edit_cfg_json_tk.TkEditorPanel` is for. Why this cannot be `edit()` — a second `tkinter.Tk` is a second Tcl interpreter — and why it cannot be `run_editor` either, which promises to run until the user is done. The three statements an application writes instead, the widget it names for the editor to go in, the keys of the editor reaching the editor and nothing else, and `on_close` beside `model.saved_config` as what a non-blocking editor answers with.
+| [e14_embedded_textual.py](e14_embedded_textual.py) | The same application in the other toolkit, with the two shapes Textual gives it: `EditorPanel` mounted in an area of the application's own screen, and `EditorScreen` pushed on top of it with a header, a footer and palette entries of the editor's own. Also the one setting only an embedded editor has a reason to change, `edit_cfg_json.Settings.priority_keys`, shown on a combination that Textual's own field reads for itself.
+
+**The last two examples have a command line of their own**, `embedded_parser`
+in [cmd_line.py](cmd_line.py), because the shared one below is phrased against
+`edit_cfg_json.EditorBackend` and an embedded editor is deliberately not one:
+it does not run to completion, so it cannot be handed to `edit()` at all. They
+take `-i`, `-o` and `--policy`, which are the core's own options and mean there
+what they mean everywhere else, `--ordinary-keys` for the one setting that only
+an embedded editor has a reason to change, and no `--ui`: each of them is one
+toolkit. They have no `--ui dump` either, and cannot have one, because what
+they teach is where the editor is in a window and a printout has no window to
+be one part of.
 
 ## Shared command line handling
 

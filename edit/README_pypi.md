@@ -614,6 +614,16 @@ application says about the file a save writes over. `None` for the suffix keeps
 nothing, and `confirm_overwrite` is `True` by default, which is the way a
 default about something that cannot be undone should lean.
 
+`priority_keys` is `True` by default, which means the editor is offered one of
+its own key combinations before the widget that has the focus: a user who
+presses Save while typing into a field means Save. It is the one attribute
+that only an editor mounted in a window an application owns has a reason to
+change, and it is for an application that has taken one of these combinations
+for a widget of its own inside the part of the window the editor is in. The
+widget with the focus is then offered the key first and the editor gets what
+is left of it, which is the other way of answering the question that emptying
+one tuple of `ActionSettings` answers by taking the key away altogether.
+
 Every one of these entry points also accepts a callable that answers with a
 `Settings`, which is `SettingsSource`. It is asked again at each point where
 the answer is used. What that can change is worth knowing exactly: the key
@@ -665,10 +675,10 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 1474 passed, 3 deselected in 37s
+- Test result: 1521 passed, 3 deselected in 43s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
 - Built version(s): 0.0.3
-- Build and test using Python 3.14.6
+- Build and test using Python 3.14.7

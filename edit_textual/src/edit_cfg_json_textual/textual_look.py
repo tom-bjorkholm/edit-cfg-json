@@ -51,6 +51,15 @@ FOLD_ID_PREFIX = 'fold_'
 MEMBER_ID_PREFIX = 'member_'
 """Prefix of the identifier of everything that one node owns."""
 
+TITLE_ID = 'title'
+"""Identifier of the widget that names the configuration being edited.
+
+It is a widget of the editor and not the title of an application, because an
+editor mounted in a window an application owns has no business writing there.
+The Tk backend has always had it as a label of its own, and this is the same
+label.
+"""
+
 DOCSTRING_ID = 'docstring'
 """Identifier of the widget that shows what the configuration class says."""
 
@@ -110,8 +119,16 @@ FOLD_CLASS = 'member_fold'
 ELEMENT_CLASS = 'member_element'
 """Style class of a control that changes how many elements there are."""
 
-QUESTION_CLASS = 'ask_screen'
-"""Style class of a screen that asks the user a question."""
+TYPE_MARK = '<this widget>'
+"""Where a widget of this backend writes its own class name.
+
+A widget styles *itself* by its type name and not by a style class of its own:
+Textual scopes the sheet a widget declares to that widget and what is inside
+it, so a class selector reaches the inside and never the widget the sheet
+belongs to. Each sheet below therefore leaves this where its own name belongs
+and the widget puts its name there, which is what `ModalScreen` above the
+question screens does with its own name too.
+"""
 
 ANSWER_CLASS = 'ask_answer'
 """Style class of the row of controls that answers a question."""
@@ -190,7 +207,8 @@ is the most legible thing on the screen. Everything else is either secondary
 text or a state to act on, which is what `edit_cfg_json.Emphasis` names.
 """
 
-CSS_RULES = COLOUR_RULES + (
+PANEL_CSS = '\n'.join(COLOUR_RULES + (
+    f'{TYPE_MARK} {{ height: 1fr; }}',
     f'#{BODY_ID} {{ height: 1fr; }}',
     f'#{MEMBERS_ID} {{ height: auto; }}',
     f'.{MEMBER_CLASS} {{ height: auto; }}',
@@ -205,12 +223,8 @@ CSS_RULES = COLOUR_RULES + (
     ' text-align: center; }',
     f'.{DESCRIPTION_CLASS}, .{DIAGNOSTIC_CLASS} {{ width: 1fr; height: auto;'
     f' padding-left: {DESCRIPTION_INDENT}; }}',
-    f'#{DOCSTRING_ID} {{ width: 1fr; height: auto; }}',
-    f'.{ROW_CLASS} Input {{ height: 1; border: none; padding: 0; }}',
-    f'.{QUESTION_CLASS} {{ align: center middle; }}',
-    f'#{ASK_BOX_ID} {{ width: 80%; height: auto; padding: 1 2;'
-    ' border: round $primary; background: $surface; }',
-    f'.{ANSWER_CLASS} {{ width: auto; height: auto; }}')
+    f'#{DOCSTRING_ID}, #{TITLE_ID} {{ width: 1fr; height: auto; }}',
+    f'.{ROW_CLASS} Input {{ height: 1; border: none; padding: 0; }}'))
 """The width and the height of every part of one member row.
 
 Rows are one cell high, so that the footer stays visible below them. A field
@@ -235,11 +249,32 @@ where they are there and cannot be seen. The value therefore takes what is
 left over and the marks take what they need, which is the opposite way round
 from the default and the only way round that shows both.
 
-A screen that asks a question sits in the middle of the screen and takes most
-of its width, so that a long path or a long file name is still readable in a
-narrow terminal. Its own field is untouched by the rule above, which reaches
-only the fields inside a member row, and the controls that answer it take the
-width they need rather than a share of the box.
+It is the style sheet of the widget that holds the editor and not of an
+application, because an application that mounts that widget in a window of its
+own has a style sheet of its own and would not have this one. Textual scopes
+the rules a widget declares to that widget and what is inside it, which is
+what keeps a rule of this editor from reaching a widget of the application.
+"""
+
+QUESTION_CSS = '\n'.join((
+    f'{TYPE_MARK} {{ align: center middle; }}',
+    f'#{ASK_BOX_ID} {{ width: 80%; height: auto; padding: 1 2;'
+    ' border: round $primary; background: $surface; }',
+    f'.{ANSWER_CLASS} {{ width: auto; height: auto; }}'))
+"""How a screen that asks the user a question is laid out.
+
+Each of those screens fills `TYPE_MARK` in with its own class name before
+this becomes its style sheet.
+
+It sits in the middle of the screen and takes most of its width, so that a
+long path or a long file name is still readable in a narrow terminal. Its own
+field is untouched by the rule about the fields of a member row, which reaches
+only inside the widget that holds the editor, and the controls that answer it
+take the width they need rather than a share of the box.
+
+It is apart from the rules above because a question of this editor is a screen
+of the application and never a part of the editor widget, so the two are
+declared on different widgets and neither style sheet can reach the other.
 """
 
 
@@ -326,7 +361,7 @@ def show_emphasis(widget: Widget, emphasis: Optional[core.Emphasis]) -> None:
 
 
 def bind_action(bindings: BindingsMap, keys: Sequence[str], action: str,
-                description: str) -> None:
+                description: str, priority: bool = True) -> None:
     """Bind every key combination that the application gave one action.
 
     The first combination is the one the footer names and the rest work
@@ -335,19 +370,24 @@ def bind_action(bindings: BindingsMap, keys: Sequence[str], action: str,
     combination at all is bound to nothing and stays reachable through the
     command palette.
 
-    Every binding is a priority binding, so that it is acted on before the
-    field that has the focus is offered the key. That is also why the
-    bindings cannot be made with `App.bind`, which cannot make one and which
+    A priority binding is acted on before the widget that has the focus is
+    offered the key, which is what an editor wants of its own keys: a user
+    who presses Save while typing into a field means Save. It is also why
+    these cannot be made with `App.bind`, which cannot make one and which
     says of itself that it may be removed.
 
     Args:
-        bindings: The bindings of the application or of the screen that the
-            action belongs to.
+        bindings: The bindings of the widget, the screen or the application
+            that the action belongs to.
         keys: Key combinations that run the action, in the order that
             decides which of them is named.
         action: Name of the action, without its `action_` prefix.
         description: What the footer and the key panel call the action.
+        priority: Whether the key is offered here before the widget that has
+            the focus is offered it, which is
+            `edit_cfg_json.Settings.priority_keys` for the actions of the
+            editor and always true for leaving a question of its own.
     """
     for index, key in enumerate(keys):
         shown = index == 0
-        bindings.bind(key, action, description, show=shown, priority=True)
+        bindings.bind(key, action, description, show=shown, priority=priority)

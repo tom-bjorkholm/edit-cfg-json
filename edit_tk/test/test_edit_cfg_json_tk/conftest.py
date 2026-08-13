@@ -27,15 +27,25 @@ def fixture_stub_tk(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     tests of a package through its `conftest`, and the four test modules of
     this backend all want this one.
     """
-    FakeWidget.created.clear()
-    FakeVar.created.clear()
-    FakeFlag.created.clear()
+    _forget_stubs()
     for widget_name in STUBBED_WIDGETS:
         monkeypatch.setattr(tkinter, widget_name, FakeWidget)
     monkeypatch.setattr(tkinter, 'StringVar', FakeVar)
     monkeypatch.setattr(tkinter, 'BooleanVar', FakeFlag)
     yield
+    _forget_stubs()
+
+
+def _forget_stubs() -> None:
+    """Forget every stub of an earlier test, and what it was told.
+
+    The bindings are among them, because a bind tag is a name in the
+    interpreter rather than a widget and would otherwise outlive the editor
+    that made it, exactly as it does in real Tk.
+    """
     FakeWidget.created.clear()
+    FakeWidget.tag_bindings.clear()
+    FakeWidget.focused.clear()
     FakeVar.created.clear()
     FakeFlag.created.clear()
 

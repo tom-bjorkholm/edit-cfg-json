@@ -13,8 +13,8 @@ import asyncio
 from textual.containers import Vertical
 from textual.widgets import Button, Input, Label
 from edit_cfg_json import EditModel
-from edit_cfg_json_textual.textual_editor import EditorApp, FOLD_COMMAND, \
-    OPEN_COMMAND
+from edit_cfg_json_textual.textual_editor import EditorApp
+from edit_cfg_json_textual.textual_panel import FOLD_COMMAND, OPEN_COMMAND
 from edit_cfg_json_textual.textual_look import FOLD_OPEN_TEXT, \
     FOLD_SHUT_TEXT, NAME_CLASS, TREE_INDENT, fold_id, member_id, value_id
 from example.e01_flat_config import FlatConfig

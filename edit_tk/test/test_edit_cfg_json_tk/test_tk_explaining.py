@@ -16,7 +16,7 @@ from edit_cfg_json_tk.tk_editor import EditorWidgets, EXPLAIN_TEXT
 from example.e01_flat_config import FlatConfig
 from .helpers import DESCRIBED_LABELS, DESCRIPTIONS, FakeFlag, \
     FLAT_DOCSTRING, FLAT_SUMMARY, HIDDEN_LABELS, NoDocConfig, real_press, \
-    real_texts, real_ticks, stub_editor, stub_press, stub_texts, stub_window
+    real_texts, real_ticks, stub_editor, stub_keys, stub_press, stub_texts
 
 
 def _described_stub() -> EditorWidgets:
@@ -80,7 +80,7 @@ def test_stub_explain_key(stub_tk: None, sequence: str) -> None:
     """Test either key of the explain action does what its button does."""
     _ = stub_tk
     _described_stub()
-    assert stub_window().bindings[sequence]() == 'break'
+    assert stub_keys()[sequence]() == 'break'
     assert stub_texts(packed_only=True) == HIDDEN_LABELS
 
 
@@ -141,7 +141,7 @@ def test_stub_tick_after_key(stub_tk: None) -> None:
     """
     _ = stub_tk
     _described_stub()
-    stub_window().bindings['<F1>']()
+    stub_keys()['<F1>']()
     assert not FakeFlag.created[0].get()
     assert stub_texts(packed_only=True) == HIDDEN_LABELS
 

@@ -9,8 +9,8 @@ import asyncio
 import pytest
 from textual.widgets import Static
 from edit_cfg_json import EditModel, Emphasis
-from edit_cfg_json_textual.textual_editor import EditorApp, \
-    EXPLAIN_COMMAND, HIDE_COMMAND
+from edit_cfg_json_textual.textual_editor import EditorApp
+from edit_cfg_json_textual.textual_panel import EXPLAIN_COMMAND, HIDE_COMMAND
 from edit_cfg_json_textual.textual_look import DOCSTRING_ID, \
     EMPHASIS_CLASSES, LOAD_ID, SAVE_ID, VERDICT_ID, description_id, \
     mark_id, value_id
@@ -18,7 +18,7 @@ from example.e01_flat_config import FlatConfig
 from .helpers import ABOUT_NAME, ANSWER_INDEX, DESCRIPTIONS, \
     EXPLAIN_ALT_KEY, EXPLAIN_KEY, FILLED_REPORT, NAME_INDEX, NoDocConfig, \
     SAVE_KEY, TEXT_KIND, VALIDATE_KEY, WHOLE_KIND, described_app, \
-    description_of, docstring_of, field_of
+    description_of, docstring_of, field_of, panel_of
 
 
 async def _explained(*keys: str) -> tuple[str, bool, str]:
@@ -147,8 +147,7 @@ async def _explain_named(*keys: str) -> tuple[str, list[str]]:
         named = {binding.action: binding.description
                  for (_, binding, _, _) in app.screen.active_bindings.values()}
         return (named['explain'],
-                [command.title
-                 for command in app.get_system_commands(app.screen)])
+                [entry.name for entry in panel_of(app).command_entries()])
 
 
 def test_explain_named() -> None:

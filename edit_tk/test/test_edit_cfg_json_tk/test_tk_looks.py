@@ -21,7 +21,7 @@ from edit_cfg_json_tk.tk_look import EMPHASIS_COLOURS, FIELD_BACKGROUND, \
 from example.e01_flat_config import FlatConfig
 from .helpers import ABOUT_NAME, DESCRIPTIONS, FakeWidget, FILLED_REPORT, \
     FLAT_DOCSTRING, FLAT_SUMMARY, real_press, real_ticks, stub_editor, \
-    stub_press, STUB_BODY_HEIGHT, TEXT_KIND
+    stub_keys, stub_press, STUB_BODY_HEIGHT, TEXT_KIND
 
 WHEEL_UP = -1
 """How far one turn of the wheel away from the user scrolls the body."""
@@ -102,17 +102,17 @@ def test_stub_body_height(stub_tk: None) -> None:
 def test_stub_wheel_scrolls(stub_tk: None) -> None:
     """Test the wheel scrolls the body, whichever way it is reported.
 
-    The bindings are on the window and not on the canvas, because a wheel
-    event goes to the widget under the pointer and the pointer is usually
-    over a field or a label of the body.
+    The bindings are everywhere the editor reaches and not on the canvas,
+    because a wheel event goes to the widget under the pointer and the
+    pointer is usually over a field or a label of the body.
     """
     _ = stub_tk
     stub_editor(_described_model())
-    window = FakeWidget.created[0]
+    wheel = stub_keys()
     canvas = _stub_canvas()
-    window.bindings['<Button-4>']()
+    wheel['<Button-4>']()
     assert canvas.scrolled == WHEEL_UP
-    window.bindings['<Button-5>']()
+    wheel['<Button-5>']()
     assert canvas.scrolled == 0
 
 

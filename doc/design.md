@@ -1575,9 +1575,10 @@ have the configuration that was there.
 
 ## 8. The UI backend contract
 
-The end goal is an editor embeddable in an application that already runs
-its own Textual or Tk event loop. That costs nothing if it is decided
-now, and is a rewrite if it is not.
+The editor is embeddable in an application that already runs its own Textual
+or Tk event loop. That cost nothing because it was decided before anything was
+built, and it would have been a rewrite otherwise; section 8.2.5 is what it
+really came to.
 
 - The model is a standalone object. It does no I/O in its constructor
   and owns no event loop.
@@ -1645,11 +1646,14 @@ it was run on would be that launcher, and the name is kept free for it.
 
 ### 8.2 Embedding in an application that already runs a UI
 
-Embedding is out of v1 scope (section 11) and is **designed here before it
-is built**, because two of its questions have answers that are cheaper to
-give now than to retrofit: which toolkit instance the editor attaches to,
-and where in an existing window it is placed. What embedding asks of the
-design that is here is recorded in section 8.2.5; everything else is additive.
+An application that already runs Tk or Textual mounts the editor in a widget
+of its own and goes on running its own event loop. It is implemented, and it
+was **designed here before it was built**, because two of its questions have
+answers that are cheaper to give early than to retrofit: which toolkit
+instance the editor attaches to, and where in an existing window it is placed.
+What embedding asked of the design that was already here is recorded in
+section 8.2.5, and it turned out to be two rules and nothing else; everything
+the rest of this section names is an addition.
 
 The two questions are the same in both toolkits, and so are the answers.
 
@@ -1706,11 +1710,19 @@ package**, additive to the protocol rather than a change to it:
 class TkEditorPanel:
     def __init__(self, parent: tkinter.Misc, model: EditModel, *,
                  on_close: Optional[Callable[[], None]] = None) -> None: ...
-    def close(self) -> None: ...
+    def close(self, ask_about_unsaved: bool = True) -> None: ...
 
 # edit_cfg_json_textual
-class EditorPanel(Widget): ...    # mounted into an area
-class EditorScreen(Screen): ...   # pushed as a screen of its own
+class EditorPanel(Widget):        # mounted into an area
+    def __init__(self, model: EditModel, *,
+                 on_close: Optional[Callable[[], None]] = None) -> None: ...
+    def close(self, ask_about_unsaved: bool = True) -> None: ...
+
+class EditorScreen(Screen):       # pushed as a screen of its own
+    def __init__(self, model: EditModel, *,
+                 on_close: Optional[Callable[[], None]] = None) -> None: ...
+    @property
+    def panel(self) -> EditorPanel: ...
 ```
 
 `on_close` is how the application learns the session ended; the outcome is
@@ -1718,6 +1730,31 @@ class EditorScreen(Screen): ...   # pushed as a screen of its own
 (section 8). Neither `edit()` gains an argument: an embedded editor has no
 moment at which it can return what was saved, so the wrapper that exists to
 return it has nothing to offer here.
+
+**`close` is the application's way out, and it says whether the user is
+asked.** The editor's own Close and its quit key are that same call with the
+default, so the question of section 7.2 is put in the same words and answered
+in the same dialog whichever of the three ended the session. Whether it is put
+at all is the *application's* to decide and not the editor's, because only the
+application knows what it is closing the editor for: a menu entry that closes
+the editor should ask, and an application that is already putting a question
+of its own to the user has one question too many. That is the same line
+section 9.6 draws — the editor knows for itself whether anything is unsaved,
+and the application knows what else it is about to ask.
+
+**It answers with nothing, and `on_close` is the whole answer.** A Tk panel
+could say synchronously whether it really closed, and a Textual one could not:
+its question is a modal screen with a callback, so there is no moment at which
+`close` could know. One answer that both backends can give is worth more than
+a return value in one of them.
+
+**Closing again once the session has ended does nothing**, so an application
+need not keep track of whether the user has closed the editor already.
+
+**Only what the editor created is destroyed.** The Tk panel builds one frame
+of its own inside the widget it was given and destroys that frame; the Textual
+panel removes itself. What the application had on the screen beside the editor
+is untouched, which is section 8.2.2 acted on rather than only stated.
 
 #### 8.2.4 What Textual has to be split into
 
@@ -1738,7 +1775,35 @@ body with its `DEFAULT_CSS` and its instance bindings, `EditorScreen`
 adds the header, the footer and the palette entries, and `EditorApp`
 composes the screen. One body, so the two backends cannot drift and the
 CSS and the bindings exist once. The model title moves from `App.title`
-into a label of the panel, which is what the Tk backend already does.
+into a label of the panel, which is what the Tk backend already does; the
+application title becomes the name of the configuration class, which is what
+`TkEditor` puts in the title bar of the window it owns.
+
+Three things about the split had to be learnt from Textual rather than from a
+design, and are recorded because none of them is obvious:
+
+- **A screen offers palette entries through `COMMANDS` and not through
+  `get_system_commands`.** That method is `App`'s alone, so the entries become
+  a `Provider` of the screen, which asks the panel for them. Asking rather
+  than holding a table is what keeps the two entries whose name says what the
+  next press will do — Explain and Fold all — true at the moment the palette
+  is opened.
+- **A widget styles *itself* by its type name.** Textual scopes the style
+  sheet a widget declares to that widget and what is inside it, so a class
+  selector in it reaches the inside and never the widget the sheet belongs to.
+  The sheets therefore leave a mark where a class name belongs and each widget
+  fills in its own, which is what `ModalScreen` does with its own name too.
+- **The question screens carry their own sheet.** They are screens of the
+  application and never a part of the editor widget, so a sheet the panel
+  declared could not reach them and an application that mounted the editor
+  would have none of the editor's at all.
+
+**What the split costs an application that shows the editor and nothing else
+is one thing, and it is deliberate.** The footer names the actions of the
+editor while the focus is inside the editor, because that is where the
+bindings now are. That is the same rule embedding wants, and Textual focuses
+the first focusable widget of a screen, which in this editor is inside the
+panel.
 
 #### 8.2.5 What embedding asks of the design that is here
 
@@ -1771,30 +1836,62 @@ into the model would never run. The fields therefore name their parent. That
 is as true of a window the editor owns as of one it shares, so it is not a
 rule that waits for embedding.
 
-#### 8.2.7 Left open until embedding is built
+#### 8.2.7 What the Tk keys are bound on
 
-- **Which widget the Tk key bindings are made on.** They are made on the
-  toplevel, which is right for a window the editor owns and wrong for one
-  it shares: the editor would claim keys across the whole application
-  window. A Tk `Frame` does not take the focus, so the answer is one of
-  binding on each field, giving the panel a `bindtag` of its own, or
-  making it focusable. Textual has no equivalent question, because a
-  widget's bindings already dispatch only from the focused widget upwards.
+**A bind tag of the editor's own**, put on the widget the editor was built
+below and on every widget it created inside it. That is the answer to a
+question this document left open while the keys were bound on the toplevel,
+which is right for a window the editor owns and wrong for one it shares: the
+editor would claim keys across the whole application window.
 
-  **The mouse wheel is bound on the same widget and is the same question.** A
-  wheel event goes to the widget under the pointer, which is usually a field or
-  a label inside the body rather than the canvas that scrolls, so binding the
-  canvas alone would leave the wheel working over the empty parts and nowhere
-  else. Whatever answers the keys answers this too.
-- **Whether the core names the mounting contract.** A `Protocol` for it
-  would let a third-party backend implement the same shape, as
-  `EditorBackend` does for the modal one. It is additive whenever it is
-  added, so it waits until there is a second implementation to check it
-  against — a protocol with one implementation is a guess.
-- **Whether `Settings` gains anything.** An embedded editor may want its
-  bindings not to be priority bindings. That is an application decision of
-  exactly the kind section 9 is for, and it is an added attribute, which
-  breaks no application.
+It is one rule for both ways of running the editor rather than two, which is
+what makes it worth the machinery: **the keys of the editor reach the widget it
+was given and everything inside it, and nothing else.** A backend that owns its
+window is given the window, so it keeps exactly the keys it always had; a panel
+is given the frame it built, so it claims nothing of the application. The
+alternatives — binding on each field, or making the panel focusable — were
+rejected because the first leaves a key dead the moment the focus is on a
+button and the second puts the editor in the application's tab order, which is
+a decision about the application's window that section 8.2.2 gives to the
+application.
+
+**The mouse wheel is bound the same way, and that is the same answer.** A
+wheel event goes to the widget under the pointer, which is usually a field or
+a label inside the body rather than the canvas that scrolls, so binding the
+canvas alone would leave the wheel working over the empty parts and nowhere
+else.
+
+**Where the tag goes in each list is `Settings.priority_keys`.** Tk offers the
+tags of a widget in the order they are in and a handler that answers `break`
+stops the walk, so the tag first is the editor before the widget with the
+focus, and the tag last is the editor after it. Section 9.1.
+
+**The tag is given up when the editor closes**, because a bind tag is a name
+in the Tcl interpreter and outlives the widgets that carried it: an editor
+that had been taken off a window would otherwise leave its callbacks, and the
+model they hold, for as long as the application runs.
+
+Textual needed none of this, because a widget's bindings already dispatch only
+from the focused widget upwards.
+
+#### 8.2.7.1 The two questions that are answered with a no
+
+- **The core does not name the mounting contract.** A `Protocol` for it would
+  let a third-party backend implement the same shape, as `EditorBackend` does
+  for the modal one, and it is additive whenever it is added. There are now two
+  implementations and they do not share a shape: the Tk one is told the parent
+  it builds into, and the Textual one is a widget that the application mounts
+  where it likes and never hears of a parent. A protocol over two things that
+  differ in their first argument would be a protocol over one of them with the
+  other one written down beside it. It waits for a third implementation, or for
+  the first backend somebody else writes.
+- **`Settings` gains one attribute and it is not about mounting.**
+  `priority_keys` is what an embedded editor really asked for, and it is about
+  keys rather than about panels: an application that has taken one of these
+  combinations for a widget of its own inside the area the editor is in says so
+  with it. Everything else an embedded editor might have wanted from `Settings`
+  turned out to be something the editor knows for itself, which section 9.6
+  keeps out.
 
 #### 8.2.8 Facts checked against the pinned versions
 
@@ -1802,13 +1899,21 @@ Checked against `textual` 8.2.8 and the Python 3.14 `tkinter` in `./venv`,
 because each of them decides a paragraph above: `App.run` calls
 `asyncio.run`/`run_until_complete`; `App._check_bindings` walks
 `reversed(screen._binding_chain)` on the priority pass, so widget priority
-bindings are honoured; `active_app` is in `textual._context` and private;
-`COMMANDS` is declared on `Screen` and `App` and not on `Widget`;
+bindings are honoured; `Screen.refresh_bindings` builds that chain from
+`focused.ancestors_with_self`, so a widget's bindings are active only while
+the focus is inside it; `active_app` is in `textual._context` and private;
+`COMMANDS` is declared on `Screen` and `App` and not on `Widget`, and
+`get_system_commands` is declared on `App` alone;
 `DOMNode.__init__` gives every widget its own `_bindings`, so the
-per-instance binding the App does today works on a widget too; `Widget`
-warns that a `CSS` class variable is ignored; and
+per-instance binding the App does today works on a widget too;
+`DOMNode.check_action` and `DOMNode.refresh_bindings` are on every widget and
+not only on the application; `Widget`
+warns that a `CSS` class variable is ignored; a scoped `DEFAULT_CSS` matches
+the widget it belongs to by its type name and not by a style class the widget
+carries, which `ModalScreen.DEFAULT_CSS` relies on as well;
 `tkinter.Variable.__init__` calls `_get_default_root('create variable')`
-when it is given no master.
+when it is given no master; and `Misc.bindtags`, `Misc.bind_class` and
+`Misc.unbind_class` are what section 8.2.7 is built on.
 
 ### 8.3 A ready-to-run program in each editor package
 
@@ -1978,6 +2083,7 @@ class Settings:
     extension_enforced: bool = False
     backup_suffix: Optional[str] = '.bak'
     backup_count: int = 1
+    priority_keys: bool = True
     confirm_overwrite: bool = True
 ```
 
@@ -2023,6 +2129,22 @@ find everywhere and is therefore not the editor's to spend.
 `save_as` already records above: a terminal that encodes a control letter as a
 single byte has nowhere to put the shift, so that combination would arrive as
 `ctrl+f` and the fold key would run the search. See section 9.7.
+
+`priority_keys` is the one attribute that is not about *which* keys the editor
+has but about **how hard it holds them**. True is the default and is what an
+editor wants of its own keys: the editor is offered a combination before the
+widget that has the focus, so a user who presses Save while typing into a
+field means Save. False is for an application that has taken one of these
+combinations for a widget of its own inside the part of the window the editor
+is in; the widget with the focus is then offered the key first and the editor
+gets what is left of it.
+
+It is the one attribute that only an **embedded** editor has a reason to
+change (section 8.2), which is why it took until then to be added, and it is
+the same promise again: an attribute added later breaks no application. It is
+also a different answer from an empty tuple in `ActionSettings` and both are
+worth having — that one takes a key away from the editor altogether, and this
+one leaves the editor the key it did not get first.
 
 ### 9.2 Key combinations
 
@@ -2248,6 +2370,8 @@ In scope, and implemented:
 - the file a save writes over kept, and a question before it is written
   (section 7.3)
 - modal `edit()` with both backends
+- the editor mounted in a window an application already owns, in both
+  toolkits, with its keys reaching the editor and nothing else (section 8.2)
 
 Deliberately out of scope for v1, and therefore not implemented:
 
@@ -2261,9 +2385,9 @@ Deliberately out of scope for v1, and therefore not implemented:
   An ordinary dict member is not out of scope but out of reach: its keys
   are the ones its class declares and `config_as_json` refuses any other,
   which section 4.9 records.
-- **Embedding.** The model is designed for it and section 8.2 designs the
-  rest of it; only the modal wrapper ships first.
 - **The draft file** of section 7.1.
+- **A `Protocol` in the core for the mounting contract**, which section
+  8.2.7.1 leaves for a third implementation of it to check against.
 
 Not a limitation but a permanent decision: no introspection of validator
 constraints, so no automatically generated dropdowns or spin ranges.
@@ -2303,3 +2427,15 @@ validators.
   keep `run_editor` honest in one backend and is impossible in the other,
   which is the worst place for a difference between them to be. Section
   8.2.3.
+- **Tk key bindings on each field the editor creates.** It scopes the keys
+  the way embedding needs, and it leaves a key dead the moment the focus is on
+  a button, which is where a Tk focus lands as soon as anything is pressed.
+  A bind tag scopes the same way and covers everything the editor built.
+  Section 8.2.7.
+- **A focusable Tk panel with the bindings on it.** It would put the editor
+  into the application's tab order, which is a decision about the
+  application's own window that section 8.2.2 gives to the application.
+- **`close()` answering whether the editor really closed.** Useful in Tk and
+  impossible in Textual, whose question is a modal screen with a callback. One
+  answer both backends can give — `on_close` — is worth more than a return
+  value in one of them. Section 8.2.3.

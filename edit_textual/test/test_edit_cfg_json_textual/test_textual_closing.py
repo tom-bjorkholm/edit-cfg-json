@@ -12,7 +12,7 @@ each answer does what it says.
 # MIT License
 
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 import asyncio
 from textual.widgets import Label
 from edit_cfg_json import EditModel
@@ -158,3 +158,65 @@ def test_question_is_modal() -> None:
     assert depth == 2
     assert running
     assert verdict == 'validation: not validated'
+
+
+async def _own_quit(typed: bool) -> Closing:
+    """Run the application and end it the way Textual itself would.
+
+    `action_quit` is the action of Textual and not of the editor: its command
+    palette offers it, and its own key binding runs it. So the editor answers
+    for it too, because a way out that dropped the changes without a word
+    would be the one thing an editor must not do.
+
+    Args:
+        typed: Whether the stand-in user changes a value first.
+
+    Returns:
+        Whether the question was asked and whether the editor is still there.
+    """
+    app = EditorApp(EditModel(FlatConfig()))
+    async with app.run_test() as pilot:
+        if typed:
+            field_of(app, 'answer').value = TYPED_ANSWER
+            await pilot.pause()
+        await app.action_quit()
+        await pilot.pause()
+        return Closing(asked=bool(app.screen.query(f'#{ASK_BOX_ID}')),
+                       running=app.is_running)
+
+
+def test_own_quit_asks() -> None:
+    """Test the quit of Textual itself asks what the editor's Close asks."""
+    closing = asyncio.run(_own_quit(typed=True))
+    assert closing.asked
+    assert closing.running
+
+
+def test_own_quit_is_quiet() -> None:
+    """Test it ends the session without a word when nothing can be lost."""
+    closing = asyncio.run(_own_quit(typed=False))
+    assert not closing.asked
+    assert not closing.running
+
+
+def test_own_quit_turned_off() -> None:
+    """Test that quit is turned off while a question of the editor is open.
+
+    A priority binding is offered the key from the whole binding chain and not
+    from the part of it above the last modal screen, so a question is only
+    really modal if what is under it says so. The editor answers for its own
+    actions and the application answers for this one.
+    """
+    async def while_asking() -> tuple[Optional[bool], Optional[bool]]:
+        """Ask the question, and see what the quit action says twice."""
+        app = EditorApp(EditModel(FlatConfig()))
+        async with app.run_test() as pilot:
+            before = app.check_action('quit', ())
+            field_of(app, 'answer').value = TYPED_ANSWER
+            await pilot.pause()
+            await pilot.press(QUIT_KEY)
+            await pilot.pause()
+            return before, app.check_action('quit', ())
+    before, during = asyncio.run(while_asking())
+    assert before
+    assert during is None

@@ -8,13 +8,32 @@ from pathlib import Path
 import asyncio
 from textual.widgets import Label
 from edit_cfg_json import ActionSettings, EditModel, Settings
-from edit_cfg_json_textual.textual_editor import EditorApp, HIDE_COMMAND, \
-    SAVE_AS_COMMAND, SAVE_COMMAND, VALIDATE_COMMAND
+from edit_cfg_json_textual.textual_editor import EditorApp
 from edit_cfg_json_textual.textual_look import ASK_BOX_ID
+from edit_cfg_json_textual.textual_panel import HIDE_COMMAND, \
+    SAVE_AS_COMMAND, SAVE_COMMAND, VALIDATE_COMMAND
 from example.e01_flat_config import FlatConfig
 from .helpers import NO_FILE_TEXT, SAVE_AS_KEY, \
-    VALIDATE_ALT_KEY, VALIDATE_KEY, VALID_VERDICT, save_as, saving_of, \
-    verdict_of
+    VALIDATE_ALT_KEY, VALIDATE_KEY, VALID_VERDICT, panel_of, save_as, \
+    saving_of, verdict_of
+
+
+async def _editor_commands(model: EditModel) -> list[str]:
+    """Run an application and read what the editor offers its palette.
+
+    They come from the editor and not from the application, because an
+    application that mounted this editor in a window of its own has a palette
+    of its own and would otherwise be made to name actions it did not write.
+
+    Args:
+        model: Model to run the application on.
+
+    Returns:
+        The name of every action the editor offers as things stand.
+    """
+    app = EditorApp(model)
+    async with app.run_test():
+        return [entry.name for entry in panel_of(app).command_entries()]
 
 
 def test_palette_has_actions() -> None:
@@ -23,13 +42,7 @@ def test_palette_has_actions() -> None:
     Every terminal can reach the palette, which is what makes it the answer
     for a key combination a terminal cannot encode.
     """
-    async def names() -> list[str]:
-        """Run the application and read what its palette would offer."""
-        app = EditorApp(EditModel(FlatConfig()))
-        async with app.run_test():
-            return [command.title
-                    for command in app.get_system_commands(app.screen)]
-    offered = asyncio.run(names())
+    offered = asyncio.run(_editor_commands(EditModel(FlatConfig())))
     assert VALIDATE_COMMAND in offered
     assert SAVE_COMMAND in offered
     assert SAVE_AS_COMMAND in offered
@@ -109,8 +122,7 @@ def test_action_without_key(tmp_path: Path) -> None:
             await pilot.press(SAVE_AS_KEY)
             await pilot.pause()
             asked = bool(app.screen.query(f'#{ASK_BOX_ID}'))
-            return ([command.title
-                     for command in app.get_system_commands(app.screen)],
+            return ([entry.name for entry in panel_of(app).command_entries()],
                     asked, _shownkey_settings(app))
     commands, asked, named = asyncio.run(offered())
     assert SAVE_AS_COMMAND in commands

@@ -20,7 +20,7 @@ from .helpers import ANSWER_INDEX, DESCRIPTIONS, EXPECTED_VALUES, \
     FILLED_MARK, FILLED_REPORT, LOAD_MESSAGE, NAME_INDEX, NARROW_SIZE, \
     QUIT_KEY, REWRITTEN_MARK, REFUSED_VERDICT, ROOMY_SIZE, SHORT_SIZE, \
     UNKNOWN_VERDICT, VALIDATE_ALT_KEY, VALIDATE_KEY, VALID_VERDICT, \
-    field_of, mark_of, model_value, verdict_of
+    field_of, mark_of, model_value, title_of, verdict_of
 
 LOAD_REASON = 'supplied for a file of an older format'
 """What the model of the test below says the load did to one member.
@@ -46,13 +46,13 @@ async def _drive_app() -> tuple[str, dict[str, str], str, bool]:
     """Run the application headlessly and quit it with its key binding.
 
     Returns:
-        The application title, the shown value of every member, the shown
-        validation text, and whether the application was still running after
-        the quit key was pressed.
+        The label of the configuration, the shown value of every member, the
+        shown validation text, and whether the application was still running
+        after the quit key was pressed.
     """
     app = EditorApp(EditModel(FlatConfig()))
     async with app.run_test() as pilot:
-        title = app.title
+        title = title_of(app)
         shown = {name: field_of(app, name).value for name in EXPECTED_VALUES}
         verdict = verdict_of(app)
         await pilot.press(QUIT_KEY)
@@ -67,7 +67,7 @@ async def _type_into_answer(key: str) -> tuple[JsonType, str]:
         key: Key to press while the field of the answer member has focus.
 
     Returns:
-        The value the buffer holds for that member, and the title.
+        The value the buffer holds for that member, and the label.
     """
     model = EditModel(FlatConfig())
     app = EditorApp(model)
@@ -76,7 +76,7 @@ async def _type_into_answer(key: str) -> tuple[JsonType, str]:
         await pilot.pause()
         await pilot.press(key)
         await pilot.pause()
-        return model_value(model, 'answer'), app.title
+        return model_value(model, 'answer'), title_of(app)
 
 
 async def _validate_with(member_name: str, text: str,
@@ -122,7 +122,7 @@ async def _edit_after_validate() -> str:
 
 
 def test_app_shows_model() -> None:
-    """Test the application is named after the class and shows every row."""
+    """Test the editor is labelled with the class and shows every row."""
     title, shown, verdict, still_running = asyncio.run(_drive_app())
     assert title == 'FlatConfig'
     assert shown == EXPECTED_VALUES

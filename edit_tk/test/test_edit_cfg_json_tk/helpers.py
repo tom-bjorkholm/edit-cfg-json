@@ -18,7 +18,7 @@ backends and by the example itself.
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import ClassVar, cast
+from typing import ClassVar, Optional, cast
 import json
 import tkinter
 from tkinter import messagebox
@@ -164,21 +164,125 @@ STUB_CANVAS_ITEM = 7
 """Identifier that the stub gives the one item it is asked to create."""
 
 
-class FakeWidget:
+BORN_TAGS = ('widget', 'FakeWidget', 'all')
+"""The bind tags a stub widget is born with.
+
+Real Tk gives every widget its own name, its class, its window and `all`, in
+that order. What the editor does with them is add a tag of its own at one end
+or the other, so what the stub needs of them is that there are some and that
+their order can be read.
+"""
+
+
+class FakeCanvas:
+    """The part of the stand-in that stands in for a Tkinter canvas.
+
+    One stub serves every widget class the editor creates, and the scrolling
+    part of the editor is the one place where the methods of a particular
+    class are really used. They are here so that what a stub widget is stays
+    readable beside them.
+    """
+
+    def __init__(self) -> None:
+        """Start with a canvas that has not been scrolled."""
+        self.scrolled = 0
+
+    def create_window(self, *place: int, **options: object) -> int:
+        """Put a widget on this canvas, as a real Tk canvas does.
+
+        The widget counts as being in the layout afterwards, because that is
+        what a canvas item is: the scrolling part of the editor is on a
+        canvas and not packed, and everything in it would otherwise be
+        reported as hidden.
+        """
+        _ = place
+        window = options.get('window')
+        if isinstance(window, FakeWidget):
+            window.packed = True
+        return STUB_CANVAS_ITEM
+
+    def itemconfigure(self, item: int, **options: object) -> None:
+        """Change options of one item of this canvas."""
+        _ = (item, options)
+
+    def bbox(self, *what: str) -> tuple[int, int, int, int]:
+        """Return the area the contents of this canvas take up."""
+        _ = what
+        return (0, 0, 0, STUB_BODY_HEIGHT)
+
+    def yview(self, *arguments: str) -> None:
+        """Scroll this canvas, as its scrollbar asks it to."""
+        _ = arguments
+
+    def yview_scroll(self, number: int, what: str) -> None:
+        """Record how far the wheel scrolled this canvas."""
+        assert what == 'units'
+        self.scrolled += number
+
+    def set(self, *fractions: str) -> None:
+        """Show how much of the contents is visible, as a scrollbar does."""
+        _ = fractions
+
+
+class FakeWidget(FakeCanvas):
     """Recording stand-in for a Tkinter widget in the stubbed tests."""
 
     created: ClassVar[list['FakeWidget']] = []
     """Every stub widget created since the list was last cleared."""
+
+    tag_bindings: ClassVar[dict[str, dict[str, Callable[..., object]]]] = {}
+    """What is bound on each bind tag, standing in for the interpreter.
+
+    A bind tag is a name in the Tcl interpreter and not a widget, which is why
+    this is one table for the whole process and not an attribute of a widget.
+    """
+
+    focused: ClassVar[list['FakeWidget']] = []
+    """Every widget that has been given the keyboard focus, in order.
+
+    The focus belongs to the interpreter and not to a widget in real Tk
+    either: exactly one widget has it, and it is the last one that asked.
+    """
 
     def __init__(self, parent: object = None, **options: object) -> None:
         """Record this widget together with its parent and its options."""
         self.parent = parent
         self.options = options
         self.bindings: dict[str, Callable[..., object]] = {}
+        self.tags: tuple[str, ...] = BORN_TAGS
         self.packed = False
         self.packing: dict[str, object] = {}
-        self.scrolled = 0
+        super().__init__()
         FakeWidget.created.append(self)
+
+    def bindtags(self, tags: Optional[tuple[str, ...]] = None
+                 ) -> Optional[tuple[str, ...]]:
+        """Read or replace the bind tags of this widget, as Tk does.
+
+        Args:
+            tags: The tags this widget is to carry, or None to read them.
+
+        Returns:
+            The tags this widget carries, and None when it was given some.
+        """
+        if tags is None:
+            return self.tags
+        self.tags = tuple(tags)
+        return None
+
+    def bind_class(self, tag: str, sequence: str,
+                   callback: Callable[..., object]) -> str:
+        """Record one binding made on a bind tag, as a real widget does."""
+        FakeWidget.tag_bindings.setdefault(tag, {})[sequence] = callback
+        return 'stub class binding'
+
+    def unbind_class(self, tag: str, sequence: str) -> None:
+        """Take one binding off a bind tag, as a real widget does."""
+        FakeWidget.tag_bindings.get(tag, {}).pop(sequence, None)
+
+    def focus_set(self) -> None:
+        """Record that this widget has been given the keyboard focus."""
+        FakeWidget.focused.append(self)
 
     @property
     def shown(self) -> bool:
@@ -249,42 +353,6 @@ class FakeWidget:
     def winfo_reqwidth(self) -> int:
         """Return a width, standing in for one that Tk would have laid out."""
         return STUB_BODY_WIDTH
-
-    def create_window(self, *place: int, **options: object) -> int:
-        """Put a widget on this canvas, as a real Tk canvas does.
-
-        The widget counts as being in the layout afterwards, because that is
-        what a canvas item is: the scrolling part of the editor is on a
-        canvas and not packed, and everything in it would otherwise be
-        reported as hidden.
-        """
-        _ = place
-        window = options.get('window')
-        if isinstance(window, FakeWidget):
-            window.packed = True
-        return STUB_CANVAS_ITEM
-
-    def itemconfigure(self, item: int, **options: object) -> None:
-        """Change options of one item of this canvas."""
-        _ = (item, options)
-
-    def bbox(self, *what: str) -> tuple[int, int, int, int]:
-        """Return the area the contents of this canvas take up."""
-        _ = what
-        return (0, 0, 0, STUB_BODY_HEIGHT)
-
-    def yview(self, *arguments: str) -> None:
-        """Scroll this canvas, as its scrollbar asks it to."""
-        _ = arguments
-
-    def yview_scroll(self, number: int, what: str) -> None:
-        """Record how far the wheel scrolled this canvas."""
-        assert what == 'units'
-        self.scrolled += number
-
-    def set(self, *fractions: str) -> None:
-        """Show how much of the contents is visible, as a scrollbar does."""
-        _ = fractions
 
     def destroy(self) -> None:
         """Forget this widget and everything below it, as Tk does.
@@ -543,8 +611,32 @@ def answer_question(monkeypatch: pytest.MonkeyPatch,
 
 
 def stub_window() -> FakeWidget:
-    """Return the stub widget that the bindings of the editor are made on."""
+    """Return the stub widget that the editor was built below."""
     return FakeWidget.created[0]
+
+
+def stub_tags(widget: FakeWidget) -> tuple[str, ...]:
+    """Return the bind tags of one stub widget.
+
+    Reading them is what a stubbed test does about the keys of the editor
+    reaching one widget and not another, and the stub answers with None when
+    it is being *given* tags, which is what this asks away.
+    """
+    tags = widget.bindtags()
+    assert tags is not None
+    return tags
+
+
+def stub_keys() -> dict[str, Callable[..., object]]:
+    """Return what the editor bound in the part of the window it reaches.
+
+    The keys and the mouse wheel are bound on a bind tag of the editor's own
+    rather than on a widget, so that an editor mounted in a window an
+    application owns does not claim the keys of the whole window. This is
+    what a test presses instead of a widget.
+    """
+    assert FakeWidget.tag_bindings
+    return list(FakeWidget.tag_bindings.values())[-1]
 
 
 def real_ticks(widget: tkinter.Misc) -> list[bool]:

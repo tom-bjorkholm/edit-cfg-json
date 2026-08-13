@@ -175,10 +175,10 @@ browsed through `reports/index.html`.
 
 ## Test summary
 
-- Test result: 1474 passed, 3 deselected in 37s
+- Test result: 1521 passed, 3 deselected in 43s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
 - Built version(s): 0.0.3
-- Build and test using Python 3.14.6
+- Build and test using Python 3.14.7

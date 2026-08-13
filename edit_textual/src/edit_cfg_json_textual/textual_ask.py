@@ -33,7 +33,7 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label
 from edit_cfg_json_textual.textual_look import ANSWER_CLASS, ASK_BOX_ID, \
-    QUESTION_CLASS, bind_action
+    QUESTION_CSS, TYPE_MARK, bind_action
 
 CANCEL_COMMAND = 'Cancel'
 """Name of the action that leaves a question of the editor unanswered."""
@@ -70,6 +70,15 @@ have to work that out from the question.
 class AskScreen(ModalScreen[Optional[str]]):
     """Ask one question, and give back None when it is left unanswered."""
 
+    DEFAULT_CSS: ClassVar[str] = QUESTION_CSS.replace(TYPE_MARK, 'AskScreen')
+    """How this screen is laid out. See `QUESTION_CSS`.
+
+    It is declared on the screen rather than on the application, because the
+    application may be one that mounted this editor in a window of its own and
+    would then have no style sheet of this editor's at all. The name of the
+    class is written into it, because a widget styles itself by its type name.
+    """
+
     def __init__(self, prompt: str, field_id: str, cancel_keys: Sequence[str],
                  answer: str = '') -> None:
         """Ask the question, with the field holding what it starts from.
@@ -87,7 +96,7 @@ class AskScreen(ModalScreen[Optional[str]]):
             answer: What the field starts out holding, which is what makes
                 changing an answer a matter of changing a few characters.
         """
-        super().__init__(classes=QUESTION_CLASS)
+        super().__init__()
         self._prompt = prompt
         self._start = answer
         self._field_id = field_id
@@ -143,6 +152,10 @@ class ConfirmScreen(ModalScreen[bool]):
     and Yes beside either of them would be a word to work out rather than read.
     """
 
+    DEFAULT_CSS: ClassVar[str] = QUESTION_CSS.replace(TYPE_MARK,
+                                                      'ConfirmScreen')
+    """How this screen is laid out, which is how the one above it is."""
+
     AUTO_FOCUS: ClassVar[str] = f'#{NO_ID}'
     """The control that the screen opens with, which is the safe one.
 
@@ -164,7 +177,7 @@ class ConfirmScreen(ModalScreen[bool]):
             yes_text: What the control that agrees to the question does.
             no_text: What the control that leaves everything as it is does.
         """
-        super().__init__(classes=QUESTION_CLASS)
+        super().__init__()
         self._question = question
         self._yes_text = yes_text
         self._no_text = no_text

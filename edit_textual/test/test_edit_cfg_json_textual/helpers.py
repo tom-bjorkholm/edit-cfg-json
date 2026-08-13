@@ -27,8 +27,10 @@ from textual.widgets import Input, Label, Static
 from edit_cfg_json import ActionSettings, Descriptions, EditModel, LoadReport
 from edit_cfg_json_textual.textual_editor import EditorApp
 from edit_cfg_json_textual.textual_look import DOCSTRING_ID, NAME_CLASS, \
-    SAVE_AS_ID, SAVE_ID, VERDICT_ID, description_id, diagnostic_id, \
+    SAVE_AS_ID, SAVE_ID, TITLE_ID, VERDICT_ID, description_id, diagnostic_id, \
     mark_id, value_id
+from edit_cfg_json_textual.textual_panel import EditorPanel
+from edit_cfg_json_textual.textual_screen import EditorScreen
 from example.e01_flat_config import FlatConfig
 
 DEFAULT_ACTIONS = ActionSettings()
@@ -168,6 +170,28 @@ def mark_of(app: EditorApp, member_name: str) -> str:
     """Return the mark that the application shows for one member."""
     widget = app.query_one(f'#{mark_id(index_of(app, member_name))}', Static)
     return str(widget.content)
+
+
+def panel_of(app: EditorApp) -> EditorPanel:
+    """Return the editor that the application is showing.
+
+    The editor is a widget of a screen rather than the application itself, so
+    that the same editor serves an application that mounts it in a window of
+    its own. That is what these tests reach it through.
+    """
+    screen = app.screen
+    assert isinstance(screen, EditorScreen)
+    return screen.panel
+
+
+def title_of(app: EditorApp) -> str:
+    """Return the label that names the configuration being edited.
+
+    It is a widget of the editor and not the title of the application,
+    because an editor mounted in a window an application owns has no business
+    writing there.
+    """
+    return str(app.query_one(f'#{TITLE_ID}', Static).content)
 
 
 def verdict_of(app: EditorApp) -> str:

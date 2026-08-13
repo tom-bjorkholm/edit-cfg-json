@@ -9,5 +9,6 @@ that nothing has to be imported from an internal module.
 # MIT License
 
 from edit_cfg_json_tk.tk_editor import TkEditor, edit
+from edit_cfg_json_tk.tk_panel import TkEditorPanel
 
-__all__ = ['TkEditor', 'edit']
+__all__ = ['TkEditor', 'TkEditorPanel', 'edit']

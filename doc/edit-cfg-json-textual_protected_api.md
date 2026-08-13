@@ -25,6 +25,7 @@
   * [OVERWRITE\_LABEL](#edit_cfg_json_textual.textual_ask.OVERWRITE_LABEL)
   * [NO\_SAVE\_LABEL](#edit_cfg_json_textual.textual_ask.NO_SAVE_LABEL)
   * [AskScreen](#edit_cfg_json_textual.textual_ask.AskScreen)
+    * [DEFAULT\_CSS](#edit_cfg_json_textual.textual_ask.AskScreen.DEFAULT_CSS)
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_ask.AskScreen.__init__)
     * [compose](#edit_cfg_json_textual.textual_ask.AskScreen.compose)
     * [on\_input\_changed](#edit_cfg_json_textual.textual_ask.AskScreen.on_input_changed)
@@ -32,6 +33,7 @@
     * [on\_input\_submitted](#edit_cfg_json_textual.textual_ask.AskScreen.on_input_submitted)
     * [action\_leave](#edit_cfg_json_textual.textual_ask.AskScreen.action_leave)
   * [ConfirmScreen](#edit_cfg_json_textual.textual_ask.ConfirmScreen)
+    * [DEFAULT\_CSS](#edit_cfg_json_textual.textual_ask.ConfirmScreen.DEFAULT_CSS)
     * [AUTO\_FOCUS](#edit_cfg_json_textual.textual_ask.ConfirmScreen.AUTO_FOCUS)
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_ask.ConfirmScreen.__init__)
     * [compose](#edit_cfg_json_textual.textual_ask.ConfirmScreen.compose)
@@ -39,72 +41,12 @@
     * [action\_leave](#edit_cfg_json_textual.textual_ask.ConfirmScreen.action_leave)
   * [QUESTION\_SCREENS](#edit_cfg_json_textual.textual_ask.QUESTION_SCREENS)
 * [edit\_cfg\_json\_textual.textual\_editor](#edit_cfg_json_textual.textual_editor)
-  * [QUIT\_COMMAND](#edit_cfg_json_textual.textual_editor.QUIT_COMMAND)
-  * [VALIDATE\_COMMAND](#edit_cfg_json_textual.textual_editor.VALIDATE_COMMAND)
-  * [SAVE\_COMMAND](#edit_cfg_json_textual.textual_editor.SAVE_COMMAND)
-  * [SAVE\_AS\_COMMAND](#edit_cfg_json_textual.textual_editor.SAVE_AS_COMMAND)
-  * [EXPLAIN\_COMMAND](#edit_cfg_json_textual.textual_editor.EXPLAIN_COMMAND)
-  * [HIDE\_COMMAND](#edit_cfg_json_textual.textual_editor.HIDE_COMMAND)
-  * [VALIDATE\_HELP](#edit_cfg_json_textual.textual_editor.VALIDATE_HELP)
-  * [SAVE\_HELP](#edit_cfg_json_textual.textual_editor.SAVE_HELP)
-  * [SAVE\_AS\_HELP](#edit_cfg_json_textual.textual_editor.SAVE_AS_HELP)
-  * [EXPLAIN\_HELP](#edit_cfg_json_textual.textual_editor.EXPLAIN_HELP)
-  * [FOLD\_COMMAND](#edit_cfg_json_textual.textual_editor.FOLD_COMMAND)
-  * [OPEN\_COMMAND](#edit_cfg_json_textual.textual_editor.OPEN_COMMAND)
-  * [FOLD\_HELP](#edit_cfg_json_textual.textual_editor.FOLD_HELP)
-  * [SAVE\_AS\_PROMPT](#edit_cfg_json_textual.textual_editor.SAVE_AS_PROMPT)
-  * [SAVE\_AS\_LEAVE](#edit_cfg_json_textual.textual_editor.SAVE_AS_LEAVE)
-  * [EDITOR\_ACTIONS](#edit_cfg_json_textual.textual_editor.EDITOR_ACTIONS)
+  * [QUIT\_ACTION](#edit_cfg_json_textual.textual_editor.QUIT_ACTION)
   * [EditorApp](#edit_cfg_json_textual.textual_editor.EditorApp)
-    * [CSS](#edit_cfg_json_textual.textual_editor.EditorApp.CSS)
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_editor.EditorApp.__init__)
-    * [\_bind\_editor\_keys](#edit_cfg_json_textual.textual_editor.EditorApp._bind_editor_keys)
-    * [\_bind\_explain](#edit_cfg_json_textual.textual_editor.EditorApp._bind_explain)
-    * [\_bind\_fold](#edit_cfg_json_textual.textual_editor.EditorApp._bind_fold)
-    * [\_rebind](#edit_cfg_json_textual.textual_editor.EditorApp._rebind)
-    * [\_explain\_name](#edit_cfg_json_textual.textual_editor.EditorApp._explain_name)
-    * [\_fold\_name](#edit_cfg_json_textual.textual_editor.EditorApp._fold_name)
-    * [compose](#edit_cfg_json_textual.textual_editor.EditorApp.compose)
-    * [\_row\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._row_widgets)
-    * [\_member\_widget](#edit_cfg_json_textual.textual_editor.EditorApp._member_widget)
-    * [\_element\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._element_widgets)
-    * [\_subtree\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._subtree_widgets)
-    * [\_fold\_widget](#edit_cfg_json_textual.textual_editor.EditorApp._fold_widget)
-    * [get\_system\_commands](#edit_cfg_json_textual.textual_editor.EditorApp.get_system_commands)
-    * [\_load\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._load_widgets)
-    * [\_docstring\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._docstring_widgets)
-    * [\_description\_widgets](#edit_cfg_json_textual.textual_editor.EditorApp._description_widgets)
-    * [\_diagnostic\_widget](#edit_cfg_json_textual.textual_editor.EditorApp._diagnostic_widget)
-    * [\_value\_widget](#edit_cfg_json_textual.textual_editor.EditorApp._value_widget)
-    * [on\_input\_changed](#edit_cfg_json_textual.textual_editor.EditorApp.on_input_changed)
-    * [on\_input\_blurred](#edit_cfg_json_textual.textual_editor.EditorApp.on_input_blurred)
+    * [get\_default\_screen](#edit_cfg_json_textual.textual_editor.EditorApp.get_default_screen)
     * [action\_quit](#edit_cfg_json_textual.textual_editor.EditorApp.action_quit)
-    * [\_ask](#edit_cfg_json_textual.textual_editor.EditorApp._ask)
-    * [\_end\_if\_dropped](#edit_cfg_json_textual.textual_editor.EditorApp._end_if_dropped)
-    * [action\_validate](#edit_cfg_json_textual.textual_editor.EditorApp.action_validate)
-    * [action\_save](#edit_cfg_json_textual.textual_editor.EditorApp.action_save)
-    * [\_write\_if\_allowed](#edit_cfg_json_textual.textual_editor.EditorApp._write_if_allowed)
-    * [\_write\_file](#edit_cfg_json_textual.textual_editor.EditorApp._write_file)
-    * [action\_explain](#edit_cfg_json_textual.textual_editor.EditorApp.action_explain)
-    * [action\_fold](#edit_cfg_json_textual.textual_editor.EditorApp.action_fold)
-    * [on\_button\_pressed](#edit_cfg_json_textual.textual_editor.EditorApp.on_button_pressed)
-    * [\_change\_elements](#edit_cfg_json_textual.textual_editor.EditorApp._change_elements)
-    * [\_ask\_key](#edit_cfg_json_textual.textual_editor.EditorApp._ask_key)
-    * [\_rebuilt\_elements](#edit_cfg_json_textual.textual_editor.EditorApp._rebuilt_elements)
-    * [\_show\_folding](#edit_cfg_json_textual.textual_editor.EditorApp._show_folding)
-    * [\_show\_subtrees](#edit_cfg_json_textual.textual_editor.EditorApp._show_subtrees)
-    * [\_show\_explanations](#edit_cfg_json_textual.textual_editor.EditorApp._show_explanations)
-    * [\_show\_descriptions](#edit_cfg_json_textual.textual_editor.EditorApp._show_descriptions)
-    * [action\_save\_as](#edit_cfg_json_textual.textual_editor.EditorApp.action_save_as)
     * [check\_action](#edit_cfg_json_textual.textual_editor.EditorApp.check_action)
-    * [\_out\_file\_text](#edit_cfg_json_textual.textual_editor.EditorApp._out_file_text)
-    * [\_save\_to](#edit_cfg_json_textual.textual_editor.EditorApp._save_to)
-    * [\_refresh](#edit_cfg_json_textual.textual_editor.EditorApp._refresh)
-    * [\_rebuild\_rows](#edit_cfg_json_textual.textual_editor.EditorApp._rebuild_rows)
-    * [\_field](#edit_cfg_json_textual.textual_editor.EditorApp._field)
-    * [\_show\_state](#edit_cfg_json_textual.textual_editor.EditorApp._show_state)
-    * [\_show\_diagnostics](#edit_cfg_json_textual.textual_editor.EditorApp._show_diagnostics)
-    * [\_told](#edit_cfg_json_textual.textual_editor.EditorApp._told)
   * [TextualEditor](#edit_cfg_json_textual.textual_editor.TextualEditor)
     * [run\_editor](#edit_cfg_json_textual.textual_editor.TextualEditor.run_editor)
   * [edit](#edit_cfg_json_textual.textual_editor.edit)
@@ -116,6 +58,7 @@
   * [DIAGNOSTIC\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.DIAGNOSTIC_ID_PREFIX)
   * [FOLD\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.FOLD_ID_PREFIX)
   * [MEMBER\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.MEMBER_ID_PREFIX)
+  * [TITLE\_ID](#edit_cfg_json_textual.textual_look.TITLE_ID)
   * [DOCSTRING\_ID](#edit_cfg_json_textual.textual_look.DOCSTRING_ID)
   * [VERDICT\_ID](#edit_cfg_json_textual.textual_look.VERDICT_ID)
   * [SAVE\_ID](#edit_cfg_json_textual.textual_look.SAVE_ID)
@@ -134,7 +77,7 @@
   * [DIAGNOSTIC\_CLASS](#edit_cfg_json_textual.textual_look.DIAGNOSTIC_CLASS)
   * [FOLD\_CLASS](#edit_cfg_json_textual.textual_look.FOLD_CLASS)
   * [ELEMENT\_CLASS](#edit_cfg_json_textual.textual_look.ELEMENT_CLASS)
-  * [QUESTION\_CLASS](#edit_cfg_json_textual.textual_look.QUESTION_CLASS)
+  * [TYPE\_MARK](#edit_cfg_json_textual.textual_look.TYPE_MARK)
   * [ANSWER\_CLASS](#edit_cfg_json_textual.textual_look.ANSWER_CLASS)
   * [NAME\_WIDTH](#edit_cfg_json_textual.textual_look.NAME_WIDTH)
   * [FOLD\_WIDTH](#edit_cfg_json_textual.textual_look.FOLD_WIDTH)
@@ -145,7 +88,8 @@
   * [FOLD\_OPEN\_TEXT](#edit_cfg_json_textual.textual_look.FOLD_OPEN_TEXT)
   * [EMPHASIS\_CLASSES](#edit_cfg_json_textual.textual_look.EMPHASIS_CLASSES)
   * [COLOUR\_RULES](#edit_cfg_json_textual.textual_look.COLOUR_RULES)
-  * [CSS\_RULES](#edit_cfg_json_textual.textual_look.CSS_RULES)
+  * [PANEL\_CSS](#edit_cfg_json_textual.textual_look.PANEL_CSS)
+  * [QUESTION\_CSS](#edit_cfg_json_textual.textual_look.QUESTION_CSS)
   * [value\_id](#edit_cfg_json_textual.textual_look.value_id)
   * [mark\_id](#edit_cfg_json_textual.textual_look.mark_id)
   * [subtree\_id](#edit_cfg_json_textual.textual_look.subtree_id)
@@ -157,6 +101,90 @@
   * [plain\_widget](#edit_cfg_json_textual.textual_look.plain_widget)
   * [show\_emphasis](#edit_cfg_json_textual.textual_look.show_emphasis)
   * [bind\_action](#edit_cfg_json_textual.textual_look.bind_action)
+* [edit\_cfg\_json\_textual.textual\_screen](#edit_cfg_json_textual.textual_screen)
+  * [EditorCommands](#edit_cfg_json_textual.textual_screen.EditorCommands)
+    * [\_offered](#edit_cfg_json_textual.textual_screen.EditorCommands._offered)
+    * [discover](#edit_cfg_json_textual.textual_screen.EditorCommands.discover)
+    * [search](#edit_cfg_json_textual.textual_screen.EditorCommands.search)
+  * [EditorScreen](#edit_cfg_json_textual.textual_screen.EditorScreen)
+    * [COMMANDS](#edit_cfg_json_textual.textual_screen.EditorScreen.COMMANDS)
+    * [\_\_init\_\_](#edit_cfg_json_textual.textual_screen.EditorScreen.__init__)
+    * [panel](#edit_cfg_json_textual.textual_screen.EditorScreen.panel)
+    * [compose](#edit_cfg_json_textual.textual_screen.EditorScreen.compose)
+* [edit\_cfg\_json\_textual.textual\_panel](#edit_cfg_json_textual.textual_panel)
+  * [CLOSE\_COMMAND](#edit_cfg_json_textual.textual_panel.CLOSE_COMMAND)
+  * [VALIDATE\_COMMAND](#edit_cfg_json_textual.textual_panel.VALIDATE_COMMAND)
+  * [SAVE\_COMMAND](#edit_cfg_json_textual.textual_panel.SAVE_COMMAND)
+  * [SAVE\_AS\_COMMAND](#edit_cfg_json_textual.textual_panel.SAVE_AS_COMMAND)
+  * [EXPLAIN\_COMMAND](#edit_cfg_json_textual.textual_panel.EXPLAIN_COMMAND)
+  * [HIDE\_COMMAND](#edit_cfg_json_textual.textual_panel.HIDE_COMMAND)
+  * [VALIDATE\_HELP](#edit_cfg_json_textual.textual_panel.VALIDATE_HELP)
+  * [SAVE\_HELP](#edit_cfg_json_textual.textual_panel.SAVE_HELP)
+  * [SAVE\_AS\_HELP](#edit_cfg_json_textual.textual_panel.SAVE_AS_HELP)
+  * [EXPLAIN\_HELP](#edit_cfg_json_textual.textual_panel.EXPLAIN_HELP)
+  * [FOLD\_COMMAND](#edit_cfg_json_textual.textual_panel.FOLD_COMMAND)
+  * [OPEN\_COMMAND](#edit_cfg_json_textual.textual_panel.OPEN_COMMAND)
+  * [FOLD\_HELP](#edit_cfg_json_textual.textual_panel.FOLD_HELP)
+  * [SAVE\_AS\_PROMPT](#edit_cfg_json_textual.textual_panel.SAVE_AS_PROMPT)
+  * [SAVE\_AS\_LEAVE](#edit_cfg_json_textual.textual_panel.SAVE_AS_LEAVE)
+  * [EDITOR\_ACTIONS](#edit_cfg_json_textual.textual_panel.EDITOR_ACTIONS)
+  * [EditorCommand](#edit_cfg_json_textual.textual_panel.EditorCommand)
+    * [name](#edit_cfg_json_textual.textual_panel.EditorCommand.name)
+    * [help\_text](#edit_cfg_json_textual.textual_panel.EditorCommand.help_text)
+    * [run](#edit_cfg_json_textual.textual_panel.EditorCommand.run)
+  * [EditorPanel](#edit_cfg_json_textual.textual_panel.EditorPanel)
+    * [DEFAULT\_CSS](#edit_cfg_json_textual.textual_panel.EditorPanel.DEFAULT_CSS)
+    * [\_\_init\_\_](#edit_cfg_json_textual.textual_panel.EditorPanel.__init__)
+    * [\_bind\_editor\_keys](#edit_cfg_json_textual.textual_panel.EditorPanel._bind_editor_keys)
+    * [\_bind](#edit_cfg_json_textual.textual_panel.EditorPanel._bind)
+    * [\_bind\_explain](#edit_cfg_json_textual.textual_panel.EditorPanel._bind_explain)
+    * [\_bind\_fold](#edit_cfg_json_textual.textual_panel.EditorPanel._bind_fold)
+    * [\_rebind](#edit_cfg_json_textual.textual_panel.EditorPanel._rebind)
+    * [\_explain\_name](#edit_cfg_json_textual.textual_panel.EditorPanel._explain_name)
+    * [\_fold\_name](#edit_cfg_json_textual.textual_panel.EditorPanel._fold_name)
+    * [compose](#edit_cfg_json_textual.textual_panel.EditorPanel.compose)
+    * [\_row\_widgets](#edit_cfg_json_textual.textual_panel.EditorPanel._row_widgets)
+    * [\_member\_widget](#edit_cfg_json_textual.textual_panel.EditorPanel._member_widget)
+    * [\_element\_widgets](#edit_cfg_json_textual.textual_panel.EditorPanel._element_widgets)
+    * [\_subtree\_widgets](#edit_cfg_json_textual.textual_panel.EditorPanel._subtree_widgets)
+    * [\_fold\_widget](#edit_cfg_json_textual.textual_panel.EditorPanel._fold_widget)
+    * [command\_entries](#edit_cfg_json_textual.textual_panel.EditorPanel.command_entries)
+    * [\_load\_widgets](#edit_cfg_json_textual.textual_panel.EditorPanel._load_widgets)
+    * [\_docstring\_widgets](#edit_cfg_json_textual.textual_panel.EditorPanel._docstring_widgets)
+    * [\_description\_widgets](#edit_cfg_json_textual.textual_panel.EditorPanel._description_widgets)
+    * [\_diagnostic\_widget](#edit_cfg_json_textual.textual_panel.EditorPanel._diagnostic_widget)
+    * [\_value\_widget](#edit_cfg_json_textual.textual_panel.EditorPanel._value_widget)
+    * [on\_input\_changed](#edit_cfg_json_textual.textual_panel.EditorPanel.on_input_changed)
+    * [on\_input\_blurred](#edit_cfg_json_textual.textual_panel.EditorPanel.on_input_blurred)
+    * [action\_close](#edit_cfg_json_textual.textual_panel.EditorPanel.action_close)
+    * [close](#edit_cfg_json_textual.textual_panel.EditorPanel.close)
+    * [\_ask](#edit_cfg_json_textual.textual_panel.EditorPanel._ask)
+    * [\_end\_if\_dropped](#edit_cfg_json_textual.textual_panel.EditorPanel._end_if_dropped)
+    * [\_end\_session](#edit_cfg_json_textual.textual_panel.EditorPanel._end_session)
+    * [action\_validate](#edit_cfg_json_textual.textual_panel.EditorPanel.action_validate)
+    * [action\_save](#edit_cfg_json_textual.textual_panel.EditorPanel.action_save)
+    * [\_write\_if\_allowed](#edit_cfg_json_textual.textual_panel.EditorPanel._write_if_allowed)
+    * [\_write\_file](#edit_cfg_json_textual.textual_panel.EditorPanel._write_file)
+    * [action\_explain](#edit_cfg_json_textual.textual_panel.EditorPanel.action_explain)
+    * [action\_fold](#edit_cfg_json_textual.textual_panel.EditorPanel.action_fold)
+    * [on\_button\_pressed](#edit_cfg_json_textual.textual_panel.EditorPanel.on_button_pressed)
+    * [\_change\_elements](#edit_cfg_json_textual.textual_panel.EditorPanel._change_elements)
+    * [\_ask\_key](#edit_cfg_json_textual.textual_panel.EditorPanel._ask_key)
+    * [\_rebuilt\_elements](#edit_cfg_json_textual.textual_panel.EditorPanel._rebuilt_elements)
+    * [\_show\_folding](#edit_cfg_json_textual.textual_panel.EditorPanel._show_folding)
+    * [\_show\_subtrees](#edit_cfg_json_textual.textual_panel.EditorPanel._show_subtrees)
+    * [\_show\_explanations](#edit_cfg_json_textual.textual_panel.EditorPanel._show_explanations)
+    * [\_show\_descriptions](#edit_cfg_json_textual.textual_panel.EditorPanel._show_descriptions)
+    * [action\_save\_as](#edit_cfg_json_textual.textual_panel.EditorPanel.action_save_as)
+    * [check\_action](#edit_cfg_json_textual.textual_panel.EditorPanel.check_action)
+    * [\_out\_file\_text](#edit_cfg_json_textual.textual_panel.EditorPanel._out_file_text)
+    * [\_save\_to](#edit_cfg_json_textual.textual_panel.EditorPanel._save_to)
+    * [\_refresh](#edit_cfg_json_textual.textual_panel.EditorPanel._refresh)
+    * [\_rebuild\_rows](#edit_cfg_json_textual.textual_panel.EditorPanel._rebuild_rows)
+    * [\_field](#edit_cfg_json_textual.textual_panel.EditorPanel._field)
+    * [\_show\_state](#edit_cfg_json_textual.textual_panel.EditorPanel._show_state)
+    * [\_show\_diagnostics](#edit_cfg_json_textual.textual_panel.EditorPanel._show_diagnostics)
+    * [\_told](#edit_cfg_json_textual.textual_panel.EditorPanel._told)
 * [edit\_cfg\_json\_textual.\_\_main\_\_](#edit_cfg_json_textual.__main__)
   * [PROGRAM](#edit_cfg_json_textual.__main__.PROGRAM)
   * [main](#edit_cfg_json_textual.__main__.main)
@@ -410,6 +438,17 @@ class AskScreen(ModalScreen[Optional[str]])
 
 Ask one question, and give back None when it is left unanswered.
 
+<a id="edit_cfg_json_textual.textual_ask.AskScreen.DEFAULT_CSS"></a>
+
+#### DEFAULT\_CSS
+
+How this screen is laid out. See `QUESTION_CSS`.
+
+It is declared on the screen rather than on the application, because the
+application may be one that mounted this editor in a window of its own and
+would then have no style sheet of this editor's at all. The name of the
+class is written into it, because a widget styles itself by its type name.
+
 <a id="edit_cfg_json_textual.textual_ask.AskScreen.__init__"></a>
 
 #### \_\_init\_\_
@@ -514,6 +553,12 @@ its own two answers do: what the user is agreeing to is different for a
 question about the changes in the buffer and one about the file on disk,
 and Yes beside either of them would be a word to work out rather than read.
 
+<a id="edit_cfg_json_textual.textual_ask.ConfirmScreen.DEFAULT_CSS"></a>
+
+#### DEFAULT\_CSS
+
+How this screen is laid out, which is how the one above it is.
+
 <a id="edit_cfg_json_textual.textual_ask.ConfirmScreen.AUTO_FOCUS"></a>
 
 #### AUTO\_FOCUS
@@ -594,7 +639,13 @@ is what it asks about.
 
 # edit\_cfg\_json\_textual.textual\_editor
 
-Textual view of an edit model, with one editable field per member.
+The editor of this package as a Textual application of its own.
+
+It is the shortest of the three modules that make up this backend, and that is
+the point of the split: `textual_panel` holds the whole editor, and
+`textual_screen` gives it a header, a footer and a command palette. What is
+left here is the one thing only an application may do, which is to own the
+terminal and to end the process.
 
 Everything this backend takes from the core is reached through `core`, which is
 `edit_cfg_json` itself. A backend may use the public API of the core and
@@ -603,119 +654,15 @@ also keeps the two backends from each holding the same block of twenty
 imported names, which is a duplication with nothing to factor out, since
 neither backend may import the other.
 
-<a id="edit_cfg_json_textual.textual_editor.QUIT_COMMAND"></a>
+<a id="edit_cfg_json_textual.textual_editor.QUIT_ACTION"></a>
 
-#### QUIT\_COMMAND
+#### QUIT\_ACTION
 
-Name of the action that ends the editor.
+Name of the action of Textual itself that would end the application.
 
-<a id="edit_cfg_json_textual.textual_editor.VALIDATE_COMMAND"></a>
-
-#### VALIDATE\_COMMAND
-
-Name of the command palette entry that validates the buffer.
-
-<a id="edit_cfg_json_textual.textual_editor.SAVE_COMMAND"></a>
-
-#### SAVE\_COMMAND
-
-Name of the command palette entry that writes the output file.
-
-<a id="edit_cfg_json_textual.textual_editor.SAVE_AS_COMMAND"></a>
-
-#### SAVE\_AS\_COMMAND
-
-Name of the command palette entry that chooses a file and writes it.
-
-<a id="edit_cfg_json_textual.textual_editor.EXPLAIN_COMMAND"></a>
-
-#### EXPLAIN\_COMMAND
-
-What the explain action is called while the explanations are hidden.
-
-<a id="edit_cfg_json_textual.textual_editor.HIDE_COMMAND"></a>
-
-#### HIDE\_COMMAND
-
-What it is called while they are shown.
-
-The name says what the next press does rather than what the action is about,
-because "Explain" beside explanations that are already there reads as an offer
-to do something that has been done. The Tk backend answers the same question
-with a tick-box, which is what a button row can do and a footer cannot.
-
-<a id="edit_cfg_json_textual.textual_editor.VALIDATE_HELP"></a>
-
-#### VALIDATE\_HELP
-
-What the command palette says the validate entry does.
-
-<a id="edit_cfg_json_textual.textual_editor.SAVE_HELP"></a>
-
-#### SAVE\_HELP
-
-What the command palette says the save entry does.
-
-<a id="edit_cfg_json_textual.textual_editor.SAVE_AS_HELP"></a>
-
-#### SAVE\_AS\_HELP
-
-What the command palette says the save as entry does.
-
-<a id="edit_cfg_json_textual.textual_editor.EXPLAIN_HELP"></a>
-
-#### EXPLAIN\_HELP
-
-What the command palette says the explain entry does.
-
-<a id="edit_cfg_json_textual.textual_editor.FOLD_COMMAND"></a>
-
-#### FOLD\_COMMAND
-
-What the fold action is called while at least one container is open.
-
-<a id="edit_cfg_json_textual.textual_editor.OPEN_COMMAND"></a>
-
-#### OPEN\_COMMAND
-
-What it is called once every container is folded.
-
-The name says what the next press does, exactly as the explain action above
-is named. The Tk backend answers the same question by renaming its button.
-
-<a id="edit_cfg_json_textual.textual_editor.FOLD_HELP"></a>
-
-#### FOLD\_HELP
-
-What the command palette says the fold entry does.
-
-<a id="edit_cfg_json_textual.textual_editor.SAVE_AS_PROMPT"></a>
-
-#### SAVE\_AS\_PROMPT
-
-What the screen that asks for the output file says.
-
-<a id="edit_cfg_json_textual.textual_editor.SAVE_AS_LEAVE"></a>
-
-#### SAVE\_AS\_LEAVE
-
-What that screen says while there is a key that leaves it.
-
-The key is named from the settings and not written into the sentence,
-because an application that took `escape` for itself would otherwise be
-telling its users to press a key that does nothing.
-
-<a id="edit_cfg_json_textual.textual_editor.EDITOR_ACTIONS"></a>
-
-#### EDITOR\_ACTIONS
-
-The actions of the editor, which a question of its own turns off.
-
-Textual offers a priority binding of an application the key before the screen
-that has the focus, and it goes on doing that while a modal screen is up: the
-dispatch of a priority binding walks the whole chain and not the part of it
-above the last modal screen. So a modal screen is only really modal if the
-application says that its own actions do not apply while it is there.
+The editor answers for it as well as for its own, because the command palette
+of Textual offers it and a way out that dropped the changes without a word
+would be the one thing an editor must not do.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp"></a>
 
@@ -725,15 +672,7 @@ application says that its own actions do not apply while it is there.
 class EditorApp(App[None])
 ```
 
-Textual application that edits one edit model.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp.CSS"></a>
-
-#### CSS
-
-The widths and heights that make one member fit on one line.
-
-See `CSS_RULES`, which is where each of them is explained.
+Textual application that edits one edit model and nothing else.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.__init__"></a>
 
@@ -743,370 +682,32 @@ See `CSS_RULES`, which is where each of them is explained.
 def __init__(model: core.EditModel) -> None
 ```
 
-Remember the model and name the application after it.
+Remember the model and name the terminal after its class.
+
+The title is the name of the class and not the label of the model,
+because the label says whether there is something unsaved and belongs
+beside the values that are unsaved. The Tk backend names its window
+the same way and for the same reason.
 
 **Arguments**:
 
 - `model` - Model to show and to edit.
 
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._bind_editor_keys"></a>
+<a id="edit_cfg_json_textual.textual_editor.EditorApp.get_default_screen"></a>
 
-#### \_bind\_editor\_keys
-
-```python
-def _bind_editor_keys() -> None
-```
-
-Bind the key combinations that the application chose.
-
-The bindings are made on this instance rather than declared as a
-class variable, because which keys the editor takes is not the
-editor's decision any more: the application it runs inside has
-already given some of them to itself. They are read once, here,
-which is the whole of what a later answer from a settings callable
-cannot change.
-
-A footer too narrow for all of them shows what fits, which costs
-nothing: the key panel of the command palette lists every binding,
-including the ones the footer never shows.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._bind_explain"></a>
-
-#### \_bind\_explain
+#### get\_default\_screen
 
 ```python
-def _bind_explain() -> None
+def get_default_screen() -> Screen[None]
 ```
 
-Bind the explain keys, named for what the next press will do.
-
-The name of this one action depends on the state of the model, so its
-bindings are made again whenever that state changes. A `Binding` cannot
-be renamed, so the bindings of these keys are dropped and made afresh;
-`refresh_bindings` is then what tells the footer to read them again.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._bind_fold"></a>
-
-#### \_bind\_fold
-
-```python
-def _bind_fold() -> None
-```
-
-Bind the fold keys, named for what the next press will do.
-
-Nothing at all is bound for a configuration with no list and no dict
-in it, because there would be nothing for the action to do and a
-footer that offered it would be offering something that is not there.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._rebind"></a>
-
-#### \_rebind
-
-```python
-def _rebind(keys: Sequence[str], action: str, name: str) -> None
-```
-
-Bind one action that is named for what the next press will do.
-
-A `Binding` cannot be renamed, so the bindings of these keys are
-dropped and made afresh; `refresh_bindings` is then what tells the
-footer to read them again.
-
-**Arguments**:
-
-- `keys` - Key combinations that run the action.
-- `action` - Name of the action, without its `action_` prefix.
-- `name` - What the footer and the palette call it as things stand.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._explain_name"></a>
-
-#### \_explain\_name
-
-```python
-def _explain_name() -> str
-```
-
-Return what the explain action is called as things stand now.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._fold_name"></a>
-
-#### \_fold\_name
-
-```python
-def _fold_name() -> str
-```
-
-Return what the fold action is called as things stand now.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp.compose"></a>
-
-#### compose
-
-```python
-def compose() -> ComposeResult
-```
-
-Create one row per member, the verdict, a header and a footer.
-
-What the configuration class says about itself comes above everything
-else, because what the whole configuration is for is what the members
-below it are read in the light of. What reading the input file did
-comes next, because it is what explains the marks on them. Both are
-created only when there is something to say: the file was read before
-the model was built, and a class either has a docstring or has not, so
-neither of the two can arrive later and an empty widget would take a
-line of the screen for good.
-
-Those and the members are the part that scrolls, because they are the
-part that a configuration of any size makes as tall as it likes. What
-the application makes of the values and where they would be written
-stay below it, where a user who has just edited something looks for
-them.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._row_widgets"></a>
-
-#### \_row\_widgets
-
-```python
-def _row_widgets() -> list[Widget]
-```
-
-Return the widgets of every node, and forget the ones before.
+Return the screen this application shows, which holds the editor.
 
 **Returns**:
 
-  One widget per node of the model, in the order it reports them.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._member_widget"></a>
-
-#### \_member\_widget
-
-```python
-def _member_widget(index: int, row: core.MemberRow) -> Widget
-```
-
-Return everything one node owns, as one widget.
-
-The node is indented once for every container it is inside, which is
-what makes the rows a tree, and it is hidden while any of those
-containers is folded away.
-
-**Arguments**:
-
-- `index` - Place of the node among the rows, which its widgets are
-  identified by.
-- `row` - Node to show.
-  
-
-**Returns**:
-
-  A widget holding the line of that node and what is said below it.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._element_widgets"></a>
-
-#### \_element\_widgets
-
-```python
-def _element_widgets(index: int, row: core.MemberRow) -> ComposeResult
-```
-
-Create the controls that change how many elements one node holds.
-
-They are at the end of the line, after the value and the marks, so a
-node that offers none of them costs the values no width at all. That
-is what makes four of them affordable where the one control that folds
-a container has to keep a column clear on every row.
-
-**Arguments**:
-
-- `index` - Place of the node among the rows.
-- `row` - Node to create the controls for.
-  
-
-**Returns**:
-
-  The controls that node offers, and none at all for one that
-  offers none, which is most nodes of most configurations.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._subtree_widgets"></a>
-
-#### \_subtree\_widgets
-
-```python
-@staticmethod
-def _subtree_widgets(index: int, row: core.MemberRow) -> ComposeResult
-```
-
-Create the widget that says what one object is on its own.
-
-A node that is no configuration object gets none, by the same rule as
-the description below the row: a widget that could never hold anything
-is a piece of the screen spent on nothing.
-
-**Arguments**:
-
-- `index` - Place of the node among the rows.
-- `row` - Node to create the widget for.
-  
-
-**Returns**:
-
-  One widget for a nested configuration object, and none at all for
-  every other node.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._fold_widget"></a>
-
-#### \_fold\_widget
-
-```python
-def _fold_widget(index: int, row: core.MemberRow) -> Optional[Widget]
-```
-
-Return the control that folds one container, or an empty space.
-
-A node that holds nothing gets a widget of the same width rather than
-no widget at all, so that the names of a container and of a value
-beside it begin in the same column. A configuration with nothing to
-fold anywhere gets no column at all, because a column that could never
-hold anything is width taken from the values for nothing.
-
-**Arguments**:
-
-- `index` - Place of the node among the rows.
-- `row` - Node to create the control for.
-  
-
-**Returns**:
-
-  A button for a container, a label for every other node of a
-  configuration that has one, and None for one that has none.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp.get_system_commands"></a>
-
-#### get\_system\_commands
-
-```python
-def get_system_commands(screen: Screen[object]) -> Iterable[SystemCommand]
-```
-
-Offer the actions of the editor in the command palette as well.
-
-Every terminal can reach the palette, because it is opened with one
-key and then typed into. That is what makes it the answer for
-`SAVE_AS_KEY`, which a terminal without the Kitty keyboard protocol
-cannot tell apart from `SAVE_KEY`. The other actions are here for the
-same reason a menu lists what has a shortcut: a user who has not
-learnt the keys should still be able to work.
-
-**Arguments**:
-
-- `screen` - Screen the palette was opened from.
-  
-
-**Returns**:
-
-  The commands of Textual itself, and then the ones of the editor.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._load_widgets"></a>
-
-#### \_load\_widgets
-
-```python
-def _load_widgets() -> ComposeResult
-```
-
-Create the widget that says what reading the input file did.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._docstring_widgets"></a>
-
-#### \_docstring\_widgets
-
-```python
-def _docstring_widgets() -> ComposeResult
-```
-
-Create the widget that says what the configuration class says.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._description_widgets"></a>
-
-#### \_description\_widgets
-
-```python
-def _description_widgets(index: int, row: core.MemberRow) -> ComposeResult
-```
-
-Create the widget that says what one node is for, if anything.
-
-A node that nothing can ever be said about gets no widget, because
-there is nothing that could ever appear in it. Whether anything can be
-is asked of the core, because the description the row carries is not
-the whole of what is said below a nested configuration object.
-
-A widget that is created starts out shown or hidden as the model says,
-which is not the same as shown: a model can have been told to hide the
-explanations before the editor was started.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._diagnostic_widget"></a>
-
-#### \_diagnostic\_widget
-
-```python
-def _diagnostic_widget(index: int, row: core.MemberRow) -> Static
-```
-
-Create the widget that says what is wrong with one node.
-
-Every node gets one, unlike the description above it: any node
-can be refused, so there is no node for which this could never say
-anything. It starts out hidden unless the model already has something
-to say about that node, which it has when a model that has been
-validated already reaches this backend.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._value_widget"></a>
-
-#### \_value\_widget
-
-```python
-def _value_widget(index: int, row: core.MemberRow) -> Widget
-```
-
-Return the widget that shows the value of one node.
-
-A node that the model cannot edit gets a widget that only shows text,
-because there is nothing the user could do to it: a list, a dict and a
-nested configuration object are each edited through the rows below
-them, and a declared member that holds no object holds no text either.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp.on_input_changed"></a>
-
-#### on\_input\_changed
-
-```python
-def on_input_changed(event: Input.Changed) -> None
-```
-
-Write one field into the model and show what the model says.
-
-A field posts this message when it is given its initial value as
-well, which the model handles by treating a set that changes no text
-as no edit at all.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp.on_input_blurred"></a>
-
-#### on\_input\_blurred
-
-```python
-def on_input_blurred(event: Input.Blurred) -> None
-```
-
-Ask the model about the member whose field the user has just left.
-
-Leaving a field is when the user has moved on from it, and it is
-therefore when the editor says whether what they typed means a value
-of that member at all. Nothing is validated here: the whole
-configuration is what a validation pass is about, and this is one
-field answering for itself.
+  One editor on a screen of its own, which ends this application
+  when the session ends: there is nothing else for the application
+  to show, so an editor that had gone would leave an empty terminal.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.action_quit"></a>
 
@@ -1118,263 +719,10 @@ async def action_quit() -> None
 
 End the session, asking first where there is something to lose.
 
-Quitting writes nothing, so a buffer holding something that has not
-reached the file loses it. Whether that is so and what is asked about
-it are the core's, so that this backend and the Tk one cannot ask one
-user something and another user nothing; how the question is put is
-this backend's, and a modal screen is how a Textual application asks
-anything.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._ask"></a>
-
-#### \_ask
-
-```python
-def _ask(question: str, yes_text: str, no_text: str,
-         answered: Callable[[Optional[bool]], None]) -> None
-```
-
-Put one question of the editor on a screen of its own.
-
-**Arguments**:
-
-- `question` - What the core says is to be asked.
-- `yes_text` - What the control that agrees to it does.
-- `no_text` - What the control that leaves everything as it is does.
-- `answered` - What is called with the answer, and with None where the
-  question was left unanswered.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._end_if_dropped"></a>
-
-#### \_end\_if\_dropped
-
-```python
-def _end_if_dropped(discard: Optional[bool]) -> None
-```
-
-End the session where the changes were given up, and not else.
-
-**Arguments**:
-
-- `discard` - What the user answered, and None where the question was
-  left unanswered, which is the same as keeping them.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp.action_validate"></a>
-
-#### action\_validate
-
-```python
-def action_validate() -> None
-```
-
-Validate the buffer and show what the application would say.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp.action_save"></a>
-
-#### action\_save
-
-```python
-def action_save() -> None
-```
-
-Write the output file, and say what came of trying.
-
-Saving validates, so it can rewrite a value exactly as validating
-can, and the fields are refreshed for the same reason.
-
-A session that has no file to write yet is asked where to write,
-which is what every editor does and what the design asks a backend
-for. There is no way round to loop back here, because the question
-is what gives the session a file.
-
-A destination that holds a file this session did not write is asked
-about as well, because that file is about to stop existing. Nothing is
-shown when the user says no: they have just been asked and answered,
-and a line saying that nothing was written would be telling them what
-they decided.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._write_if_allowed"></a>
-
-#### \_write\_if\_allowed
-
-```python
-def _write_if_allowed(overwrite: Optional[bool]) -> None
-```
-
-Write the file where that was agreed to, and not else.
-
-**Arguments**:
-
-- `overwrite` - What the user answered, and None where the question was
-  left unanswered, which is the same as leaving the file alone.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._write_file"></a>
-
-#### \_write\_file
-
-```python
-def _write_file() -> None
-```
-
-Write the output file and show what came of trying.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp.action_explain"></a>
-
-#### action\_explain
-
-```python
-def action_explain() -> None
-```
-
-Show or hide what the application says about these values.
-
-The action is renamed as well, because what it is called says what the
-next press will do: "Explain" beside explanations that are already
-there would read as an offer to do something that has been done.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp.action_fold"></a>
-
-#### action\_fold
-
-```python
-def action_fold() -> None
-```
-
-Fold every container away, or open every one of them.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp.on_button_pressed"></a>
-
-#### on\_button\_pressed
-
-```python
-def on_button_pressed(event: Button.Pressed) -> None
-```
-
-Do what the control the user pressed is for.
-
-There are two kinds of them and the identifier says which: the control
-that folds one container, and the ones that change how many elements
-a node holds. The message is stopped here because nothing above them
-has any use for it.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._change_elements"></a>
-
-#### \_change\_elements
-
-```python
-def _change_elements(row: core.MemberRow, action: str) -> None
-```
-
-Add, remove or move one element, asking for a key where needed.
-
-**Arguments**:
-
-- `row` - Node whose control was pressed.
-- `action` - What that control is for.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._ask_key"></a>
-
-#### \_ask\_key
-
-```python
-def _ask_key(row: core.MemberRow) -> None
-```
-
-Ask what a new entry of one dict is to be called.
-
-A new entry of a dict has to be called something, and nothing but the
-person configuring the application knows what.
-
-**Arguments**:
-
-- `row` - Node that is about to be given an entry.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._rebuilt_elements"></a>
-
-#### \_rebuilt\_elements
-
-```python
-def _rebuilt_elements() -> None
-```
-
-Show the rows the model has now, after an element changed.
-
-The widgets are always mounted afresh, and not only where the paths
-differ as a validation pass leaves them: which controls a row offers
-changes with the elements, so a row that is still at the same path is
-not necessarily still offering the same things.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._show_folding"></a>
-
-#### \_show\_folding
-
-```python
-def _show_folding() -> None
-```
-
-Show which containers are folded and what each control now does.
-
-What is said below the nodes is shown again as well, because folding a
-nested configuration object changes it: an object that is showing less
-of itself says less about itself. What is wrong with a node is shown
-again for a second reason: folding asks every object at or inside the
-node that was folded, and what one of them refuses is said at the node
-it is about.
-
-This is not part of `_show_state`, which runs on every key the user
-types: nothing typed into a field folds anything.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._show_subtrees"></a>
-
-#### \_show\_subtrees
-
-```python
-def _show_subtrees() -> None
-```
-
-Say what each nested object is on its own, as the model says now.
-
-It is shown after folding as well as after a validation pass, because
-folding a nested object is one of the moments the model asks that
-object about itself.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._show_explanations"></a>
-
-#### \_show\_explanations
-
-```python
-def _show_explanations() -> None
-```
-
-Show as much of the explanatory text as the model says to show.
-
-Whether a description is shown is asked of the core rather than
-decided here, so that this backend and the Tk one cannot end up
-disagreeing about what hiding the explanations means.
-
-This is not part of `_show_state`, which runs on every key the user
-types: nothing typed into a field can change what this configuration
-is for or what one of its members means.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._show_descriptions"></a>
-
-#### \_show\_descriptions
-
-```python
-def _show_descriptions() -> None
-```
-
-Show what belongs below every node, as the model says it now.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp.action_save_as"></a>
-
-#### action\_save\_as
-
-```python
-def action_save_as() -> None
-```
-
-Ask which file to write, and write it when one was named.
+This is the action of Textual itself, which its command palette offers
+and which the editor would otherwise have no say in. It is the Close
+of the editor, so that every way out of this application asks the one
+question in the one place.
 
 <a id="edit_cfg_json_textual.textual_editor.EditorApp.check_action"></a>
 
@@ -1385,138 +733,23 @@ def check_action(action: str, parameters: tuple[object,
                                                 ...]) -> Optional[bool]
 ```
 
-Turn the actions of the editor off while it is asking a question.
+Turn ending the application off while the editor asks something.
 
-See `EDITOR_ACTIONS` for why this is needed at all. The answer is
-None rather than False, so that the footer shows the actions greyed
-out instead of losing them: a user who is answering a question should
-be able to see that the rest of the editor is waiting for them.
+The editor answers the same way for its own actions, and for the same
+reason: a priority binding is offered the key from the whole binding
+chain and not from the part of it above the last modal screen, so a
+question is only really modal if what is under it says so.
 
 **Arguments**:
 
 - `action` - Name of the action that is about to run.
-- `parameters` - Arguments of that action, of which these have none.
+- `parameters` - Arguments of that action, of which this has none.
   
 
 **Returns**:
 
-  None while the question is open and the action is the editor's
-  own, and True for every other action at every other time.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._out_file_text"></a>
-
-#### \_out\_file\_text
-
-```python
-def _out_file_text() -> str
-```
-
-Return the file saving would write now, as text to be edited.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._save_to"></a>
-
-#### \_save\_to
-
-```python
-def _save_to(chosen: Optional[str]) -> None
-```
-
-Write the file that was named, and nothing when none was.
-
-**Arguments**:
-
-- `chosen` - File the user named, or None when the question was left
-  unanswered. An empty answer is the same as no answer: there
-  is no file whose name is nothing.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._refresh"></a>
-
-#### \_refresh
-
-```python
-def _refresh() -> None
-```
-
-Write the buffer back into the fields and show the new state.
-
-A pass over the buffer is not read only: a member validator returns
-the value that is stored back into the member, so a value can end up
-different from the one the user typed. Writing the text the model
-already holds into a field is not an edit, so this refresh does not
-undo the marks that the pass has just set.
-
-A pass can also leave the model with other rows than it had, which a
-validator that normalizes a list does, and the widgets are then
-mounted afresh rather than written into. That is done after this
-message rather than inside it, because taking a widget out of the
-screen and putting another one in its place is awaited and this is
-not.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._rebuild_rows"></a>
-
-#### \_rebuild\_rows
-
-```python
-async def _rebuild_rows() -> None
-```
-
-Show the rows the model has now instead of the ones it had.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._field"></a>
-
-#### \_field
-
-```python
-def _field(index: int) -> Input
-```
-
-Return the field that this application shows for one node.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._show_state"></a>
-
-#### \_show\_state
-
-```python
-def _show_state() -> None
-```
-
-Show the title, the verdict, the saving and every node.
-
-The verdict and the saving change colour as well as text, because what
-they say is either what the application accepted, what it refused, or
-what has not been asked of it yet, and a user who has to read three
-lines to tell those apart is reading too much.
-
-What is wrong with a node is shown here too, and not with the
-explanations: a description says what a node is for and stays until
-the user asks for it to go, while a refusal is answered afresh by
-every pass and by every field that is left.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._show_diagnostics"></a>
-
-#### \_show\_diagnostics
-
-```python
-def _show_diagnostics() -> None
-```
-
-Show what is wrong with every node, as the model says it now.
-
-<a id="edit_cfg_json_textual.textual_editor.EditorApp._told"></a>
-
-#### \_told
-
-```python
-def _told(widget_id: str, text: str, emphasis: core.Emphasis) -> None
-```
-
-Show one text of the editor, in the way its state asks for.
-
-**Arguments**:
-
-- `widget_id` - Identifier of the widget that shows it.
-- `text` - Text to show.
-- `emphasis` - Why that text stands out from the values.
+  None while a question of the editor is open and the action is the
+  one that would end the application, and True otherwise.
 
 <a id="edit_cfg_json_textual.textual_editor.TextualEditor"></a>
 
@@ -1531,6 +764,11 @@ Textual user interface backend for an edit model.
 The class has the single method that `EditorBackend` asks for, and
 deliberately nothing else: everything worth testing without a terminal
 lives in the core.
+
+It runs an application of its own, which is what that protocol promises
+and what an application that already runs Textual cannot use.
+`edit_cfg_json_textual.EditorPanel` and
+`edit_cfg_json_textual.EditorScreen` are for that one instead.
 
 <a id="edit_cfg_json_textual.textual_editor.TextualEditor.run_editor"></a>
 
@@ -1657,6 +895,17 @@ Prefix of the identifier of the control that folds one container.
 
 Prefix of the identifier of everything that one node owns.
 
+<a id="edit_cfg_json_textual.textual_look.TITLE_ID"></a>
+
+#### TITLE\_ID
+
+Identifier of the widget that names the configuration being edited.
+
+It is a widget of the editor and not the title of an application, because an
+editor mounted in a window an application owns has no business writing there.
+The Tk backend has always had it as a label of its own, and this is the same
+label.
+
 <a id="edit_cfg_json_textual.textual_look.DOCSTRING_ID"></a>
 
 #### DOCSTRING\_ID
@@ -1769,11 +1018,18 @@ Style class of the control that folds one container.
 
 Style class of a control that changes how many elements there are.
 
-<a id="edit_cfg_json_textual.textual_look.QUESTION_CLASS"></a>
+<a id="edit_cfg_json_textual.textual_look.TYPE_MARK"></a>
 
-#### QUESTION\_CLASS
+#### TYPE\_MARK
 
-Style class of a screen that asks the user a question.
+Where a widget of this backend writes its own class name.
+
+A widget styles *itself* by its type name and not by a style class of its own:
+Textual scopes the sheet a widget declares to that widget and what is inside
+it, so a class selector reaches the inside and never the widget the sheet
+belongs to. Each sheet below therefore leaves this where its own name belongs
+and the widget puts its name there, which is what `ModalScreen` above the
+question screens does with its own name too.
 
 <a id="edit_cfg_json_textual.textual_look.ANSWER_CLASS"></a>
 
@@ -1867,9 +1123,9 @@ The values and their names are left alone, so the thing the user came to edit
 is the most legible thing on the screen. Everything else is either secondary
 text or a state to act on, which is what `edit_cfg_json.Emphasis` names.
 
-<a id="edit_cfg_json_textual.textual_look.CSS_RULES"></a>
+<a id="edit_cfg_json_textual.textual_look.PANEL_CSS"></a>
 
-#### CSS\_RULES
+#### PANEL\_CSS
 
 The width and the height of every part of one member row.
 
@@ -1895,11 +1151,30 @@ where they are there and cannot be seen. The value therefore takes what is
 left over and the marks take what they need, which is the opposite way round
 from the default and the only way round that shows both.
 
-A screen that asks a question sits in the middle of the screen and takes most
-of its width, so that a long path or a long file name is still readable in a
-narrow terminal. Its own field is untouched by the rule above, which reaches
-only the fields inside a member row, and the controls that answer it take the
-width they need rather than a share of the box.
+It is the style sheet of the widget that holds the editor and not of an
+application, because an application that mounts that widget in a window of its
+own has a style sheet of its own and would not have this one. Textual scopes
+the rules a widget declares to that widget and what is inside it, which is
+what keeps a rule of this editor from reaching a widget of the application.
+
+<a id="edit_cfg_json_textual.textual_look.QUESTION_CSS"></a>
+
+#### QUESTION\_CSS
+
+How a screen that asks the user a question is laid out.
+
+Each of those screens fills `TYPE_MARK` in with its own class name before
+this becomes its style sheet.
+
+It sits in the middle of the screen and takes most of its width, so that a
+long path or a long file name is still readable in a narrow terminal. Its own
+field is untouched by the rule about the fields of a member row, which reaches
+only inside the widget that holds the editor, and the controls that answer it
+take the width they need rather than a share of the box.
+
+It is apart from the rules above because a question of this editor is a screen
+of the application and never a part of the editor widget, so the two are
+declared on different widgets and neither style sheet can reach the other.
 
 <a id="edit_cfg_json_textual.textual_look.value_id"></a>
 
@@ -2039,8 +1314,11 @@ at once.
 #### bind\_action
 
 ```python
-def bind_action(bindings: BindingsMap, keys: Sequence[str], action: str,
-                description: str) -> None
+def bind_action(bindings: BindingsMap,
+                keys: Sequence[str],
+                action: str,
+                description: str,
+                priority: bool = True) -> None
 ```
 
 Bind every key combination that the application gave one action.
@@ -2051,19 +1329,1212 @@ suggest that they were two actions. An action the application gave no
 combination at all is bound to nothing and stays reachable through the
 command palette.
 
-Every binding is a priority binding, so that it is acted on before the
-field that has the focus is offered the key. That is also why the
-bindings cannot be made with `App.bind`, which cannot make one and which
+A priority binding is acted on before the widget that has the focus is
+offered the key, which is what an editor wants of its own keys: a user
+who presses Save while typing into a field means Save. It is also why
+these cannot be made with `App.bind`, which cannot make one and which
 says of itself that it may be removed.
 
 **Arguments**:
 
-- `bindings` - The bindings of the application or of the screen that the
-  action belongs to.
+- `bindings` - The bindings of the widget, the screen or the application
+  that the action belongs to.
 - `keys` - Key combinations that run the action, in the order that
   decides which of them is named.
 - `action` - Name of the action, without its `action_` prefix.
 - `description` - What the footer and the key panel call the action.
+- `priority` - Whether the key is offered here before the widget that has
+  the focus is offered it, which is
+  `edit_cfg_json.Settings.priority_keys` for the actions of the
+  editor and always true for leaving a question of its own.
+
+<a id="edit_cfg_json_textual.textual_screen"></a>
+
+# edit\_cfg\_json\_textual.textual\_screen
+
+One editor as a screen of a Textual application.
+
+A screen is what a widget cannot be: it has a header and a footer of its own,
+and it can offer entries in the command palette, which `Screen.COMMANDS` is
+for and which a widget has no equivalent of at all. So this is what an
+application pushes when it wants the editor to take the whole terminal for a
+while, and it is what `EditorApp` shows when the editor is the whole program.
+
+An application that wants the editor in an area of its own screen mounts
+`EditorPanel` instead and keeps its own header, its own footer and its own
+palette. That is the difference between the two, and it is the whole of it.
+
+<a id="edit_cfg_json_textual.textual_screen.EditorCommands"></a>
+
+## EditorCommands Objects
+
+```python
+class EditorCommands(Provider)
+```
+
+The actions of the editor, as the command palette offers them.
+
+It asks the panel of its screen rather than holding a table of its own,
+because the name of two of those actions says what the next press will do
+and is therefore only true at the moment it is read.
+
+<a id="edit_cfg_json_textual.textual_screen.EditorCommands._offered"></a>
+
+#### \_offered
+
+```python
+def _offered() -> tuple[EditorCommand, ...]
+```
+
+Return what the editor of this screen offers as things stand.
+
+**Returns**:
+
+  One entry per action, and none at all for a screen that holds no
+  editor, which is what a palette provider of a screen this was
+  put on by mistake should say.
+
+<a id="edit_cfg_json_textual.textual_screen.EditorCommands.discover"></a>
+
+#### discover
+
+```python
+async def discover() -> Hits
+```
+
+Offer every action of the editor before anything is typed.
+
+**Yields**:
+
+  One hit per action the editor offers.
+
+<a id="edit_cfg_json_textual.textual_screen.EditorCommands.search"></a>
+
+#### search
+
+```python
+async def search(query: str) -> Hits
+```
+
+Offer the actions whose names match what the user is typing.
+
+**Arguments**:
+
+- `query` - What the user has typed into the palette.
+  
+
+**Yields**:
+
+  One hit per action whose name matches, as the matcher of the
+  palette scores it.
+
+<a id="edit_cfg_json_textual.textual_screen.EditorScreen"></a>
+
+## EditorScreen Objects
+
+```python
+class EditorScreen(Screen[None])
+```
+
+A screen holding one editor, with a header and a footer of its own.
+
+<a id="edit_cfg_json_textual.textual_screen.EditorScreen.COMMANDS"></a>
+
+#### COMMANDS
+
+The actions of the editor, offered in the command palette.
+
+They are declared here and not on an application, because an application
+that pushed this screen has a palette of its own and would otherwise be
+made to name the actions of a screen it did not write.
+
+<a id="edit_cfg_json_textual.textual_screen.EditorScreen.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(model: core.EditModel,
+             *,
+             on_close: Optional[Callable[[], None]] = None) -> None
+```
+
+Show one model on a screen of its own.
+
+**Arguments**:
+
+- `model` - Model to show and to edit.
+- `on_close` - What the application does once the session has ended,
+  or None for an application that reads the outcome some other
+  way. An application that pushed this screen usually pops it
+  here.
+
+<a id="edit_cfg_json_textual.textual_screen.EditorScreen.panel"></a>
+
+#### panel
+
+```python
+@property
+def panel() -> EditorPanel
+```
+
+Return the editor that this screen is showing.
+
+<a id="edit_cfg_json_textual.textual_screen.EditorScreen.compose"></a>
+
+#### compose
+
+```python
+def compose() -> ComposeResult
+```
+
+Create the header, the editor and the footer, in that order.
+
+<a id="edit_cfg_json_textual.textual_panel"></a>
+
+# edit\_cfg\_json\_textual.textual\_panel
+
+The whole editor of this backend, as one widget.
+
+It is a widget and not an application, so that the same editor serves both
+ways of running it: `EditorApp` composes a screen that holds one of these and
+owns the terminal, and an application that already runs Textual mounts one of
+these in an area of its own and goes on running its own event loop. One body,
+so that the two cannot drift apart, and everything that only an application
+may do — the title of the terminal, ending the process, the entries of the
+command palette — is deliberately not here.
+
+Everything this backend takes from the core is reached through `core`, which is
+`edit_cfg_json` itself. A backend may use the public API of the core and
+nothing else, and naming it at every call site is what makes that visible; it
+also keeps the two backends from each holding the same block of twenty
+imported names, which is a duplication with nothing to factor out, since
+neither backend may import the other.
+
+<a id="edit_cfg_json_textual.textual_panel.CLOSE_COMMAND"></a>
+
+#### CLOSE\_COMMAND
+
+Name of the action that ends the editing session.
+
+It is Close and not Quit because this editor may be one panel of an
+application that goes on running, and because closing writes nothing of its
+own: it is the "cancel" of the design, exactly as the button of the Tk
+backend that carries the same word.
+
+<a id="edit_cfg_json_textual.textual_panel.VALIDATE_COMMAND"></a>
+
+#### VALIDATE\_COMMAND
+
+Name of the command palette entry that validates the buffer.
+
+<a id="edit_cfg_json_textual.textual_panel.SAVE_COMMAND"></a>
+
+#### SAVE\_COMMAND
+
+Name of the command palette entry that writes the output file.
+
+<a id="edit_cfg_json_textual.textual_panel.SAVE_AS_COMMAND"></a>
+
+#### SAVE\_AS\_COMMAND
+
+Name of the command palette entry that chooses a file and writes it.
+
+<a id="edit_cfg_json_textual.textual_panel.EXPLAIN_COMMAND"></a>
+
+#### EXPLAIN\_COMMAND
+
+What the explain action is called while the explanations are hidden.
+
+<a id="edit_cfg_json_textual.textual_panel.HIDE_COMMAND"></a>
+
+#### HIDE\_COMMAND
+
+What it is called while they are shown.
+
+The name says what the next press does rather than what the action is about,
+because "Explain" beside explanations that are already there reads as an offer
+to do something that has been done. The Tk backend answers the same question
+with a tick-box, which is what a button row can do and a footer cannot.
+
+<a id="edit_cfg_json_textual.textual_panel.VALIDATE_HELP"></a>
+
+#### VALIDATE\_HELP
+
+What the command palette says the validate entry does.
+
+<a id="edit_cfg_json_textual.textual_panel.SAVE_HELP"></a>
+
+#### SAVE\_HELP
+
+What the command palette says the save entry does.
+
+<a id="edit_cfg_json_textual.textual_panel.SAVE_AS_HELP"></a>
+
+#### SAVE\_AS\_HELP
+
+What the command palette says the save as entry does.
+
+<a id="edit_cfg_json_textual.textual_panel.EXPLAIN_HELP"></a>
+
+#### EXPLAIN\_HELP
+
+What the command palette says the explain entry does.
+
+<a id="edit_cfg_json_textual.textual_panel.FOLD_COMMAND"></a>
+
+#### FOLD\_COMMAND
+
+What the fold action is called while at least one container is open.
+
+<a id="edit_cfg_json_textual.textual_panel.OPEN_COMMAND"></a>
+
+#### OPEN\_COMMAND
+
+What it is called once every container is folded.
+
+The name says what the next press does, exactly as the explain action above
+is named. The Tk backend answers the same question by renaming its button.
+
+<a id="edit_cfg_json_textual.textual_panel.FOLD_HELP"></a>
+
+#### FOLD\_HELP
+
+What the command palette says the fold entry does.
+
+<a id="edit_cfg_json_textual.textual_panel.SAVE_AS_PROMPT"></a>
+
+#### SAVE\_AS\_PROMPT
+
+What the screen that asks for the output file says.
+
+<a id="edit_cfg_json_textual.textual_panel.SAVE_AS_LEAVE"></a>
+
+#### SAVE\_AS\_LEAVE
+
+What that screen says while there is a key that leaves it.
+
+The key is named from the settings and not written into the sentence,
+because an application that took `escape` for itself would otherwise be
+telling its users to press a key that does nothing.
+
+<a id="edit_cfg_json_textual.textual_panel.EDITOR_ACTIONS"></a>
+
+#### EDITOR\_ACTIONS
+
+The actions of the editor, which a question of its own turns off.
+
+Textual offers a priority binding the key before the widget that has the focus
+gets it, and it goes on doing that while a modal screen is up: the dispatch of
+a priority binding walks the whole chain and not the part of it above the last
+modal screen. So a modal screen is only really modal if the editor says that
+its own actions do not apply while it is there.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorCommand"></a>
+
+## EditorCommand Objects
+
+```python
+class EditorCommand(NamedTuple)
+```
+
+One action of the editor, as a command palette offers it.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorCommand.name"></a>
+
+#### name
+
+What the palette calls it, which says what the next press will do.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorCommand.help_text"></a>
+
+#### help\_text
+
+What the palette says it does.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorCommand.run"></a>
+
+#### run
+
+What choosing it in the palette runs.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel"></a>
+
+## EditorPanel Objects
+
+```python
+class EditorPanel(Widget)
+```
+
+The whole editor of one edit model, as one widget.
+
+It holds the label of the configuration, what the class says about itself,
+what reading the input file did, one row per node, and below those the
+validation verdict and the saving line. What does not scroll with the rest
+is what a user reaches for after editing, exactly as in the Tk backend.
+
+The keys of the editor are bound on this widget, so they are acted on
+while the focus is inside the editor and not while it is elsewhere in a
+window that an application owns.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel.DEFAULT_CSS"></a>
+
+#### DEFAULT\_CSS
+
+The widths and the heights that make one member fit on one line.
+
+See `PANEL_CSS`, which is where each of them is explained. It is
+`DEFAULT_CSS` and not `CSS` because Textual ignores a `CSS` class variable
+on a widget and says so, and the name of the class is written into it
+because a widget styles itself by its type name.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(model: core.EditModel,
+             *,
+             on_close: Optional[Callable[[], None]] = None) -> None
+```
+
+Remember the model and bind the keys the application chose.
+
+**Arguments**:
+
+- `model` - Model to show and to edit.
+- `on_close` - What the application does once the session has ended,
+  or None for an application that reads the outcome some other
+  way. It is called after the editor has taken itself off the
+  screen, so that `edit_cfg_json.EditModel.saved_config` can be
+  read from it.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._bind_editor_keys"></a>
+
+#### \_bind\_editor\_keys
+
+```python
+def _bind_editor_keys() -> None
+```
+
+Bind the key combinations that the application chose.
+
+The bindings are made on this instance rather than declared as a
+class variable, because which keys the editor takes is not the
+editor's decision any more: the application it runs inside has
+already given some of them to itself. They are read once, here,
+which is the whole of what a later answer from a settings callable
+cannot change.
+
+A footer too narrow for all of them shows what fits, which costs
+nothing: the key panel of the command palette lists every binding,
+including the ones the footer never shows.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._bind"></a>
+
+#### \_bind
+
+```python
+def _bind(keys: Sequence[str], action: str, name: str) -> None
+```
+
+Bind one action of the editor, as hard as the application asked.
+
+**Arguments**:
+
+- `keys` - Key combinations that run the action.
+- `action` - Name of the action, without its `action_` prefix.
+- `name` - What the footer and the palette call it.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._bind_explain"></a>
+
+#### \_bind\_explain
+
+```python
+def _bind_explain() -> None
+```
+
+Bind the explain keys, named for what the next press will do.
+
+The name of this one action depends on the state of the model, so its
+bindings are made again whenever that state changes. A `Binding` cannot
+be renamed, so the bindings of these keys are dropped and made afresh;
+`refresh_bindings` is then what tells the footer to read them again.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._bind_fold"></a>
+
+#### \_bind\_fold
+
+```python
+def _bind_fold() -> None
+```
+
+Bind the fold keys, named for what the next press will do.
+
+Nothing at all is bound for a configuration with no list and no dict
+in it, because there would be nothing for the action to do and a
+footer that offered it would be offering something that is not there.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._rebind"></a>
+
+#### \_rebind
+
+```python
+def _rebind(keys: Sequence[str], action: str, name: str) -> None
+```
+
+Bind one action that is named for what the next press will do.
+
+A `Binding` cannot be renamed, so the bindings of these keys are
+dropped and made afresh; `refresh_bindings` is then what tells the
+footer to read them again.
+
+**Arguments**:
+
+- `keys` - Key combinations that run the action.
+- `action` - Name of the action, without its `action_` prefix.
+- `name` - What the footer and the palette call it as things stand.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._explain_name"></a>
+
+#### \_explain\_name
+
+```python
+def _explain_name() -> str
+```
+
+Return what the explain action is called as things stand now.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._fold_name"></a>
+
+#### \_fold\_name
+
+```python
+def _fold_name() -> str
+```
+
+Return what the fold action is called as things stand now.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel.compose"></a>
+
+#### compose
+
+```python
+def compose() -> ComposeResult
+```
+
+Create the label, one row per member, the verdict and the saving.
+
+The label of the configuration comes first and is a widget of this
+editor rather than the title of an application, because an editor
+mounted in a window an application owns has no business writing there.
+What the configuration class says about itself comes next, because
+what the whole configuration is for is what the members below it are
+read in the light of, and what reading the input file did comes after
+that, because it is what explains the marks on them. Both are created
+only when there is something to say: the file was read before the
+model was built, and a class either has a docstring or has not, so
+neither of the two can arrive later and an empty widget would take a
+line of the screen for good.
+
+Those and the members are the part that scrolls, because they are the
+part that a configuration of any size makes as tall as it likes. What
+the application makes of the values and where they would be written
+stay below it, where a user who has just edited something looks for
+them.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._row_widgets"></a>
+
+#### \_row\_widgets
+
+```python
+def _row_widgets() -> list[Widget]
+```
+
+Return the widgets of every node, and forget the ones before.
+
+**Returns**:
+
+  One widget per node of the model, in the order it reports them.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._member_widget"></a>
+
+#### \_member\_widget
+
+```python
+def _member_widget(index: int, row: core.MemberRow) -> Widget
+```
+
+Return everything one node owns, as one widget.
+
+The node is indented once for every container it is inside, which is
+what makes the rows a tree, and it is hidden while any of those
+containers is folded away.
+
+**Arguments**:
+
+- `index` - Place of the node among the rows, which its widgets are
+  identified by.
+- `row` - Node to show.
+  
+
+**Returns**:
+
+  A widget holding the line of that node and what is said below it.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._element_widgets"></a>
+
+#### \_element\_widgets
+
+```python
+def _element_widgets(index: int, row: core.MemberRow) -> ComposeResult
+```
+
+Create the controls that change how many elements one node holds.
+
+They are at the end of the line, after the value and the marks, so a
+node that offers none of them costs the values no width at all. That
+is what makes four of them affordable where the one control that folds
+a container has to keep a column clear on every row.
+
+**Arguments**:
+
+- `index` - Place of the node among the rows.
+- `row` - Node to create the controls for.
+  
+
+**Returns**:
+
+  The controls that node offers, and none at all for one that
+  offers none, which is most nodes of most configurations.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._subtree_widgets"></a>
+
+#### \_subtree\_widgets
+
+```python
+@staticmethod
+def _subtree_widgets(index: int, row: core.MemberRow) -> ComposeResult
+```
+
+Create the widget that says what one object is on its own.
+
+A node that is no configuration object gets none, by the same rule as
+the description below the row: a widget that could never hold anything
+is a piece of the screen spent on nothing.
+
+**Arguments**:
+
+- `index` - Place of the node among the rows.
+- `row` - Node to create the widget for.
+  
+
+**Returns**:
+
+  One widget for a nested configuration object, and none at all for
+  every other node.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._fold_widget"></a>
+
+#### \_fold\_widget
+
+```python
+def _fold_widget(index: int, row: core.MemberRow) -> Optional[Widget]
+```
+
+Return the control that folds one container, or an empty space.
+
+A node that holds nothing gets a widget of the same width rather than
+no widget at all, so that the names of a container and of a value
+beside it begin in the same column. A configuration with nothing to
+fold anywhere gets no column at all, because a column that could never
+hold anything is width taken from the values for nothing.
+
+**Arguments**:
+
+- `index` - Place of the node among the rows.
+- `row` - Node to create the control for.
+  
+
+**Returns**:
+
+  A button for a container, a label for every other node of a
+  configuration that has one, and None for one that has none.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel.command_entries"></a>
+
+#### command\_entries
+
+```python
+def command_entries() -> tuple[EditorCommand, ...]
+```
+
+Return the actions of the editor, for a command palette.
+
+Every terminal can reach the palette, because it is opened with one
+key and then typed into. That is what makes it the answer for the key
+of Save as, which a terminal without the Kitty keyboard protocol
+cannot tell apart from the key of Save. The other actions are here for
+the same reason a menu lists what has a shortcut: a user who has not
+learnt the keys should still be able to work.
+
+The names of two of them say what the next press will do, so this is
+asked afresh whenever the palette is opened rather than being a table
+that was written once.
+
+**Returns**:
+
+  One entry per action this editor offers as things stand.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._load_widgets"></a>
+
+#### \_load\_widgets
+
+```python
+def _load_widgets() -> ComposeResult
+```
+
+Create the widget that says what reading the input file did.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._docstring_widgets"></a>
+
+#### \_docstring\_widgets
+
+```python
+def _docstring_widgets() -> ComposeResult
+```
+
+Create the widget that says what the configuration class says.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._description_widgets"></a>
+
+#### \_description\_widgets
+
+```python
+def _description_widgets(index: int, row: core.MemberRow) -> ComposeResult
+```
+
+Create the widget that says what one node is for, if anything.
+
+A node that nothing can ever be said about gets no widget, because
+there is nothing that could ever appear in it. Whether anything can be
+is asked of the core, because the description the row carries is not
+the whole of what is said below a nested configuration object.
+
+A widget that is created starts out shown or hidden as the model says,
+which is not the same as shown: a model can have been told to hide the
+explanations before the editor was started.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._diagnostic_widget"></a>
+
+#### \_diagnostic\_widget
+
+```python
+def _diagnostic_widget(index: int, row: core.MemberRow) -> Static
+```
+
+Create the widget that says what is wrong with one node.
+
+Every node gets one, unlike the description above it: any node
+can be refused, so there is no node for which this could never say
+anything. It starts out hidden unless the model already has something
+to say about that node, which it has when a model that has been
+validated already reaches this backend.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._value_widget"></a>
+
+#### \_value\_widget
+
+```python
+def _value_widget(index: int, row: core.MemberRow) -> Widget
+```
+
+Return the widget that shows the value of one node.
+
+A node that the model cannot edit gets a widget that only shows text,
+because there is nothing the user could do to it: a list, a dict and a
+nested configuration object are each edited through the rows below
+them, and a declared member that holds no object holds no text either.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel.on_input_changed"></a>
+
+#### on\_input\_changed
+
+```python
+def on_input_changed(event: Input.Changed) -> None
+```
+
+Write one field into the model and show what the model says.
+
+A field posts this message when it is given its initial value as
+well, which the model handles by treating a set that changes no text
+as no edit at all.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel.on_input_blurred"></a>
+
+#### on\_input\_blurred
+
+```python
+def on_input_blurred(event: Input.Blurred) -> None
+```
+
+Ask the model about the member whose field the user has just left.
+
+Leaving a field is when the user has moved on from it, and it is
+therefore when the editor says whether what they typed means a value
+of that member at all. Nothing is validated here: the whole
+configuration is what a validation pass is about, and this is one
+field answering for itself.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel.action_close"></a>
+
+#### action\_close
+
+```python
+def action_close() -> None
+```
+
+End the session, asking first where there is something to lose.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel.close"></a>
+
+#### close
+
+```python
+def close(ask_about_unsaved: bool = True) -> None
+```
+
+End the session and take the editor off the screen.
+
+Closing writes nothing, so a buffer holding something that has not
+reached the file loses it. Whether that is so and what is asked about
+it are the core's, so that this backend and the Tk one cannot ask one
+user something and another user nothing; how the question is put is
+this backend's, and a modal screen is how a Textual application asks
+anything.
+
+Whether the user is asked at all is the application's to decide,
+because only the application knows what it is closing the editor for.
+The Close button and the quit key of the editor are this method with
+the default, so the question is put in the same words whichever of the
+three ended the session.
+
+Calling this again once the session has ended does nothing, so an
+application need not keep track of whether the user has closed the
+editor already.
+
+**Arguments**:
+
+- `ask_about_unsaved` - Whether the user is asked before a buffer that
+  holds something unsaved is dropped. The default asks, which is
+  the way a default about something that cannot be undone should
+  lean.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._ask"></a>
+
+#### \_ask
+
+```python
+def _ask(question: str, yes_text: str, no_text: str,
+         answered: Callable[[Optional[bool]], None]) -> None
+```
+
+Put one question of the editor on a screen of its own.
+
+**Arguments**:
+
+- `question` - What the core says is to be asked.
+- `yes_text` - What the control that agrees to it does.
+- `no_text` - What the control that leaves everything as it is does.
+- `answered` - What is called with the answer, and with None where the
+  question was left unanswered.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._end_if_dropped"></a>
+
+#### \_end\_if\_dropped
+
+```python
+def _end_if_dropped(discard: Optional[bool]) -> None
+```
+
+End the session where the changes were given up, and not else.
+
+**Arguments**:
+
+- `discard` - What the user answered, and None where the question was
+  left unanswered, which is the same as keeping them.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._end_session"></a>
+
+#### \_end\_session
+
+```python
+def _end_session() -> None
+```
+
+Take the editor off the screen, and say that it has gone.
+
+Only what the editor created is removed, which is this widget and
+everything it built inside it. What the application had on the screen
+beside it is left exactly as it was.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel.action_validate"></a>
+
+#### action\_validate
+
+```python
+def action_validate() -> None
+```
+
+Validate the buffer and show what the application would say.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel.action_save"></a>
+
+#### action\_save
+
+```python
+def action_save() -> None
+```
+
+Write the output file, and say what came of trying.
+
+Saving validates, so it can rewrite a value exactly as validating
+can, and the fields are refreshed for the same reason.
+
+A session that has no file to write yet is asked where to write,
+which is what every editor does and what the design asks a backend
+for. There is no way round to loop back here, because the question
+is what gives the session a file.
+
+A destination that holds a file this session did not write is asked
+about as well, because that file is about to stop existing. Nothing is
+shown when the user says no: they have just been asked and answered,
+and a line saying that nothing was written would be telling them what
+they decided.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._write_if_allowed"></a>
+
+#### \_write\_if\_allowed
+
+```python
+def _write_if_allowed(overwrite: Optional[bool]) -> None
+```
+
+Write the file where that was agreed to, and not else.
+
+**Arguments**:
+
+- `overwrite` - What the user answered, and None where the question was
+  left unanswered, which is the same as leaving the file alone.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._write_file"></a>
+
+#### \_write\_file
+
+```python
+def _write_file() -> None
+```
+
+Write the output file and show what came of trying.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel.action_explain"></a>
+
+#### action\_explain
+
+```python
+def action_explain() -> None
+```
+
+Show or hide what the application says about these values.
+
+The action is renamed as well, because what it is called says what the
+next press will do: "Explain" beside explanations that are already
+there would read as an offer to do something that has been done.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel.action_fold"></a>
+
+#### action\_fold
+
+```python
+def action_fold() -> None
+```
+
+Fold every container away, or open every one of them.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel.on_button_pressed"></a>
+
+#### on\_button\_pressed
+
+```python
+def on_button_pressed(event: Button.Pressed) -> None
+```
+
+Do what the control the user pressed is for.
+
+There are two kinds of them and the identifier says which: the control
+that folds one container, and the ones that change how many elements
+a node holds. The message is stopped here because nothing above them
+has any use for it.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._change_elements"></a>
+
+#### \_change\_elements
+
+```python
+def _change_elements(row: core.MemberRow, action: str) -> None
+```
+
+Add, remove or move one element, asking for a key where needed.
+
+**Arguments**:
+
+- `row` - Node whose control was pressed.
+- `action` - What that control is for.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._ask_key"></a>
+
+#### \_ask\_key
+
+```python
+def _ask_key(row: core.MemberRow) -> None
+```
+
+Ask what a new entry of one dict is to be called.
+
+A new entry of a dict has to be called something, and nothing but the
+person configuring the application knows what.
+
+**Arguments**:
+
+- `row` - Node that is about to be given an entry.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._rebuilt_elements"></a>
+
+#### \_rebuilt\_elements
+
+```python
+def _rebuilt_elements() -> None
+```
+
+Show the rows the model has now, after an element changed.
+
+The widgets are always mounted afresh, and not only where the paths
+differ as a validation pass leaves them: which controls a row offers
+changes with the elements, so a row that is still at the same path is
+not necessarily still offering the same things.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._show_folding"></a>
+
+#### \_show\_folding
+
+```python
+def _show_folding() -> None
+```
+
+Show which containers are folded and what each control now does.
+
+What is said below the nodes is shown again as well, because folding a
+nested configuration object changes it: an object that is showing less
+of itself says less about itself. What is wrong with a node is shown
+again for a second reason: folding asks every object at or inside the
+node that was folded, and what one of them refuses is said at the node
+it is about.
+
+This is not part of `_show_state`, which runs on every key the user
+types: nothing typed into a field folds anything.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._show_subtrees"></a>
+
+#### \_show\_subtrees
+
+```python
+def _show_subtrees() -> None
+```
+
+Say what each nested object is on its own, as the model says now.
+
+It is shown after folding as well as after a validation pass, because
+folding a nested object is one of the moments the model asks that
+object about itself.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._show_explanations"></a>
+
+#### \_show\_explanations
+
+```python
+def _show_explanations() -> None
+```
+
+Show as much of the explanatory text as the model says to show.
+
+Whether a description is shown is asked of the core rather than
+decided here, so that this backend and the Tk one cannot end up
+disagreeing about what hiding the explanations means.
+
+This is not part of `_show_state`, which runs on every key the user
+types: nothing typed into a field can change what this configuration
+is for or what one of its members means.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._show_descriptions"></a>
+
+#### \_show\_descriptions
+
+```python
+def _show_descriptions() -> None
+```
+
+Show what belongs below every node, as the model says it now.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel.action_save_as"></a>
+
+#### action\_save\_as
+
+```python
+def action_save_as() -> None
+```
+
+Ask which file to write, and write it when one was named.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel.check_action"></a>
+
+#### check\_action
+
+```python
+def check_action(action: str, parameters: tuple[object,
+                                                ...]) -> Optional[bool]
+```
+
+Turn the actions of the editor off while it is asking a question.
+
+See `EDITOR_ACTIONS` for why this is needed at all. The answer is
+None rather than False, so that the footer shows the actions greyed
+out instead of losing them: a user who is answering a question should
+be able to see that the rest of the editor is waiting for them.
+
+**Arguments**:
+
+- `action` - Name of the action that is about to run.
+- `parameters` - Arguments of that action, of which these have none.
+  
+
+**Returns**:
+
+  None while the question is open and the action is the editor's
+  own, and True for every other action at every other time.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._out_file_text"></a>
+
+#### \_out\_file\_text
+
+```python
+def _out_file_text() -> str
+```
+
+Return the file saving would write now, as text to be edited.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._save_to"></a>
+
+#### \_save\_to
+
+```python
+def _save_to(chosen: Optional[str]) -> None
+```
+
+Write the file that was named, and nothing when none was.
+
+**Arguments**:
+
+- `chosen` - File the user named, or None when the question was left
+  unanswered. An empty answer is the same as no answer: there
+  is no file whose name is nothing.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._refresh"></a>
+
+#### \_refresh
+
+```python
+def _refresh() -> None
+```
+
+Write the buffer back into the fields and show the new state.
+
+A pass over the buffer is not read only: a member validator returns
+the value that is stored back into the member, so a value can end up
+different from the one the user typed. Writing the text the model
+already holds into a field is not an edit, so this refresh does not
+undo the marks that the pass has just set.
+
+A pass can also leave the model with other rows than it had, which a
+validator that normalizes a list does, and the widgets are then
+mounted afresh rather than written into. That is done after this
+message rather than inside it, because taking a widget out of the
+screen and putting another one in its place is awaited and this is
+not.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._rebuild_rows"></a>
+
+#### \_rebuild\_rows
+
+```python
+async def _rebuild_rows() -> None
+```
+
+Show the rows the model has now instead of the ones it had.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._field"></a>
+
+#### \_field
+
+```python
+def _field(index: int) -> Input
+```
+
+Return the field that this editor shows for one node.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._show_state"></a>
+
+#### \_show\_state
+
+```python
+def _show_state() -> None
+```
+
+Show the label, the verdict, the saving and every node.
+
+The verdict and the saving change colour as well as text, because what
+they say is either what the application accepted, what it refused, or
+what has not been asked of it yet, and a user who has to read three
+lines to tell those apart is reading too much.
+
+What is wrong with a node is shown here too, and not with the
+explanations: a description says what a node is for and stays until
+the user asks for it to go, while a refusal is answered afresh by
+every pass and by every field that is left.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._show_diagnostics"></a>
+
+#### \_show\_diagnostics
+
+```python
+def _show_diagnostics() -> None
+```
+
+Show what is wrong with every node, as the model says it now.
+
+<a id="edit_cfg_json_textual.textual_panel.EditorPanel._told"></a>
+
+#### \_told
+
+```python
+def _told(widget_id: str, text: str, emphasis: core.Emphasis) -> None
+```
+
+Show one text of the editor, in the way its state asks for.
+
+**Arguments**:
+
+- `widget_id` - Identifier of the widget that shows it.
+- `text` - Text to show.
+- `emphasis` - Why that text stands out from the values.
 
 <a id="edit_cfg_json_textual.__main__"></a>
 

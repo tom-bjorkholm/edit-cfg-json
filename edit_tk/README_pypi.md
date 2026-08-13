@@ -53,7 +53,7 @@ Everything a user of this package needs is re-exported from the top-level
 `edit_cfg_json_tk` package, so it can be imported directly:
 
 ````python
-from edit_cfg_json_tk import TkEditor, edit
+from edit_cfg_json_tk import TkEditor, TkEditorPanel, edit
 ````
 
 `edit` is the short way in for an application that has already chosen
@@ -81,6 +81,48 @@ model = EditModel(config=loaded.config, report=loaded.report,
 TkEditor().run_editor(model)
 saved = model.saved_config
 ````
+
+`TkEditorPanel` is the same editor for an application that **already runs
+Tk**. `edit` and `TkEditor` cannot serve one of those: each of them creates a
+`tkinter.Tk`, a second one in a process is a second Tcl interpreter, and no
+widget, variable, font or image crosses between two of them. `run_editor`
+could not serve one either, because it promises to run until the user is done
+and an editor in one panel of somebody else's window can never do that. So
+this is a separate entry point, and it does not block:
+
+````python
+from edit_cfg_json import EditModel, load_config
+from edit_cfg_json_tk import TkEditorPanel
+
+loaded = load_config(config=config, in_file='my_config.json')
+model = EditModel(config=loaded.config, report=loaded.report,
+                  out_file='my_config.json')
+panel = TkEditorPanel(parent=area, model=model, on_close=editor_gone)
+````
+
+`parent` is a widget of the application's own that the editor fills — a frame
+of a window, or a `tkinter.Toplevel` the application created for it. The
+editor builds one frame inside it and touches nothing else, so the title of
+the window, its size, its close protocol and its grab stay the application's,
+and closing destroys only what the editor created. What the application learns
+is `on_close`, which says that the session has ended, and
+`edit_cfg_json.EditModel.saved_config`, which says what came of it — a widget
+has no moment at which it could return anything.
+
+`panel.close(ask_about_unsaved=True)` is how the application closes the editor
+itself, from a menu of its own. The editor's own Close button and its quit key
+are that same call with the default, so the question about what has not been
+saved is put in the same words whichever of the three ended the session; an
+application that is shutting down for reasons of its own passes `False`,
+because it already has a question to put and does not want two.
+
+**The keys of the editor and its mouse wheel reach the part of the window it
+built and nothing else.** They are bound on a Tk bind tag of the editor's own,
+which is put on the widget the editor was given and on every widget inside it,
+so an editor that owns its window still gets the keys of all of it and an
+embedded one never claims a key of the application. Where that tag goes in the
+list of each widget decides whether the editor or the widget with the focus is
+offered a key first, which is `edit_cfg_json.Settings.priority_keys`.
 
 ## The edit-cfg-json-tk program
 
@@ -446,10 +488,17 @@ fold.
 The `cancel` action is bound to nothing in this backend. The questions it would
 leave are put in the toolkit's own dialogs, which answer that key themselves.
 
-The bindings are made on the window, so a key that a field does not use for
-itself reaches them wherever the focus is. They are read once, when the
-widgets are built, which is the one thing a later answer from a settings
-callable cannot change.
+The bindings are made on a bind tag of the editor's own, which the widget the
+editor was built below and every widget inside it carry. For an editor that
+owns its window that widget *is* the window, so a key that a field does not
+use for itself reaches the editor wherever the focus is; for one mounted in a
+window an application owns it is the frame the editor built, which is what
+keeps the editor out of the rest of that window. The mouse wheel is bound the
+same way and for the same reason, because a wheel event goes to the widget
+under the pointer.
+
+The keys are read once, when the widgets are built, which is the one thing a
+later answer from a settings callable cannot change.
 
 ## Installing edit-cfg-json-tk
 
@@ -494,10 +543,10 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 1474 passed, 3 deselected in 37s
+- Test result: 1521 passed, 3 deselected in 43s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
 - Built version(s): 0.0.3
-- Build and test using Python 3.14.6
+- Build and test using Python 3.14.7

@@ -225,12 +225,12 @@ class ActionSettings:
 class Settings:
     """What the application around the editor has already decided.
 
-    Which keys its own user interface has taken, what one of its configuration
-    files is called, and how the file that is about to be overwritten is
-    looked after. The last of those is the application's for the same reason
-    as the other two: whether an old configuration is worth keeping, and under
-    what name, is something an application knows about its own files and the
-    editor cannot find out.
+    Which keys its own user interface has taken and how hard the editor may
+    hold them, what one of its configuration files is called, and how the file
+    that is about to be overwritten is looked after. The last of those is the
+    application's for the same reason as the others: whether an old
+    configuration is worth keeping, and under what name, is something an
+    application knows about its own files and the editor cannot find out.
 
     Both this class and `ActionSettings` are frozen: the editor is given
     what an application decided and has no business changing it.
@@ -278,6 +278,23 @@ class Settings:
     more are numbered from `_1`, which is the file that was overwritten last,
     and each save moves every one of them one number further back until the
     oldest falls off the end.
+    """
+
+    priority_keys: bool = True
+    """Whether the keys of the editor are offered the key press first.
+
+    True is what an editor that owns its window wants: a key of the editor is
+    acted on before the field that has the focus is offered it, so that the
+    action runs wherever the user was typing. It is also what an editor
+    mounted in an application's own window wants most of the time, because
+    the keys of such an editor reach only the part of the window the editor
+    was given.
+
+    False is for an application that has already taken one of these
+    combinations for a widget of its own inside that part. The widget with
+    the focus is then offered the key first and the editor gets what is left
+    of it, which is the other way of answering the question that emptying one
+    tuple of `ActionSettings` answers by taking the key away altogether.
     """
 
     confirm_overwrite: bool = True

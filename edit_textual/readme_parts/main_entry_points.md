@@ -4,7 +4,7 @@ Everything a user of this package needs is re-exported from the top-level
 `{{import_name}}` package, so it can be imported directly:
 
 ````python
-from {{import_name}} import TextualEditor, edit
+from {{import_name}} import EditorPanel, EditorScreen, TextualEditor, edit
 ````
 
 `edit` is the short way in for an application that has already chosen
@@ -32,6 +32,49 @@ model = EditModel(config=loaded.config, report=loaded.report,
 TextualEditor().run_editor(model)
 saved = model.saved_config
 ````
+
+`EditorPanel` and `EditorScreen` are the same editor for an application that
+**already runs Textual**. `edit` and `TextualEditor` cannot serve one of
+those: `App.run()` calls `asyncio.run`, so calling it from inside a running
+application raises or deadlocks, and `run_editor` promises to run until the
+user is done, which an editor in one panel of somebody else's application can
+never do. So these two are a separate entry point, and neither of them blocks:
+
+````python
+from edit_cfg_json import EditModel, load_config
+from {{import_name}} import EditorPanel, EditorScreen
+
+loaded = load_config(config=config, in_file='my_config.json')
+model = EditModel(config=loaded.config, report=loaded.report,
+                  out_file='my_config.json')
+
+# in the application's own `compose`, for an area of its own screen
+yield EditorPanel(model, on_close=self.editor_gone)
+
+# or pushed as a screen of its own
+self.push_screen(EditorScreen(model, on_close=self.editor_gone))
+````
+
+`EditorPanel` is a widget, so the application keeps its own header, its own
+footer and its own command palette. `EditorScreen` is that same panel with a
+header, a footer and the palette entries of the editor around it. What the
+application learns is `on_close`, which says that the session has ended, and
+`edit_cfg_json.EditModel.saved_config`, which says what came of it — a widget
+has no moment at which it could return anything.
+
+`panel.close(ask_about_unsaved=True)` is how the application closes the editor
+itself, from a menu of its own. The editor's own Close and its quit key are
+that same call with the default, so the question about what has not been saved
+is put in the same words whichever of the three ended the session; an
+application that is shutting down for reasons of its own passes `False`,
+because it already has a question to put and does not want two.
+
+**The keys of the editor are bound on the panel**, so Textual offers them
+while the focus is inside the editor and never while it is elsewhere in the
+application. They are priority bindings, so a user who presses Save while
+typing into a field means Save;
+`edit_cfg_json.Settings.priority_keys` is how an application whose own widget
+inside that area already reads one of these combinations says otherwise.
 
 ## The {{dist_name}} program
 

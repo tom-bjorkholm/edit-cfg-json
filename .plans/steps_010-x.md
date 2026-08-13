@@ -68,6 +68,9 @@ plan says only *when* that decision gets built.
 - [Step 17](#step-17--first-release-polish) — every document rewritten against what was
   actually built, the order of the work taken out of all of them but this one,
   and the release readiness of the three packages checked rather than assumed.
+- [Step 18](#step-18--embedding-in-an-applications-own-window) — the editor
+  mounted in a window an application already owns, in both toolkits, with its
+  keys reaching the editor and nothing else.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -1116,23 +1119,132 @@ The first release is published
 
 #### Step 18 — Embedding in an application's own window
 
+Status: **Implemented and committed.** 
+
 Designed in full in `doc/design.md` section 8.2. The design was recorded
 before the code because two of its questions were cheaper to answer while
-the backends had no users, not because the code is wanted early. Add
-`TkEditorPanel` to the Tk package; split `EditorApp` into
-`EditorPanel(Widget)`, `EditorScreen` and `EditorApp` in the Textual
-package, moving the CSS to `DEFAULT_CSS`, the bindings to the panel
-instance, the model title into a label and the palette entries to the
-screen; export the new names from both packages; and answer the three
-questions left open in section 8.2.7, of which the Tk key binding target is
-the one with real design content. A new example shows one editor inside an
-application's own window per backend, which is also what makes the step
-observable.
+the backends had no users, not because the code was wanted early.
 
-`edit()` gains nothing in either package and no existing name changes
-meaning. That is the property section 8.2.5 was written to protect, so
-the step is not done until an application written against today's
-packages still builds and behaves exactly as it did.
+**Observable outcome.** Two new examples, one per toolkit, each of them an
+application with a window of its own that mounts the editor in one part of it.
+`python3 examples/src/example/e13_embedded_tk.py` opens a Tk window with a
+heading, a field and two buttons of the application's own and the editor below
+them: `ctrl+s` in a field of the editor saves and `ctrl+s` in the
+application's field is read by the application, *Close editor* asks about what
+has not been saved and *Drop editor* does not, and closing leaves the
+application's own widgets exactly where they were.
+`python3 examples/src/example/e14_embedded_textual.py` is the same application
+in the other toolkit, with `--mount screen` for the other of the two shapes
+Textual offers and `--ordinary-keys` for the one setting this step adds.
+Neither of them has a `--ui` at all, because each is one toolkit, and neither
+has a `--ui dump`, because a printout has no window to be one part of.
+
+**What it decided.** Four things, decided before the work started.
+
+- **The Tk keys and the mouse wheel are bound on a bind tag of the editor's
+  own**, put on the widget the editor was built below and on everything it
+  created inside it. That is one rule for both ways of running the editor
+  rather than two: a backend that owns its window is given the window and
+  keeps exactly the keys it always had, and a panel is given the frame it
+  built and claims nothing of the application. Binding on each field and
+  making the panel focusable were both rejected, for reasons design section
+  8.2.7 now records. This was the open question with real design content.
+- **`Settings` gains `priority_keys` and the core names no mounting
+  `Protocol`.** Those are the other two questions of section 8.2.7, and the
+  second is answered with a no for a reason that only became visible once both
+  panels existed: they do not share a shape, because the Tk one is told the
+  parent it builds into and the Textual one is a widget the application mounts.
+- **`close(ask_about_unsaved=True)` is the application's way out**, and it
+  answers with nothing. Whether the user is asked is the application's to
+  decide, because only the application knows what it is closing the editor for.
+  It answers with nothing because a Textual question is a modal screen with a
+  callback and could not answer synchronously, and one answer both backends can
+  give is worth more than a return value in one of them.
+- **Two examples and not one.** The two toolkits differ in what mounting *is* —
+  Tk is told a parent, Textual is mounted where the application likes and has
+  two shapes — and one file with a `--ui` switch would have had to keep saying
+  which half of itself the reader was looking at.
+
+**Core.** `Settings.priority_keys`, and nothing else at all. That is the
+property design section 8.2.5 was written to protect: `edit()` gained nothing,
+no existing name changed meaning, and every name the step introduces is new.
+
+**Tk.** `tk_scope.KeyScope` is the part of a window the editor reaches, and
+`tk_panel.TkEditorPanel` is the entry point. `scrolling_body` takes the scope
+instead of binding the wheel on the toplevel, `key_names` lost `bind_key` and
+is the pure translation its docstring always claimed, and `EditorWidgets`
+gained `release_keys`.
+
+**Textual.** `EditorApp` split three ways: `textual_panel.EditorPanel` is the
+whole editor as a widget, `textual_screen.EditorScreen` adds the header, the
+footer and a command `Provider`, and `textual_editor` keeps `EditorApp`,
+`TextualEditor` and `edit`. `textual_look` split `CSS_RULES` into `PANEL_CSS`
+and `QUESTION_CSS` and gained `TITLE_ID` and `TYPE_MARK`; `bind_action` takes
+the priority.
+
+The public names it settled:
+
+| Name | Kind |
+| --- | --- |
+| `Settings.priority_keys` | whether the editor is offered a key first |
+| `TkEditorPanel` | the editor inside a Tk widget an application owns |
+| `EditorPanel` | the editor as a Textual widget |
+| `EditorScreen` | that widget with a header, a footer and a palette |
+| `close` | end the session, asking or not as the application says |
+
+**What building it found.**
+
+- **Textual scopes a widget's `DEFAULT_CSS` so that a class selector never
+  reaches the widget itself.** A rule for the panel written as
+  `.editor_panel { height: 1fr; }` was silently dead, and so was the one that
+  centres a question screen. Both are type selectors now, filled in by each
+  widget from `TYPE_MARK`, which is what `ModalScreen` does with its own name.
+  Found by measuring the widgets rather than by reading the code.
+- **A screen offers palette entries through `COMMANDS` and not through
+  `get_system_commands`**, which is `App`'s alone. The entries are a `Provider`
+  of the screen that asks the panel for them, and asking rather than holding a
+  table is what keeps the two entries whose name says what the next press will
+  do true at the moment the palette is opened.
+- **The question screens had to be given their own style sheets.** They are
+  screens of the application and never a part of the editor widget, so the
+  sheet the panel declares cannot reach them, and an application that mounted
+  the editor would have had none of the editor's at all.
+- **The footer wording changed from Quit to Close.** An editor that is one
+  panel of an application that goes on running does not quit anything, and the
+  Tk button beside it has said Close since step 15 for the same reason.
+- **Two example tests were writing over the file they had just copied**, which
+  put the overwrite question of step 16 up in a test that had nobody to answer
+  it. Both write somewhere else than they read now, which is also what a test
+  about mounting should be doing.
+- **The Tk test stub had to learn about bind tags**, and the fixture had to
+  forget them between tests: a bind tag is a name in the interpreter rather
+  than a widget, so it outlives the editor that made it in the stub exactly as
+  it does in real Tk. That is also why `TkEditorPanel` gives its tag up when it
+  closes.
+
+### Step 18B - Redesign API and examples for embedding
+
+We should look at hot wizard_tk_bridge handles embedding.
+There we have a very simple to use API and simple examples for the 3 cases:
+
+- The wizard/editor is used from CLI that does not have any Tk/Textual from before
+  https://github.com/tom-bjorkholm/wizard-ui-bridge/blob/master/wizard_tk_bridge/example/src/wizard_tk_example/e01_cli_wizard.py
+
+- The wizard/editor is used in its own window from an application that have
+  other Tk windows
+  https://github.com/tom-bjorkholm/wizard-ui-bridge/blob/master/wizard_tk_bridge/example/src/wizard_tk_example/e02_new_window.py
+
+- The wizard/editor is used in an embedded area in a Tk window the application
+  also uses for other things
+  https://github.com/tom-bjorkholm/wizard-ui-bridge/blob/master/wizard_tk_bridge/example/src/wizard_tk_example/e03_embedded_area.py
+
+There is no reason that running edit_cfg_json should be any more complicated
+(we need some extra parameters for config, descriptions and Settings, but adding
+a few parameters does not need that we cannot use the same simple shape.)
+We need to redesign the embedding of edit_cfg_json for both Tk and Textual,
+so that it is just as easy to embed edti_cfg_json and it is to embedd wizard_tk_bridge,
+and we need examples that describe it as simple as well.
+
 
 #### Step 19 — The rest of the program's command line
 
@@ -1209,6 +1321,6 @@ step that needs it. They are listed here so they are not forgotten.
 | ~~Is `ConfigNestingKind.OPTIONAL_MEMBER` in first release scope?~~ Answered at step 11: it is. A member holding an object is a node like any other, one the class omits from JSON has no row, and one written as `null` has a row that says which class is missing and cannot be edited. | done |
 | ~~Does the Textual headless driver in the pinned 8.2.8 behave as the design assumes?~~ | step 1 done |
 | ~~Will the README test summary stop updating on a headless machine, per design section 10.2?~~ | step 1, as a known consequence |
-| Which widget does the Tk backend bind its keys on when it shares a window? See `doc/design.md` section 8.2.7. | step 18 |
-| Does the core name the mounting contract with a `Protocol` of its own? | step 18, or the first third-party backend that mounts |
-| Does `Settings` say whether an embedded editor's bindings are priority bindings? | step 18 |
+| ~~Which widget does the Tk backend bind its keys on when it shares a window?~~ Answered at step 18: a bind tag of the editor's own, on the widget it was built below and everything inside it, which is one rule for a window the editor owns and for one it shares. See `doc/design.md` section 8.2.7. | done |
+| ~~Does the core name the mounting contract with a `Protocol` of its own?~~ Answered at step 18: no. The two panels do not share a shape, so a protocol over them would be a protocol over one of them. It waits for a third implementation. | done |
+| ~~Does `Settings` say whether an embedded editor's bindings are priority bindings?~~ Answered at step 18: it does, as `priority_keys`. | done |

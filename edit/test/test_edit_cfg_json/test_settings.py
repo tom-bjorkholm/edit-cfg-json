@@ -39,7 +39,9 @@ def test_no_opinion() -> None:
 
     Two of these are not "nothing": an application that says nothing about
     the file it overwrites gets the one thing the editor would have chosen
-    anyway, which is one kept file and a question before it is written.
+    anyway, which is one kept file and a question before it is written. The
+    keys are a third: an editor is offered its own keys before the field that
+    has the focus, which is what an editor that owns its window wants.
     """
     settings = Settings()
     assert settings.actions == ActionSettings()
@@ -48,6 +50,7 @@ def test_no_opinion() -> None:
     assert settings.backup_suffix == '.bak'
     assert settings.backup_count == 1
     assert settings.confirm_overwrite
+    assert settings.priority_keys
 
 
 def test_every_action_named() -> None:
@@ -55,6 +58,18 @@ def test_every_action_named() -> None:
     names = {field.name for field in fields(ActionSettings)}
     assert names == {'quit', 'validate', 'save', 'save_as', 'cancel',
                      'explain', 'fold'}
+
+
+def test_priority_keys_said() -> None:
+    """Test an application can say that its own widgets get a key first.
+
+    It is the one setting that only an editor mounted in a window the
+    application owns has a reason to change, and it is an added attribute
+    like every other, so an application written before it keeps what the
+    editor would have chosen.
+    """
+    assert not Settings(priority_keys=False).priority_keys
+    assert Settings(priority_keys=False).actions == ActionSettings()
 
 
 def test_reserved_keys_free() -> None:

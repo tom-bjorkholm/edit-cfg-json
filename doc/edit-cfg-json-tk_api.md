@@ -28,6 +28,7 @@
     * [elements](#edit_cfg_json_tk.tk_editor.RowWidgets.elements)
   * [EditorWidgets](#edit_cfg_json_tk.tk_editor.EditorWidgets)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.EditorWidgets.__init__)
+    * [release\_keys](#edit_cfg_json_tk.tk_editor.EditorWidgets.release_keys)
     * [close\_editor](#edit_cfg_json_tk.tk_editor.EditorWidgets.close_editor)
     * [label\_text](#edit_cfg_json_tk.tk_editor.EditorWidgets.label_text)
     * [verdict\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.verdict_text_shown)
@@ -43,7 +44,6 @@
   * [MODIFIERS](#edit_cfg_json_tk.key_names.MODIFIERS)
   * [KEY\_NAMES](#edit_cfg_json_tk.key_names.KEY_NAMES)
   * [tk\_sequence](#edit_cfg_json_tk.key_names.tk_sequence)
-  * [bind\_key](#edit_cfg_json_tk.key_names.bind_key)
 * [edit\_cfg\_json\_tk.tk\_look](#edit_cfg_json_tk.tk_look)
   * [NAME\_COLUMN\_WIDTH](#edit_cfg_json_tk.tk_look.NAME_COLUMN_WIDTH)
   * [LEAST\_FIELD\_WIDTH](#edit_cfg_json_tk.tk_look.LEAST_FIELD_WIDTH)
@@ -76,6 +76,19 @@
     * [area](#edit_cfg_json_tk.scrolling.ScrollingArea.area)
     * [body](#edit_cfg_json_tk.scrolling.ScrollingArea.body)
   * [scrolling\_body](#edit_cfg_json_tk.scrolling.scrolling_body)
+* [edit\_cfg\_json\_tk.tk\_panel](#edit_cfg_json_tk.tk_panel)
+  * [TkEditorPanel](#edit_cfg_json_tk.tk_panel.TkEditorPanel)
+    * [\_\_init\_\_](#edit_cfg_json_tk.tk_panel.TkEditorPanel.__init__)
+    * [close](#edit_cfg_json_tk.tk_panel.TkEditorPanel.close)
+* [edit\_cfg\_json\_tk.tk\_scope](#edit_cfg_json_tk.tk_scope)
+  * [TAG\_PREFIX](#edit_cfg_json_tk.tk_scope.TAG_PREFIX)
+  * [KeyScope](#edit_cfg_json_tk.tk_scope.KeyScope)
+    * [\_\_init\_\_](#edit_cfg_json_tk.tk_scope.KeyScope.__init__)
+    * [tag](#edit_cfg_json_tk.tk_scope.KeyScope.tag)
+    * [bind\_key](#edit_cfg_json_tk.tk_scope.KeyScope.bind_key)
+    * [bind\_event](#edit_cfg_json_tk.tk_scope.KeyScope.bind_event)
+    * [reach](#edit_cfg_json_tk.tk_scope.KeyScope.reach)
+    * [release](#edit_cfg_json_tk.tk_scope.KeyScope.release)
 * [edit\_cfg\_json\_tk.tk\_ask](#edit_cfg_json_tk.tk_ask)
   * [SAVE\_AS\_TITLE](#edit_cfg_json_tk.tk_ask.SAVE_AS_TITLE)
   * [CONFIG\_FILES](#edit_cfg_json_tk.tk_ask.CONFIG_FILES)
@@ -368,6 +381,22 @@ later be mounted inside a window that an application owns itself.
   closing does, because the editor must never destroy a window
   it did not create.
 
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets.release_keys"></a>
+
+#### release\_keys
+
+```python
+def release_keys() -> None
+```
+
+Give up the keys and the wheel that these widgets had.
+
+A bind tag outlives the widgets that carried it, so an editor that is
+taken off a window it shares would otherwise leave its callbacks —
+and the model they hold — behind for as long as the application runs.
+A backend that owns its window never needs this, because the window
+and its interpreter go together.
+
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets.close_editor"></a>
 
 #### close\_editor
@@ -577,6 +606,10 @@ A combination this module does not know leaves that action without that key
 rather than without an editor: every action of this backend has a button as
 well.
 
+It is text going in and text coming out, and it binds nothing itself: which
+part of a window a binding reaches is `tk_scope`, and needs Tk where this
+needs nothing at all.
+
 <a id="edit_cfg_json_tk.key_names.MODIFIERS"></a>
 
 #### MODIFIERS
@@ -615,27 +648,6 @@ Return one key combination as the event sequence that Tk binds by.
   modifier or a key that this module does not know. None is not an
 - `error` - the action it belongs to keeps its button and loses only
   this way of reaching it.
-
-<a id="edit_cfg_json_tk.key_names.bind_key"></a>
-
-#### bind\_key
-
-```python
-def bind_key(window: tkinter.Misc, key: str, command: Callable[[],
-                                                               None]) -> None
-```
-
-Bind one key combination of one action, if Tk can bind it.
-
-A combination that the translation does not know, or that Tk refuses,
-leaves that action without that key rather than without an editor: every
-action of this backend has a button as well.
-
-**Arguments**:
-
-- `window` - Window that the binding is made on.
-- `key` - One key combination, as `ActionSettings` writes them.
-- `command` - What that key does.
 
 <a id="edit_cfg_json_tk.tk_look"></a>
 
@@ -1056,7 +1068,7 @@ The frame to build the scrolling part of the editor in.
 #### scrolling\_body
 
 ```python
-def scrolling_body(parent: tkinter.Misc) -> ScrollingArea
+def scrolling_body(parent: tkinter.Misc, scope: KeyScope) -> ScrollingArea
 ```
 
 Return the frame that the scrolling part of the editor is built in.
@@ -1070,11 +1082,262 @@ read in.
 **Arguments**:
 
 - `parent` - Widget that becomes the parent of the created widgets.
+- `scope` - The part of the window this editor reaches, which is where
+  the mouse wheel is bound.
   
 
 **Returns**:
 
   The frame to pack, and the frame to build in.
+
+<a id="edit_cfg_json_tk.tk_panel"></a>
+
+# edit\_cfg\_json\_tk.tk\_panel
+
+One editor mounted in a window that an application already owns.
+
+`TkEditor` runs an editor that owns a window and a Tk of its own, and it
+cannot be what an application which already runs Tk uses: a second
+`tkinter.Tk` is a second Tcl interpreter, and no widget, variable, font or
+image crosses between two of them. `EditorBackend.run_editor` could not serve
+such an application either, whatever it created, because that method promises
+to run until the user is done and an editor in a panel of somebody else's
+window has no such moment.
+
+So this is the other entry point, and it is non-blocking: the application
+builds the model, mounts this in a widget of its own, and goes on running its
+own event loop. What it gets back is `on_close`, which says the session
+ended, and `edit_cfg_json.EditModel.saved_config`, which says what came of it.
+
+Everything this backend takes from the core is reached through `core`, which
+is `edit_cfg_json` itself, in the same way as the rest of this package.
+
+<a id="edit_cfg_json_tk.tk_panel.TkEditorPanel"></a>
+
+## TkEditorPanel Objects
+
+```python
+class TkEditorPanel()
+```
+
+The editor of this package, inside a widget an application owns.
+
+It creates one frame inside the widget it is given and builds the editor
+in that frame, which is what makes the two rules of this entry point
+true: the editor destroys only what it created, and its keys and its
+mouse wheel reach only the part of the window it built.
+
+Where that frame goes is the application's decision and is made by
+handing over the widget it belongs in. An application that wants the
+editor in a window of its own creates that window — `tkinter.Toplevel` —
+and passes it, which keeps the title, the geometry, the close protocol
+and the grab where they belong.
+
+<a id="edit_cfg_json_tk.tk_panel.TkEditorPanel.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(parent: tkinter.Misc,
+             model: core.EditModel,
+             *,
+             on_close: Optional[Callable[[], None]] = None) -> None
+```
+
+Mount one editor in the widget the application named.
+
+**Arguments**:
+
+- `parent` - Widget the editor is mounted in. The editor fills it and
+  never touches it otherwise: the frame it builds in is its
+  own, and closing destroys that frame and not this widget.
+- `model` - Model to show and to edit. The application builds it
+  itself, with `edit_cfg_json.load_config` and
+  `edit_cfg_json.EditModel`, because reading a file is what an
+  application does before it shows an editor at all.
+- `on_close` - What the application does when the session has ended,
+  or None for an application that reads the outcome some other
+  way. It is called after the editor has taken itself off the
+  window, so that `edit_cfg_json.EditModel.saved_config` can be
+  read from it.
+
+<a id="edit_cfg_json_tk.tk_panel.TkEditorPanel.close"></a>
+
+#### close
+
+```python
+def close(ask_about_unsaved: bool = True) -> None
+```
+
+End the session and take the editor off the window.
+
+Whether the user is asked about what has not been saved is the
+application's to decide, because only the application knows what it
+is closing the editor for: a menu entry that closes the editor should
+ask, and an application that is putting a question of its own to the
+user already has one question too many.
+
+The editor's own Close button and its quit key are this method with
+the default, so the question is put in the same words and answered in
+the same dialog whichever of the three ended the session.
+
+Calling this again once the session has ended does nothing, so an
+application need not keep track of whether the user has closed the
+editor already.
+
+**Arguments**:
+
+- `ask_about_unsaved` - Whether the user is asked before a buffer that
+  holds something unsaved is dropped. The default asks, which
+  is the way a default about something that cannot be undone
+  should lean.
+
+<a id="edit_cfg_json_tk.tk_scope"></a>
+
+# edit\_cfg\_json\_tk.tk\_scope
+
+The part of a window that the keys and the wheel of one editor reach.
+
+An editor that owns its window may take the keys of the whole window. An
+editor mounted in a window that an application owns may not: the application
+has widgets of its own in that window and keys of its own on them. Both are
+the same rule once it is said about a *part* of a window — the keys of the
+editor and its mouse wheel reach the widget the editor was given and
+everything the editor built inside it, and nothing else. A backend that owns
+its window is then given the window, and one that is mounted is given the
+frame it was mounted in, and neither of them needs a rule of its own.
+
+Tk has one mechanism for exactly that, and it is the bind tag. Every widget
+carries a list of them, an event walks that list in order, and a handler that
+answers `break` stops the walk. So a tag of this editor's own, put on the
+widgets of this editor and on no others, is the part of the window the
+paragraph above describes; and where in each list it is put decides whether
+the editor or the field that has the focus is offered a key first, which is
+what `edit_cfg_json.Settings.priority_keys` says.
+
+Nothing here knows what an edit model is. This is what Tk needs in order to
+have a scoped binding at all, in the same way as the scrolling beside it.
+
+<a id="edit_cfg_json_tk.tk_scope.TAG_PREFIX"></a>
+
+#### TAG\_PREFIX
+
+Beginning of the name of the bind tag of one editor.
+
+A bind tag is a name in the Tcl interpreter and not an object, so two editors
+in one process would share every binding of a tag they shared. The number
+after this prefix is what keeps them apart.
+
+<a id="edit_cfg_json_tk.tk_scope.KeyScope"></a>
+
+## KeyScope Objects
+
+```python
+class KeyScope()
+```
+
+The keys and the mouse wheel of one editor, and where they reach.
+
+The bindings are made on a bind tag of this scope's own, and the tag is
+put on every widget of the editor by `reach`. A widget the editor did not
+build never gets the tag, which is what keeps an embedded editor from
+claiming keys that belong to the application around it.
+
+<a id="edit_cfg_json_tk.tk_scope.KeyScope.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(parent: tkinter.Misc, priority: bool = True) -> None
+```
+
+Make a scope that has nothing bound and reaches nothing yet.
+
+**Arguments**:
+
+- `parent` - Widget the editor is built below. It is used to reach the
+  Tcl interpreter that the bind tag lives in, and is given the
+  tag itself by `reach` like every widget inside it.
+- `priority` - Whether the editor is offered a key before the widget
+  that has the focus. That is what an editor which owns its
+  window wants, and an application that has taken one of these
+  combinations for a widget of its own says otherwise.
+
+<a id="edit_cfg_json_tk.tk_scope.KeyScope.tag"></a>
+
+#### tag
+
+```python
+@property
+def tag() -> str
+```
+
+Return the bind tag that the widgets of this editor carry.
+
+<a id="edit_cfg_json_tk.tk_scope.KeyScope.bind_key"></a>
+
+#### bind\_key
+
+```python
+def bind_key(key: str, command: Callable[[], None]) -> None
+```
+
+Bind one key combination of one action, if Tk can bind it.
+
+A combination that the translation does not know, or that Tk refuses,
+leaves that action without that key rather than without an editor:
+every action of this backend has a button as well.
+
+**Arguments**:
+
+- `key` - One key combination, as `ActionSettings` writes them.
+- `command` - What that key does.
+
+<a id="edit_cfg_json_tk.tk_scope.KeyScope.bind_event"></a>
+
+#### bind\_event
+
+```python
+def bind_event(sequence: str, callback: Callable[..., str]) -> None
+```
+
+Bind one event sequence everywhere this scope reaches.
+
+**Arguments**:
+
+- `sequence` - Event sequence in the notation Tk binds by.
+- `callback` - What that event does, which answers `break` so that the
+  event is not handled a second time.
+
+<a id="edit_cfg_json_tk.tk_scope.KeyScope.reach"></a>
+
+#### reach
+
+```python
+def reach() -> None
+```
+
+Make this scope reach the widget it was made for, and its inside.
+
+It is called again whenever the editor builds its rows again, because
+a widget that was created afterwards carries the tags it was born
+with. A widget that already has the tag is left alone, so calling it
+again costs a walk and changes nothing.
+
+<a id="edit_cfg_json_tk.tk_scope.KeyScope.release"></a>
+
+#### release
+
+```python
+def release() -> None
+```
+
+Take every binding of this scope out of the interpreter.
+
+A bind tag is a name in the interpreter and outlives the widgets that
+carried it, so an editor that was closed would otherwise leave its
+callbacks — and the model they hold — behind for as long as the
+application runs.
 
 <a id="edit_cfg_json_tk.tk_ask"></a>
 

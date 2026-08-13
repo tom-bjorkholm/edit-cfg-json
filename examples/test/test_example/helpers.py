@@ -23,7 +23,13 @@ import tkinter
 from config_as_json import Config
 import pytest
 from textual.app import App
+from textual.widgets import Static
 from edit_cfg_json import ActionSettings, EditModel
+# The identifier of the label is taken from the backend rather than written
+# out here, in the same way as every widget identifier a test of that backend
+# reaches for. What the label says is the core's `model_title`, which is what
+# these tests are really about.
+from edit_cfg_json_textual.textual_look import TITLE_ID
 
 QUIT_KEY = ActionSettings().quit[0]
 """Key that ends the Textual editor for an application with no opinion.
@@ -201,9 +207,16 @@ def open_tk_ui(main: Callable[[list[str]], None],
         pytest.skip(NO_DISPLAY)
 
 
-async def _quit_at_once(app: App[None], quit_key: str) -> None:
-    """Start one Textual application headlessly and press its quit key."""
+async def _quit_at_once(app: App[None], titles: list[str],
+                        quit_key: str) -> None:
+    """Start one Textual application headlessly and press its quit key.
+
+    The label is read while the application is running, because it is a widget
+    of the editor and not the title of the application: an editor that an
+    application mounts in a window of its own has no business writing there.
+    """
     async with app.run_test() as pilot:
+        titles.append(str(app.query_one(f'#{TITLE_ID}', Static).content))
         await pilot.press(quit_key)
 
 
@@ -212,27 +225,26 @@ def _headless_run(titles: list[str],
     """Return a replacement for App.run that runs it headlessly.
 
     Args:
-        titles: List that receives the title of every started application.
+        titles: List that receives the label of every started editor.
         quit_key: Key that the stand-in user presses to end the editor.
 
     Returns:
         A function that can replace `App.run` for the duration of a test.
     """
     def run_headless(app: App[None]) -> None:
-        """Record the title, start the application and quit it at once."""
-        titles.append(app.title)
-        asyncio.run(_quit_at_once(app, quit_key))
+        """Start the application, read its label and quit it at once."""
+        asyncio.run(_quit_at_once(app, titles=titles, quit_key=quit_key))
     return run_headless
 
 
 def textual_titles(main: Callable[[list[str]], None],
                    monkeypatch: pytest.MonkeyPatch, *settings: str,
                    quit_key: str = QUIT_KEY) -> list[str]:
-    """Run one example with `--ui textual` headlessly and report its title.
+    """Run one example with `--ui textual` headlessly and read its label.
 
-    The title is what the editor shows for the whole model, so it also says
+    The label is what the editor shows for the whole model, so it also says
     whether the buffer holds anything worth saving. That makes it enough to
-    tell that the application started and that it started on the buffer the
+    tell that the editor started and that it started on the buffer the
     command line asked for.
 
     Args:
@@ -242,7 +254,7 @@ def textual_titles(main: Callable[[list[str]], None],
         quit_key: Key that ends the editor, for a run that moved it.
 
     Returns:
-        The title of every application that was started.
+        The label of every editor that was started.
     """
     titles: list[str] = []
     monkeypatch.setattr(App, 'run', _headless_run(titles, quit_key))

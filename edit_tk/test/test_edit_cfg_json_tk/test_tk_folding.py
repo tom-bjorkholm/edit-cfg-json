@@ -22,7 +22,7 @@ from edit_cfg_json_tk.tk_look import PADDING, TREE_INDENT
 from example.e01_flat_config import FlatConfig
 from example.e08_lists_and_dicts import ContainerConfig
 from .helpers import FakeVar, FakeWidget, real_fold, real_press, \
-    real_texts, stub_editor, stub_fold, stub_press, stub_texts, stub_window
+    real_texts, stub_editor, stub_fold, stub_keys, stub_press, stub_texts
 
 MANY_LABELS = 'many_labels'
 """The member of the example that the editor opens folded."""
@@ -138,7 +138,7 @@ def test_stub_fold_key(stub_tk: None) -> None:
     """Test the key of the fold action does what the button does."""
     _ = stub_tk
     _tree_stub()
-    stub_window().bindings[FOLD_KEY]()
+    stub_keys()[FOLD_KEY]()
     assert 'http' not in stub_texts(packed_only=True)
 
 
@@ -154,7 +154,7 @@ def test_stub_no_fold_button(stub_tk: None) -> None:
     shown = stub_texts()
     assert FOLD_ALL_TEXT not in shown
     assert FOLD_OPEN_TEXT not in shown
-    assert FOLD_KEY not in stub_window().bindings
+    assert FOLD_KEY not in stub_keys()
 
 
 def test_stub_rows_rebuilt(stub_tk: None) -> None:

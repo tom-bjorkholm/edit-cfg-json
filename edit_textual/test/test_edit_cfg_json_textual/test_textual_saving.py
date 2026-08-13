@@ -20,7 +20,7 @@ from example.e01_flat_config import FlatConfig
 from .helpers import ESCAPE_KEY, EXPLAIN_KEY, NARROW_SIZE, \
     NO_FILE_TEXT, QUIT_KEY, REFUSED_VERDICT, ROOMY_SIZE, SAVE_AS_KEY, \
     SAVE_KEY, VALIDATE_KEY, VALID_VERDICT, answer_with, described_app, \
-    docstring_of, field_of, save_as, saving_of, verdict_of, written
+    docstring_of, field_of, save_as, saving_of, title_of, verdict_of, written
 
 
 async def _save_with(model: EditModel, member_name: str = 'answer',
@@ -33,7 +33,7 @@ async def _save_with(model: EditModel, member_name: str = 'answer',
         text: Text to put in that field, replacing what is there.
 
     Returns:
-        The saving text, the validation text, and the title.
+        The saving text, the validation text, and the label.
     """
     app = EditorApp(model)
     async with app.run_test() as pilot:
@@ -41,7 +41,7 @@ async def _save_with(model: EditModel, member_name: str = 'answer',
         await pilot.pause()
         await pilot.press(SAVE_KEY)
         await pilot.pause()
-        return saving_of(app), verdict_of(app), app.title
+        return saving_of(app), verdict_of(app), title_of(app)
 
 
 def test_save_writes(tmp_path: Path) -> None:

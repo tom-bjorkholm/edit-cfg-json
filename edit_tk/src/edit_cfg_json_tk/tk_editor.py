@@ -18,9 +18,9 @@ import sys
 import tkinter
 from config_as_json import Config, ConfigPath, PathOrStr
 import edit_cfg_json as core
-from edit_cfg_json_tk.key_names import bind_key
 from edit_cfg_json_tk.scrolling import scrolling_body
 from edit_cfg_json_tk.tk_ask import asked_file, may_close, may_overwrite
+from edit_cfg_json_tk.tk_scope import KeyScope
 from edit_cfg_json_tk.tk_elements import element_controls
 from edit_cfg_json_tk.tk_look import FIELD_BACKGROUND, FIELD_BORDER, \
     FIELD_FOREGROUND, FOLD_WIDTH, LEAST_FIELD_WIDTH, NAME_COLUMN_WIDTH, \
@@ -236,7 +236,8 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         """
         self._model = model
         self._close = on_close or parent.winfo_toplevel().destroy
-        scrolling = scrolling_body(parent)
+        self._scope = KeyScope(parent, model.settings.priority_keys)
+        scrolling = scrolling_body(parent, self._scope)
         # The part that does not scroll is packed first, because Tk gives each
         # child the space it asks for in the order they were packed: a window
         # too short for everything would otherwise leave nothing at all for
@@ -265,7 +266,19 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
                                    explained=explained,
                                    folding=self._add_buttons(fixed, explained))
         self._show_rows()
-        self._bind_keys(parent.winfo_toplevel())
+        self._bind_keys()
+        self._scope.reach()
+
+    def release_keys(self) -> None:
+        """Give up the keys and the wheel that these widgets had.
+
+        A bind tag outlives the widgets that carried it, so an editor that is
+        taken off a window it shares would otherwise leave its callbacks —
+        and the model they hold — behind for as long as the application runs.
+        A backend that owns its window never needs this, because the window
+        and its interpreter go together.
+        """
+        self._scope.release()
 
     def close_editor(self) -> None:
         """End the session, asking first where there is something to lose.
@@ -432,21 +445,21 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         button.pack(side='left', padx=PADDING)
         return button
 
-    def _bind_keys(self, window: tkinter.Misc) -> None:
+    def _bind_keys(self) -> None:
         """Bind the key combinations that the application chose.
 
-        The bindings are made on the window and not on each field, because
-        a key that a field does not use for itself reaches the window that
-        the field is in. Nothing is bound for the cancel action: the only
+        They are bound in the scope of this editor and not on the window,
+        which is what makes the same keys right for an editor that owns a
+        window and for one mounted in a window an application owns: the
+        scope is the widget these were built below and everything inside it,
+        so a backend which owns its window is given the window and gets the
+        keys of all of it. Nothing is bound for the cancel action: the only
         question this backend asks is the toolkit's own file dialog, which
         answers that key itself. Nothing is bound for the folding either
         where there is nothing to fold, for the same reason as the button.
 
         The keys are read once, here, which is the whole of what a later
         answer from a settings callable cannot change.
-
-        Args:
-            window: Window that the bindings are made on.
         """
         actions = self._model.settings.actions
         folding = actions.fold if core.can_fold(self._model) else ()
@@ -457,7 +470,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
                               (actions.explain, self._explain),
                               (folding, self._fold_all)):
             for key in keys:
-                bind_key(window=window, key=key, command=command)
+                self._scope.bind_key(key=key, command=command)
 
     def _create_rows(self) -> None:
         """Create the widgets of every node, replacing the ones there are.
@@ -483,9 +496,14 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         keeps the focus where the user put it. Adding, removing or moving an
         element does, and there they are always made again, because which
         controls a row offers changes with them.
+
+        The keys and the wheel are made to reach the new widgets, because a
+        widget carries the bind tags it was born with and these were born
+        after the scope was made.
         """
         self._create_rows()
         self._show_rows()
+        self._scope.reach()
 
     def _add_row(self, parent: tkinter.Misc,
                  row: core.MemberRow) -> RowWidgets:

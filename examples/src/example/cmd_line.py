@@ -144,6 +144,16 @@ answers are not ready at the moment of the call, and is documented at
 Every run ends by saying what `edit()` gave back, because "the saved object,
 or `None` when nothing was saved" is the contract of this library and a
 contract is better seen than read.
+
+`embedded_parser` and `session_result` beside `run_example` are for the two
+examples that mount the editor in a window an application owns. Those cannot
+use `run_example` at all: every option of it is phrased against
+`edit_cfg_json.EditorBackend`, and an embedded editor is deliberately not one
+— it does not run to completion, so it cannot be handed to `edit()`. What
+they share with the rest is the three file options, which are the core's own,
+and the one setting that only an embedded editor has a reason to change; what
+they say at the end is read from the model, because a widget has no moment at
+which it could return anything.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -209,6 +219,64 @@ MOVE_DOWN = 'down'
 KEY_FORM_MESSAGE = ('--key needs one of {names} followed by =combinations, '
                     'and got {value}.')
 """Message used to refuse a `--key` that names no action of the editor."""
+
+SESSION_SAVED = 'The session saved a {name} object.'
+"""What an example that mounts the editor says about what was written."""
+
+SESSION_NOTHING = 'The session saved nothing.'
+"""What it says when the session ended without writing anything."""
+
+ORDINARY_KEYS_HELP = ('Offer the editor a key after the widget that has the '
+                      'focus, rather than before it.')
+"""What `--ordinary-keys` says it does."""
+
+
+def embedded_parser(example_name: str) -> argparse.ArgumentParser:
+    """Return the command line that the two embedding examples share.
+
+    They cannot use the parser below, because every option of it is phrased
+    against `edit_cfg_json.EditorBackend` and an editor mounted in an
+    application's own window is deliberately not one: it does not run to
+    completion, so it cannot be handed to `edit()` at all. What is left is
+    the three file options, which are the core's own and mean here what they
+    mean in every program of this library, and the one setting that only an
+    embedded editor has a reason to change.
+
+    There is no `--ui`, because each of those two examples is one toolkit,
+    and no `--ui dump`, because what they teach is where the editor is in a
+    window and a printout has no window to be one part of.
+
+    Args:
+        example_name: Name of the example, used in help and error text.
+
+    Returns:
+        A parser for `--ordinary-keys`, `--policy`, `-i/--input` and
+        `-o/--output`.
+    """
+    parser = argparse.ArgumentParser(prog=example_name)
+    parser.add_argument('--ordinary-keys', action='store_true',
+                        help=ORDINARY_KEYS_HELP)
+    add_file_options(parser)
+    return parser
+
+
+def session_result(saved: Optional[Config]) -> str:
+    """Return what one embedded editing session gave back, as a line.
+
+    An editor mounted in a window an application owns has no moment at which
+    it could return anything, so what the application reads is
+    `edit_cfg_json.EditModel.saved_config`. This is how the two examples that
+    do that say what they found there.
+
+    Args:
+        saved: What the model of the session holds as its saved object.
+
+    Returns:
+        A line naming the saved configuration class, or saying there is none.
+    """
+    if saved is None:
+        return SESSION_NOTHING
+    return SESSION_SAVED.format(name=type(saved).__name__)
 
 
 def _create_parser(example_name: str) -> argparse.ArgumentParser:

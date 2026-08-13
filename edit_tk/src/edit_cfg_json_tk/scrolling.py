@@ -18,6 +18,7 @@ it the way it uses the toolkit.
 from collections.abc import Callable
 from typing import NamedTuple, Optional
 import tkinter
+from edit_cfg_json_tk.tk_scope import KeyScope
 
 BODY_HEIGHT = 480
 """Largest height in pixels that the scrolling part of the editor is given.
@@ -95,29 +96,23 @@ def _scroll_by(canvas: tkinter.Canvas, step: Optional[int]
     return scroll
 
 
-def _bind_wheel(window: tkinter.Misc, canvas: tkinter.Canvas) -> None:
+def _bind_wheel(scope: KeyScope, canvas: tkinter.Canvas) -> None:
     """Let the mouse wheel scroll the body, however it is reported.
 
-    The bindings are made on the window rather than on the canvas, because a
-    wheel event goes to the widget under the pointer and the pointer is
-    usually over a field or a label inside the body. That is the same window
-    the keys are bound on, and it is the same open question for the same
-    reason: an editor mounted in a window it shares would be claiming the
-    wheel of a whole application. See section 8.2.7 of `doc/design.md`.
+    The bindings are made everywhere the editor reaches rather than on the
+    canvas alone, because a wheel event goes to the widget under the pointer
+    and the pointer is usually over a field or a label inside the body. That
+    is the same scope the keys are bound in, and for the same reason: an
+    editor mounted in a window it shares would otherwise claim the wheel of a
+    whole application.
 
     Args:
-        window: Window that the bindings are made on.
+        scope: The part of the window this editor reaches.
         canvas: Canvas that holds the scrolling part of the editor.
     """
     for sequence, step in (('<MouseWheel>', None), ('<Button-4>', -1),
                            ('<Button-5>', 1)):
-        try:
-            window.bind(sequence, _scroll_by(canvas=canvas, step=step))
-        except tkinter.TclError:
-            # A platform whose Tk does not know one of these sequences leaves
-            # the wheel out and keeps the scrollbar, which is not worth an
-            # editor that does not open.
-            pass
+        scope.bind_event(sequence, _scroll_by(canvas=canvas, step=step))
 
 
 def _fit_body(canvas: tkinter.Canvas,
@@ -177,7 +172,7 @@ class ScrollingArea(NamedTuple):
     """The frame to build the scrolling part of the editor in."""
 
 
-def scrolling_body(parent: tkinter.Misc) -> ScrollingArea:
+def scrolling_body(parent: tkinter.Misc, scope: KeyScope) -> ScrollingArea:
     """Return the frame that the scrolling part of the editor is built in.
 
     The area is not packed here. Tk gives each child the space it asks for in
@@ -188,6 +183,8 @@ def scrolling_body(parent: tkinter.Misc) -> ScrollingArea:
 
     Args:
         parent: Widget that becomes the parent of the created widgets.
+        scope: The part of the window this editor reaches, which is where
+            the mouse wheel is bound.
 
     Returns:
         The frame to pack, and the frame to build in.
@@ -203,5 +200,5 @@ def scrolling_body(parent: tkinter.Misc) -> ScrollingArea:
     item = canvas.create_window(0, 0, window=body, anchor='nw')
     body.bind('<Configure>', _fit_body(canvas=canvas, body=body))
     canvas.bind('<Configure>', _fit_width(canvas=canvas, item=item))
-    _bind_wheel(window=parent.winfo_toplevel(), canvas=canvas)
+    _bind_wheel(scope=scope, canvas=canvas)
     return ScrollingArea(area=area, body=body)
