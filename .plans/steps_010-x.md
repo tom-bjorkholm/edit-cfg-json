@@ -1240,7 +1240,7 @@ There we have a very simple to use API and simple examples for the 3 cases:
 
 There is no reason that running edit_cfg_json should be any more complicated
 (we need some extra parameters for config, descriptions and Settings, but adding
-a few parameters does not need that we cannot use the same simple shape.)
+a few parameters does not mean that we cannot use the same simple shape.)
 We need to redesign the embedding of edit_cfg_json for both Tk and Textual,
 so that it is just as easy to embed edti_cfg_json and it is to embedd wizard_tk_bridge,
 and we need examples that describe it as simple as well.
