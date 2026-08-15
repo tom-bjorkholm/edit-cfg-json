@@ -780,6 +780,83 @@ def test_settings_of_the_home(tmp_path: Path,
     assert backend.model.settings.backup_count == 3
 
 
+@pytest.mark.parametrize('extra', ['--extension cfg', '--enforce-extension',
+                                   '--key save=ctrl+w'])
+def test_names_no_setting(extra: str,
+                          capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the command line says what to edit and never how to behave.
+
+    Every setting of the editor is a member of `SettingsConfig`, so an option
+    for one of them would be a second way of saying what a settings file says,
+    and the two could then disagree within one run. These three are the ones
+    the examples have, because there they stand in for the application.
+    """
+    with pytest.raises(SystemExit) as ended:
+        _run(Recorder(), *_named('FlatCfg'), *extra.split())
+    assert ended.value.code == ExitCode.USAGE
+    assert extra.split()[0] in capsys.readouterr().err
+
+
+def _enforcing(folder: Path) -> str:
+    """Write the settings file that enforces an extension, and name it.
+
+    Args:
+        folder: Folder of one test.
+
+    Returns:
+        The name of that file, as a command line takes it.
+    """
+    return str(_written(folder / 'enforced.cfg',
+                        '{"file_extension": "cfg", '
+                        '"extension_enforced": true}'))
+
+
+def test_enforced_input(tmp_path: Path,
+                        capsys: pytest.CaptureFixture[str]) -> None:
+    """Test an extension a settings file enforces refuses an input file.
+
+    This is what a program has instead of the `--extension` option it does not
+    have, and it is the first of the two places the answer is acted on.
+    """
+    in_file = _input_file(tmp_path, name='Ada')
+    outcome = _run(Recorder(), '-c', _enforcing(tmp_path),
+                   *_named('FlatCfg', '-i', in_file))
+    assert outcome == ExitCode.LOAD_REFUSED
+    assert '.cfg' in capsys.readouterr().err
+
+
+def test_enforced_output(tmp_path: Path) -> None:
+    """Test it refuses a destination as well, so nothing is written.
+
+    A program whose backend prints once is the one that has a `--save` to be
+    asked for and the one whose exit code answers with what became of it, so
+    it is the program this is asked of.
+    """
+    out_file = tmp_path / 'written.json'
+    outcome = _run(Recorder(), '-c', _enforcing(tmp_path),
+                   *_named('FlatCfg', '-o', str(out_file), '--save'),
+                   interactive=False)
+    assert outcome == ExitCode.NOT_WRITTEN
+    assert not out_file.exists()
+
+
+def test_plain_settings(tmp_path: Path) -> None:
+    """Test naming a settings file that says nothing gives the defaults.
+
+    That is what the command line has instead of an option for running with no
+    settings file at all: the last step of the lookup is what such a file
+    holds, and `-c` reaches it past a file of the home folder that says
+    something else.
+    """
+    _written(Path.home() / SHARED_SETTINGS,
+             '{"file_extension": "cfg", "extension_enforced": true}')
+    plain = str(_written(tmp_path / 'plain.cfg', '{}'))
+    backend = Recorder()
+    assert _run(backend, '-c', plain, *_named('FlatCfg')) == ExitCode.OK
+    assert backend.model is not None
+    assert backend.model.settings == Settings()
+
+
 def test_no_named_settings(tmp_path: Path,
                            capsys: pytest.CaptureFixture[str]) -> None:
     """Test a settings file that was named and is not there stops the run.

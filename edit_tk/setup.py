@@ -16,7 +16,6 @@ setup(
   install_requires=[
     'edit-cfg-json >= 0.0.3, == 0.0.*',
     'argcomplete >= 3.7.2',
-    'wizard-tk-bridge >= 1.3',
-    'wizard-ui-bridge >= 1.3'
+    'versionreporter >= 0.4'
   ]
 )

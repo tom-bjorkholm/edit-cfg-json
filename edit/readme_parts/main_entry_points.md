@@ -597,7 +597,10 @@ it finds a settings file by the five steps `settings_file` makes and answers
 with a `Settings`. A file that was **named** — by an argument or by the
 `CFG_EDIT_CFG_JSON` environment variable — must be there, and a missing one is
 a `ConfigLoadError`; the two files of the home folder are the lookup itself, so
-a step that finds nothing is simply the next step.
+a step that finds nothing is simply the next step. A file that names nothing is
+the last step of that lookup written down, so naming one is how a run asks for
+the values the editor would have chosen anyway, past a file of the home folder
+that says something else.
 
 Every one of these entry points also accepts a callable that answers with a
 `Settings`, which is `SettingsSource`. It is asked again at each point where

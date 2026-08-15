@@ -78,6 +78,10 @@ plan says only *when* that decision gets built.
   settings of the editor as a configuration class of their own, editable in the
   editor, declarable inside an application's own configuration, and looked for
   in five places by each program.
+- [Step 20](#step-20--the-rest-of-the-programs-command-line) — the command line
+  of a program saying what to edit and which files and never how the editor
+  behaves, which is the whole of the answer once every setting can be written
+  in a file.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -1435,6 +1439,8 @@ The public names it settled:
 
 #### Step 20 — The rest of the program's command line
 
+Status: **Implemented and committed.**
+
 Any other command line options of `edit-cfg-json-textual`, `edit-cfg-json-tk`
 and `edit_cfg_json.dump` should have according to the design,
 that have not already been implemented.
@@ -1453,6 +1459,98 @@ better to specify it in `Settings` and thus in the configuration file.
 
 We will not implement any `--key ACTION=COMBINATIONS` as this is better
 set using the configuration file or step 19
+
+**The answer is that no option is added at all**, which the question above
+asked for and which step 19 is what made possible. A program's command line
+says what to edit and which files, and never how the editor behaves. This step
+is therefore the decision, the documents that record it, and the tests that pin
+it — the same shape as steps 15B and 17, which are read rather than run.
+
+**Observable outcome.** What a review runs is a program, to check that what is
+now written about it is true. With `PYTHONPATH=examples/src`, a settings file
+holding `{"file_extension": "cfg", "extension_enforced": true}` and a
+configuration file called `thing.json`:
+
+- `edit-cfg-json-tk -c enforced.cfg --module example.e01_flat_config --class
+  FlatConfig -i thing.json` refuses that file by its name and never opens a
+  window, which is the extension of an application reaching the editor with no
+  option for it and no application running.
+- `python3 -m edit_cfg_json.dump` with the same arguments prints the same
+  refusal and ends with `1`, and with `-i thing.cfg -o out.json --save` it
+  refuses the destination instead, ends with `11` and writes nothing.
+- `-c` naming a file holding `{}` opens `thing.json` after all, which is how a
+  run asks for the values the editor would have chosen anyway.
+- `--extension cfg`, `--enforce-extension` and `--key save=ctrl+w` are refused
+  by `argparse` on all three programs.
+
+**What it decided.** Four things.
+
+- **Every setting reaches a program through a settings file and through
+  nothing else.** An option for one of them would be a second way of saying
+  what a settings file already says, inside one run, with nothing to decide
+  which of the two wins. It is also a command line that grows a flag every time
+  `Settings` grows an attribute, which section 9.1 of `doc/design.md` promises
+  it will; `--key` was ruled out before this step started and is the same
+  answer, so ruling it out for one setting and not for the others would have
+  been the inconsistency. Design section 8.3.5.
+- **`-c/--cfg` is per run, and that is what makes one option enough.** This is
+  the objection the decision had to survive: an extension is a fact about the
+  class being edited, while a file of the home folder is a fact about whoever
+  is running the program, so a user who opens two applications' classes would
+  need two answers. They write a settings file for each and name one with `-c`,
+  which is that option used for what it is for.
+- **Asking for the defaults of the editor is naming a file that says
+  nothing.** A `--no-cfg` was considered for the case of a
+  `~/.edit-cfg-json.cfg` that is in the way. It is not needed: a settings file
+  need name only what it changes, so one holding `{}` is the fifth step of the
+  lookup written down, and `-c` reaches it past the home folder. Verified
+  against the installed build before the decision was written. Design sections
+  8.3.5 and 9.9.
+- **The examples keep `--extension`, `--enforce-extension` and `--key`.** They
+  stand in for the application, which decides these in Python, and they are
+  there so that every answer can be tried without writing a program per answer.
+  A program has no application around it, which is exactly why it reads a file.
+  So the sharing that this step was to consider — the treatment
+  `add_file_options` gave `-i`, `-o` and `--policy` — has nothing to share:
+  the two parsers do not have these options in common, and the reason is the
+  decision above.
+
+**Core.** No code at all. `cli.py` and `settings_file.py` say in their
+docstrings what the command line does not do and what stands in for it,
+`doc/design.md` gains section 8.3.5 and one paragraph of 9.9,
+`readme_parts/program.md` replaces the paragraph that sent a reader of the
+*program* to `edit()`, and `edit/readme_parts/main_entry_points.md` says the
+same thing about `load_settings`. `doc/*_api.md` and the three
+`README_pypi.md` are generated from exactly those sources.
+
+**What building it found.**
+
+- **The readme had already answered this and had answered it in the wrong
+  direction.** `readme_parts/program.md` told whoever was running the program
+  that the extension "says it in `edit_cfg_json.Settings`, and gets there
+  through `edit` rather than through this program" — true of an application and
+  no help at all to the reader it was written for, who has no application and
+  is holding a command line. The settings file was in the very next section and
+  nothing joined the two.
+- **The decision needed a test and not only a sentence.** `--extension` being
+  absent is invisible, so three tests say it: that the three options are usage
+  errors, that an enforced extension read from a settings file really refuses
+  both the input file and the destination in a program run, and that a settings
+  file saying nothing gives the defaults past a file of the home folder. The
+  second of those is the one that was only ever pinned as a model attribute
+  before, by `test_settings_reach_model`, and never as what a run does.
+- **What the design asks for is all there.** Checked rather than assumed:
+  `--module`, `--file`, `--edit-settings`, `--class`, `--loader`,
+  `--descriptions`, `-c/--cfg`, `--save`, `--unfold` and the three of
+  `add_file_options` are every option `doc/design.md` names for a program, and
+  every one of them is built. `--version` is step 21 and is named nowhere in
+  the design yet.
+- **`--save` alone is not what makes a program write.** The test that was
+  written first handed the session a backend that saves, and the run ended with
+  `0` because `_outcome` asks whether `--save` was *given*, not whether
+  anything was written. That is the option and the exit code being about the
+  same thing, which is what design section 8.3.3 says they are, and the test
+  says it the way the program does.
 
 #### Step 21 - version command line flag
 

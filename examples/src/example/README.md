@@ -133,6 +133,11 @@ example that does it the way a real application does, and hands over a
 `Settings` of its own; the three options above then fill in the parts they
 name and leave the rest of it alone.
 
+The programs that `edit-cfg-json-tk` and `edit-cfg-json-textual` install have
+none of those three options, and that is the same thought rather than a
+difference: they have no application around them to stand in for, so they read
+every setting from a settings file instead, and `-c` says which one.
+
 `--add`, `--remove` and `--move` stand in for pressing the controls on a row,
 and they are applied before `--set`, so that a value inside a new element can
 be typed into in the same run. That is also the order a user would work in.

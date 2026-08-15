@@ -2184,6 +2184,45 @@ them, the declared defaults and the load, because the validation of a buffer
 and the walk that attributes a refusal copy an object rather than construct
 one.
 
+#### 8.3.5 The command line names no setting
+
+A program is told **what to edit and which files**, and never how the editor
+behaves. Every setting there is is a member of `SettingsConfig` (section 9.8),
+so a program reads all of them from a settings file, and the one option the
+command line has about them is `-c/--cfg`, which says *which* file this run
+behaves according to.
+
+The two that a program could plausibly have been given are the ones an
+application knows about its own files — the extension its configuration files
+use and whether it is enforced — and an option for either would be a second way
+of saying what a settings file already says, inside one run, with nothing to
+decide which of the two wins. `--key ACTION=COMBINATIONS` is the same answer
+once more, and it is the one that makes the shape plain: an option per setting
+is a command line that grows a flag every time `Settings` grows an attribute,
+and section 9.1 promises that it will.
+
+**A settings file is per run and not only per user**, which is what makes one
+option enough. An extension is a fact about the class being edited, while a
+file of the home folder is a fact about whoever is running the program, so
+somebody who opens two applications' classes writes a settings file for each
+and names one with `-c`. That is the option used for what it is for, and it is
+the answer to the one thing the lookup of section 9.9 could not do on its own.
+
+**Asking for the defaults of the editor is naming a file that says nothing.** A
+settings file need name only what it changes, so one holding `{}` is the last
+step of that lookup written down, and `-c` reaches it past a file of the home
+folder that says something else. There is therefore no option for ignoring the
+lookup: it would be a name for something the command line already expresses,
+which is the reason section 8.3.2 gives for `--edit-settings` having no
+companion option for making a new file.
+
+The examples of this repository do have `--extension`, `--enforce-extension`
+and `--key`, and that is not the same command line disagreeing with itself. An
+example stands in for the application, which decides these things in Python,
+and the options are there so that every answer can be tried without writing a
+program per answer. A program has no application around it, which is exactly
+why it reads a file instead.
+
 ## 9. Settings the application owns
 
 The editor does not run on its own. It runs inside an application that has
@@ -2488,6 +2527,12 @@ no file of its own and reads the shared one or nothing.
 by hand to change one or two things and what it does not name is what the
 editor would have chosen anyway. It is also read **before** anything else the
 command line names, because it is what the whole run behaves according to.
+
+**The last step is reachable by name**, which follows from that and is worth
+saying because it is what a command line option would otherwise have been asked
+for. A file that names nothing is the defaults of the editor, so `-c` naming
+one is how a run asks for them past a file of the home folder that says
+something else. Section 8.3.5 is where that is the answer to a question.
 
 ## 10. Testing strategy
 

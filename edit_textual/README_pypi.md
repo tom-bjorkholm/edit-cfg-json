@@ -212,12 +212,13 @@ the one thing an application knows that this program could not otherwise pass
 on. The docstring of the configuration class needs no option, because the class
 carries it.
 
-An application that has more to say about its own configuration — the file name
-extension it uses, the key combinations its own user interface has taken, and
-what becomes of a file that a save writes over — says it in
-`edit_cfg_json.Settings`, and gets there through `edit` rather than through this
-program. What *this* program behaves according to is a settings file, which is
-the next section.
+**The command line says what to edit and which files, and never how the editor
+behaves.** The file name extension a configuration uses, the key combinations
+that run the actions of the editor, and what becomes of a file that a save
+writes over are settings, and there is no option for any of them: an
+application says them in `edit_cfg_json.Settings` and reaches the editor
+through `edit`, and this program reads every one of them from a settings file.
+That is the next section, and `-c` is the one option about it.
 
 ### The settings this program itself runs with
 
@@ -248,6 +249,26 @@ of the files that a save writes over:
     "backup_count": 3
 }
 ````
+
+A settings file is what one **run** behaves according to, which is what `-c` is
+for. The extension is a fact about the class being edited rather than about
+whoever is running the program, so an application whose configuration files are
+called `.cfg` gets a file of its own beside the one in the home folder:
+
+````json
+{"file_extension": ".cfg", "extension_enforced": true}
+````
+
+````sh
+edit-cfg-json-textual -c ./myapp-editor.cfg --module myapp.config --class AppConfig \
+    -i /etc/myapp.cfg
+````
+
+An enforced extension refuses an input file that does not have it, and refuses
+a destination that does not have it either, so nothing is written. And a file
+holding `{}` names nothing at all, which makes it step 5 of the table written
+down: naming it is how a run asks for the values the editor would have chosen
+anyway, past a file of the home folder that says something else.
 
 `--edit-settings` is how one is edited in this editor itself. With `-i` it reads
 the file that is there; with no `-i` it starts from the values the class
@@ -607,7 +628,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 1603 passed, 3 deselected in 44s
+- Test result: 1609 passed, 3 deselected in 45s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

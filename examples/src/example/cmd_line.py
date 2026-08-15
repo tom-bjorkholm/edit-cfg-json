@@ -129,6 +129,11 @@ An example that has decided something about its own files hands over a
 and the three options above then fill in the parts they name and leave the
 rest of it alone.
 
+The programs that the two editor packages install have none of those three
+options, which is the same thought and not a difference: they have no
+application around them to stand in for, so they read every setting from a
+settings file instead and `-c` says which one.
+
 `--key ACTION=COMBINATIONS` names one action of the editor and the key
 combinations that run it, separated by commas. `--key save=ctrl+w` moves
 Save, and `--key save_as=` takes the key away from Save as altogether and

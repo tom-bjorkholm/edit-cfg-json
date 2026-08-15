@@ -16,6 +16,6 @@ setup(
   install_requires=[
     'config-as-json >= 1.5',
     'argcomplete >= 3.7.2',
-    'wizard-ui-bridge >= 1.3'
+    'versionreporter >= 0.4'
   ]
 )

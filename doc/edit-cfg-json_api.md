@@ -3156,6 +3156,14 @@ module is about a session and not about where its configuration came from.
 before anything else the command line names, because they are what the whole
 run behaves according to.
 
+**It is also the only option about them.** A command line here says what to
+edit and which files, and never how the editor behaves: every setting there is
+is a member of `edit_cfg_json.SettingsConfig`, so an option for one of them
+would be a second way of saying what a settings file says, inside one run, with
+nothing to decide which of the two wins. A run that wants other settings names
+another file, and one that wants the defaults of the editor names a file that
+says nothing.
+
 <a id="edit_cfg_json.cli.DESCRIPTION"></a>
 
 #### DESCRIPTION
@@ -4133,6 +4141,11 @@ and a step of a lookup that finds nothing is the lookup working.
 The file is read with `LoadPolicy.DEFAULTS`, because a settings file is
 something somebody writes by hand to change one or two things, and what it does
 not name is what the editor would have chosen anyway.
+
+**A file that names nothing is the last step written down**, which follows from
+that and is what a program has instead of an option for ignoring the lookup:
+naming one is how a run asks for the values the editor would have chosen
+anyway, past a file of the home folder that says something else.
 
 <a id="edit_cfg_json.settings_file.SETTINGS_VARIABLE"></a>
 

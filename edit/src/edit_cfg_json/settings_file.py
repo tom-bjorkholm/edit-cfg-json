@@ -17,6 +17,11 @@ and a step of a lookup that finds nothing is the lookup working.
 The file is read with `LoadPolicy.DEFAULTS`, because a settings file is
 something somebody writes by hand to change one or two things, and what it does
 not name is what the editor would have chosen anyway.
+
+**A file that names nothing is the last step written down**, which follows from
+that and is what a program has instead of an option for ignoring the lookup:
+naming one is how a run asks for the values the editor would have chosen
+anyway, past a file of the home folder that says something else.
 """
 
 # Copyright (c) 2026 Tom Björkholm

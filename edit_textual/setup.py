@@ -17,6 +17,6 @@ setup(
     'edit-cfg-json >= 0.0.3, == 0.0.*',
     'textual >= 8.2.8',
     'argcomplete >= 3.7.2',
-    'wizard-ui-bridge[textual] >= 1.3'
+    'versionreporter >= 0.4'
   ]
 )

@@ -23,6 +23,14 @@ module is about a session and not about where its configuration came from.
 `edit_cfg_json.settings_file` gives to it. The settings of a program are read
 before anything else the command line names, because they are what the whole
 run behaves according to.
+
+**It is also the only option about them.** A command line here says what to
+edit and which files, and never how the editor behaves: every setting there is
+is a member of `edit_cfg_json.SettingsConfig`, so an option for one of them
+would be a second way of saying what a settings file says, inside one run, with
+nothing to decide which of the two wins. A run that wants other settings names
+another file, and one that wants the defaults of the editor names a file that
+says nothing.
 """
 
 # Copyright (c) 2026 Tom Björkholm
