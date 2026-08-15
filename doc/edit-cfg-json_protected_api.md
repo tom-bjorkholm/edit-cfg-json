@@ -36,6 +36,28 @@
   * [flat\_values](#edit_cfg_json.tree.flat_values)
   * [under\_dict](#edit_cfg_json.tree.under_dict)
   * [assembled](#edit_cfg_json.tree.assembled)
+* [edit\_cfg\_json.exit\_code](#edit_cfg_json.exit_code)
+  * [ExitCode](#edit_cfg_json.exit_code.ExitCode)
+    * [OK](#edit_cfg_json.exit_code.ExitCode.OK)
+    * [LOAD\_REFUSED](#edit_cfg_json.exit_code.ExitCode.LOAD_REFUSED)
+    * [USAGE](#edit_cfg_json.exit_code.ExitCode.USAGE)
+    * [NO\_MODULE](#edit_cfg_json.exit_code.ExitCode.NO_MODULE)
+    * [NO\_FILE](#edit_cfg_json.exit_code.ExitCode.NO_FILE)
+    * [NOT\_PYTHON](#edit_cfg_json.exit_code.ExitCode.NOT_PYTHON)
+    * [NOT\_IMPORTABLE](#edit_cfg_json.exit_code.ExitCode.NOT_IMPORTABLE)
+    * [NO\_NAME](#edit_cfg_json.exit_code.ExitCode.NO_NAME)
+    * [NOT\_CONFIG](#edit_cfg_json.exit_code.ExitCode.NOT_CONFIG)
+    * [NO\_DEFAULTS](#edit_cfg_json.exit_code.ExitCode.NO_DEFAULTS)
+    * [INVALID](#edit_cfg_json.exit_code.ExitCode.INVALID)
+    * [NOT\_WRITTEN](#edit_cfg_json.exit_code.ExitCode.NOT_WRITTEN)
+    * [NOT\_SHOWABLE](#edit_cfg_json.exit_code.ExitCode.NOT_SHOWABLE)
+    * [NOT\_LOADER](#edit_cfg_json.exit_code.ExitCode.NOT_LOADER)
+    * [LOADER\_ARGS](#edit_cfg_json.exit_code.ExitCode.LOADER_ARGS)
+    * [WRONG\_CLASS](#edit_cfg_json.exit_code.ExitCode.WRONG_CLASS)
+    * [NOT\_DESCRIPTIONS](#edit_cfg_json.exit_code.ExitCode.NOT_DESCRIPTIONS)
+    * [NO\_SETTINGS](#edit_cfg_json.exit_code.ExitCode.NO_SETTINGS)
+  * [Refusal](#edit_cfg_json.exit_code.Refusal)
+    * [\_\_init\_\_](#edit_cfg_json.exit_code.Refusal.__init__)
 * [edit\_cfg\_json.loading](#edit_cfg_json.loading)
   * [DEFAULTS\_ERRORS](#edit_cfg_json.loading.DEFAULTS_ERRORS)
   * [NO\_FILE](#edit_cfg_json.loading.NO_FILE)
@@ -196,60 +218,16 @@
   * [main](#edit_cfg_json.dump.main)
 * [edit\_cfg\_json.cli](#edit_cfg_json.cli)
   * [DESCRIPTION](#edit_cfg_json.cli.DESCRIPTION)
-  * [PYTHON\_SUFFIX](#edit_cfg_json.cli.PYTHON_SUFFIX)
   * [POLICY\_NAMES](#edit_cfg_json.cli.POLICY_NAMES)
-  * [NO\_MODULE\_MESSAGE](#edit_cfg_json.cli.NO_MODULE_MESSAGE)
-  * [NO\_FILE\_MESSAGE](#edit_cfg_json.cli.NO_FILE_MESSAGE)
-  * [NOT\_PYTHON\_MESSAGE](#edit_cfg_json.cli.NOT_PYTHON_MESSAGE)
-  * [NOT\_IMPORTABLE\_MESSAGE](#edit_cfg_json.cli.NOT_IMPORTABLE_MESSAGE)
-  * [NO\_NAME\_MESSAGE](#edit_cfg_json.cli.NO_NAME_MESSAGE)
-  * [NOT\_CONFIG\_MESSAGE](#edit_cfg_json.cli.NOT_CONFIG_MESSAGE)
-  * [NO\_TARGET\_MESSAGE](#edit_cfg_json.cli.NO_TARGET_MESSAGE)
-  * [NOT\_LOADER\_MESSAGE](#edit_cfg_json.cli.NOT_LOADER_MESSAGE)
-  * [LOADER\_ARGS\_MESSAGE](#edit_cfg_json.cli.LOADER_ARGS_MESSAGE)
-  * [NO\_LOADER\_CONFIG](#edit_cfg_json.cli.NO_LOADER_CONFIG)
-  * [WRONG\_CLASS\_MESSAGE](#edit_cfg_json.cli.WRONG_CLASS_MESSAGE)
-  * [NOT\_DESCRIPTIONS](#edit_cfg_json.cli.NOT_DESCRIPTIONS)
-  * [NOT\_SHOWABLE\_MESSAGE](#edit_cfg_json.cli.NOT_SHOWABLE_MESSAGE)
-  * [ExitCode](#edit_cfg_json.cli.ExitCode)
-    * [OK](#edit_cfg_json.cli.ExitCode.OK)
-    * [LOAD\_REFUSED](#edit_cfg_json.cli.ExitCode.LOAD_REFUSED)
-    * [USAGE](#edit_cfg_json.cli.ExitCode.USAGE)
-    * [NO\_MODULE](#edit_cfg_json.cli.ExitCode.NO_MODULE)
-    * [NO\_FILE](#edit_cfg_json.cli.ExitCode.NO_FILE)
-    * [NOT\_PYTHON](#edit_cfg_json.cli.ExitCode.NOT_PYTHON)
-    * [NOT\_IMPORTABLE](#edit_cfg_json.cli.ExitCode.NOT_IMPORTABLE)
-    * [NO\_NAME](#edit_cfg_json.cli.ExitCode.NO_NAME)
-    * [NOT\_CONFIG](#edit_cfg_json.cli.ExitCode.NOT_CONFIG)
-    * [NO\_DEFAULTS](#edit_cfg_json.cli.ExitCode.NO_DEFAULTS)
-    * [INVALID](#edit_cfg_json.cli.ExitCode.INVALID)
-    * [NOT\_WRITTEN](#edit_cfg_json.cli.ExitCode.NOT_WRITTEN)
-    * [NOT\_SHOWABLE](#edit_cfg_json.cli.ExitCode.NOT_SHOWABLE)
-    * [NOT\_LOADER](#edit_cfg_json.cli.ExitCode.NOT_LOADER)
-    * [LOADER\_ARGS](#edit_cfg_json.cli.ExitCode.LOADER_ARGS)
-    * [WRONG\_CLASS](#edit_cfg_json.cli.ExitCode.WRONG_CLASS)
-    * [NOT\_DESCRIPTIONS](#edit_cfg_json.cli.ExitCode.NOT_DESCRIPTIONS)
-  * [\_Refusal](#edit_cfg_json.cli._Refusal)
-    * [\_\_init\_\_](#edit_cfg_json.cli._Refusal.__init__)
   * [\_default\_policy\_name](#edit_cfg_json.cli._default_policy_name)
   * [named\_policy](#edit_cfg_json.cli.named_policy)
   * [add\_file\_options](#edit_cfg_json.cli.add_file_options)
   * [\_create\_parser](#edit_cfg_json.cli._create_parser)
-  * [\_said](#edit_cfg_json.cli._said)
-  * [\_imported\_module](#edit_cfg_json.cli._imported_module)
-  * [\_python\_file](#edit_cfg_json.cli._python_file)
-  * [\_module\_from\_file](#edit_cfg_json.cli._module_from_file)
-  * [\_class\_in](#edit_cfg_json.cli._class_in)
-  * [\_loader\_in](#edit_cfg_json.cli._loader_in)
-  * [\_descriptions\_in](#edit_cfg_json.cli._descriptions_in)
-  * [\_named\_module](#edit_cfg_json.cli._named_module)
-  * [\_constructed](#edit_cfg_json.cli._constructed)
-  * [\_loader\_config](#edit_cfg_json.cli._loader_config)
-  * [\_target\_config](#edit_cfg_json.cli._target_config)
-  * [\_checked\_class](#edit_cfg_json.cli._checked_class)
   * [\_built\_model](#edit_cfg_json.cli._built_model)
   * [\_outcome](#edit_cfg_json.cli._outcome)
+  * [\_own\_settings](#edit_cfg_json.cli._own_settings)
   * [\_session](#edit_cfg_json.cli._session)
+  * [\_check\_target](#edit_cfg_json.cli._check_target)
   * [run\_cli](#edit_cfg_json.cli.run_cli)
 * [edit\_cfg\_json.leaf\_value](#edit_cfg_json.leaf_value)
   * [TEXT\_KIND](#edit_cfg_json.leaf_value.TEXT_KIND)
@@ -309,11 +287,23 @@
     * [\_hold\_again](#edit_cfg_json.buffer.EditBuffer._hold_again)
     * [\_forget\_answers](#edit_cfg_json.buffer.EditBuffer._forget_answers)
     * [\_held](#edit_cfg_json.buffer.EditBuffer._held)
+* [edit\_cfg\_json.settings\_file](#edit_cfg_json.settings_file)
+  * [SETTINGS\_VARIABLE](#edit_cfg_json.settings_file.SETTINGS_VARIABLE)
+  * [SHARED\_SETTINGS](#edit_cfg_json.settings_file.SHARED_SETTINGS)
+  * [NO\_SETTINGS\_FILE](#edit_cfg_json.settings_file.NO_SETTINGS_FILE)
+  * [SETTINGS\_REFUSED](#edit_cfg_json.settings_file.SETTINGS_REFUSED)
+  * [\_named\_file](#edit_cfg_json.settings_file._named_file)
+  * [\_home\_file](#edit_cfg_json.settings_file._home_file)
+  * [settings\_file](#edit_cfg_json.settings_file.settings_file)
+  * [load\_settings](#edit_cfg_json.settings_file.load_settings)
 * [edit\_cfg\_json.settings](#edit_cfg_json.settings)
   * [DUPLICATE\_KEY](#edit_cfg_json.settings.DUPLICATE_KEY)
   * [NOT\_AN\_EXTENSION](#edit_cfg_json.settings.NOT_AN_EXTENSION)
   * [NOT\_A\_SUFFIX](#edit_cfg_json.settings.NOT_A_SUFFIX)
   * [NOT\_A\_COUNT](#edit_cfg_json.settings.NOT_A_COUNT)
+  * [MIN\_BACKUPS](#edit_cfg_json.settings.MIN_BACKUPS)
+  * [names\_a\_file](#edit_cfg_json.settings.names_a_file)
+  * [with\_dot](#edit_cfg_json.settings.with_dot)
   * [BACKUP\_SUFFIX](#edit_cfg_json.settings.BACKUP_SUFFIX)
   * [WRONG\_EXTENSION](#edit_cfg_json.settings.WRONG_EXTENSION)
   * [RESERVED\_KEYS](#edit_cfg_json.settings.RESERVED_KEYS)
@@ -346,6 +336,69 @@
   * [\_refused](#edit_cfg_json.settings._refused)
   * [checked\_file](#edit_cfg_json.settings.checked_file)
   * [chosen\_file](#edit_cfg_json.settings.chosen_file)
+* [edit\_cfg\_json.cli\_target](#edit_cfg_json.cli_target)
+  * [PYTHON\_SUFFIX](#edit_cfg_json.cli_target.PYTHON_SUFFIX)
+  * [NO\_MODULE\_MESSAGE](#edit_cfg_json.cli_target.NO_MODULE_MESSAGE)
+  * [NO\_FILE\_MESSAGE](#edit_cfg_json.cli_target.NO_FILE_MESSAGE)
+  * [NOT\_PYTHON\_MESSAGE](#edit_cfg_json.cli_target.NOT_PYTHON_MESSAGE)
+  * [NOT\_IMPORTABLE\_MESSAGE](#edit_cfg_json.cli_target.NOT_IMPORTABLE_MESSAGE)
+  * [NO\_NAME\_MESSAGE](#edit_cfg_json.cli_target.NO_NAME_MESSAGE)
+  * [NOT\_CONFIG\_MESSAGE](#edit_cfg_json.cli_target.NOT_CONFIG_MESSAGE)
+  * [NO\_TARGET\_MESSAGE](#edit_cfg_json.cli_target.NO_TARGET_MESSAGE)
+  * [OWN\_TARGET\_MESSAGE](#edit_cfg_json.cli_target.OWN_TARGET_MESSAGE)
+  * [NOT\_LOADER\_MESSAGE](#edit_cfg_json.cli_target.NOT_LOADER_MESSAGE)
+  * [LOADER\_ARGS\_MESSAGE](#edit_cfg_json.cli_target.LOADER_ARGS_MESSAGE)
+  * [NO\_LOADER\_CONFIG](#edit_cfg_json.cli_target.NO_LOADER_CONFIG)
+  * [WRONG\_CLASS\_MESSAGE](#edit_cfg_json.cli_target.WRONG_CLASS_MESSAGE)
+  * [NOT\_DESCRIPTIONS](#edit_cfg_json.cli_target.NOT_DESCRIPTIONS)
+  * [NOT\_SHOWABLE\_MESSAGE](#edit_cfg_json.cli_target.NOT_SHOWABLE_MESSAGE)
+  * [explained](#edit_cfg_json.cli_target.explained)
+  * [\_imported\_module](#edit_cfg_json.cli_target._imported_module)
+  * [\_python\_file](#edit_cfg_json.cli_target._python_file)
+  * [\_module\_from\_file](#edit_cfg_json.cli_target._module_from_file)
+  * [\_class\_in](#edit_cfg_json.cli_target._class_in)
+  * [\_loader\_in](#edit_cfg_json.cli_target._loader_in)
+  * [\_descriptions\_in](#edit_cfg_json.cli_target._descriptions_in)
+  * [\_named\_module](#edit_cfg_json.cli_target._named_module)
+  * [\_constructed](#edit_cfg_json.cli_target._constructed)
+  * [\_loader\_config](#edit_cfg_json.cli_target._loader_config)
+  * [\_target\_config](#edit_cfg_json.cli_target._target_config)
+  * [checked\_class](#edit_cfg_json.cli_target.checked_class)
+  * [Target](#edit_cfg_json.cli_target.Target)
+    * [config](#edit_cfg_json.cli_target.Target.config)
+    * [descriptions](#edit_cfg_json.cli_target.Target.descriptions)
+    * [loader](#edit_cfg_json.cli_target.Target.loader)
+    * [wanted](#edit_cfg_json.cli_target.Target.wanted)
+  * [\_own\_target](#edit_cfg_json.cli_target._own_target)
+  * [\_named\_target](#edit_cfg_json.cli_target._named_target)
+  * [target\_of](#edit_cfg_json.cli_target.target_of)
+* [edit\_cfg\_json.settings\_config](#edit_cfg_json.settings_config)
+  * [UNKNOWN\_ACTION](#edit_cfg_json.settings_config.UNKNOWN_ACTION)
+  * [REFUSED\_KEYS](#edit_cfg_json.settings_config.REFUSED_KEYS)
+  * [declared\_actions](#edit_cfg_json.settings_config.declared_actions)
+  * [\_ActionKeys](#edit_cfg_json.settings_config._ActionKeys)
+    * [validate\_member](#edit_cfg_json.settings_config._ActionKeys.validate_member)
+  * [\_built\_actions](#edit_cfg_json.settings_config._built_actions)
+  * [\_refusal](#edit_cfg_json.settings_config._refusal)
+  * [\_NamesAFile](#edit_cfg_json.settings_config._NamesAFile)
+    * [\_\_init\_\_](#edit_cfg_json.settings_config._NamesAFile.__init__)
+    * [validate\_member](#edit_cfg_json.settings_config._NamesAFile.validate_member)
+  * [\_WithDot](#edit_cfg_json.settings_config._WithDot)
+    * [validate\_member](#edit_cfg_json.settings_config._WithDot.validate_member)
+  * [\_ACTION\_KEYS](#edit_cfg_json.settings_config._ACTION_KEYS)
+  * [\_EXTENSION](#edit_cfg_json.settings_config._EXTENSION)
+  * [\_SUFFIX](#edit_cfg_json.settings_config._SUFFIX)
+  * [\_COUNT](#edit_cfg_json.settings_config._COUNT)
+  * [\_FLAG](#edit_cfg_json.settings_config._FLAG)
+  * [SettingsConfig](#edit_cfg_json.settings_config.SettingsConfig)
+    * [\_\_init\_\_](#edit_cfg_json.settings_config.SettingsConfig.__init__)
+    * [as\_settings](#edit_cfg_json.settings_config.SettingsConfig.as_settings)
+    * [get\_validation\_plan](#edit_cfg_json.settings_config.SettingsConfig.get_validation_plan)
+  * [ACTION\_DESCRIPTIONS](#edit_cfg_json.settings_config.ACTION_DESCRIPTIONS)
+  * [EVERY\_ACTION](#edit_cfg_json.settings_config.EVERY_ACTION)
+  * [\_MEMBER\_DESCRIPTIONS](#edit_cfg_json.settings_config._MEMBER_DESCRIPTIONS)
+  * [SETTINGS\_DESCRIPTIONS](#edit_cfg_json.settings_config.SETTINGS_DESCRIPTIONS)
+  * [described\_below](#edit_cfg_json.settings_config.described_below)
 * [edit\_cfg\_json.model\_text](#edit_cfg_json.model_text)
   * [FOLDED\_MARK](#edit_cfg_json.model_text.FOLDED_MARK)
   * [EDITED\_MARK](#edit_cfg_json.model_text.EDITED_MARK)
@@ -1269,6 +1322,194 @@ Return the value of one container, built from its children.
 **Returns**:
 
   The value that the container holds now.
+
+<a id="edit_cfg_json.exit_code"></a>
+
+# edit\_cfg\_json.exit\_code
+
+What one run of a program of this library ends with.
+
+The numbers are part of what the programs promise, so they are written down in
+one place that everything reporting one reads, and `Refusal` is how a refusal
+carries its number out to the one place that prints it.
+
+<a id="edit_cfg_json.exit_code.ExitCode"></a>
+
+## ExitCode Objects
+
+```python
+class ExitCode(IntEnum)
+```
+
+What one run of a program of this library says about how it went.
+
+A program of this library is meant to be usable from a script and from a
+continuous integration job, so each way of refusing has a number of its
+own rather than sharing one. The numbers are part of what the programs
+promise, so an added way of refusing gets an added number and no existing
+one changes.
+
+<a id="edit_cfg_json.exit_code.ExitCode.OK"></a>
+
+#### OK
+
+Everything the program was asked to do was done.
+
+<a id="edit_cfg_json.exit_code.ExitCode.LOAD_REFUSED"></a>
+
+#### LOAD\_REFUSED
+
+The input file cannot be opened for editing.
+
+<a id="edit_cfg_json.exit_code.ExitCode.USAGE"></a>
+
+#### USAGE
+
+The command line itself is wrong.
+
+It is `argparse` that reports this and ends the process, so `run_cli`
+never returns it. The number is written down here because it is part of
+the same promise as the rest, and because the tests compare against it.
+
+<a id="edit_cfg_json.exit_code.ExitCode.NO_MODULE"></a>
+
+#### NO\_MODULE
+
+The module that `--module` names cannot be imported.
+
+<a id="edit_cfg_json.exit_code.ExitCode.NO_FILE"></a>
+
+#### NO\_FILE
+
+The file that `--file` names cannot be read.
+
+<a id="edit_cfg_json.exit_code.ExitCode.NOT_PYTHON"></a>
+
+#### NOT\_PYTHON
+
+The file that `--file` names is not Python that can be imported.
+
+<a id="edit_cfg_json.exit_code.ExitCode.NOT_IMPORTABLE"></a>
+
+#### NOT\_IMPORTABLE
+
+The file needs the package it belongs to in order to be imported.
+
+<a id="edit_cfg_json.exit_code.ExitCode.NO_NAME"></a>
+
+#### NO\_NAME
+
+The module does not hold the name that was asked for.
+
+<a id="edit_cfg_json.exit_code.ExitCode.NOT_CONFIG"></a>
+
+#### NOT\_CONFIG
+
+That name is not a class based on `config_as_json.Config`.
+
+<a id="edit_cfg_json.exit_code.ExitCode.NO_DEFAULTS"></a>
+
+#### NO\_DEFAULTS
+
+The editor cannot construct that configuration class on its own.
+
+<a id="edit_cfg_json.exit_code.ExitCode.INVALID"></a>
+
+#### INVALID
+
+The configuration is not one that the application would accept.
+
+This is what makes a program with no user interface a check that a script
+or a continuous integration job can run: a file the application would
+refuse is a failure of the run and not merely a remark in the output.
+
+<a id="edit_cfg_json.exit_code.ExitCode.NOT_WRITTEN"></a>
+
+#### NOT\_WRITTEN
+
+The output file was asked for and was not written.
+
+The values were valid, so what stopped the writing is the destination: a
+name that was not given at all, one the application does not use for its
+configuration, or a file that cannot be written.
+
+<a id="edit_cfg_json.exit_code.ExitCode.NOT_SHOWABLE"></a>
+
+#### NOT\_SHOWABLE
+
+The values of that configuration class cannot be written as JSON.
+
+There is then nothing to edit at all: the editor reads what it shows by
+serializing the configuration object.
+
+<a id="edit_cfg_json.exit_code.ExitCode.NOT_LOADER"></a>
+
+#### NOT\_LOADER
+
+The name that `--loader` names cannot be called at all.
+
+<a id="edit_cfg_json.exit_code.ExitCode.LOADER_ARGS"></a>
+
+#### LOADER\_ARGS
+
+The loader needs arguments that a command line cannot supply.
+
+A loader takes the four keyword arguments of `ConfigLoader` and nothing
+else, so whatever it needs besides them is bound where it is written. A
+program cannot bind an argument it knows nothing about, and saying so
+plainly is better than a half answer.
+
+<a id="edit_cfg_json.exit_code.ExitCode.WRONG_CLASS"></a>
+
+#### WRONG\_CLASS
+
+The loader did not construct the class that `--class` asked for.
+
+<a id="edit_cfg_json.exit_code.ExitCode.NOT_DESCRIPTIONS"></a>
+
+#### NOT\_DESCRIPTIONS
+
+The name that `--descriptions` names is no mapping of any kind.
+
+<a id="edit_cfg_json.exit_code.ExitCode.NO_SETTINGS"></a>
+
+#### NO\_SETTINGS
+
+The settings of the program itself cannot be read.
+
+A file that `-c/--cfg` or the environment named is not there, or the file
+the lookup found does not hold settings of this editor. Running with other
+settings than the ones that were asked for is what this number exists to
+stop, because a user who named a settings file wants that one.
+
+<a id="edit_cfg_json.exit_code.Refusal"></a>
+
+## Refusal Objects
+
+```python
+class Refusal(Exception)
+```
+
+Refusal to run, with what to say about it and what to exit with.
+
+It is internal to this package because it exists only to carry the two
+together from wherever the refusal is decided out to the one place that
+reports it.
+
+<a id="edit_cfg_json.exit_code.Refusal.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(message: str, code: ExitCode) -> None
+```
+
+Say why the program cannot run and how it should end.
+
+**Arguments**:
+
+- `message` - What the user has to be told.
+- `code` - What this run of the program ends with.
 
 <a id="edit_cfg_json.loading"></a>
 
@@ -3757,6 +3998,14 @@ saying that it holds more, and there is no control here to open it with. With
 library makes of a whole configuration: every value of it, and the explanation
 that every one of its nodes is shown with.
 
+**It reads a settings file of its own, and has no file in the home folder.**
+`-c/--cfg` and the environment variable name one, and the shared
+`.edit-cfg-json.cfg` is the last thing looked for; the step between those two
+is skipped, because that step is there to let the two editors differ and what
+they differ about is their keys and their questions, of which this has neither.
+What a settings file still says here is what a file is called and what happens
+to the one a save writes over.
+
 Run it as `python3 -m edit_cfg_json.dump`. This package installs no command of
 its own, and the name `edit-cfg-json` in particular is deliberately free: it
 promises the editor this library is for, and a user who typed it and got a
@@ -3798,43 +4047,24 @@ An application author should get an editor for their own configuration class
 without writing a line of user interface code, and every one of the three
 distributions therefore ships a program. What differs between the three
 programs is the backend and nothing else, so everything else lives here: the
-parsing, the two doors to a class, the construction, one editing session and
-the exit code. Each package is then a program of a few statements, which is
-also what makes this testable with no display and no toolkit, by handing
-`run_cli` a backend that is a stub.
+parsing, one editing session and the exit code. Each package is then a program
+of a few statements, which is also what makes this testable with no display and
+no toolkit, by handing `run_cli` a backend that is a stub.
 
 `run_cli` takes the backend for exactly the reason `edit` does: this package
 never imports a user interface library, so it cannot name one.
 
-**The class is told and never guessed.** `--module` names an importable module,
-`--file` names a Python file that is not, and exactly one of the two is
-required. A single `module:Class` argument reads well and would have to guess
-which of the two it was given, which is what section 8.2.1 of `doc/design.md`
-settled for this library as a whole; it would also make a Windows drive letter
-a special case, and it would take the refusal of a missing or a doubled
-location away from `argparse`.
+**Where the class comes from is `edit_cfg_json.cli_target`**, which owns the
+three doors to it — an importable module, a Python file, and this library's own
+settings class — and the class, the loader and the descriptions that are named
+inside the first two. What every one of them ends with is a `Target`, so this
+module is about a session and not about where its configuration came from.
 
-**What to edit is either a class or a loader**, and `--class` and `--loader`
-name them in the same module or file. At least one of the two is needed and
-both are allowed: a class alone is constructed on the values it declares, a
-loader alone is asked for a configuration and its class is whatever it answers
-with, and the two together mean that the loader has to answer with that class
-or the program stops. `--loader` is for a class the editor cannot construct on
-its own, so whatever it needs beyond the four keyword arguments of
-`edit_cfg_json.ConfigLoader` has to be bound in the module it is named in — a
-command line cannot supply an argument this library knows nothing about.
-
-**What the application says about its own members is told the same way.**
-`--descriptions NAME` names a `Descriptions` mapping beside the class, because
-that is the one thing an application can tell the editor that this program
-could not otherwise pass on: a member has no docstring at runtime, so what a
-member is for is either in such a mapping or nowhere. The class docstring needs
-no option, because the class already carries it.
-
-**Importing a module runs it.** That is the same exposure as running the file
-with Python, and it is not guarded against, because a guard could only be a
-pretence: a configuration class is Python and reaching it means importing the
-module it is in.
+**What settings the program itself runs with is a different question**, and
+`-c/--cfg` is the first of the five answers that
+`edit_cfg_json.settings_file` gives to it. The settings of a program are read
+before anything else the command line names, because they are what the whole
+run behaves according to.
 
 <a id="edit_cfg_json.cli.DESCRIPTION"></a>
 
@@ -3842,292 +4072,11 @@ module it is in.
 
 What the program says about itself above its own options.
 
-<a id="edit_cfg_json.cli.PYTHON_SUFFIX"></a>
-
-#### PYTHON\_SUFFIX
-
-File name extension of the files that the `--file` door accepts.
-
 <a id="edit_cfg_json.cli.POLICY_NAMES"></a>
 
 #### POLICY\_NAMES
 
 What a `--policy` value on a command line means to the editor.
-
-<a id="edit_cfg_json.cli.NO_MODULE_MESSAGE"></a>
-
-#### NO\_MODULE\_MESSAGE
-
-Message of the refusal of a `--module` that names no importable module.
-
-<a id="edit_cfg_json.cli.NO_FILE_MESSAGE"></a>
-
-#### NO\_FILE\_MESSAGE
-
-Message of the refusal of a `--file` that names no readable file.
-
-<a id="edit_cfg_json.cli.NOT_PYTHON_MESSAGE"></a>
-
-#### NOT\_PYTHON\_MESSAGE
-
-Message of the refusal of a `--file` that Python cannot compile.
-
-It covers both a name that is not a `.py` file at all and a `.py` file that
-does not compile, because both mean the same thing to whoever ran the program:
-what was named is not a Python module.
-
-<a id="edit_cfg_json.cli.NOT_IMPORTABLE_MESSAGE"></a>
-
-#### NOT\_IMPORTABLE\_MESSAGE
-
-Message of the refusal of a file that only its own package can import.
-
-A module that uses a relative import is the case that arises in practice, and
-there is nothing a bare path can do about it: the import needs the package
-that the module belongs to, and a path names no package.
-
-<a id="edit_cfg_json.cli.NO_NAME_MESSAGE"></a>
-
-#### NO\_NAME\_MESSAGE
-
-Message of the refusal of a class name that the module does not hold.
-
-<a id="edit_cfg_json.cli.NOT_CONFIG_MESSAGE"></a>
-
-#### NOT\_CONFIG\_MESSAGE
-
-Message of the refusal of a name that is not a configuration class.
-
-<a id="edit_cfg_json.cli.NO_TARGET_MESSAGE"></a>
-
-#### NO\_TARGET\_MESSAGE
-
-Message of the refusal of a command line that says what to edit nowhere.
-
-`argparse` cannot be asked for at least one of two options, only for exactly
-one of them, and either alone is a perfectly good command line here.
-
-<a id="edit_cfg_json.cli.NOT_LOADER_MESSAGE"></a>
-
-#### NOT\_LOADER\_MESSAGE
-
-Message of the refusal of a `--loader` that names something else.
-
-<a id="edit_cfg_json.cli.LOADER_ARGS_MESSAGE"></a>
-
-#### LOADER\_ARGS\_MESSAGE
-
-Message of the refusal of a loader whose own arguments are not bound.
-
-<a id="edit_cfg_json.cli.NO_LOADER_CONFIG"></a>
-
-#### NO\_LOADER\_CONFIG
-
-Message of the refusal of a loader that refused to answer at all.
-
-The editor asks a loader for a configuration with no JSON source, which is what
-`edit_cfg_json.ConfigLoader` says a loader answers. A loader that chooses its
-class by looking at the JSON has to name the class it uses for a configuration
-that does not exist yet, and this is the refusal of one that names none.
-
-<a id="edit_cfg_json.cli.WRONG_CLASS_MESSAGE"></a>
-
-#### WRONG\_CLASS\_MESSAGE
-
-Message of the refusal of a loader that answered with another class.
-
-A loader may choose its class by looking at the JSON, and `--class` beside it
-is how a script says which class it is prepared to go on with. The check is
-what `isinstance` answers, so a loader that answers with a subclass of the
-class that was named is accepted.
-
-<a id="edit_cfg_json.cli.NOT_DESCRIPTIONS"></a>
-
-#### NOT\_DESCRIPTIONS
-
-Message of the refusal of a `--descriptions` that names something else.
-
-What the keys and the values of the mapping are is not checked, for the reason
-section 4.3 of `doc/design.md` gives: a selector that addresses no member of
-this configuration is simply never used, and a wrong description is a cosmetic
-mistake that is not worth refusing to open an editor over.
-
-<a id="edit_cfg_json.cli.NOT_SHOWABLE_MESSAGE"></a>
-
-#### NOT\_SHOWABLE\_MESSAGE
-
-Message of the refusal of a class that cannot be turned into a buffer.
-
-The editor reads the values it edits by serializing the configuration object,
-so a class that cannot serialize itself has no values to show. A class that
-leaves part of its own writing to code outside itself is the case that arises
-in practice, and there is nothing the editor can do with one.
-
-<a id="edit_cfg_json.cli.ExitCode"></a>
-
-## ExitCode Objects
-
-```python
-class ExitCode(IntEnum)
-```
-
-What one run of a program of this library says about how it went.
-
-A program of this library is meant to be usable from a script and from a
-continuous integration job, so each way of refusing has a number of its
-own rather than sharing one. The numbers are part of what the programs
-promise, so an added way of refusing gets an added number and no existing
-one changes.
-
-<a id="edit_cfg_json.cli.ExitCode.OK"></a>
-
-#### OK
-
-Everything the program was asked to do was done.
-
-<a id="edit_cfg_json.cli.ExitCode.LOAD_REFUSED"></a>
-
-#### LOAD\_REFUSED
-
-The input file cannot be opened for editing.
-
-<a id="edit_cfg_json.cli.ExitCode.USAGE"></a>
-
-#### USAGE
-
-The command line itself is wrong.
-
-It is `argparse` that reports this and ends the process, so `run_cli`
-never returns it. The number is written down here because it is part of
-the same promise as the rest, and because the tests compare against it.
-
-<a id="edit_cfg_json.cli.ExitCode.NO_MODULE"></a>
-
-#### NO\_MODULE
-
-The module that `--module` names cannot be imported.
-
-<a id="edit_cfg_json.cli.ExitCode.NO_FILE"></a>
-
-#### NO\_FILE
-
-The file that `--file` names cannot be read.
-
-<a id="edit_cfg_json.cli.ExitCode.NOT_PYTHON"></a>
-
-#### NOT\_PYTHON
-
-The file that `--file` names is not Python that can be imported.
-
-<a id="edit_cfg_json.cli.ExitCode.NOT_IMPORTABLE"></a>
-
-#### NOT\_IMPORTABLE
-
-The file needs the package it belongs to in order to be imported.
-
-<a id="edit_cfg_json.cli.ExitCode.NO_NAME"></a>
-
-#### NO\_NAME
-
-The module does not hold the name that was asked for.
-
-<a id="edit_cfg_json.cli.ExitCode.NOT_CONFIG"></a>
-
-#### NOT\_CONFIG
-
-That name is not a class based on `config_as_json.Config`.
-
-<a id="edit_cfg_json.cli.ExitCode.NO_DEFAULTS"></a>
-
-#### NO\_DEFAULTS
-
-The editor cannot construct that configuration class on its own.
-
-<a id="edit_cfg_json.cli.ExitCode.INVALID"></a>
-
-#### INVALID
-
-The configuration is not one that the application would accept.
-
-This is what makes a program with no user interface a check that a script
-or a continuous integration job can run: a file the application would
-refuse is a failure of the run and not merely a remark in the output.
-
-<a id="edit_cfg_json.cli.ExitCode.NOT_WRITTEN"></a>
-
-#### NOT\_WRITTEN
-
-The output file was asked for and was not written.
-
-The values were valid, so what stopped the writing is the destination: a
-name that was not given at all, one the application does not use for its
-configuration, or a file that cannot be written.
-
-<a id="edit_cfg_json.cli.ExitCode.NOT_SHOWABLE"></a>
-
-#### NOT\_SHOWABLE
-
-The values of that configuration class cannot be written as JSON.
-
-There is then nothing to edit at all: the editor reads what it shows by
-serializing the configuration object.
-
-<a id="edit_cfg_json.cli.ExitCode.NOT_LOADER"></a>
-
-#### NOT\_LOADER
-
-The name that `--loader` names cannot be called at all.
-
-<a id="edit_cfg_json.cli.ExitCode.LOADER_ARGS"></a>
-
-#### LOADER\_ARGS
-
-The loader needs arguments that a command line cannot supply.
-
-A loader takes the four keyword arguments of `ConfigLoader` and nothing
-else, so whatever it needs besides them is bound where it is written. A
-program cannot bind an argument it knows nothing about, and saying so
-plainly is better than a half answer.
-
-<a id="edit_cfg_json.cli.ExitCode.WRONG_CLASS"></a>
-
-#### WRONG\_CLASS
-
-The loader did not construct the class that `--class` asked for.
-
-<a id="edit_cfg_json.cli.ExitCode.NOT_DESCRIPTIONS"></a>
-
-#### NOT\_DESCRIPTIONS
-
-The name that `--descriptions` names is no mapping of any kind.
-
-<a id="edit_cfg_json.cli._Refusal"></a>
-
-## \_Refusal Objects
-
-```python
-class _Refusal(Exception)
-```
-
-Refusal to run, with what to say about it and what to exit with.
-
-It is internal because it exists only to carry the two together from
-wherever the refusal is decided out to the one place that reports it.
-
-<a id="edit_cfg_json.cli._Refusal.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(message: str, code: ExitCode) -> None
-```
-
-Say why the program cannot run and how it should end.
-
-**Arguments**:
-
-- `message` - What the user has to be told.
-- `code` - What this run of the program ends with.
 
 <a id="edit_cfg_json.cli._default_policy_name"></a>
 
@@ -4221,344 +4170,13 @@ either way.
 
   The parser for one program.
 
-<a id="edit_cfg_json.cli._said"></a>
-
-#### \_said
-
-```python
-def _said(message: str, error: Exception, captured: str = '') -> str
-```
-
-Return one refusal with what Python said about it below it.
-
-**Arguments**:
-
-- `message` - What the program has to tell the user.
-- `error` - The failure that Python reported.
-- `captured` - What the code that failed wrote to its own diagnostics
-  stream, empty when it wrote nothing or was given none.
-  
-
-**Returns**:
-
-  The message, whatever was said, and the failure below both.
-
-<a id="edit_cfg_json.cli._imported_module"></a>
-
-#### \_imported\_module
-
-```python
-def _imported_module(name: str) -> ModuleType
-```
-
-Return one importable module, or refuse to run.
-
-**Arguments**:
-
-- `name` - Name of the module, as an import statement would write it.
-  
-
-**Returns**:
-
-  That module, imported.
-  
-
-**Raises**:
-
-- `_Refusal` - The module cannot be imported.
-
-<a id="edit_cfg_json.cli._python_file"></a>
-
-#### \_python\_file
-
-```python
-def _python_file(path: Path) -> Path
-```
-
-Return one path that can be tried as a Python module, or refuse.
-
-A file that is missing is a different mistake from a file that is not
-Python, so the two are told apart before either of them is imported.
-
-**Arguments**:
-
-- `path` - Path that `--file` named.
-  
-
-**Returns**:
-
-  That path.
-  
-
-**Raises**:
-
-- `_Refusal` - The path is no Python file to import.
-
-<a id="edit_cfg_json.cli._module_from_file"></a>
-
-#### \_module\_from\_file
-
-```python
-def _module_from_file(path: Path) -> ModuleType
-```
-
-Return the module of one Python file, and leave no trace of it.
-
-The folder of the file goes to the front of the path and the file is
-imported by its own stem, so that a module which imports its siblings
-works. Both of those are undone afterwards: the folder is taken off the
-path again, and a module that was not already imported is forgotten, so
-that a second file of the same stem is really imported rather than found
-among the modules of the first. The class that was reached keeps working
-either way, because a class carries the namespace it was defined in.
-
-**Arguments**:
-
-- `path` - Python file to import, which exists and ends in `.py`.
-  
-
-**Returns**:
-
-  That file, imported as a module.
-  
-
-**Raises**:
-
-- `_Refusal` - The file cannot be imported.
-
-<a id="edit_cfg_json.cli._class_in"></a>
-
-#### \_class\_in
-
-```python
-def _class_in(module: ModuleType, name: str) -> type[Config]
-```
-
-Return one configuration class of one module, or refuse to run.
-
-**Arguments**:
-
-- `module` - Module that was named on the command line.
-- `name` - Name of the class that was asked for.
-  
-
-**Returns**:
-
-  That class.
-  
-
-**Raises**:
-
-- `_Refusal` - The module holds no such class.
-
-<a id="edit_cfg_json.cli._loader_in"></a>
-
-#### \_loader\_in
-
-```python
-def _loader_in(module: ModuleType, name: str) -> ConfigLoader
-```
-
-Return one configuration loader of one module, or refuse to run.
-
-What can be checked here is that the name can be called at all. Whether it
-takes the four keyword arguments of a loader is answered by calling it,
-which is what `_loader_config` below does and reports.
-
-**Arguments**:
-
-- `module` - Module that was named on the command line.
-- `name` - Name of the loader that was asked for.
-  
-
-**Returns**:
-
-  That loader.
-  
-
-**Raises**:
-
-- `_Refusal` - The module holds no such name, or it is nothing to call.
-
-<a id="edit_cfg_json.cli._descriptions_in"></a>
-
-#### \_descriptions\_in
-
-```python
-def _descriptions_in(module: ModuleType,
-                     name: Optional[str]) -> Optional[Descriptions]
-```
-
-Return what one module says about the members of its configuration.
-
-**Arguments**:
-
-- `module` - Module that was named on the command line.
-- `name` - Name of the mapping that was asked for, or None when the command
-  line named none and the members explain themselves as far as their
-  own types allow.
-  
-
-**Returns**:
-
-  That mapping, or None when none was asked for.
-  
-
-**Raises**:
-
-- `_Refusal` - The module holds no such name, or it is no mapping.
-
-<a id="edit_cfg_json.cli._named_module"></a>
-
-#### \_named\_module
-
-```python
-def _named_module(parsed: Namespace) -> ModuleType
-```
-
-Return the module that one command line names, or refuse to run.
-
-**Arguments**:
-
-- `parsed` - Parsed command line of one run.
-  
-
-**Returns**:
-
-  That module, imported.
-  
-
-**Raises**:
-
-- `_Refusal` - The module cannot be reached.
-
-<a id="edit_cfg_json.cli._constructed"></a>
-
-#### \_constructed
-
-```python
-def _constructed(config_type: type[Config]) -> Config
-```
-
-Return the declared defaults of one class, or refuse to run.
-
-**Arguments**:
-
-- `config_type` - Class that the command line named.
-  
-
-**Returns**:
-
-  A configuration object holding what the class declares.
-  
-
-**Raises**:
-
-- `_Refusal` - The editor cannot construct that class. An application
-  whose class needs constructor arguments this library knows
-  nothing about names a loader with `--loader` instead.
-
-<a id="edit_cfg_json.cli._loader_config"></a>
-
-#### \_loader\_config
-
-```python
-def _loader_config(loader: ConfigLoader, name: str) -> Config
-```
-
-Return what one loader answers with when there is no file, or refuse.
-
-**Arguments**:
-
-- `loader` - Loader that the command line named.
-- `name` - Name it was named under, which is what a refusal says.
-  
-
-**Returns**:
-
-  The configuration object that the loader constructed.
-  
-
-**Raises**:
-
-- `_Refusal` - The loader cannot be called by a program, or it answered
-  with nothing.
-
-<a id="edit_cfg_json.cli._target_config"></a>
-
-#### \_target\_config
-
-```python
-def _target_config(wanted: Optional[type[Config]],
-                   loader: Optional[ConfigLoader],
-                   name: Optional[str]) -> Config
-```
-
-Return the configuration object that one command line starts from.
-
-A class alone is constructed on the values it declares. A loader is asked
-instead, with no JSON source, which is what `ConfigLoader` says a loader
-answers. Which class that is is not checked here, because it is not settled
-yet: a loader may choose its class by looking at the input file, and the
-class of the session is the class of the object the load produced.
-
-**Arguments**:
-
-- `wanted` - Class that `--class` named, or None when it named none. It is
-  never None when there is no loader, because a command line that
-  names neither is refused before this.
-- `loader` - Loader that the command line named, or None when it named
-  none.
-- `name` - Name the loader was named under, which a refusal says.
-  
-
-**Returns**:
-
-  The configuration object to start the session from.
-  
-
-**Raises**:
-
-- `_Refusal` - There is no configuration object to edit.
-
-<a id="edit_cfg_json.cli._checked_class"></a>
-
-#### \_checked\_class
-
-```python
-def _checked_class(config: Config, wanted: Optional[type[Config]],
-                   name: Optional[str]) -> None
-```
-
-Refuse a loaded configuration that is not the class that was asked for.
-
-`--class` beside a `--loader` is a question rather than an instruction: is
-this the class you are prepared to go on with? It is asked of the object
-that is really going to be edited, so a loader that chose its class by
-looking at the input file is answered for that file. `isinstance` is what
-answers it, so a subclass of the class that was named is accepted.
-
-**Arguments**:
-
-- `config` - Configuration object that the load produced.
-- `wanted` - Class that `--class` named, or None when it named none.
-- `name` - Name of the loader, or None when the command line named none
-  and there is therefore nothing to check.
-  
-
-**Raises**:
-
-- `_Refusal` - The class is not the one that was asked for.
-
 <a id="edit_cfg_json.cli._built_model"></a>
 
 #### \_built\_model
 
 ```python
-def _built_model(parsed: Namespace, config: Config,
-                 loader: Optional[ConfigLoader],
-                 wanted: Optional[type[Config]],
-                 descriptions: Optional[Descriptions]) -> EditModel
+def _built_model(parsed: Namespace, target: Target,
+                 settings: Settings) -> EditModel
 ```
 
 Return the model of one session, on the files that were named.
@@ -4578,12 +4196,9 @@ application that builds the model itself and knows its own class.
 **Arguments**:
 
 - `parsed` - Parsed command line of one run.
-- `config` - Configuration object holding the values to start from.
-- `loader` - Loader that the command line named, or None when it named
-  none.
-- `wanted` - Class that `--class` named, or None when it named none.
-- `descriptions` - What the application says about its own members, or None
-  when the command line named no mapping of them.
+- `target` - What is to be edited, and what says what about it.
+- `settings` - What this program itself runs with, which is what its own
+  settings file said.
   
 
 **Returns**:
@@ -4593,7 +4208,7 @@ application that builds the model itself and knows its own class.
 
 **Raises**:
 
-- `_Refusal` - The input file cannot be opened, the loaded class is not the
+- `Refusal` - The input file cannot be opened, the loaded class is not the
   one that was asked for, or the class cannot be shown at all.
 
 <a id="edit_cfg_json.cli._outcome"></a>
@@ -4623,13 +4238,43 @@ the answer.
 
   What this run of the program ends with.
 
+<a id="edit_cfg_json.cli._own_settings"></a>
+
+#### \_own\_settings
+
+```python
+def _own_settings(parsed: Namespace, home_settings: Optional[str]) -> Settings
+```
+
+Return what this program itself runs with, or refuse to run.
+
+It is read before anything else the command line names, because it is what
+the whole run behaves according to: which keys the editor holds, what its
+files are called and what happens to the file a save writes over.
+
+**Arguments**:
+
+- `parsed` - Parsed command line of one run.
+- `home_settings` - Name of this program's own settings file in the home
+  folder, or None for a program that has none.
+  
+
+**Returns**:
+
+  The settings of this program.
+  
+
+**Raises**:
+
+- `Refusal` - A settings file was named and cannot be used.
+
 <a id="edit_cfg_json.cli._session"></a>
 
 #### \_session
 
 ```python
-def _session(backend: EditorBackend, parsed: Namespace,
-             interactive: bool) -> ExitCode
+def _session(backend: EditorBackend, parsed: Namespace, interactive: bool,
+             home_settings: Optional[str]) -> ExitCode
 ```
 
 Run one editing session and return what it says about the run.
@@ -4646,6 +4291,8 @@ validation pass creates would otherwise be folded away again.
 - `backend` - User interface to run this session in.
 - `parsed` - Parsed command line of one run.
 - `interactive` - Whether the backend gives the user a session.
+- `home_settings` - Name of this program's own settings file in the home
+  folder, or None for a program that has none.
   
 
 **Returns**:
@@ -4655,7 +4302,32 @@ validation pass creates would otherwise be folded away again.
 
 **Raises**:
 
-- `_Refusal` - The session cannot be started.
+- `Refusal` - The session cannot be started.
+
+<a id="edit_cfg_json.cli._check_target"></a>
+
+#### \_check\_target
+
+```python
+def _check_target(parser: ArgumentParser, parsed: Namespace) -> None
+```
+
+Refuse a command line that says what to edit wrongly, or not at all.
+
+Neither of the two can be asked of `argparse`: it refuses exactly one of a
+group of options and never at least one of them, and the three names below
+are not alternatives to the group they would have to be in.
+
+**Arguments**:
+
+- `parser` - Parser used to report the refusal and end the process.
+- `parsed` - Parsed command line of one run.
+  
+
+**Raises**:
+
+- `SystemExit` - The command line says what to edit wrongly or not at all.
+  That is `parser.error` reporting it, with `ExitCode.USAGE`.
 
 <a id="edit_cfg_json.cli.run_cli"></a>
 
@@ -4666,7 +4338,8 @@ def run_cli(backend: EditorBackend,
             prog: str,
             *,
             args: Optional[Sequence[str]] = None,
-            interactive: bool = True) -> int
+            interactive: bool = True,
+            home_settings: Optional[str] = None) -> int
 ```
 
 Run one program of this library from the command line.
@@ -4687,6 +4360,10 @@ written twice is therefore here.
   `--save` and `--unfold` and answers with the verdict in its exit
   code, because there is nobody to press Save, nobody to open a
   container that is folded away and nobody to read a verdict.
+- `home_settings` - Name of this program's own settings file in the home
+  folder, which is the third step of the lookup that
+  `edit_cfg_json.settings_file` makes. None is a program that has
+  none of its own and reads the shared file or nothing.
   
 
 **Returns**:
@@ -4697,10 +4374,7 @@ written twice is therefore here.
 **Raises**:
 
 - `SystemExit` - The command line itself is wrong, or help was asked for.
-  That is `argparse` reporting it, with `ExitCode.USAGE`. A command
-  line that names neither a class nor a loader is one of those, and
-  it is checked here because `argparse` can be asked for exactly one
-  of two options and not for at least one of them.
+  That is `argparse` reporting it, with `ExitCode.USAGE`.
 
 <a id="edit_cfg_json.leaf_value"></a>
 
@@ -5808,6 +5482,164 @@ def _held(parent: MemberRow) -> list[tuple[str, JsonType]]
 
 Return the last step and the value of each child of one row.
 
+<a id="edit_cfg_json.settings_file"></a>
+
+# edit\_cfg\_json.settings\_file
+
+Where a program of this library reads its own settings from.
+
+An application that calls `edit` knows its own settings and passes them. A
+*program* has no application around it to ask, so it reads them from a file,
+and this is the order it looks in: the file the command line names, the file
+the environment names, the file of that program in the home folder, the file
+of this library in the home folder, and finally no file at all.
+
+**A file that was named must be there, and a file that was looked for need not
+be.** `-c/--cfg` and the environment variable are somebody saying which file to
+use, so a name that no file answers to is a mistake worth stopping for: running
+with other settings than the ones that were asked for is the one thing a lookup
+must not do quietly. The two files of the home folder are the lookup itself,
+and a step of a lookup that finds nothing is the lookup working.
+
+The file is read with `LoadPolicy.DEFAULTS`, because a settings file is
+something somebody writes by hand to change one or two things, and what it does
+not name is what the editor would have chosen anyway.
+
+<a id="edit_cfg_json.settings_file.SETTINGS_VARIABLE"></a>
+
+#### SETTINGS\_VARIABLE
+
+Environment variable naming the settings file of every program here.
+
+It is one variable for all of them rather than one each, because what it is for
+is a machine or a session that has decided how this editor behaves, and an
+answer that had to be given three times would come to be given twice.
+
+<a id="edit_cfg_json.settings_file.SHARED_SETTINGS"></a>
+
+#### SHARED\_SETTINGS
+
+File of the home folder that every program of this library reads.
+
+It is the last step of the lookup, so a user who wants one answer for the
+window and for the terminal writes it once here, and a user who wants the two
+to differ writes the file of one of them beside it.
+
+<a id="edit_cfg_json.settings_file.NO_SETTINGS_FILE"></a>
+
+#### NO\_SETTINGS\_FILE
+
+Message of the refusal of a named settings file that is not there.
+
+<a id="edit_cfg_json.settings_file.SETTINGS_REFUSED"></a>
+
+#### SETTINGS\_REFUSED
+
+Message of the refusal of a settings file that cannot be read as one.
+
+<a id="edit_cfg_json.settings_file._named_file"></a>
+
+#### \_named\_file
+
+```python
+def _named_file(name: PathOrStr) -> Path
+```
+
+Return one settings file that was named, or refuse to run.
+
+**Arguments**:
+
+- `name` - File that the command line or the environment named.
+  
+
+**Returns**:
+
+  That file.
+  
+
+**Raises**:
+
+- `ConfigLoadError` - No file of that name is there to read.
+
+<a id="edit_cfg_json.settings_file._home_file"></a>
+
+#### \_home\_file
+
+```python
+def _home_file(name: Optional[str]) -> Optional[Path]
+```
+
+Return one file of the home folder, or None when there is none.
+
+**Arguments**:
+
+- `name` - Name of the file in the home folder, or None for a program that
+  has no file of its own.
+  
+
+**Returns**:
+
+  That file where it exists, and None where it does not.
+
+<a id="edit_cfg_json.settings_file.settings_file"></a>
+
+#### settings\_file
+
+```python
+def settings_file(named: Optional[PathOrStr] = None,
+                  home_settings: Optional[str] = None) -> Optional[Path]
+```
+
+Return the file that one program reads its settings from.
+
+**Arguments**:
+
+- `named` - File that `-c/--cfg` named, or None when it named none.
+- `home_settings` - Name of this program's own file in the home folder, or
+  None for a program that has none. A backend that prints once and
+  returns is such a program: the settings that differ between the two
+  editors are their keys and their questions, and it has neither.
+  
+
+**Returns**:
+
+  The file to read the settings from, and None where the lookup found no
+  file and the defaults of the editor are what is used.
+  
+
+**Raises**:
+
+- `ConfigLoadError` - A file was named and is not there.
+
+<a id="edit_cfg_json.settings_file.load_settings"></a>
+
+#### load\_settings
+
+```python
+def load_settings(named: Optional[PathOrStr] = None,
+                  home_settings: Optional[str] = None) -> Settings
+```
+
+Return the settings that one program runs with.
+
+**Arguments**:
+
+- `named` - File that `-c/--cfg` named, or None when it named none.
+- `home_settings` - Name of this program's own file in the home folder, or
+  None for a program that has none.
+  
+
+**Returns**:
+
+  What the settings file says, or the defaults of the editor where the
+  lookup found no file.
+  
+
+**Raises**:
+
+- `ConfigLoadError` - A file was named and is not there, or the file the
+  lookup found cannot be read as settings of this editor.
+
 <a id="edit_cfg_json.settings"></a>
 
 # edit\_cfg\_json.settings
@@ -5822,6 +5654,13 @@ editor consults instead of deciding those things for itself.
 
 Every attribute has a default, so an application with no opinion passes
 nothing at all and gets what the editor would have chosen anyway.
+
+Where it is the person running the application who decides rather than the
+application, the same answers are `edit_cfg_json.SettingsConfig`, which is a
+configuration class of their own and can be read from a file. Both classes here
+stay frozen: what the editor is given it has no business changing, and the one
+thing that would have wanted them unfrozen — bridging them into a `Config` —
+turns out to be impossible for a reason of its own. See `settings_config`.
 
 <a id="edit_cfg_json.settings.DUPLICATE_KEY"></a>
 
@@ -5849,6 +5688,55 @@ Message of the refusal of a backup count that keeps no file at all.
 
 Keeping no backup is what an empty `backup_suffix` says, and saying it twice
 would leave two answers that could disagree with each other.
+
+<a id="edit_cfg_json.settings.MIN_BACKUPS"></a>
+
+#### MIN\_BACKUPS
+
+Fewest backup files that `backup_count` may ask for.
+
+<a id="edit_cfg_json.settings.names_a_file"></a>
+
+#### names\_a\_file
+
+```python
+def names_a_file(value: str) -> bool
+```
+
+Return whether one piece of text adds anything to a file name.
+
+Text that does not is neither an extension nor a backup suffix: a name
+with it added would be the name it was added to, so the file it stands for
+would be the file it was made from.
+
+**Arguments**:
+
+- `value` - Text that is to be added to a file name.
+  
+
+**Returns**:
+
+  Whether adding it makes another name.
+
+<a id="edit_cfg_json.settings.with_dot"></a>
+
+#### with\_dot
+
+```python
+def with_dot(extension: str) -> str
+```
+
+Return one file name extension beginning with its dot.
+
+**Arguments**:
+
+- `extension` - Extension as it was written, with or without its dot.
+  
+
+**Returns**:
+
+  That extension with a dot in front of it, so that `cfg` and `.cfg`
+  mean the same thing.
 
 <a id="edit_cfg_json.settings.BACKUP_SUFFIX"></a>
 
@@ -6372,6 +6260,1043 @@ completed.
 **Returns**:
 
   The name to write, and why it cannot be used when it cannot.
+
+<a id="edit_cfg_json.cli_target"></a>
+
+# edit\_cfg\_json.cli\_target
+
+What one command line says is to be edited, and how it is reached.
+
+**The class is told and never guessed.** `--module` names an importable
+module, `--file` names a Python file that is not, and `--edit-settings` says
+that the class is this library's own settings. Exactly one of the three is
+required, which is what makes them one group of `argparse` rather than a check
+written by hand; a single `module:Class` argument reads well and would have to
+guess which of them it was given, which is what section 8.2.1 of
+`doc/design.md` settled for this library as a whole.
+
+**What to edit is then either a class or a loader**, and `--class` and
+`--loader` name them in the module or file that was reached. At least one of
+the two is needed and both are allowed: a class alone is constructed on the
+values it declares, a loader alone is asked for a configuration and its class
+is whatever it answers with, and the two together mean that the loader has to
+answer with that class or the program stops.
+
+**Importing a module runs it.** That is the same exposure as running the file
+with Python, and it is not guarded against, because a guard could only be a
+pretence: a configuration class is Python and reaching it means importing the
+module it is in.
+
+<a id="edit_cfg_json.cli_target.PYTHON_SUFFIX"></a>
+
+#### PYTHON\_SUFFIX
+
+File name extension of the files that the `--file` door accepts.
+
+<a id="edit_cfg_json.cli_target.NO_MODULE_MESSAGE"></a>
+
+#### NO\_MODULE\_MESSAGE
+
+Message of the refusal of a `--module` that names no importable module.
+
+<a id="edit_cfg_json.cli_target.NO_FILE_MESSAGE"></a>
+
+#### NO\_FILE\_MESSAGE
+
+Message of the refusal of a `--file` that names no readable file.
+
+<a id="edit_cfg_json.cli_target.NOT_PYTHON_MESSAGE"></a>
+
+#### NOT\_PYTHON\_MESSAGE
+
+Message of the refusal of a `--file` that Python cannot compile.
+
+It covers both a name that is not a `.py` file at all and a `.py` file that
+does not compile, because both mean the same thing to whoever ran the program:
+what was named is not a Python module.
+
+<a id="edit_cfg_json.cli_target.NOT_IMPORTABLE_MESSAGE"></a>
+
+#### NOT\_IMPORTABLE\_MESSAGE
+
+Message of the refusal of a file that only its own package can import.
+
+A module that uses a relative import is the case that arises in practice, and
+there is nothing a bare path can do about it: the import needs the package
+that the module belongs to, and a path names no package.
+
+<a id="edit_cfg_json.cli_target.NO_NAME_MESSAGE"></a>
+
+#### NO\_NAME\_MESSAGE
+
+Message of the refusal of a class name that the module does not hold.
+
+<a id="edit_cfg_json.cli_target.NOT_CONFIG_MESSAGE"></a>
+
+#### NOT\_CONFIG\_MESSAGE
+
+Message of the refusal of a name that is not a configuration class.
+
+<a id="edit_cfg_json.cli_target.NO_TARGET_MESSAGE"></a>
+
+#### NO\_TARGET\_MESSAGE
+
+Message of the refusal of a command line that says what to edit nowhere.
+
+`argparse` cannot be asked for at least one of two options, only for exactly
+one of them, and either alone is a perfectly good command line here.
+
+<a id="edit_cfg_json.cli_target.OWN_TARGET_MESSAGE"></a>
+
+#### OWN\_TARGET\_MESSAGE
+
+Message of the refusal of a class named beside the editor's own class.
+
+`argparse` refuses `--module` and `--file` beside it, because the three of them
+are the one place a class comes from. The three that name something inside such
+a module cannot be in that group, because they are not alternatives to it, so
+this is the refusal that is written by hand.
+
+<a id="edit_cfg_json.cli_target.NOT_LOADER_MESSAGE"></a>
+
+#### NOT\_LOADER\_MESSAGE
+
+Message of the refusal of a `--loader` that names something else.
+
+<a id="edit_cfg_json.cli_target.LOADER_ARGS_MESSAGE"></a>
+
+#### LOADER\_ARGS\_MESSAGE
+
+Message of the refusal of a loader whose own arguments are not bound.
+
+<a id="edit_cfg_json.cli_target.NO_LOADER_CONFIG"></a>
+
+#### NO\_LOADER\_CONFIG
+
+Message of the refusal of a loader that refused to answer at all.
+
+The editor asks a loader for a configuration with no JSON source, which is what
+`edit_cfg_json.ConfigLoader` says a loader answers. A loader that chooses its
+class by looking at the JSON has to name the class it uses for a configuration
+that does not exist yet, and this is the refusal of one that names none.
+
+<a id="edit_cfg_json.cli_target.WRONG_CLASS_MESSAGE"></a>
+
+#### WRONG\_CLASS\_MESSAGE
+
+Message of the refusal of a loader that answered with another class.
+
+A loader may choose its class by looking at the JSON, and `--class` beside it
+is how a script says which class it is prepared to go on with. The check is
+what `isinstance` answers, so a loader that answers with a subclass of the
+class that was named is accepted.
+
+<a id="edit_cfg_json.cli_target.NOT_DESCRIPTIONS"></a>
+
+#### NOT\_DESCRIPTIONS
+
+Message of the refusal of a `--descriptions` that names something else.
+
+What the keys and the values of the mapping are is not checked, for the reason
+section 4.3 of `doc/design.md` gives: a selector that addresses no member of
+this configuration is simply never used, and a wrong description is a cosmetic
+mistake that is not worth refusing to open an editor over.
+
+<a id="edit_cfg_json.cli_target.NOT_SHOWABLE_MESSAGE"></a>
+
+#### NOT\_SHOWABLE\_MESSAGE
+
+Message of the refusal of a class that cannot be turned into a buffer.
+
+The editor reads the values it edits by serializing the configuration object,
+so a class that cannot serialize itself has no values to show. A class that
+leaves part of its own writing to code outside itself is the case that arises
+in practice, and there is nothing the editor can do with one.
+
+<a id="edit_cfg_json.cli_target.explained"></a>
+
+#### explained
+
+```python
+def explained(message: str, error: Exception, captured: str = '') -> str
+```
+
+Return one refusal with what Python said about it below it.
+
+**Arguments**:
+
+- `message` - What the program has to tell the user.
+- `error` - The failure that Python reported.
+- `captured` - What the code that failed wrote to its own diagnostics
+  stream, empty when it wrote nothing or was given none.
+  
+
+**Returns**:
+
+  The message, whatever was said, and the failure below both.
+
+<a id="edit_cfg_json.cli_target._imported_module"></a>
+
+#### \_imported\_module
+
+```python
+def _imported_module(name: str) -> ModuleType
+```
+
+Return one importable module, or refuse to run.
+
+**Arguments**:
+
+- `name` - Name of the module, as an import statement would write it.
+  
+
+**Returns**:
+
+  That module, imported.
+  
+
+**Raises**:
+
+- `Refusal` - The module cannot be imported.
+
+<a id="edit_cfg_json.cli_target._python_file"></a>
+
+#### \_python\_file
+
+```python
+def _python_file(path: Path) -> Path
+```
+
+Return one path that can be tried as a Python module, or refuse.
+
+A file that is missing is a different mistake from a file that is not
+Python, so the two are told apart before either of them is imported.
+
+**Arguments**:
+
+- `path` - Path that `--file` named.
+  
+
+**Returns**:
+
+  That path.
+  
+
+**Raises**:
+
+- `Refusal` - The path is no Python file to import.
+
+<a id="edit_cfg_json.cli_target._module_from_file"></a>
+
+#### \_module\_from\_file
+
+```python
+def _module_from_file(path: Path) -> ModuleType
+```
+
+Return the module of one Python file, and leave no trace of it.
+
+The folder of the file goes to the front of the path and the file is
+imported by its own stem, so that a module which imports its siblings
+works. Both of those are undone afterwards: the folder is taken off the
+path again, and a module that was not already imported is forgotten, so
+that a second file of the same stem is really imported rather than found
+among the modules of the first. The class that was reached keeps working
+either way, because a class carries the namespace it was defined in.
+
+**Arguments**:
+
+- `path` - Python file to import, which exists and ends in `.py`.
+  
+
+**Returns**:
+
+  That file, imported as a module.
+  
+
+**Raises**:
+
+- `Refusal` - The file cannot be imported.
+
+<a id="edit_cfg_json.cli_target._class_in"></a>
+
+#### \_class\_in
+
+```python
+def _class_in(module: ModuleType, name: str) -> type[Config]
+```
+
+Return one configuration class of one module, or refuse to run.
+
+**Arguments**:
+
+- `module` - Module that was named on the command line.
+- `name` - Name of the class that was asked for.
+  
+
+**Returns**:
+
+  That class.
+  
+
+**Raises**:
+
+- `Refusal` - The module holds no such class.
+
+<a id="edit_cfg_json.cli_target._loader_in"></a>
+
+#### \_loader\_in
+
+```python
+def _loader_in(module: ModuleType, name: str) -> ConfigLoader
+```
+
+Return one configuration loader of one module, or refuse to run.
+
+What can be checked here is that the name can be called at all. Whether it
+takes the four keyword arguments of a loader is answered by calling it,
+which is what `_loader_config` below does and reports.
+
+**Arguments**:
+
+- `module` - Module that was named on the command line.
+- `name` - Name of the loader that was asked for.
+  
+
+**Returns**:
+
+  That loader.
+  
+
+**Raises**:
+
+- `Refusal` - The module holds no such name, or it is nothing to call.
+
+<a id="edit_cfg_json.cli_target._descriptions_in"></a>
+
+#### \_descriptions\_in
+
+```python
+def _descriptions_in(module: ModuleType,
+                     name: Optional[str]) -> Optional[Descriptions]
+```
+
+Return what one module says about the members of its configuration.
+
+**Arguments**:
+
+- `module` - Module that was named on the command line.
+- `name` - Name of the mapping that was asked for, or None when the command
+  line named none and the members explain themselves as far as their
+  own types allow.
+  
+
+**Returns**:
+
+  That mapping, or None when none was asked for.
+  
+
+**Raises**:
+
+- `Refusal` - The module holds no such name, or it is no mapping.
+
+<a id="edit_cfg_json.cli_target._named_module"></a>
+
+#### \_named\_module
+
+```python
+def _named_module(parsed: Namespace) -> ModuleType
+```
+
+Return the module that one command line names, or refuse to run.
+
+**Arguments**:
+
+- `parsed` - Parsed command line of one run.
+  
+
+**Returns**:
+
+  That module, imported.
+  
+
+**Raises**:
+
+- `Refusal` - The module cannot be reached.
+
+<a id="edit_cfg_json.cli_target._constructed"></a>
+
+#### \_constructed
+
+```python
+def _constructed(config_type: type[Config]) -> Config
+```
+
+Return the declared defaults of one class, or refuse to run.
+
+**Arguments**:
+
+- `config_type` - Class that the command line named.
+  
+
+**Returns**:
+
+  A configuration object holding what the class declares.
+  
+
+**Raises**:
+
+- `Refusal` - The editor cannot construct that class. An application
+  whose class needs constructor arguments this library knows
+  nothing about names a loader with `--loader` instead.
+
+<a id="edit_cfg_json.cli_target._loader_config"></a>
+
+#### \_loader\_config
+
+```python
+def _loader_config(loader: ConfigLoader, name: str) -> Config
+```
+
+Return what one loader answers with when there is no file, or refuse.
+
+**Arguments**:
+
+- `loader` - Loader that the command line named.
+- `name` - Name it was named under, which is what a refusal says.
+  
+
+**Returns**:
+
+  The configuration object that the loader constructed.
+  
+
+**Raises**:
+
+- `Refusal` - The loader cannot be called by a program, or it answered
+  with nothing.
+
+<a id="edit_cfg_json.cli_target._target_config"></a>
+
+#### \_target\_config
+
+```python
+def _target_config(wanted: Optional[type[Config]],
+                   loader: Optional[ConfigLoader],
+                   name: Optional[str]) -> Config
+```
+
+Return the configuration object that one command line starts from.
+
+A class alone is constructed on the values it declares. A loader is asked
+instead, with no JSON source, which is what `ConfigLoader` says a loader
+answers. Which class that is is not checked here, because it is not settled
+yet: a loader may choose its class by looking at the input file, and the
+class of the session is the class of the object the load produced.
+
+**Arguments**:
+
+- `wanted` - Class that `--class` named, or None when it named none. It is
+  never None when there is no loader, because a command line that
+  names neither is refused before this.
+- `loader` - Loader that the command line named, or None when it named
+  none.
+- `name` - Name the loader was named under, which a refusal says.
+  
+
+**Returns**:
+
+  The configuration object to start the session from.
+  
+
+**Raises**:
+
+- `Refusal` - There is no configuration object to edit.
+
+<a id="edit_cfg_json.cli_target.checked_class"></a>
+
+#### checked\_class
+
+```python
+def checked_class(config: Config, wanted: Optional[type[Config]],
+                  name: Optional[str]) -> None
+```
+
+Refuse a loaded configuration that is not the class that was asked for.
+
+`--class` beside a `--loader` is a question rather than an instruction: is
+this the class you are prepared to go on with? It is asked of the object
+that is really going to be edited, so a loader that chose its class by
+looking at the input file is answered for that file. `isinstance` is what
+answers it, so a subclass of the class that was named is accepted.
+
+**Arguments**:
+
+- `config` - Configuration object that the load produced.
+- `wanted` - Class that `--class` named, or None when it named none.
+- `name` - Name of the loader, or None when the command line named none
+  and there is therefore nothing to check.
+  
+
+**Raises**:
+
+- `Refusal` - The class is not the one that was asked for.
+
+<a id="edit_cfg_json.cli_target.Target"></a>
+
+## Target Objects
+
+```python
+class Target(NamedTuple)
+```
+
+What one command line said is to be edited, and what explains it.
+
+The two doors to it answer with the same four things: the object to start
+from, what its application says about its members, and the loader and the
+class that a save and a load are checked against where the command line
+named them.
+
+<a id="edit_cfg_json.cli_target.Target.config"></a>
+
+#### config
+
+Configuration object holding the values to start from.
+
+<a id="edit_cfg_json.cli_target.Target.descriptions"></a>
+
+#### descriptions
+
+What the application says about its own members, or None.
+
+<a id="edit_cfg_json.cli_target.Target.loader"></a>
+
+#### loader
+
+Loader the command line named, or None when it named none.
+
+<a id="edit_cfg_json.cli_target.Target.wanted"></a>
+
+#### wanted
+
+Class that `--class` named, or None when it named none.
+
+<a id="edit_cfg_json.cli_target._own_target"></a>
+
+#### \_own\_target
+
+```python
+def _own_target() -> Target
+```
+
+Return the settings class of this editor as what to edit.
+
+**Returns**:
+
+  The declared settings of the editor, and what this library says about
+  each of them.
+  
+
+**Raises**:
+
+- `Refusal` - The editor cannot construct its own settings class, which
+  would be a defect of this library rather than of the command line.
+
+<a id="edit_cfg_json.cli_target._named_target"></a>
+
+#### \_named\_target
+
+```python
+def _named_target(parsed: Namespace) -> Target
+```
+
+Return what a command line naming a module or a file says to edit.
+
+**Arguments**:
+
+- `parsed` - Parsed command line of one run.
+  
+
+**Returns**:
+
+  The object to start from, and what says what about it.
+  
+
+**Raises**:
+
+- `Refusal` - The module, the class, the loader or the descriptions
+  cannot be reached.
+
+<a id="edit_cfg_json.cli_target.target_of"></a>
+
+#### target\_of
+
+```python
+def target_of(parsed: Namespace) -> Target
+```
+
+Return what one command line says is to be edited.
+
+**Arguments**:
+
+- `parsed` - Parsed command line of one run.
+  
+
+**Returns**:
+
+  The object to start from, and what says what about it.
+  
+
+**Raises**:
+
+- `Refusal` - There is no configuration object to edit.
+
+<a id="edit_cfg_json.settings_config"></a>
+
+# edit\_cfg\_json.settings\_config
+
+The settings of the editor, written as a configuration class of its own.
+
+`Settings` is what an application decides in Python. This is the same thing
+written as a `config_as_json.Config`, so that it can be read from a file, shown
+in this editor like any other configuration, and declared as one member of an
+application's own configuration class.
+
+**It mirrors `Settings` and does not derive from it.** Deriving is what the
+"third-party parameter class" pattern of `config_as_json` is for, and it is
+impossible here for one reason: `ActionSettings` declares a member called
+`validate`, which would shadow `Config.validate()` on every object of the
+bridged class. `config_as_json` calls that method while it constructs and
+while it parses, so such a class cannot be built at all. That is why `Settings`
+and `ActionSettings` stay frozen, which is what section 9.1 of `doc/design.md`
+asks of them for reasons of its own.
+
+**The key combinations are a dict of lists and not a nested object.** A nested
+`Config` object is read whole — `config_as_json` constructs one from its own
+JSON without the permissive flag of the parse around it — so every settings
+file would have had to name every action. A dict member is filled in per key
+instead, its keys are checked against the ones this class declares, and a
+member validator completes what a file left out. So a settings file may name
+one action and the editor still shows all of them.
+
+**Nothing here restates what a valid setting is.** Each member validator hands
+the value to `Settings` or `ActionSettings` and reports what the dataclass
+refused, which is principle 1 of section 3 of `doc/design.md` applied to the
+editor's own settings: there is one place that says a key combination cannot
+belong to two actions, and it is the place the editor itself is built on.
+
+<a id="edit_cfg_json.settings_config.UNKNOWN_ACTION"></a>
+
+#### UNKNOWN\_ACTION
+
+Message of the refusal of an action name that this editor does not have.
+
+<a id="edit_cfg_json.settings_config.REFUSED_KEYS"></a>
+
+#### REFUSED\_KEYS
+
+The same for the combinations, whose value is every action there is.
+
+Writing the value out would name every action of the editor to say something
+about two of them, and the sentence that `ActionSettings` refuses them with
+names those two itself.
+
+<a id="edit_cfg_json.settings_config.declared_actions"></a>
+
+#### declared\_actions
+
+```python
+def declared_actions() -> dict[str, list[str]]
+```
+
+Return the key combinations of every action, as a file holds them.
+
+They are read from `ActionSettings` rather than written out again, so that
+an action added there is an action this configuration class has without
+anything here being changed, and so that the two cannot disagree about a
+default.
+
+**Returns**:
+
+  The combinations of each action, by the name of that action.
+
+<a id="edit_cfg_json.settings_config._ActionKeys"></a>
+
+## \_ActionKeys Objects
+
+```python
+class _ActionKeys(MemberValidator)
+```
+
+Complete the actions a file left out, and refuse what they refuse.
+
+A settings file is a file somebody writes by hand to change one or two
+things, so what it does not name keeps the default of the editor. The
+completed value is what is stored back into the member, which is what makes
+the editor show every action of a file that named one of them, and what
+lets the combinations of the others be edited there.
+
+<a id="edit_cfg_json.settings_config._ActionKeys.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Return every action of the editor, with what this member says.
+
+**Arguments**:
+
+- `config` - The configuration object that owns the member.
+- `member_name` - Name of the member, which is `actions`.
+- `member_value` - What the file or the edit buffer holds for it, whose
+  keys and values were checked by the validator before this one.
+- `stderr_file` - Stream used for user-facing diagnostics.
+  
+
+**Returns**:
+
+  The combinations of every action, by the name of that action.
+  
+
+**Raises**:
+
+- `InvalidConfiguration` - An action name is not one this editor has,
+  or one combination is set for two actions.
+
+<a id="edit_cfg_json.settings_config._built_actions"></a>
+
+#### \_built\_actions
+
+```python
+def _built_actions(actions: Mapping[str, list[str]], member_name: str,
+                   stderr_file: TextIO) -> ActionSettings
+```
+
+Return one `ActionSettings` of these combinations, or refuse them.
+
+**Arguments**:
+
+- `actions` - The combinations of every action, by the name of that action.
+- `member_name` - Name of the member, which a refusal names.
+- `stderr_file` - Stream used for user-facing diagnostics.
+  
+
+**Returns**:
+
+  What the editor would bind for these actions.
+  
+
+**Raises**:
+
+- `InvalidConfiguration` - One combination is set for two actions.
+
+<a id="edit_cfg_json.settings_config._refusal"></a>
+
+#### \_refusal
+
+```python
+def _refusal(message: str, stderr_file: TextIO) -> InvalidConfiguration
+```
+
+Return the refusal of one setting, having said what is wrong with it.
+
+**Arguments**:
+
+- `message` - What the user has to be told about this setting.
+- `stderr_file` - Stream used for user-facing diagnostics, which a
+  validator writes to before it raises.
+  
+
+**Returns**:
+
+  The failure to raise where the setting was refused.
+
+<a id="edit_cfg_json.settings_config._NamesAFile"></a>
+
+## \_NamesAFile Objects
+
+```python
+class _NamesAFile(MemberValidator)
+```
+
+Refuse text that adds nothing to a file name, as `Settings` does.
+
+An extension and a backup suffix are both text that a file name is made
+from, and text which strips to nothing makes the same name it was added to.
+Whether one piece of text does that is asked of `settings.names_a_file`,
+which is the one place that rule is written down and is what
+`Settings.__post_init__` asks as well.
+
+<a id="edit_cfg_json.settings_config._NamesAFile.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(refusal: str) -> None
+```
+
+Say how this member is refused when it names no file.
+
+**Arguments**:
+
+- `refusal` - Form of the message, which names the value.
+
+<a id="edit_cfg_json.settings_config._NamesAFile.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Return one piece of text that names a file, or refuse it.
+
+**Arguments**:
+
+- `config` - The configuration object that owns the member.
+- `member_name` - Name of the member being validated.
+- `member_value` - What the file or the edit buffer holds for it, whose
+  type was checked by the validator before this one.
+- `stderr_file` - Stream used for user-facing diagnostics.
+  
+
+**Returns**:
+
+  That text, unchanged.
+  
+
+**Raises**:
+
+- `InvalidConfiguration` - The text adds nothing to a file name.
+
+<a id="edit_cfg_json.settings_config._WithDot"></a>
+
+## \_WithDot Objects
+
+```python
+class _WithDot(MemberValidator)
+```
+
+Give the extension its dot, as `Settings` does.
+
+Normalizing here as well as in `Settings` is what makes the editor show
+the extension that the application will really use, rather than the text
+that was typed for it.
+
+<a id="edit_cfg_json.settings_config._WithDot.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Return one extension beginning with its dot.
+
+**Arguments**:
+
+- `config` - The configuration object that owns the member.
+- `member_name` - Name of the member being validated.
+- `member_value` - The extension, which names a file by now.
+- `stderr_file` - Stream used for user-facing diagnostics.
+  
+
+**Returns**:
+
+  That extension with its dot, and None for a member holding none.
+
+<a id="edit_cfg_json.settings_config._ACTION_KEYS"></a>
+
+#### \_ACTION\_KEYS
+
+What the key combinations of every action are checked with.
+
+<a id="edit_cfg_json.settings_config._EXTENSION"></a>
+
+#### \_EXTENSION
+
+What the extension of a configuration file is checked with.
+
+<a id="edit_cfg_json.settings_config._SUFFIX"></a>
+
+#### \_SUFFIX
+
+What the suffix of a kept file is checked with.
+
+It is not normalized, unlike the extension: a suffix that begins with a dot
+and one that does not are both shapes an application asks for.
+
+<a id="edit_cfg_json.settings_config._COUNT"></a>
+
+#### \_COUNT
+
+What the number of kept files is checked with.
+
+Keeping none of them is what an empty `backup_suffix` says, so a count below
+one would be a second way of saying it that could disagree with the first.
+
+<a id="edit_cfg_json.settings_config._FLAG"></a>
+
+#### \_FLAG
+
+What a member holding true or false is checked with.
+
+Nothing else is asked of these three: every value of the type is one the
+editor acts on, so there is nothing for `Settings` to refuse about them.
+
+<a id="edit_cfg_json.settings_config.SettingsConfig"></a>
+
+## SettingsConfig Objects
+
+```python
+class SettingsConfig(Config)
+```
+
+What has been decided about the editor itself.
+
+Which key combinations run the actions of the editor, what a configuration
+file of this application is called, and how the file that a save writes
+over is looked after. It is the same set of answers as `Settings`, in the
+form that can be read from a file and edited in this editor.
+
+A file of these need name only what it changes: what it leaves out keeps
+the answer the editor would have chosen anyway, and the editor shows every
+setting whatever the file held.
+
+<a id="edit_cfg_json.settings_config.SettingsConfig.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(from_json_data_text: Optional[str] = None,
+             from_json_filename: Optional[PathOrStr] = None,
+             stderr_file: TextIO = sys.stderr) -> None
+```
+
+Declare every setting of the editor, and read the file there is.
+
+The declared values are read from `Settings` and `ActionSettings`
+rather than written out again, so that the default of a setting is
+stated once and the two cannot come to disagree.
+
+**Arguments**:
+
+- `from_json_data_text` - Optional JSON text to parse directly.
+- `from_json_filename` - Optional path to a JSON file to read.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+<a id="edit_cfg_json.settings_config.SettingsConfig.as_settings"></a>
+
+#### as\_settings
+
+```python
+def as_settings() -> Settings
+```
+
+Return these values as the editor is given them.
+
+**Returns**:
+
+  What this configuration says, as the frozen object every entry
+  point of this library takes.
+  
+
+**Raises**:
+
+- `ValueError` - One key combination is set for two actions, which
+  cannot happen for a validated object and can for one whose
+  members were assigned by hand.
+
+<a id="edit_cfg_json.settings_config.SettingsConfig.get_validation_plan"></a>
+
+#### get\_validation\_plan
+
+```python
+def get_validation_plan(stderr_file: TextIO) -> ValidationPlan
+```
+
+Return what every setting of the editor is checked against.
+
+**Arguments**:
+
+- `stderr_file` - Stream used for user-facing diagnostics, which the
+  validators of this plan are given when they run.
+  
+
+**Returns**:
+
+  One step per kind of setting there is.
+
+<a id="edit_cfg_json.settings_config.ACTION_DESCRIPTIONS"></a>
+
+#### ACTION\_DESCRIPTIONS
+
+What each action of the editor is, by the name it is set under.
+
+Every action of `ActionSettings` has an entry, and one that is added later
+without one is described by the line that reaches every action instead.
+
+<a id="edit_cfg_json.settings_config.EVERY_ACTION"></a>
+
+#### EVERY\_ACTION
+
+What is said about an action that has nothing said about it.
+
+It is what the `[` selector reaches, so it is the whole of what is said below
+an action added to `ActionSettings` and not to `ACTION_DESCRIPTIONS`, and it is
+never seen beside one of those: a selector naming the action is the more
+specific of the two and wins.
+
+<a id="edit_cfg_json.settings_config._MEMBER_DESCRIPTIONS"></a>
+
+#### \_MEMBER\_DESCRIPTIONS
+
+What this class says about each member that is not one action.
+
+<a id="edit_cfg_json.settings_config.SETTINGS_DESCRIPTIONS"></a>
+
+#### SETTINGS\_DESCRIPTIONS
+
+What this configuration class says about each of its own members.
+
+It is what an application hands to the editor beside `SettingsConfig`, and an
+application that has this class as one member of its own configuration puts
+its own path in front of every one of these paths.
+
+<a id="edit_cfg_json.settings_config.described_below"></a>
+
+#### described\_below
+
+```python
+def described_below(prefix: ConfigPath) -> Descriptions
+```
+
+Return what this class says about its members, below one member.
+
+An application that declares a `SettingsConfig` as one member of its own
+configuration describes that member's members with this, because a
+description addresses the whole path to what it is about.
+
+**Arguments**:
+
+- `prefix` - Path of the member that holds the `SettingsConfig`, which is
+  `('editor',)` for a member called `editor`.
+  
+
+**Returns**:
+
+  The same descriptions, each of them below that member.
 
 <a id="edit_cfg_json.model_text"></a>
 

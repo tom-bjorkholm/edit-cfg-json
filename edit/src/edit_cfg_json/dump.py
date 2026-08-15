@@ -22,6 +22,14 @@ saying that it holds more, and there is no control here to open it with. With
 library makes of a whole configuration: every value of it, and the explanation
 that every one of its nodes is shown with.
 
+**It reads a settings file of its own, and has no file in the home folder.**
+`-c/--cfg` and the environment variable name one, and the shared
+`.edit-cfg-json.cfg` is the last thing looked for; the step between those two
+is skipped, because that step is there to let the two editors differ and what
+they differ about is their keys and their questions, of which this has neither.
+What a settings file still says here is what a file is called and what happens
+to the one a save writes over.
+
 Run it as `python3 -m edit_cfg_json.dump`. This package installs no command of
 its own, and the name `edit-cfg-json` in particular is deliberately free: it
 promises the editor this library is for, and a user who typed it and got a

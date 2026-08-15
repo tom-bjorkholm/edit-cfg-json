@@ -30,12 +30,13 @@ repository only.
 | [e14_embedded_textual.py](e14_embedded_textual.py) | The same application in the other toolkit: `EditorPanel` is a widget, so it is mounted in an area of the application's own screen and the application keeps its own header, its own footer and its own palette. Also the one setting only an embedded editor has a reason to change, `edit_cfg_json.Settings.priority_keys`, built in Python as a real application builds it and shown on a combination that Textual's own field reads for itself. |
 | [e15_window_tk.py](e15_window_tk.py) | The same editor in a Tkinter window of its own over the application, which is the same `TkEditorPanel` with a `parent` instead of an `area`. The editor makes that window, names it after the configuration class and destroys it again, and `modal` — which defaults to True — is what holds the application until the user has finished with it, including the application's own button for closing the editor. |
 | [e16_screen_textual.py](e16_screen_textual.py) | The same in the other toolkit, where a window of its own is a screen: `EditorScreen` is `EditorPanel` with a header, a footer and the palette entries of the editor around it, pushed on top of the application's own screen. It pops itself when the session ends, so the application pops nothing and its own screen is back by the time it is told. |
+| [e17_settings_config.py](e17_settings_config.py) | The settings of the editor as a configuration class, `edit_cfg_json.SettingsConfig`, declared as one member of an application's own configuration so that the person running the application decides how the editor behaves and writes it in a file. What `as_settings()` bridges, what `described_below` puts under the member holding it, why a settings *block* inside another configuration is read whole while a settings *file* of its own may name one setting, and the `--edit-settings` option that edits such a file in the two editor programs with no application around it at all. |
 
-**These four examples have a command line of their own**, `editor_files` in
-[_shared_pipeline.py](_shared_pipeline.py), because the shared one below is
-phrased against `edit_cfg_json.EditorBackend` and an embedded editor is
-deliberately not one: it does not run to completion, so it cannot be handed to
-`edit()` at all. It is `-i` and `-o`, which are the core's own options and mean
+**The four examples that mount the editor have a command line of their
+own**, `editor_files` in [_shared_pipeline.py](_shared_pipeline.py), because
+the shared one below is phrased against `edit_cfg_json.EditorBackend` and an
+embedded editor is deliberately not one: it does not run to completion, so it
+cannot be handed to `edit()` at all. It is `-i` and `-o`, which are the core's own options and mean
 there what they mean everywhere else, and no `--ui`: each of these examples is
 one toolkit. They have no `--ui dump` either, and cannot have one, because what
 they teach is where the editor is in a window and a printout has no window to

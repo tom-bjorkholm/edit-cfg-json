@@ -1,12 +1,14 @@
 ### Telling it which class to edit
 
 The class is told and never guessed. `--module` names a module that is
-importable, `--file` names a Python file that is not, exactly one of the two is
-required, and `--class` names the class in it:
+importable, `--file` names a Python file that is not, `--edit-settings` says
+that the class is this editor's own settings, exactly one of the three is
+required, and `--class` names the class in the first two:
 
 ````sh
 {{dist_name}} --module myapp.config --class AppConfig -i /etc/myapp.json
 {{dist_name}} --file ./somewhere/cfg.py --class AppConfig
+{{dist_name}} --edit-settings -o ~/{{home_settings}}
 ````
 
 `--module` uses the ordinary import path, so `PYTHONPATH` reaches a package
@@ -39,7 +41,51 @@ An application that has more to say about its own configuration — the file nam
 extension it uses, the key combinations its own user interface has taken, and
 what becomes of a file that a save writes over — says it in
 `edit_cfg_json.Settings`, and gets there through `edit` rather than through this
-program. Options for those are what a later version of this program adds.
+program. What *this* program behaves according to is a settings file, which is
+the next section.
+
+### The settings this program itself runs with
+
+The same answers `edit_cfg_json.Settings` holds are a configuration class of
+their own, `edit_cfg_json.SettingsConfig`, so they can be written in a file.
+This program looks for one in five steps, and uses the first that answers:
+
+| Step | Where |
+| --- | --- |
+| 1 | The file that `-c`/`--cfg` names. |
+| 2 | The file that the `CFG_EDIT_CFG_JSON` environment variable names. |
+| 3 | `~/{{home_settings}}`, which only this program reads. |
+| 4 | `~/.edit-cfg-json.cfg`, which every program of this library reads. |
+| 5 | Nowhere: the values the editor would have chosen anyway. |
+
+A file that was **named** — by `-c` or by the environment — must be there, and
+a run whose named file is missing or cannot be read as settings stops with an
+exit code of its own. The two files of the home folder are the lookup itself,
+so a step that finds nothing is simply the next step.
+
+Such a file need name only what it changes. This one moves Save and keeps three
+of the files that a save writes over:
+
+````json
+{
+    "actions": {"save": ["ctrl+w"]},
+    "backup_suffix": ".old",
+    "backup_count": 3
+}
+````
+
+`--edit-settings` is how one is edited in this editor itself. With `-i` it reads
+the file that is there; with no `-i` it starts from the values the class
+declares, which is how a settings file that does not exist yet is made:
+
+````sh
+{{dist_name}} --edit-settings -o ~/{{home_settings}}
+{{dist_name}} --edit-settings -i ~/{{home_settings}}
+````
+
+The settings a run behaves according to are read before anything else, so a
+session that is editing a settings file is not the session that file describes:
+the next run reads it.
 
 ### A class this editor cannot construct on its own
 
@@ -93,6 +139,7 @@ exit code of its own:
 | `14` | The loader needs arguments that a command line cannot supply. |
 | `15` | The loader did not construct the class that `--class` asked for. |
 | `16` | The name that `--descriptions` names is no mapping of any kind. |
+| `17` | The settings of the program itself cannot be read. |
 
 The numbers are `edit_cfg_json.ExitCode`, so a program that runs this one can
 name them instead of writing them out.

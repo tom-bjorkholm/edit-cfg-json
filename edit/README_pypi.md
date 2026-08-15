@@ -36,6 +36,20 @@ backends. Public names may change without a major version bump.
 Semantic versioning starts when the Alpha period ends. Until then, pin an
 exact version if your build needs to be reproducible.
 
+### Stable exception: Descriptions
+
+A library or a program that only does
+
+```python
+from edit_cfg_json import Descriptions
+```
+
+and then uses the `Descriptions` type definition can safely use the
+latest version of `edit_cfg_json` in its declared dependencies with
+`install_requires = [ 'edit_cfg_json >=`...
+That type definition will be kept stable (or at least backward
+compatible).
+
 ## What this package does
 
 `edit-cfg-json` is the user interface agnostic core. It holds everything
@@ -101,6 +115,9 @@ from edit_cfg_json import ActionSettings, ConfigLoadError, ConfigLoader, \
 | `ConfigLoadError` | The refusal of an input file that cannot be opened, holding the message for the user and the diagnostics the configuration class produced. |
 | `ConfigLoader`, `derived_loader` | How an application says how its own configuration class is built, for a class this library cannot construct on its own, and the one line that says it for a class plus an argument bound into it. |
 | `Settings` | What the application around the editor has already decided: the key combinations of its actions, what a configuration file of that application is called, and what becomes of a file that a save writes over. Every attribute has a default, so an application with no opinion passes nothing at all. |
+| `SettingsConfig`, `SETTINGS_DESCRIPTIONS` | The same answers as a `config_as_json.Config` class, so that they can be read from a file, edited in this editor and declared as one member of an application's own configuration, and what this library says about each of its members. `SettingsConfig.as_settings()` is the bridge back to the frozen object every entry point takes. |
+| `described_below`, `declared_actions` | Those descriptions under the member of another configuration that holds them, and the key combinations of every action as a file holds them. |
+| `settings_file`, `load_settings`, `SETTINGS_VARIABLE`, `SHARED_SETTINGS` | Where a *program* reads its own settings from, in five steps: a file it is told, the file that `CFG_EDIT_CFG_JSON` names, a file of its own in the home folder, `.edit-cfg-json.cfg` there, and nowhere. A file that was named must be there and one that was looked for need not be. |
 | `ActionSettings` | The key combinations of every action of the editor, one attribute per action, so that an action the application says nothing about keeps its default. |
 | `SettingsSource` | What every entry point takes: a `Settings`, or a callable that answers with one. |
 | `EditorBackend` | The protocol a user interface implements. It is phrased against `EditModel` rather than against `edit`, which is what makes an editor that an application mounts in its own window an addition to this package rather than a rewrite of it. |
@@ -626,6 +643,38 @@ widget with the focus is then offered the key first and the editor gets what
 is left of it, which is the other way of answering the question that emptying
 one tuple of `ActionSettings` answers by taking the key away altogether.
 
+### The same answers, written in a file
+
+`SettingsConfig` is `Settings` as a configuration class. It declares one member
+per attribute, so it can be read from a file, shown in this editor like any
+other configuration, and declared as one member of an application's own
+configuration class:
+
+````python
+from config_as_json import ConfigNesting, ConfigNestingKind
+from edit_cfg_json import SettingsConfig, described_below
+
+def nested_configs(self) -> NestedConfigs:
+    return {'editor': ConfigNesting(kind=ConfigNestingKind.MEMBER,
+                                    config_type=SettingsConfig)}
+
+DESCRIPTIONS = {('report_folder',): 'Where the reports go.',
+                **described_below(('editor',))}
+````
+
+`config.editor.as_settings()` is then what the `settings` argument above takes.
+The key combinations are one dict member rather than a nested object of their
+own, which is what lets a file name one action and keep the editor's answer for
+the others; a nested configuration object is read whole whatever policy the
+parse around it was given.
+
+`load_settings` is the other door, and it is what the two editor programs use:
+it finds a settings file by the five steps `settings_file` makes and answers
+with a `Settings`. A file that was **named** — by an argument or by the
+`CFG_EDIT_CFG_JSON` environment variable — must be there, and a missing one is
+a `ConfigLoadError`; the two files of the home folder are the lookup itself, so
+a step that finds nothing is simply the next step.
+
 Every one of these entry points also accepts a callable that answers with a
 `Settings`, which is `SettingsSource`. It is asked again at each point where
 the answer is used. What that can change is worth knowing exactly: the key
@@ -677,7 +726,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 1540 passed, 3 deselected in 43s
+- Test result: 1603 passed, 3 deselected in 44s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

@@ -2077,12 +2077,23 @@ run.
 
 #### 8.3.2 The class is told, and never guessed
 
-`--module` names an importable module and `--file` names a Python file, exactly
-one of the two is required. A single `module:Class` argument reads better and
+`--module` names an importable module, `--file` names a Python file and
+`--edit-settings` says that the class is this library's own settings; exactly
+one of the three is required. A single `module:Class` argument reads better and
 would have to guess which of the two it was given, which is the decision section
 8.2.1 already took for this library as a whole; it would also make a Windows
 drive letter a special case, and it would take the refusal of a missing or a
 doubled location away from `argparse`.
+
+**`--edit-settings` is a third door and not a mode.** What it answers is the
+same question the other two answer — where does the class come from — so it
+belongs in the same group of alternatives, and `--class`, `--loader` and
+`--descriptions` are refused beside it because it has already said what all
+three of them would say. With `-i` it reads a settings file and with no `-i` it
+starts from the values the class declares, which is what every class the editor
+is given with no input file already does; a second option for making a new file
+was considered and rejected for exactly that reason, since it would be a name
+for something the command line already expresses.
 
 **What to edit is either a class or a loader**, named by `--class` and
 `--loader` in that module or file. At least one is needed and both are allowed:
@@ -2094,9 +2105,11 @@ edited, so a loader that chose its class from the input file is answered for
 that file, and `isinstance` is what it asks.
 
 The class is a named option and not a positional argument, so
-that the two ways of saying what to edit are symmetric. `argparse` can be asked
-for exactly one of two options and not for at least one of them, so the refusal
-of a command line that names neither is the one that is written by hand.
+that the ways of saying what to edit are symmetric. `argparse` can be asked
+for exactly one of a group of options and not for at least one of them, so the
+refusal of a command line that names neither a class nor a loader is the one
+that is written by hand, and so is the refusal of one that names either beside
+`--edit-settings`.
 
 **A loader cannot be finished off from a command line**, and the refusal says
 so: whatever it needs beyond the four keyword arguments of `ConfigLoader` has
@@ -2136,6 +2149,10 @@ it prints cannot fold a container it created away again.
 That one fact about a backend is what `run_cli` is told, and neither `--save`
 nor `--unfold` is then added to the parser at all for the other two, so it is
 `argparse` that refuses them rather than a check written by hand.
+
+The other fact each program is told is the name of its own settings file in the
+home folder (section 9.9), which is the third step of the lookup and the one
+thing about that lookup a program has to say for itself.
 
 #### 8.3.4 What a corpus of real configuration classes shows
 
@@ -2216,7 +2233,9 @@ no application.
 
 Both classes are frozen. The editor is given what an application decided and
 has no business changing it, and a frozen dataclass says so in the one place
-where saying it costs nothing.
+where saying it costs nothing. Section 9.8 is where that was asked again, and
+the answer is the same: what would have wanted them unfrozen is impossible for
+a different reason.
 
 `explain` is what the promise above was written for: an action added later is
 an added attribute, and no application that was written before it breaks. Its
@@ -2403,6 +2422,73 @@ section exists so that the editor does not overrule it; an application that
 has no search of its own is welcome to give `ctrl+f` to Save. What is reserved
 is what the editor itself may take.
 
+### 9.8 The same answers, written in a file
+
+An application decides these things in Python. A *program* of section 8.3 has
+no application around it to ask, and the person running it is who decides
+instead — so the same answers are a `config_as_json.Config` class of their own,
+`SettingsConfig`, and can be read from a file. It is also what an application
+declares as one member of its own configuration where its own users are the
+ones who should decide, which is the second thing it is for and the reason it
+is in the core rather than in each program.
+
+**It mirrors `Settings` and does not derive from it**, and the reason is not a
+preference. `ActionSettings` declares a member called `validate`, which shadows
+`Config.validate()` on every object of a class bridged the way
+`config_as_json`'s third-party-parameter pattern bridges one; `config_as_json`
+calls that method while it constructs and while it parses, so such a class
+cannot be built at all. No `Config` may hold a member of that name. That
+settles the question section 9.1 leaves open by making it moot: `Settings` and
+`ActionSettings` stay frozen, for the reason section 9.1 already gives.
+
+**The key combinations are a dict member and not a nested object.**
+`config_as_json` reads a nested configuration object whole — it constructs one
+from its own JSON without the permissive flag of the parse around it — so every
+settings file would then have had to name every action. A dict member is filled
+in per key instead, its keys are checked against the ones the class declares,
+which is the same protection against a misspelled action name that section 9.1
+gets from one attribute per action, and a member validator completes what a
+file left out so that the editor shows every action whatever the file held.
+
+**Nothing here restates what a valid setting is.** Each member validator hands
+the value to what `Settings` and `ActionSettings` already say, which is
+principle 1 of section 3 applied to the editor's own settings: there is one
+place that says a combination cannot belong to two actions, and it is the place
+the editor itself is built on. Two rules that both classes need — whether a
+piece of text adds anything to a file name, and what an extension without its
+dot becomes — are functions of the settings module that both read, rather than
+two statements that could come to disagree.
+
+### 9.9 Where a program finds its settings
+
+A program looks in five places and uses the first that answers: the file that
+`-c/--cfg` names, the file that the `CFG_EDIT_CFG_JSON` environment variable
+names, a file of that program's own in the home folder, `$HOME/.edit-cfg-json.cfg`
+there, and finally nowhere at all, which is the defaults of the editor.
+
+**A file that was named must be there, and a file that was looked for need
+not be.** The first two are somebody saying which file to use, so a name that
+no file answers to is a refusal with an exit code of its own: running with
+other settings than the ones that were asked for is the one thing a lookup must
+not do quietly, and falling back would be answering a question that was not
+put. The two files of the home folder are the lookup itself, and a step of a
+lookup that finds nothing is the lookup working.
+
+**One environment variable for every program, and one file of the home folder
+per program above the shared one.** The variable is a machine or a session
+deciding how this editor behaves, and an answer that had to be given three
+times would come to be given twice. The per-program file is the other half of
+the same thought: what the two editors differ about is their keys and their
+questions, so a user who wants the window and the terminal to differ writes
+one file each and a user who wants one answer writes only the shared file. The
+backend that prints once and returns has neither keys nor questions, so it has
+no file of its own and reads the shared one or nothing.
+
+**It is read with `LoadPolicy.DEFAULTS`**, because a settings file is written
+by hand to change one or two things and what it does not name is what the
+editor would have chosen anyway. It is also read **before** anything else the
+command line names, because it is what the whole run behaves according to.
+
 ## 10. Testing strategy
 
 ### 10.1 Core
@@ -2490,6 +2576,9 @@ In scope, and implemented:
 - modal `edit()` with both backends
 - the editor mounted in a window an application already owns, in both
   toolkits, with its keys reaching the editor and nothing else (section 8.2)
+- the settings of the editor as a configuration class of their own, editable
+  in the editor and declarable as one member of an application's own
+  configuration, and read from a file by each program (sections 9.8 and 9.9)
 
 Deliberately out of scope for v1, and therefore not implemented:
 
@@ -2537,6 +2626,22 @@ validators.
   the application, and it rests on `tkinter._default_root` and
   `textual._context.active_app`, both private, to guess something the
   application could simply have said. Section 8.2.1.
+- **`Settings` unfrozen and bridged into a `Config`**, the way
+  `config_as_json` bridges a third-party parameter class. It would have made
+  the settings and their configuration class one class rather than two that
+  have to agree. It is impossible: `ActionSettings` declares a member called
+  `validate`, which shadows `Config.validate()`, and `config_as_json` calls
+  that method while it constructs and while it parses. Section 9.8.
+- **The key combinations as a nested `Config` object.** It would give them a
+  class, a docstring and a member each, which is more than a dict member says
+  about itself. `config_as_json` reads a nested object whole, so every settings
+  file would then have had to name every action, which is the one thing such a
+  file should not have to do. Section 9.8.
+- **A second option for making a settings file that does not exist yet.**
+  `--edit-settings` with no `-i` already starts from the values the class
+  declares, which is what every class the editor is given with no input file
+  does, so the option would be a name for something the command line already
+  says. Section 8.3.2.
 - **A `master` argument beside the parent, with the backend creating the
   `Toplevel`.** Rejected at step 18 and **built at step 18B**, as `parent`
   beside `area`. Two mutually exclusive arguments really are two where one

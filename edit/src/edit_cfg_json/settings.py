@@ -9,6 +9,13 @@ editor consults instead of deciding those things for itself.
 
 Every attribute has a default, so an application with no opinion passes
 nothing at all and gets what the editor would have chosen anyway.
+
+Where it is the person running the application who decides rather than the
+application, the same answers are `edit_cfg_json.SettingsConfig`, which is a
+configuration class of their own and can be read from a file. Both classes here
+stay frozen: what the editor is given it has no business changing, and the one
+thing that would have wanted them unfrozen — bridging them into a `Config` —
+turns out to be impossible for a reason of its own. See `settings_config`.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -35,6 +42,39 @@ NOT_A_COUNT = '{value} is not a number of backup files to keep.'
 Keeping no backup is what an empty `backup_suffix` says, and saying it twice
 would leave two answers that could disagree with each other.
 """
+
+MIN_BACKUPS = 1
+"""Fewest backup files that `backup_count` may ask for."""
+
+
+def names_a_file(value: str) -> bool:
+    """Return whether one piece of text adds anything to a file name.
+
+    Text that does not is neither an extension nor a backup suffix: a name
+    with it added would be the name it was added to, so the file it stands for
+    would be the file it was made from.
+
+    Args:
+        value: Text that is to be added to a file name.
+
+    Returns:
+        Whether adding it makes another name.
+    """
+    return bool(value.strip('.').strip())
+
+
+def with_dot(extension: str) -> str:
+    """Return one file name extension beginning with its dot.
+
+    Args:
+        extension: Extension as it was written, with or without its dot.
+
+    Returns:
+        That extension with a dot in front of it, so that `cfg` and `.cfg`
+        mean the same thing.
+    """
+    return extension if extension.startswith('.') else f'.{extension}'
+
 
 BACKUP_SUFFIX = '.bak'
 """What is added to the name of a file whose previous content is kept.
@@ -336,10 +376,9 @@ class Settings:
         extension = self.file_extension
         if extension is None:
             return
-        if not extension.strip('.').strip():
+        if not names_a_file(extension):
             raise ValueError(NOT_AN_EXTENSION.format(value=repr(extension)))
-        if not extension.startswith('.'):
-            object.__setattr__(self, 'file_extension', f'.{extension}')
+        object.__setattr__(self, 'file_extension', with_dot(extension))
 
     def _check_backups(self) -> None:
         """Refuse a suffix that names no file and a count that keeps none.
@@ -353,9 +392,9 @@ class Settings:
             ValueError: The suffix names no file, or the count is below one.
         """
         suffix = self.backup_suffix
-        if suffix is not None and not suffix.strip('.').strip():
+        if suffix is not None and not names_a_file(suffix):
             raise ValueError(NOT_A_SUFFIX.format(value=repr(suffix)))
-        if self.backup_count < 1:
+        if self.backup_count < MIN_BACKUPS:
             raise ValueError(NOT_A_COUNT.format(value=self.backup_count))
 
 

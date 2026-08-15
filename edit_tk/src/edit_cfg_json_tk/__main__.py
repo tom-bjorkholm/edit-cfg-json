@@ -23,6 +23,14 @@ from edit_cfg_json_tk.tk_editor import TkEditor
 PROGRAM = 'edit-cfg-json-tk'
 """Name that this program is installed under."""
 
+HOME_SETTINGS = '.edit-cfg-json-tk.cfg'
+"""File of the home folder that this program reads its own settings from.
+
+It is looked for before the file that every program of this library reads, so
+that a user whose window and terminal editors want different answers writes
+this one and a user who wants one answer writes only the shared file.
+"""
+
 
 def main(args: Optional[Sequence[str]] = None) -> int:
     """Run this program and return what it ends with.
@@ -33,7 +41,8 @@ def main(args: Optional[Sequence[str]] = None) -> int:
     Returns:
         What this run ends with, as one of `edit_cfg_json.ExitCode`.
     """
-    return run_cli(backend=TkEditor(), prog=PROGRAM, args=args)
+    return run_cli(backend=TkEditor(), prog=PROGRAM, args=args,
+                   home_settings=HOME_SETTINGS)
 
 
 if __name__ == '__main__':

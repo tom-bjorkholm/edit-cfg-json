@@ -22,6 +22,10 @@ from edit_cfg_json.emphasis import EXPLANATION, Emphasis, LOAD_REMARK, \
     verdict_emphasis
 from edit_cfg_json.saving import SaveOutcome
 from edit_cfg_json.settings import ActionSettings, Settings, SettingsSource
+from edit_cfg_json.settings_config import SETTINGS_DESCRIPTIONS, \
+    SettingsConfig, declared_actions, described_below
+from edit_cfg_json.settings_file import SETTINGS_VARIABLE, SHARED_SETTINGS, \
+    load_settings, settings_file
 from edit_cfg_json.validation import ValidationVerdict
 from edit_cfg_json.model_text import can_fold, close_question, \
     docstring_text, fold_hides, load_text, model_as_text, model_title, \
@@ -29,8 +33,8 @@ from edit_cfg_json.model_text import can_fold, close_question, \
     row_fold_text, row_marks, row_subtree_text, row_validates, \
     row_value_text, save_text, verdict_text
 from edit_cfg_json.tree import path_text, text_path
-from edit_cfg_json.cli import ExitCode, add_file_options, named_policy, \
-    run_cli
+from edit_cfg_json.exit_code import ExitCode
+from edit_cfg_json.cli import add_file_options, named_policy, run_cli
 
 __all__ = ['EditModel', 'MemberRow', 'EditorBackend', 'Descriptions', 'edit',
            'editor_model', 'ElementOffer',
@@ -48,4 +52,7 @@ __all__ = ['EditModel', 'MemberRow', 'EditorBackend', 'Descriptions', 'edit',
            'row_value_text',
            'save_text', 'verdict_text', 'path_text', 'text_path',
            'DumpEditor', 'ExitCode', 'add_file_options', 'default_config',
-           'named_policy', 'run_cli']
+           'named_policy', 'run_cli', 'SettingsConfig',
+           'SETTINGS_DESCRIPTIONS', 'declared_actions', 'described_below',
+           'SETTINGS_VARIABLE', 'SHARED_SETTINGS', 'load_settings',
+           'settings_file']

@@ -198,6 +198,7 @@
     * [\_told](#edit_cfg_json_textual.textual_panel.ModelPanel._told)
 * [edit\_cfg\_json\_textual.\_\_main\_\_](#edit_cfg_json_textual.__main__)
   * [PROGRAM](#edit_cfg_json_textual.__main__.PROGRAM)
+  * [HOME\_SETTINGS](#edit_cfg_json_textual.__main__.HOME_SETTINGS)
   * [main](#edit_cfg_json_textual.__main__.main)
 
 <a id="edit_cfg_json_textual.textual_elements"></a>
@@ -2779,6 +2780,16 @@ a machine whose script folder is not on the path.
 #### PROGRAM
 
 Name that this program is installed under.
+
+<a id="edit_cfg_json_textual.__main__.HOME_SETTINGS"></a>
+
+#### HOME\_SETTINGS
+
+File of the home folder that this program reads its own settings from.
+
+It is looked for before the file that every program of this library reads, so
+that a user whose terminal and window editors want different answers writes
+this one and a user who wants one answer writes only the shared file.
 
 <a id="edit_cfg_json_textual.__main__.main"></a>
 

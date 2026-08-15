@@ -9,6 +9,9 @@ two kinds of directive:
   package's own `readme_parts` folder and then in the repository wide
   `readme_parts` folder. This is how text that is common to all packages
   is written once.
+- `{{home_settings}}` inserts the name of the settings file that the program
+  of one package reads from the home folder, which is its distribution name
+  with a dot in front of it and `.cfg` after it.
 - `{{dist_name}}` and `{{import_name}}` insert the distribution name and
   the import name of the package the file is generated for, so that a
   common fragment can still name the package it ends up in.
@@ -70,7 +73,8 @@ def read_fragment(name: str, package: Package, root: Path) -> str:
 def variables(package: Package) -> dict[str, str]:
     """Return the values a `{{name}}` directive can expand to."""
     return {'dist_name': package.dist_name,
-            'import_name': package.import_name}
+            'import_name': package.import_name,
+            'home_settings': f'.{package.dist_name}.cfg'}
 
 
 def expand_variable(name: str, package: Package) -> str:

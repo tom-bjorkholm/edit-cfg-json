@@ -23,12 +23,15 @@ import json
 import sys
 import pytest
 from edit_cfg_json import DumpEditor, EditModel, EditorBackend, ExitCode, \
-    LoadPolicy, add_file_options, named_policy, run_cli
-from edit_cfg_json.cli import LOADER_ARGS_MESSAGE, NOT_CONFIG_MESSAGE, \
-    NOT_DESCRIPTIONS, NOT_IMPORTABLE_MESSAGE, NOT_LOADER_MESSAGE, \
-    NOT_PYTHON_MESSAGE, NOT_SHOWABLE_MESSAGE, NO_FILE_MESSAGE, \
-    NO_LOADER_CONFIG, NO_MODULE_MESSAGE, NO_NAME_MESSAGE, NO_TARGET_MESSAGE, \
-    WRONG_CLASS_MESSAGE
+    LoadPolicy, SETTINGS_DESCRIPTIONS, SHARED_SETTINGS, Settings, \
+    SettingsConfig, add_file_options, load_settings, named_policy, \
+    row_description, run_cli
+from edit_cfg_json.cli_target import LOADER_ARGS_MESSAGE, \
+    NOT_CONFIG_MESSAGE, NOT_DESCRIPTIONS, NOT_IMPORTABLE_MESSAGE, \
+    NOT_LOADER_MESSAGE, NOT_PYTHON_MESSAGE, NOT_SHOWABLE_MESSAGE, \
+    NO_FILE_MESSAGE, NO_LOADER_CONFIG, NO_MODULE_MESSAGE, NO_NAME_MESSAGE, \
+    NO_TARGET_MESSAGE, OWN_TARGET_MESSAGE, WRONG_CLASS_MESSAGE
+from .model_helpers import row_at
 from .sample_cfg import ABOUT_FLAT_NAME, HOME_VALUE, PICKED_NAME
 
 PROGRAM = 'edit-cfg-json-test'
@@ -666,3 +669,126 @@ def test_policy_is_checked() -> None:
     add_file_options(parser)
     with pytest.raises(SystemExit):
         parser.parse_args(['--policy', 'whatever'])
+
+
+def test_own_settings_door() -> None:
+    """Test `--edit-settings` edits this library's own settings class.
+
+    It is the third of the three doors to a class, and the one that needs no
+    module and no name: the class and what is said about its members are both
+    this library's own.
+    """
+    backend = Recorder()
+    assert _run(backend, '--edit-settings') == ExitCode.OK
+    assert backend.model is not None
+    assert backend.model.config_type_name == SettingsConfig.__name__
+    assert row_at(backend.model, ('backup_suffix',)).value == '.bak'
+
+
+def test_own_settings_said() -> None:
+    """Test the settings class is shown with what this library says about it.
+
+    The class of all classes that should not be shown with nothing below its
+    members is the one whose members are what the editor itself behaves
+    according to.
+    """
+    backend = Recorder()
+    assert _run(backend, '--edit-settings') == ExitCode.OK
+    assert backend.model is not None
+    row = row_at(backend.model, ('backup_count',))
+    assert row_description(backend.model, row).startswith(
+        SETTINGS_DESCRIPTIONS[('backup_count',)])
+
+
+def test_own_settings_file(tmp_path: Path) -> None:
+    """Test `--edit-settings` with an input file edits that file."""
+    in_file = tmp_path / 'read.cfg'
+    in_file.write_text('{"backup_suffix": ".old"}', encoding='UTF-8')
+    backend = Recorder()
+    assert _run(backend, '--edit-settings', '--policy', 'defaults', '-i',
+                str(in_file)) == ExitCode.OK
+    assert backend.model is not None
+    assert row_at(backend.model, ('backup_suffix',)).value == '.old'
+
+
+def test_new_settings_saved(tmp_path: Path) -> None:
+    """Test a settings file that does not exist yet is made by saving one.
+
+    That is what `--edit-settings` with no input file is: the declared values
+    of the class, which is what every class the editor is given with no input
+    file already starts from.
+    """
+    out_file = tmp_path / 'made.cfg'
+    outcome = _run(Saver(), '--edit-settings', '-o', str(out_file),
+                   interactive=False)
+    assert outcome == ExitCode.OK
+    assert load_settings(named=out_file) == Settings()
+
+
+@pytest.mark.parametrize('option, value',
+                         [('--class', 'FlatCfg'), ('--loader', 'flat_loader'),
+                          ('--descriptions', 'ABOUT_FLAT')])
+def test_own_class_alone(option: str, value: str,
+                         capsys: pytest.CaptureFixture[str]) -> None:
+    """Test nothing inside a module is named beside `--edit-settings`.
+
+    `argparse` refuses `--module` and `--file` beside it, because those three
+    are one group of alternatives. These three are not alternatives to that
+    group, so the refusal of them is the one written by hand.
+    """
+    with pytest.raises(SystemExit) as ended:
+        _run(Recorder(), '--edit-settings', option, value)
+    assert ended.value.code == ExitCode.USAGE
+    assert OWN_TARGET_MESSAGE.format(names=option) in capsys.readouterr().err
+
+
+def test_one_door_at_a_time(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the three doors to a class really are alternatives."""
+    with pytest.raises(SystemExit) as ended:
+        _run(Recorder(), '--edit-settings', '--module', SAMPLE)
+    assert ended.value.code == ExitCode.USAGE
+    assert '--edit-settings' in capsys.readouterr().err
+
+
+def test_settings_reach_model(tmp_path: Path) -> None:
+    """Test `-c` decides how the editor behaves for the rest of the run.
+
+    The file name settings are the ones a model can be asked about without a
+    window, and they are read from the same object every other setting is.
+    """
+    named = tmp_path / 'used.cfg'
+    named.write_text('{"backup_suffix": ".old", "file_extension": "cfg"}',
+                     encoding='UTF-8')
+    backend = Recorder()
+    assert _run(backend, '-c', str(named), *_named('FlatCfg')) == ExitCode.OK
+    assert backend.model is not None
+    assert backend.model.settings.backup_suffix == '.old'
+    assert backend.model.settings.file_extension == '.cfg'
+
+
+def test_settings_of_the_home(tmp_path: Path,
+                              monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test a program with no file of its own reads the shared one."""
+    home = tmp_path / 'home'
+    home.mkdir()
+    (home / SHARED_SETTINGS).write_text('{"backup_count": 3}',
+                                        encoding='UTF-8')
+    monkeypatch.setattr(Path, 'home', lambda: home)
+    backend = Recorder()
+    assert _run(backend, *_named('FlatCfg')) == ExitCode.OK
+    assert backend.model is not None
+    assert backend.model.settings.backup_count == 3
+
+
+def test_no_named_settings(tmp_path: Path,
+                           capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a settings file that was named and is not there stops the run.
+
+    It stops before the class is looked for, which is what the class name in
+    this command line shows: the module really holds it, and the run never
+    reaches it.
+    """
+    missing = tmp_path / 'no_settings_here.cfg'
+    outcome = _run(Recorder(), '-c', str(missing), *_named('FlatCfg'))
+    assert outcome == ExitCode.NO_SETTINGS
+    assert str(missing) in capsys.readouterr().err

@@ -146,6 +146,15 @@ editor is in an application that already runs a user interface.
 | --- | --- |
 | [e13_pipeline.json](e13_pipeline.json) | Opens with both values from the file. It is one file for all four examples, because they are two applications in two toolkits each and the point of reading it at all is that the editor is told which file to read in the same call that says where it goes. It keeps its name from the example it was written for. |
 
+## Files for `e17_settings_config.py`
+
+`ToolConfig` declares one text member, one true-or-false member and one member
+holding a whole `edit_cfg_json.SettingsConfig`.
+
+| File | What happens |
+| --- | --- |
+| [e17_tool.json](e17_tool.json) | Opens with every value from the file, including a whole settings block: another backup suffix, three of them kept, an extension for this tool's files and `ctrl+w` for Save. It holds every member of `SettingsConfig` because a nested configuration object is read whole whatever policy the parse around it was given, which is the one thing about this example that a shorter file would have hidden. |
+
 ## Why a file with a bad value cannot be opened
 
 An editor that refused to open the very file that has to be repaired would

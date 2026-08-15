@@ -143,6 +143,7 @@
     * [release](#edit_cfg_json_tk.tk_scope.KeyScope.release)
 * [edit\_cfg\_json\_tk.\_\_main\_\_](#edit_cfg_json_tk.__main__)
   * [PROGRAM](#edit_cfg_json_tk.__main__.PROGRAM)
+  * [HOME\_SETTINGS](#edit_cfg_json_tk.__main__.HOME_SETTINGS)
   * [main](#edit_cfg_json_tk.__main__.main)
 * [edit\_cfg\_json\_tk.tk\_ask](#edit_cfg_json_tk.tk_ask)
   * [SAVE\_AS\_TITLE](#edit_cfg_json_tk.tk_ask.SAVE_AS_TITLE)
@@ -2349,6 +2350,16 @@ whose script folder is not on the path.
 #### PROGRAM
 
 Name that this program is installed under.
+
+<a id="edit_cfg_json_tk.__main__.HOME_SETTINGS"></a>
+
+#### HOME\_SETTINGS
+
+File of the home folder that this program reads its own settings from.
+
+It is looked for before the file that every program of this library reads, so
+that a user whose window and terminal editors want different answers writes
+this one and a user who wants one answer writes only the shared file.
 
 <a id="edit_cfg_json_tk.__main__.main"></a>
 

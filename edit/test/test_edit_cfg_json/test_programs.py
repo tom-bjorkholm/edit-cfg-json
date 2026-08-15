@@ -21,7 +21,7 @@ text, both of which happen before there is anything to show.
 
 from pathlib import Path
 from types import ModuleType
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 import importlib.util
 import os
 import subprocess
@@ -31,6 +31,14 @@ from edit_cfg_json import ExitCode
 
 MISSING_MODULE = 'no_such_module_here'
 """A module that is not installed, so a program refuses before it opens."""
+
+NO_HOME = 'no_such_home_folder_here'
+"""Folder the subprocess tests use as a home folder with nothing in it.
+
+A program reads its own settings from the home folder before it does anything
+the command line asked for, so a test that ran with the home folder of whoever
+is running it would pass or fail according to what that person had configured.
+"""
 
 
 class ProgramSpec(NamedTuple):
@@ -51,24 +59,35 @@ class ProgramSpec(NamedTuple):
     interactive: bool
     """Whether its backend gives the user a session to press Save in."""
 
+    home_settings: Optional[str]
+    """Name of its own settings file in the home folder, or None for none."""
+
 
 PROGRAMS = (ProgramSpec(run_module='edit_cfg_json.dump',
                         main_module='edit_cfg_json.dump',
                         program='python3 -m edit_cfg_json.dump',
-                        backend='DumpEditor', interactive=False),
+                        backend='DumpEditor', interactive=False,
+                        home_settings=None),
             ProgramSpec(run_module='edit_cfg_json_tk',
                         main_module='edit_cfg_json_tk.__main__',
                         program='edit-cfg-json-tk', backend='TkEditor',
-                        interactive=True),
+                        interactive=True,
+                        home_settings='.edit-cfg-json-tk.cfg'),
             ProgramSpec(run_module='edit_cfg_json_textual',
                         main_module='edit_cfg_json_textual.__main__',
                         program='edit-cfg-json-textual',
-                        backend='TextualEditor', interactive=True))
+                        backend='TextualEditor', interactive=True,
+                        home_settings='.edit-cfg-json-textual.cfg'))
 """Every program this repository ships, and what each of them is.
 
 The two editors are installed under the names their help text says and are
 reachable with `python -m` as well. The checker is reachable only that way: it
 is no editor, so the name `edit-cfg-json` would promise what it cannot give.
+
+Only the two editors have a settings file of their own in the home folder. What
+the two of them differ about is their keys and their questions, and a backend
+that prints once and returns has neither, so it reads the shared file or
+nothing.
 """
 
 PROGRAM_IDS = tuple(spec.run_module for spec in PROGRAMS)
@@ -103,6 +122,9 @@ def _module_run(spec: ProgramSpec, *args: str) -> subprocess.CompletedProcess[
     """
     environment = dict(os.environ)
     environment['PYTHONPATH'] = str(Path(__file__).resolve().parents[1])
+    environment.pop('CFG_EDIT_CFG_JSON', None)
+    for name in ('HOME', 'USERPROFILE'):
+        environment[name] = str(Path(sys.executable).parent / NO_HOME)
     return subprocess.run([sys.executable, '-m', spec.run_module, *args],
                           check=False, capture_output=True, text=True,
                           env=environment)
@@ -116,16 +138,19 @@ def test_supplies_own_backend(spec: ProgramSpec,
     The backend is the one thing the shared command line cannot supply, so it
     is the one thing each program has to get right. A program whose backend
     gives the user no session says so as well, because that is what decides
-    whether it offers `--save` and what its exit code answers.
+    whether it offers `--save` and what its exit code answers, and so is the
+    name of its own settings file, which is the other thing the shared command
+    line cannot know.
     """
     entry_point = _entry_point(spec)
     given: dict[str, object] = {}
 
     def fake_run_cli(backend: object, prog: str, *, args: object,
-                     interactive: bool = True) -> int:
+                     interactive: bool = True,
+                     home_settings: Optional[str] = None) -> int:
         """Record what the program asked for instead of running it."""
         given.update(backend=backend, prog=prog, args=args,
-                     interactive=interactive)
+                     interactive=interactive, home_settings=home_settings)
         return ExitCode.OK
     monkeypatch.setattr(entry_point, 'run_cli', fake_run_cli)
     command = ['--module', MISSING_MODULE, '--class', 'Cfg']
@@ -133,6 +158,19 @@ def test_supplies_own_backend(spec: ProgramSpec,
     assert type(given['backend']).__name__ == spec.backend
     assert given['prog'] == spec.program
     assert given['interactive'] is spec.interactive
+    assert given['home_settings'] == spec.home_settings
+
+
+@pytest.mark.parametrize('spec', PROGRAMS, ids=PROGRAM_IDS)
+def test_home_settings_name(spec: ProgramSpec) -> None:
+    """Test each program's own settings file is named after the program.
+
+    The readme of each package writes that name from its distribution name,
+    which is what `{{home_settings}}` expands to, so a program whose file was
+    called something else would be documented as reading a file it does not.
+    """
+    expected = f'.{spec.program}.cfg' if spec.interactive else None
+    assert spec.home_settings == expected
 
 
 def test_no_misleading_name() -> None:
@@ -181,3 +219,19 @@ def test_save_only_no_user(spec: ProgramSpec) -> None:
     assert done.returncode == expected
     if spec.interactive:
         assert '--save' in done.stderr
+
+
+@pytest.mark.parametrize('spec', PROGRAMS, ids=PROGRAM_IDS)
+def test_settings_named_file(spec: ProgramSpec, tmp_path: Path) -> None:
+    """Test every program refuses a settings file that was named and is not.
+
+    It is refused before the class is looked for, because the settings are what
+    the whole run behaves according to, and running with other settings than
+    the ones that were asked for is the one thing a lookup must not do quietly.
+    All three programs read one, which is why this is in the table.
+    """
+    missing = tmp_path / 'no_settings_here.cfg'
+    done = _module_run(spec, '-c', str(missing), '--module', MISSING_MODULE,
+                       '--class', 'Cfg')
+    assert done.returncode == ExitCode.NO_SETTINGS
+    assert str(missing) in done.stderr

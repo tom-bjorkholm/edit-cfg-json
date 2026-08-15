@@ -71,6 +71,13 @@ plan says only *when* that decision gets built.
 - [Step 18](#step-18--embedding-in-an-applications-own-window) — the editor
   mounted in a window an application already owns, in both toolkits, with its
   keys reaching the editor and nothing else.
+- [Step 18B](#step-18b---redesign-api-and-examples-for-embedding) — one call
+  per shape per toolkit, taking the keywords of `edit()`, and four examples
+  where there were two.
+- [Step 19](#step-19---config_as_jsonconfig-for-storing-the-settings) — the
+  settings of the editor as a configuration class of their own, editable in the
+  editor, declarable inside an application's own configuration, and looked for
+  in five places by each program.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -1313,51 +1320,118 @@ nothing and means what it meant.
 
 #### Step 19 - config_as_json.Config for storing the Settings
 
+Status: **Implemented and committed.**
+
 The `./edit` core shall define a class derived from `config_as_json.Config`
-for storing the `Settings`, and make definition complete with descriptions. 
+for storing the `Settings`, and make definition complete with descriptions.
 The primary users of this configuration are the programs
 `edit-cfg-json-textual` and `edit-cfg-json-tk` but it may also be used
 as a building block in the configuration of other applications that use
-these libraries.
+these libraries. Each of the three programs looks for a settings file in a
+fixed order, and each of them can edit one.
 
-The `Settings` dataclasses should probably change from frozen to not
-frozen, to support that they are used directly as `config_as_json.Config`,
-see https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e04_third_party_class.py 
+**Observable outcome.** A new example `e17_settings_config.py` whose
+application declares one member holding a whole `SettingsConfig`, so that the
+person running it decides how the editor behaves.
+`python3 examples/src/example/e17_settings_config.py --ui tk -i
+../../data/e17_tool.json` shows `editor: SettingsConfig` as a node with its own
+class, its own docstring and its own badge, `actions` inside it as a row per
+action of the editor with the combinations that run it as a list below that,
+and every setting explained by this library rather than by the application;
+`--set editor.actions.save.0=ctrl+q` is refused in the words
+`ActionSettings` itself uses, at the `actions` member. `--ui textual` shows the
+same tree. Outside any application, `edit-cfg-json-tk --edit-settings -o
+~/.edit-cfg-json-tk.cfg` makes a settings file that does not exist yet and
+`--edit-settings -i` edits one that does, and every program reads its own
+settings from `-c/--cfg`, from `$CFG_EDIT_CFG_JSON`, from its own file in the
+home folder, from `~/.edit-cfg-json.cfg`, or from nowhere, in that order.
 
-`edit-cfg-json-textual` and `edit-cfg-json-tk` shall take command line
-switches:
+**What it decided.** Four things, decided before the work started and recorded
+in `doc/design.md` sections 9.8, 9.9 and 8.3.2.
 
-- `-c`/`--cfg` to name the configuration file to load and use as their
-  `Settings`
+- **`SettingsConfig` mirrors `Settings` and does not derive from it**, and
+  `Settings` and `ActionSettings` stay frozen. 
+- **The key combinations are one dict member and not a nested object.** Also
+  verified first: `config_as_json` reads a nested configuration object whole,
+  without the permissive flag of the parse around it, so every settings file
+  would have had to name every action. A dict member is filled in per key, its
+  keys are checked against the ones the class declares, and a member validator
+  completes what a file left out so that the editor shows every action whatever
+  the file held.
+- **One flag and not two.**
+  `--edit-settings` is a third door beside `--module` and `--file`, in the same
+  required group of alternatives: with `-i` it reads a settings file, and with
+  no `-i` it starts from the values the class declares, which is what every
+  class the editor is given with no input file already does. A second option
+  for that would be a name for something the command line already says.
+- **A named settings file must be there, and a file that was looked for need
+  not be.** `-c/--cfg` and the environment variable are somebody saying which
+  file to use, so a missing one is a refusal with an exit code of its own;
+  running with other settings than the ones that were asked for is the one
+  thing a lookup must not do quietly. The two files of the home folder are the
+  lookup itself. It is read with `LoadPolicy.DEFAULTS`, because a settings file
+  is written by hand to change one or two things.
 
-- `--own-file` together with `-i` when editing a file to specify that
-  the CLASS and DESCRIPTIONS to use are the ones defined in `./edit`
-  Name of flag shall be re-evaluated and alternatives shall be considered.
+**Core.** `settings_config` owns `SettingsConfig`, what it says about its own
+members and the validators that hand each value to what `Settings` and
+`ActionSettings` already say; `settings_file` owns the five-step lookup and
+`load_settings`. `settings` gained `names_a_file`, `with_dot` and
+`MIN_BACKUPS`, which are the two rules and the one number that both classes
+now read from one place. `cli` gained `--edit-settings`, `-c/--cfg` and
+`ExitCode.NO_SETTINGS`, and `run_cli` is told the name of its program's own
+file in the home folder.
 
-- `--new-cfg` instead of `-i` to internally generate a new configuration
-  that will be opened for edit and saving (CLASS and DESCRIPTIONS to use
-  are the ones defined in `./edit`).
-  Name of flag shall be re-evaluated and alternatives shall be considered.
+The public names it settled:
 
-When `edit-cfg-json-textual` and `edit-cfg-json-tk` start they shall look
-for a configuration file to load their settings from, in the following
-priority order:
+| Name | Kind |
+| --- | --- |
+| `SettingsConfig` | the settings of the editor as a configuration class |
+| `SettingsConfig.as_settings` | those values as the frozen object entry points take |
+| `SETTINGS_DESCRIPTIONS` | what this library says about each of its members |
+| `described_below` | those descriptions under the member of another class |
+| `declared_actions` | the combinations of every action, as a file holds them |
+| `settings_file` | which file a program reads its own settings from |
+| `load_settings` | those settings, or the defaults where there is no file |
+| `SETTINGS_VARIABLE` | the environment variable naming a settings file |
+| `SHARED_SETTINGS` | the file of the home folder that every program reads |
+| `ExitCode.NO_SETTINGS` | the settings of the program itself cannot be read |
 
-1. The file specified by `-c`/`--cfg` 
+**What building it found.**
 
-2. If environment variable `CFG_EDIT_CFG_JSON` is set, its value is the
-   path and filename of the configuration file to load.
-
-3. File `$HOME/.edit-cfg-json-tk.cfg` if Tk and
-   `$HOME/.edit-cfg-json-textual.cfg` if Textual
-
-4. File `$HOME/.edit-cfg-json.cfg`
-
-5. Run without loading a configuration file using default values for
-   `Settings`
-
-To the extent applicable what is said here about `edit-cfg-json-textual`
-and `edit-cfg-json-tk` should also be applied to `edit_cfg_json.dump`
+- **No `Config` may hold a member called `validate`.** That is the finding the
+  whole shape of this step follows from, and it is worth stating on its own:
+  the member shadows the method, `Config.__init__` calls it, and the failure is
+  `TypeError: 'tuple' object is not callable` from inside the constructor. Any
+  application whose configuration has a member of that name meets the same
+  thing.
+- **A nested configuration object is read whole.** `ok_to_use_defaults` governs
+  the object that is being parsed and not the ones inside it, so a settings
+  *block* inside another configuration must name every setting while a settings
+  *file* of its own may name one. Example 17 says so, and its data file is as
+  long as it is for that reason.
+- **`cli.py` went over pylint's thousand-line limit**, and what to move out was
+  named by the module itself: `cli_target` holds the three doors to a class and
+  everything named inside a module, and `exit_code` holds `ExitCode` and the
+  refusal that carries one. `cli` is then the parser, the settings, one session
+  and the exit code, which is what its own docstring had claimed.
+- **Every core test now runs with an empty home folder.** A program reads its
+  own settings before it does anything the command line asked for, so a test
+  run that used the home folder of whoever ran it would pass or fail according
+  to what that person had configured. `conftest.py` patches `Path.home` for
+  every test of the core, and the subprocess tests of `test_programs.py` set
+  `HOME` and `USERPROFILE` in the process they start.
+- **The readme fragment needed the name of each program's own settings file**,
+  and it is derived rather than written: `{{home_settings}}` expands to the
+  distribution name with a dot in front and `.cfg` after it, which is exactly
+  what each program declares. A test asserts the two agree, because a readme
+  that named a file the program does not read would be worse than one that
+  named none.
+- **A description that is appended is not the whole of what a row says.** The
+  seven actions were first described with what the action does *and* the line
+  that reaches every action, which put the same sentence on the screen seven
+  times. The general line is now what the `[` selector reaches and nothing
+  else, which is what a fallback is for: it is never seen beside a description
+  that names the action, because that one is the more specific of the two.
 
 #### Step 20 — The rest of the program's command line
 

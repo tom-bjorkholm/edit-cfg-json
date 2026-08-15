@@ -1,0 +1,39 @@
+{
+    "editor": {
+        "actions": {
+            "cancel": [
+                "escape"
+            ],
+            "explain": [
+                "f1",
+                "ctrl+g"
+            ],
+            "fold": [
+                "f2",
+                "ctrl+t"
+            ],
+            "quit": [
+                "ctrl+q"
+            ],
+            "save": [
+                "ctrl+w"
+            ],
+            "save_as": [
+                "ctrl+shift+s",
+                "f12"
+            ],
+            "validate": [
+                "ctrl+r",
+                "f5"
+            ]
+        },
+        "backup_count": 3,
+        "backup_suffix": ".old",
+        "confirm_overwrite": true,
+        "extension_enforced": false,
+        "file_extension": ".cfg",
+        "priority_keys": true
+    },
+    "report_folder": "/srv/tool/reports",
+    "verbose": true
+}
