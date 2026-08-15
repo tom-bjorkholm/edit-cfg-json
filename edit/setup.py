@@ -16,6 +16,7 @@ setup(
   install_requires=[
     'config-as-json >= 1.5',
     'argcomplete >= 3.7.2',
-    'versionreporter >= 0.4'
+    'versionreporter >= 0.4',
+    'packaging >= 25.0'
   ]
 )

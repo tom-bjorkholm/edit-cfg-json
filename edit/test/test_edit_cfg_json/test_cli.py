@@ -18,11 +18,13 @@ none of this needs a display or a toolkit.
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TextIO
 import json
 import sys
 import pytest
-from edit_cfg_json import DumpEditor, EditModel, EditorBackend, ExitCode, \
+from versionreporter import VersionInfo
+from edit_cfg_json import DumpEditor, EcajVersionReporter, EditModel, \
+    EditorBackend, ExitCode, \
     LoadPolicy, SETTINGS_DESCRIPTIONS, SHARED_SETTINGS, Settings, \
     SettingsConfig, add_file_options, load_settings, named_policy, \
     row_description, run_cli
@@ -108,7 +110,28 @@ class Saver:  # pylint: disable=too-few-public-methods
         model.save()
 
 
-def _run(backend: EditorBackend, *args: str, interactive: bool = True) -> int:
+class ReportSpy(EcajVersionReporter):
+    """A version reporter that records being asked instead of answering.
+
+    The real one reads PyPI over the network, which a test may not do: it
+    would be slow where it worked and a failure where there is no network,
+    and neither says anything about the command line these tests are about.
+    """
+
+    def __init__(self) -> None:
+        """Create a reporter that has not been asked anything yet."""
+        super().__init__()
+        self.asked = 0
+
+    def print(self, versions: Optional[VersionInfo] = None,
+              out_file: Optional[TextIO] = None) -> None:
+        """Record that the report was asked for, and print nothing."""
+        _ = versions, out_file
+        self.asked += 1
+
+
+def _run(backend: EditorBackend, *args: str, interactive: bool = True,
+         reporter: Optional[EcajVersionReporter] = None) -> int:
     """Run the program once with one backend and one command line.
 
     The stubs above are accepted here because `EditorBackend` is a protocol:
@@ -119,12 +142,15 @@ def _run(backend: EditorBackend, *args: str, interactive: bool = True) -> int:
         backend: Backend to run the session in.
         args: The whole command line, without the program name.
         interactive: Whether this program's backend gives the user a session.
+        reporter: What `--version` is answered with, for a test that asks for
+            one. Every other test never reaches it.
 
     Returns:
         What that run ended with.
     """
+    asked = ReportSpy() if reporter is None else reporter
     return run_cli(backend=backend, prog=PROGRAM, args=list(args),
-                   interactive=interactive)
+                   version_reporter=asked, interactive=interactive)
 
 
 def _named(class_name: str, *args: str) -> list[str]:
@@ -202,6 +228,38 @@ def test_class_name_needed(capsys: pytest.CaptureFixture[str]) -> None:
         _run(Recorder(), '--module', SAMPLE)
     assert exit_info.value.code == ExitCode.USAGE
     assert PROGRAM in capsys.readouterr().err
+
+
+def test_version_reported() -> None:
+    """Test `--version` reports the versions and edits nothing.
+
+    It is enough on its own, because it is one of the alternatives that say
+    what a run does, and nothing is opened: the backend is never given a
+    model, which is what a run that edits nothing means.
+    """
+    reporter = ReportSpy()
+    backend = Recorder()
+    assert _run(backend, '--version', reporter=reporter) == ExitCode.OK
+    assert reporter.asked == 1
+    assert backend.model is None
+
+
+@pytest.mark.parametrize('args', [('--module', SAMPLE, '--class', 'FlatCfg'),
+                                  ('--edit-settings',)])
+def test_version_is_alone(args: tuple[str, ...],
+                          capsys: pytest.CaptureFixture[str]) -> None:
+    """Test `--version` is refused beside anything that says what to edit.
+
+    Reporting versions is a fourth thing a run does instead of editing, so it
+    is in the same group of alternatives, and `argparse` is what refuses the
+    two together rather than a check written by hand.
+    """
+    reporter = ReportSpy()
+    with pytest.raises(SystemExit) as exit_info:
+        _run(Recorder(), '--version', *args, reporter=reporter)
+    assert exit_info.value.code == ExitCode.USAGE
+    assert PROGRAM in capsys.readouterr().err
+    assert reporter.asked == 0
 
 
 def test_no_such_module(capsys: pytest.CaptureFixture[str]) -> None:

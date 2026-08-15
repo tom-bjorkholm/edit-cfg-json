@@ -45,6 +45,7 @@ from typing import Optional
 import sys
 from edit_cfg_json.backend import DumpEditor
 from edit_cfg_json.cli import run_cli
+from edit_cfg_json.version_report import EcajVersionReporter
 
 PROGRAM = 'python3 -m edit_cfg_json.dump'
 """How this program is run, which is what its own help text says."""
@@ -60,7 +61,7 @@ def main(args: Optional[Sequence[str]] = None) -> int:
         What this run ends with, as one of `edit_cfg_json.ExitCode`.
     """
     return run_cli(backend=DumpEditor(), prog=PROGRAM, args=args,
-                   interactive=False)
+                   version_reporter=EcajVersionReporter(), interactive=False)
 
 
 if __name__ == '__main__':

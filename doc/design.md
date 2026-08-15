@@ -2079,7 +2079,9 @@ run.
 
 `--module` names an importable module, `--file` names a Python file and
 `--edit-settings` says that the class is this library's own settings; exactly
-one of the three is required. A single `module:Class` argument reads better and
+one of the three is required, and section 8.3.6 adds `--version` to the same
+group as the one alternative that edits nothing at all. A single `module:Class`
+argument reads better and
 would have to guess which of the two it was given, which is the decision section
 8.2.1 already took for this library as a whole; it would also make a Windows
 drive letter a special case, and it would take the refusal of a missing or a
@@ -2222,6 +2224,67 @@ example stands in for the application, which decides these things in Python,
 and the options are there so that every answer can be tried without writing a
 program per answer. A program has no application around it, which is exactly
 why it reads a file instead.
+
+#### 8.3.6 What a program says about its own versions
+
+Whoever is about to report a problem, and whoever is about to upgrade, has to
+know which versions are really installed and whether newer ones exist. So each
+of the three programs answers `--version` with the report that
+[`versionreporter`](https://pypi.org/project/versionreporter/) prints: the
+installed version of every package the program is built out of and of Python
+itself, and then what PyPI has that is newer, told apart into what runs on this
+Python version and what would need a newer one. It is one call to a package
+that does this rather than a version string of this library's own, for the same
+reason as everything else here: the second half of that report is the half
+nobody writes for themselves.
+
+**It is a fourth alternative and not an option beside the other three.** Naming
+a module, naming a file, editing the settings of this editor and asking what is
+installed are four things one run does *instead of* each other, so `--version`
+joins the required group of section 8.3.2, where `argparse` refuses it beside
+any of the three and accepts it on its own. It is answered before the rest of
+the command line is looked at, because a run that reports versions edits
+nothing, reads no settings file and opens nothing.
+
+**This is not the setting that section 8.3.5 keeps off a command line.** A
+setting says how the editor behaves while it edits, and every one of them is a
+member of `SettingsConfig` written in a file. `--version` says that this run
+does something other than editing, which is the same line `--save` and
+`--unfold` are on the far side of.
+
+**One class per distribution, derived and not configured.** The report begins
+with the distribution the program was installed from, because that is the
+package whoever runs it has to upgrade, and because `versionreporter` takes the
+first name of the list as the one its upgrade instructions name.
+`EcajVersionReporter` names the core and what the core declares, and each
+editor package derives a class that puts its own name in front of that list and
+adds whatever else it alone depends on — `textual` in one of them and nothing
+in the other, because Tkinter comes with Python. So a dependency is written
+down in the package that declares it and nowhere else.
+
+It has to be a class and cannot be a name handed to one:
+`get_main_package_name` and `recommended_python` are class methods of
+`versionreporter`, so two instances of one class cannot answer them
+differently.
+
+**The reporter reaches `run_cli` as an argument of its own**, rather than being
+asked of the backend. A backend is what shows a model, and one of them is
+handed to a program, to `edit` and to every example of this repository, so what
+it said about a distribution would be right in the first of those and
+meaningless in the others; the two mounting entry points are not backends at
+all and would be left out of a report that lived there. What a report is about
+is the *package the program was installed from*, which is the same kind of fact
+as the name a program is installed under and the name of its own settings file
+in the home folder — both of which `run_cli` is already told, and for the same
+reason. It is a required argument because a program that forgot it would report
+another package's name to a user about to upgrade.
+
+**`check_if_unsupported_python` is deliberately not called**, though
+`versionreporter` recommends it beside the flag. It prints to standard output
+at the start of every run: the Textual editor's own screen would cover it, the
+window editor has nobody reading the terminal it was started from, and the
+utility of the core would put a paragraph in front of a printout that scripts
+read. What it would say is in the report, and a user who wants it asks.
 
 ## 9. Settings the application owns
 

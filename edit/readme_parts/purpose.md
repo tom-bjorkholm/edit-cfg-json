@@ -15,7 +15,7 @@ that is not a widget:
   visible to the user, and saving, including what becomes of the file that a
   save writes over
 
-This package has the utility  `python3 -m {{import_name}}.dump` that
+This package has the utility `python3 -m {{import_name}}.dump` that
 runs non-interactively on top of the backend API.
 
 Install this package on its own if you are writing a new user interface

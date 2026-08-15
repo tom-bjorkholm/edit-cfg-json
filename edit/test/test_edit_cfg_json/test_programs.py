@@ -1,11 +1,11 @@
 #! /usr/bin/env python3
 """Tests that each of the three packages ships the program it promises.
 
-The three programs differ in the backend and in how they are reached, and
-everything else about them is one command line, so what they are is one table
-and not three test modules. Written per package these tests were near copies
-of each other, and pylint said so: three copies of one shape would have been
-free to drift apart, and a table cannot.
+The three programs differ in the backend, in the versions they report and in
+how they are reached, and everything else about them is one command line, so
+what they are is one table and not three test modules. Written per package
+these tests were near copies of each other, and pylint said so: three copies of
+one shape would have been free to drift apart, and a table cannot.
 
 They live in the core's test folder for the same reason the layering tests do.
 The backends may not import each other, so a shape they share cannot live in
@@ -13,12 +13,16 @@ either of them, and the core is where anything about all three belongs.
 
 Nothing here opens a window or a screen. The in-process test replaces the call
 that would run the backend, and the subprocess tests are refusals and help
-text, both of which happen before there is anything to show.
+text, both of which happen before there is anything to show. Nothing here reads
+PyPI either: the version reporters are asked what they name and what those
+packages are locally, and never for the report itself, which is what would go
+over the network.
 """
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from importlib.metadata import metadata, requires, version
 from pathlib import Path
 from types import ModuleType
 from typing import NamedTuple, Optional
@@ -27,6 +31,10 @@ import os
 import subprocess
 import sys
 import pytest
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
+from packaging.version import Version
+from versionreporter import VersionReporter
 from edit_cfg_json import ExitCode
 
 MISSING_MODULE = 'no_such_module_here'
@@ -62,22 +70,33 @@ class ProgramSpec(NamedTuple):
     home_settings: Optional[str]
     """Name of its own settings file in the home folder, or None for none."""
 
+    distribution: str
+    """Name of the distribution that it is installed from."""
+
+    reporter: str
+    """Class name of the version reporter it answers `--version` with."""
+
 
 PROGRAMS = (ProgramSpec(run_module='edit_cfg_json.dump',
                         main_module='edit_cfg_json.dump',
                         program='python3 -m edit_cfg_json.dump',
                         backend='DumpEditor', interactive=False,
-                        home_settings=None),
+                        home_settings=None, distribution='edit-cfg-json',
+                        reporter='EcajVersionReporter'),
             ProgramSpec(run_module='edit_cfg_json_tk',
                         main_module='edit_cfg_json_tk.__main__',
                         program='edit-cfg-json-tk', backend='TkEditor',
                         interactive=True,
-                        home_settings='.edit-cfg-json-tk.cfg'),
+                        home_settings='.edit-cfg-json-tk.cfg',
+                        distribution='edit-cfg-json-tk',
+                        reporter='TkVersionReporter'),
             ProgramSpec(run_module='edit_cfg_json_textual',
                         main_module='edit_cfg_json_textual.__main__',
                         program='edit-cfg-json-textual',
                         backend='TextualEditor', interactive=True,
-                        home_settings='.edit-cfg-json-textual.cfg'))
+                        home_settings='.edit-cfg-json-textual.cfg',
+                        distribution='edit-cfg-json-textual',
+                        reporter='TextualVersionReporter'))
 """Every program this repository ships, and what each of them is.
 
 The two editors are installed under the names their help text says and are
@@ -140,16 +159,21 @@ def test_supplies_own_backend(spec: ProgramSpec,
     gives the user no session says so as well, because that is what decides
     whether it offers `--save` and what its exit code answers, and so is the
     name of its own settings file, which is the other thing the shared command
-    line cannot know.
+    line cannot know. The version reporter is the third of them, and a program
+    that handed over another one would tell a user about to upgrade to install
+    a package they are not running.
     """
     entry_point = _entry_point(spec)
     given: dict[str, object] = {}
 
-    def fake_run_cli(backend: object, prog: str, *, args: object,
-                     interactive: bool = True,
+    # It stands in for `run_cli`, so it takes what `run_cli` takes.
+    # pylint: disable-next=too-many-arguments
+    def fake_run_cli(backend: object, prog: str, *, version_reporter: object,
+                     args: object, interactive: bool = True,
                      home_settings: Optional[str] = None) -> int:
         """Record what the program asked for instead of running it."""
         given.update(backend=backend, prog=prog, args=args,
+                     version_reporter=version_reporter,
                      interactive=interactive, home_settings=home_settings)
         return ExitCode.OK
     monkeypatch.setattr(entry_point, 'run_cli', fake_run_cli)
@@ -159,6 +183,7 @@ def test_supplies_own_backend(spec: ProgramSpec,
     assert given['prog'] == spec.program
     assert given['interactive'] is spec.interactive
     assert given['home_settings'] == spec.home_settings
+    assert type(given['version_reporter']).__name__ == spec.reporter
 
 
 @pytest.mark.parametrize('spec', PROGRAMS, ids=PROGRAM_IDS)
@@ -219,6 +244,114 @@ def test_save_only_no_user(spec: ProgramSpec) -> None:
     assert done.returncode == expected
     if spec.interactive:
         assert '--save' in done.stderr
+
+
+@pytest.mark.parametrize('spec', PROGRAMS, ids=PROGRAM_IDS)
+def test_version_alternative(spec: ProgramSpec) -> None:
+    """Test `--version` is an alternative to saying what to edit.
+
+    Asking for the report itself would read PyPI, which no test here does, so
+    what a real process is asked is the refusal of the two together. That is
+    `argparse` refusing them because they are in one group of alternatives,
+    which is what makes `--version` enough on its own.
+    """
+    done = _module_run(spec, '--version', '--module', MISSING_MODULE)
+    assert done.returncode == ExitCode.USAGE
+    assert '--version' in done.stderr
+
+
+def _reporter(spec: ProgramSpec) -> VersionReporter:
+    """Return the version reporter of one program.
+
+    It is read from the top level of the package the program belongs to,
+    which is where every name a user of that package needs is re-exported, so
+    a reporter that was not exported there fails this rather than being
+    reached through the module it happens to live in.
+
+    Args:
+        spec: The program whose reporter is wanted.
+
+    Returns:
+        One reporter of the class that program hands to `run_cli`.
+    """
+    package = importlib.import_module(spec.main_module.split('.')[0])
+    made = getattr(package, spec.reporter)()
+    assert isinstance(made, VersionReporter)
+    return made
+
+
+def _classified_pythons(distribution: str) -> set[str]:
+    """Return the Python versions that one distribution says it supports.
+
+    Args:
+        distribution: Name of the distribution to ask.
+
+    Returns:
+        Every `major.minor` version its classifiers name.
+    """
+    prefix = 'Programming Language :: Python :: '
+    listed = metadata(distribution).get_all('Classifier') or []
+    named = {str(text)[len(prefix):] for text in listed
+             if str(text).startswith(prefix)}
+    return {name for name in named if '.' in name}
+
+
+@pytest.mark.parametrize('spec', PROGRAMS, ids=PROGRAM_IDS)
+def test_reports_own_package(spec: ProgramSpec) -> None:
+    """Test each program reports the distribution it was installed from.
+
+    It is the first name of the list because `versionreporter` takes that one
+    as the package its upgrade instructions name, and it is the package
+    whoever is running the program actually has.
+    """
+    reporter = _reporter(spec)
+    assert reporter.package_names()[0] == spec.distribution
+    assert reporter.get_main_package_name() == spec.distribution
+
+
+@pytest.mark.parametrize('spec', PROGRAMS, ids=PROGRAM_IDS)
+def test_reported_installed(spec: ProgramSpec) -> None:
+    """Test every package a program reports is really installed.
+
+    The report reads the installed version of each of them, so a name that is
+    misspelled or is no longer a dependency is a `--version` that raises
+    instead of answering.
+    """
+    for name in _reporter(spec).package_names():
+        assert version(name)
+
+
+@pytest.mark.parametrize('spec', PROGRAMS, ids=PROGRAM_IDS)
+def test_reports_dependencies(spec: ProgramSpec) -> None:
+    """Test a program reports everything its own distribution declares.
+
+    The report is the distribution and what it is built on, so a dependency
+    added to one of the three `setup.py` and not to the reporter of that
+    package would be a version nobody could ask about. The names are compared
+    as PyPI compares them, because a dependency may be written with either an
+    underscore or a hyphen in it.
+    """
+    declared = {canonicalize_name(Requirement(text).name)
+                for text in requires(spec.distribution) or []}
+    reported = {canonicalize_name(name)
+                for name in _reporter(spec).package_names()}
+    assert declared <= reported
+
+
+@pytest.mark.parametrize('spec', PROGRAMS, ids=PROGRAM_IDS)
+def test_python_agrees(spec: ProgramSpec) -> None:
+    """Test what a program says about Python agrees with its classifiers.
+
+    The recommended version is the newest one the distribution is released
+    for, and every version whose support is going to end is one of the others:
+    a package that recommended a Python it does not claim, or that had already
+    written off the newest one it supports, would be saying two things at once
+    to whoever reads the report and decides what to install.
+    """
+    supported = _classified_pythons(spec.distribution)
+    reporter = _reporter(spec)
+    assert str(reporter.recommended_python()) == max(supported, key=Version)
+    assert set(reporter.get_app_support_expires().values()) < supported
 
 
 @pytest.mark.parametrize('spec', PROGRAMS, ids=PROGRAM_IDS)

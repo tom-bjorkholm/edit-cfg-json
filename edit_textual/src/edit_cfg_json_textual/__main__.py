@@ -19,6 +19,7 @@ from typing import Optional
 import sys
 from edit_cfg_json import run_cli
 from edit_cfg_json_textual.textual_editor import TextualEditor
+from edit_cfg_json_textual.textual_version import TextualVersionReporter
 
 PROGRAM = 'edit-cfg-json-textual'
 """Name that this program is installed under."""
@@ -42,6 +43,7 @@ def main(args: Optional[Sequence[str]] = None) -> int:
         What this run ends with, as one of `edit_cfg_json.ExitCode`.
     """
     return run_cli(backend=TextualEditor(), prog=PROGRAM, args=args,
+                   version_reporter=TextualVersionReporter(),
                    home_settings=HOME_SETTINGS)
 
 

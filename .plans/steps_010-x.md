@@ -82,6 +82,9 @@ plan says only *when* that decision gets built.
   of a program saying what to edit and which files and never how the editor
   behaves, which is the whole of the answer once every setting can be written
   in a file.
+- [Step 21](#step-21---version-command-line-flag) — `--version` on all three
+  programs, as a fourth thing a run does instead of editing, answered by one
+  version reporter per distribution.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -1554,6 +1557,8 @@ same thing about `load_settings`. `doc/*_api.md` and the three
 
 #### Step 21 - version command line flag
 
+Status: **Implemented, awaiting review.**
+
 Add version reporting using
 [https://pypi.org/project/versionreporter/](https://pypi.org/project/versionreporter/)
 as a `--version` flag to all 3 programs (created at step 7B):
@@ -1562,6 +1567,92 @@ Implement as a class `EcajVersionReporter` derived from `VersionReporter` in
 `./edit` and classes derived from `EcajVersionReporter` in `./edit_tk` and
 `./edit_textual` so that the backends get the dependencies of `edit-cfg-json`
 without repeating the list of dependencies.
+
+**Observable outcome.** What changes is what a program answers, so this step is
+reviewed by running the three of them. `./venv/bin/edit-cfg-json-tk --version`
+prints `edit-cfg-json-tk` first and then `edit-cfg-json`, `config-as-json`,
+`argcomplete`, `versionreporter`, `packaging` and Python, and says which of them
+PyPI has a newer release of — one that runs on this Python version, and one that
+would need a newer Python.
+`./venv/bin/edit-cfg-json-textual --version` prints the same list with its own
+name in front and `textual` at the end, and
+`./venv/bin/python3 -m edit_cfg_json.dump --version` prints the core's list
+alone. All three end with `0`.
+`edit-cfg-json-tk --version --module foo` is refused by `argparse` as two
+alternatives given at once, and `--help` lists `--version` beside `--module`,
+`--file` and `--edit-settings`. No editor, no example and no printout of a
+configuration changes at all.
+
+**What it decided.** Four things, decided before the work started.
+
+- **`--version` is a fourth alternative and not an option beside the three.**
+  Naming a module, naming a file, editing the settings of this editor and asking
+  what is installed are four things one run does *instead of* each other, so it
+  joins the required group of `argparse` alternatives: it is then enough on its
+  own, and refused beside any of the three without a check written by hand. It
+  is answered before the rest of the command line is looked at, because such a
+  run edits nothing, reads no settings file and opens nothing. Design section
+  8.3.6.
+- **The reporter reaches `run_cli` as a required argument of its own**, and is
+  not asked of the backend. That was the alternative worth weighing, and it
+  fails on what a backend is: `DumpEditor` is handed to a program, to `edit` and
+  to every example of this repository, so what it said about a distribution
+  would be right in the first of those and meaningless in the others, and the
+  two mounting entry points are not backends at all. What a report is about is
+  the **package the program was installed from**, which is the same kind of fact
+  as the name a program is installed under and the name of its own settings file
+  — both already arguments of `run_cli`. Required rather than defaulted, because
+  a program that forgot it would name another package to a user about to
+  upgrade.
+- **The support cadence is `versionreporter`'s own**, which drops a Python
+  version well before that version's own end of life: 3.12 on 1 March 2027 and
+  3.13 a year later, with 3.14 recommended. What these packages promise is a
+  release for a new Python and not a bug fix for an old one.
+- **`check_if_unsupported_python` is not called**, though `versionreporter`
+  recommends it beside the flag. It prints to standard output at the start of
+  every run: the Textual editor's own screen would cover it, the window editor
+  has nobody reading the terminal it was started from, and the utility of the
+  core would put a paragraph in front of a printout that scripts read.
+
+**Core.** `version_report` owns `EcajVersionReporter`, and `cli` gained the
+option, the argument and the two lines that answer it. `tk_version` and
+`textual_version` are one derived class each, and each package's `__main__`
+hands its own over.
+
+The public names it settled:
+
+| Name | Kind |
+| --- | --- |
+| `EcajVersionReporter` | what a program of the core reports about its versions |
+| `TkVersionReporter` | that, with the Tk distribution in front of the list |
+| `TextualVersionReporter` | that, with the Textual distribution and `textual` |
+| `run_cli(version_reporter=)` | the third thing each program supplies for itself |
+
+**What building it found.**
+
+- **A class per distribution is forced by the API and is not a preference.**
+  `get_main_package_name` and `recommended_python` are *class methods* of
+  `versionreporter`, so no instance can answer them differently and a
+  distribution name handed to one object could not work. That is what the plan
+  already asked for, and it is worth recording why there was no alternative.
+- **The core imports `packaging` directly**, because `recommended_python`
+  answers with a `packaging.version.Version`. It reached the environment through
+  `versionreporter` and was declared by none of the three packages, so all three
+  `setup.py` declare it now: a package that imports a name should say so rather
+  than rely on what a dependency happens to bring.
+- **No test may ask for the report.** `VersionReporter.print` reads PyPI, which
+  would be slow where it worked and a failure where there is no network, so the
+  command line tests hand `run_cli` a reporter that records being asked, and the
+  program tests ask each reporter what it *names* rather than what it answers.
+  What a real process is asked is the refusal of `--version` beside `--module`,
+  which needs neither network nor display.
+- **What the reporters say is checked against the packaging metadata and not
+  against a written-down list.** Every dependency a distribution declares is in
+  its own report, every package a report names is really installed, and the
+  recommended Python is the newest one that distribution's classifiers claim
+  while every expiring one is another of them. Those are the four ways this
+  could quietly become untrue, and none of them is a list this repository would
+  have remembered to update.
 
 #### Step 22 - Add and remove ommitted members
 

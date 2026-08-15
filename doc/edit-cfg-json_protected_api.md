@@ -449,6 +449,13 @@
   * [\_head\_text](#edit_cfg_json.model_text._head_text)
   * [model\_as\_text](#edit_cfg_json.model_text.model_as_text)
   * [model\_title](#edit_cfg_json.model_text.model_title)
+* [edit\_cfg\_json.version\_report](#edit_cfg_json.version_report)
+  * [MAIN\_PACKAGE](#edit_cfg_json.version_report.MAIN_PACKAGE)
+  * [EcajVersionReporter](#edit_cfg_json.version_report.EcajVersionReporter)
+    * [package\_names](#edit_cfg_json.version_report.EcajVersionReporter.package_names)
+    * [get\_app\_support\_expires](#edit_cfg_json.version_report.EcajVersionReporter.get_app_support_expires)
+    * [get\_main\_package\_name](#edit_cfg_json.version_report.EcajVersionReporter.get_main_package_name)
+    * [recommended\_python](#edit_cfg_json.version_report.EcajVersionReporter.recommended_python)
 * [edit\_cfg\_json.emphasis](#edit_cfg_json.emphasis)
   * [Emphasis](#edit_cfg_json.emphasis.Emphasis)
     * [MUTED](#edit_cfg_json.emphasis.Emphasis.MUTED)
@@ -4074,6 +4081,14 @@ nothing to decide which of the two wins. A run that wants other settings names
 another file, and one that wants the defaults of the editor names a file that
 says nothing.
 
+**`--version` is a fourth thing a run does instead of editing**, so it is an
+alternative to the three doors above rather than an option beside them, and it
+answers before anything else the command line names is looked at. What it
+answers with is each program's own `versionreporter.VersionReporter`, which is
+the third thing a program supplies for itself: the backend is what shows a
+model, the name is what its help text says, and the reporter is the
+distribution it was installed from.
+
 <a id="edit_cfg_json.cli.DESCRIPTION"></a>
 
 #### DESCRIPTION
@@ -4166,6 +4181,12 @@ on it. A program that opens an editor offers neither option at all, so it
 is `argparse` that refuses them rather than a check written by hand; the
 defaults are set instead, so that the rest of this module can read them
 either way.
+
+`--version` is in the group of alternatives and not beside it, because
+reporting what is installed is a fourth thing one run does instead of
+editing. That is also what makes it enough on its own: the group is
+required, so a command line naming none of the four is refused by
+`argparse`.
 
 **Arguments**:
 
@@ -4345,6 +4366,7 @@ are not alternatives to the group they would have to be in.
 def run_cli(backend: EditorBackend,
             prog: str,
             *,
+            version_reporter: VersionReporter,
             args: Optional[Sequence[str]] = None,
             interactive: bool = True,
             home_settings: Optional[str] = None) -> int
@@ -4352,16 +4374,19 @@ def run_cli(backend: EditorBackend,
 
 Run one program of this library from the command line.
 
-This is the whole of what each of the three programs does. The backend is
-the only thing that differs between them, and everything that could be
+This is the whole of what each of the three programs does. The backend and
+the reporter are what differ between them, and everything that could be
 written twice is therefore here.
 
 **Arguments**:
 
 - `backend` - User interface to run the session in. Each package supplies
-  its own, which is the one thing this package cannot name.
+  its own, which is the one user interface this package cannot name.
 - `prog` - Name that this program is installed under, used in its help and
   in its refusals.
+- `version_reporter` - What `--version` is answered with. Each program
+  supplies the one of its own distribution, because what a report is
+  about is the package the program was installed from.
 - `args` - Optional replacement for `sys.argv[1:]`, mainly for tests.
 - `interactive` - Whether this backend gives the user a session. A backend
   that prints once and returns does not, so its program offers
@@ -8175,6 +8200,117 @@ an unsaved change looks.
 
   The class name of the configuration, with a mark while there are
   changes that are worth saving.
+
+<a id="edit_cfg_json.version_report"></a>
+
+# edit\_cfg\_json.version\_report
+
+What one program of this library answers `--version` with.
+
+Whoever is about to report a problem, and whoever is about to upgrade, has to
+know which versions are really installed and whether newer ones exist.
+[`versionreporter`](https://pypi.org/project/versionreporter/) answers both, so
+`--version` is one call to it rather than a version string of this library's
+own: it reads the installed version of every package named below, asks PyPI
+what is available for this Python version and for a newer one, and says which
+of them are worth upgrading to.
+
+**What a program reports is the distribution it was installed from**, and the
+packages that distribution is built on. So this class is derived once per
+distribution, each editor package putting its own name in front of what the
+core already lists, which is what keeps one list of dependencies from becoming
+three. The name in front is not only for reading: `versionreporter` takes the
+first of them as the package its upgrade instructions name.
+
+**It has to be a class and not a name handed to one.**
+`get_main_package_name` and `recommended_python` are class methods of
+`versionreporter`, so two instances of one class cannot answer them
+differently, and a class per distribution is what that leaves.
+
+<a id="edit_cfg_json.version_report.MAIN_PACKAGE"></a>
+
+#### MAIN\_PACKAGE
+
+Distribution that the core of this library is installed from.
+
+<a id="edit_cfg_json.version_report.EcajVersionReporter"></a>
+
+## EcajVersionReporter Objects
+
+```python
+class EcajVersionReporter(VersionReporter)
+```
+
+Report what this package and everything it is built on are.
+
+It is what `python3 -m edit_cfg_json.dump` answers `--version` with, and
+the base class of the reporter of each editor package, which is what lets
+a backend name itself without repeating what this package depends on.
+
+<a id="edit_cfg_json.version_report.EcajVersionReporter.package_names"></a>
+
+#### package\_names
+
+```python
+def package_names() -> list[str]
+```
+
+Return the distributions whose versions are reported.
+
+**Returns**:
+
+  This distribution first, because that is the one an upgrade
+  instruction names, and then everything it declares.
+
+<a id="edit_cfg_json.version_report.EcajVersionReporter.get_app_support_expires"></a>
+
+#### get\_app\_support\_expires
+
+```python
+def get_app_support_expires() -> SupportExpires
+```
+
+Return when these packages stop being released for an old Python.
+
+The dates follow the cadence `versionreporter` uses for itself, which
+drops a Python version well before that version's own end of life:
+what these packages promise is a release for a new Python and not a
+bug fix for an old one.
+
+**Returns**:
+
+  For each date, the newest Python version that is no longer
+  supported once that date has passed.
+
+<a id="edit_cfg_json.version_report.EcajVersionReporter.get_main_package_name"></a>
+
+#### get\_main\_package\_name
+
+```python
+@classmethod
+def get_main_package_name(cls) -> str
+```
+
+Return the distribution that the upgrade instructions name.
+
+**Returns**:
+
+  What to install to upgrade the program that is running.
+
+<a id="edit_cfg_json.version_report.EcajVersionReporter.recommended_python"></a>
+
+#### recommended\_python
+
+```python
+@classmethod
+def recommended_python(cls) -> Version
+```
+
+Return the Python version these packages are meant to run on.
+
+**Returns**:
+
+  The newest Python version every one of them is released for.
 
 <a id="edit_cfg_json.emphasis"></a>
 

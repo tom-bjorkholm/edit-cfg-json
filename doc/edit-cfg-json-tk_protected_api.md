@@ -1,5 +1,10 @@
 # Table of Contents
 
+* [edit\_cfg\_json\_tk.tk\_version](#edit_cfg_json_tk.tk_version)
+  * [MAIN\_PACKAGE](#edit_cfg_json_tk.tk_version.MAIN_PACKAGE)
+  * [TkVersionReporter](#edit_cfg_json_tk.tk_version.TkVersionReporter)
+    * [package\_names](#edit_cfg_json_tk.tk_version.TkVersionReporter.package_names)
+    * [get\_main\_package\_name](#edit_cfg_json_tk.tk_version.TkVersionReporter.get_main_package_name)
 * [edit\_cfg\_json\_tk.tk\_editor](#edit_cfg_json_tk.tk_editor)
   * [VALIDATE\_TEXT](#edit_cfg_json_tk.tk_editor.VALIDATE_TEXT)
   * [SAVE\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_TEXT)
@@ -159,6 +164,63 @@
   * [may\_close](#edit_cfg_json_tk.tk_ask.may_close)
   * [may\_overwrite](#edit_cfg_json_tk.tk_ask.may_overwrite)
   * [asked\_key](#edit_cfg_json_tk.tk_ask.asked_key)
+
+<a id="edit_cfg_json_tk.tk_version"></a>
+
+# edit\_cfg\_json\_tk.tk\_version
+
+What `edit-cfg-json-tk` answers `--version` with.
+
+The report of this package is the report of the core with this distribution in
+front of it, because that is the package whoever runs this program installed
+and the one an upgrade instruction has to name. Everything below it is
+inherited rather than written again, and there is nothing to add: Tkinter comes
+with Python, so this package depends on nothing the core does not.
+
+<a id="edit_cfg_json_tk.tk_version.MAIN_PACKAGE"></a>
+
+#### MAIN\_PACKAGE
+
+Distribution that this program is installed from.
+
+<a id="edit_cfg_json_tk.tk_version.TkVersionReporter"></a>
+
+## TkVersionReporter Objects
+
+```python
+class TkVersionReporter(EcajVersionReporter)
+```
+
+Report what this package and everything below it are.
+
+<a id="edit_cfg_json_tk.tk_version.TkVersionReporter.package_names"></a>
+
+#### package\_names
+
+```python
+def package_names() -> list[str]
+```
+
+Return the distributions whose versions are reported.
+
+**Returns**:
+
+  This distribution first, and then the ones the core lists.
+
+<a id="edit_cfg_json_tk.tk_version.TkVersionReporter.get_main_package_name"></a>
+
+#### get\_main\_package\_name
+
+```python
+@classmethod
+def get_main_package_name(cls) -> str
+```
+
+Return the distribution that the upgrade instructions name.
+
+**Returns**:
+
+  What to install to upgrade the program that is running.
 
 <a id="edit_cfg_json_tk.tk_editor"></a>
 

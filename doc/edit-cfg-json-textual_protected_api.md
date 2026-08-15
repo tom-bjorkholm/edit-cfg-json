@@ -40,6 +40,11 @@
     * [on\_button\_pressed](#edit_cfg_json_textual.textual_ask.ConfirmScreen.on_button_pressed)
     * [action\_leave](#edit_cfg_json_textual.textual_ask.ConfirmScreen.action_leave)
   * [QUESTION\_SCREENS](#edit_cfg_json_textual.textual_ask.QUESTION_SCREENS)
+* [edit\_cfg\_json\_textual.textual\_version](#edit_cfg_json_textual.textual_version)
+  * [MAIN\_PACKAGE](#edit_cfg_json_textual.textual_version.MAIN_PACKAGE)
+  * [TextualVersionReporter](#edit_cfg_json_textual.textual_version.TextualVersionReporter)
+    * [package\_names](#edit_cfg_json_textual.textual_version.TextualVersionReporter.package_names)
+    * [get\_main\_package\_name](#edit_cfg_json_textual.textual_version.TextualVersionReporter.get_main_package_name)
 * [edit\_cfg\_json\_textual.textual\_editor](#edit_cfg_json_textual.textual_editor)
   * [QUIT\_ACTION](#edit_cfg_json_textual.textual_editor.QUIT_ACTION)
   * [EditorApp](#edit_cfg_json_textual.textual_editor.EditorApp)
@@ -646,6 +651,64 @@ offers an application's priority bindings the key from the whole binding chain
 rather than from the part of it above the last modal screen. What makes a
 question modal is therefore the editor answering for its own actions, and this
 is what it asks about.
+
+<a id="edit_cfg_json_textual.textual_version"></a>
+
+# edit\_cfg\_json\_textual.textual\_version
+
+What `edit-cfg-json-textual` answers `--version` with.
+
+The report of this package is the report of the core with this distribution in
+front of it, because that is the package whoever runs this program installed
+and the one an upgrade instruction has to name. `textual` is added at the end,
+which is the one dependency this package has that the core has not, and
+everything between the two is inherited rather than written again.
+
+<a id="edit_cfg_json_textual.textual_version.MAIN_PACKAGE"></a>
+
+#### MAIN\_PACKAGE
+
+Distribution that this program is installed from.
+
+<a id="edit_cfg_json_textual.textual_version.TextualVersionReporter"></a>
+
+## TextualVersionReporter Objects
+
+```python
+class TextualVersionReporter(EcajVersionReporter)
+```
+
+Report what this package and everything below it are.
+
+<a id="edit_cfg_json_textual.textual_version.TextualVersionReporter.package_names"></a>
+
+#### package\_names
+
+```python
+def package_names() -> list[str]
+```
+
+Return the distributions whose versions are reported.
+
+**Returns**:
+
+  This distribution first, then the ones the core lists, and last
+  the user interface library that only this package needs.
+
+<a id="edit_cfg_json_textual.textual_version.TextualVersionReporter.get_main_package_name"></a>
+
+#### get\_main\_package\_name
+
+```python
+@classmethod
+def get_main_package_name(cls) -> str
+```
+
+Return the distribution that the upgrade instructions name.
+
+**Returns**:
+
+  What to install to upgrade the program that is running.
 
 <a id="edit_cfg_json_textual.textual_editor"></a>
 

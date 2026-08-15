@@ -31,6 +31,14 @@ would be a second way of saying what a settings file says, inside one run, with
 nothing to decide which of the two wins. A run that wants other settings names
 another file, and one that wants the defaults of the editor names a file that
 says nothing.
+
+**`--version` is a fourth thing a run does instead of editing**, so it is an
+alternative to the three doors above rather than an option beside them, and it
+answers before anything else the command line names is looked at. What it
+answers with is each program's own `versionreporter.VersionReporter`, which is
+the third thing a program supplies for itself: the backend is what shows a
+model, the name is what its help text says, and the reporter is the
+distribution it was installed from.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -41,6 +49,7 @@ from collections.abc import Mapping, Sequence
 from typing import Optional
 import sys
 import argcomplete
+from versionreporter import VersionReporter
 from edit_cfg_json.backend import EditorBackend
 from edit_cfg_json.cli_target import NOT_SHOWABLE_MESSAGE, NO_TARGET_MESSAGE, \
     OWN_TARGET_MESSAGE, Target, checked_class, explained, target_of
@@ -124,6 +133,12 @@ def _create_parser(prog: str, interactive: bool) -> ArgumentParser:
     defaults are set instead, so that the rest of this module can read them
     either way.
 
+    `--version` is in the group of alternatives and not beside it, because
+    reporting what is installed is a fourth thing one run does instead of
+    editing. That is also what makes it enough on its own: the group is
+    required, so a command line naming none of the four is refused by
+    `argparse`.
+
     Args:
         prog: Name that this program is installed under.
         interactive: Whether the backend of this program gives the user a
@@ -142,6 +157,10 @@ def _create_parser(prog: str, interactive: bool) -> ArgumentParser:
                        help='Edit a settings file of this editor itself, '
                             'reading -i and starting from the defaults '
                             'without one.')
+    where.add_argument('--version', action='store_true',
+                       help='Report the versions of this program and of the '
+                            'packages it is built on, and whether newer ones '
+                            'are available.')
     parser.add_argument('-c', '--cfg', default=None, metavar='PATH',
                         help='Settings file that this program itself runs '
                              'with, instead of the one it would look for.')
@@ -331,20 +350,30 @@ def _check_target(parser: ArgumentParser, parsed: Namespace) -> None:
         parser.error(NO_TARGET_MESSAGE)
 
 
+# Every argument is one independent thing a program says about itself, and
+# three of them are what this package cannot name for a program: the backend,
+# the reporter, and the name it is installed under. Bundling them into an
+# object to satisfy the count would make a program of this library longer to
+# write than what it saves.
+# pylint: disable-next=too-many-arguments
 def run_cli(backend: EditorBackend, prog: str, *,
+            version_reporter: VersionReporter,
             args: Optional[Sequence[str]] = None, interactive: bool = True,
             home_settings: Optional[str] = None) -> int:
     """Run one program of this library from the command line.
 
-    This is the whole of what each of the three programs does. The backend is
-    the only thing that differs between them, and everything that could be
+    This is the whole of what each of the three programs does. The backend and
+    the reporter are what differ between them, and everything that could be
     written twice is therefore here.
 
     Args:
         backend: User interface to run the session in. Each package supplies
-            its own, which is the one thing this package cannot name.
+            its own, which is the one user interface this package cannot name.
         prog: Name that this program is installed under, used in its help and
             in its refusals.
+        version_reporter: What `--version` is answered with. Each program
+            supplies the one of its own distribution, because what a report is
+            about is the package the program was installed from.
         args: Optional replacement for `sys.argv[1:]`, mainly for tests.
         interactive: Whether this backend gives the user a session. A backend
             that prints once and returns does not, so its program offers
@@ -366,6 +395,9 @@ def run_cli(backend: EditorBackend, prog: str, *,
     parser = _create_parser(prog=prog, interactive=interactive)
     argcomplete.autocomplete(parser)
     parsed = parser.parse_args(args)
+    if parsed.version:
+        version_reporter.print()
+        return ExitCode.OK
     _check_target(parser=parser, parsed=parsed)
     try:
         return _session(backend=backend, parsed=parsed,

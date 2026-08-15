@@ -34,6 +34,7 @@ from edit_cfg_json.model_text import can_fold, close_question, \
     row_value_text, save_text, verdict_text
 from edit_cfg_json.tree import path_text, text_path
 from edit_cfg_json.exit_code import ExitCode
+from edit_cfg_json.version_report import EcajVersionReporter
 from edit_cfg_json.cli import add_file_options, named_policy, run_cli
 
 __all__ = ['EditModel', 'MemberRow', 'EditorBackend', 'Descriptions', 'edit',
@@ -51,7 +52,8 @@ __all__ = ['EditModel', 'MemberRow', 'EditorBackend', 'Descriptions', 'edit',
            'row_fold_text', 'row_marks', 'row_subtree_text', 'row_validates',
            'row_value_text',
            'save_text', 'verdict_text', 'path_text', 'text_path',
-           'DumpEditor', 'ExitCode', 'add_file_options', 'default_config',
+           'DumpEditor', 'EcajVersionReporter', 'ExitCode',
+           'add_file_options', 'default_config',
            'named_policy', 'run_cli', 'SettingsConfig',
            'SETTINGS_DESCRIPTIONS', 'declared_actions', 'described_below',
            'SETTINGS_VARIABLE', 'SHARED_SETTINGS', 'load_settings',

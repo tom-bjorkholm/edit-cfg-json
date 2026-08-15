@@ -1,16 +1,15 @@
 ## Main entry points
 
 Everything a user of this package needs is re-exported from the top-level
-`{{import_name}}` package, so it can be imported directly:
+`{{import_name}}` package:
 
 ````python
 from {{import_name}} import EditorPanel, EditorScreen, TextualEditor, edit
 ````
 
-`edit` is the short way in for an application that has already chosen
-Textual. It is `edit_cfg_json.edit` with this package's backend filled in,
-and it gives back the configuration object that was saved, or `None` when
-nothing was:
+`edit` is the short way in for an application that has already chosen Textual.
+It is `edit_cfg_json.edit` with this package's backend filled in, and it gives
+back the configuration object that was saved, or `None` when nothing was:
 
 ````python
 from {{import_name}} import edit
@@ -18,27 +17,17 @@ from {{import_name}} import edit
 saved = edit(config=config, in_file='my_config.json')
 ````
 
-`TextualEditor` is the Textual implementation of the `EditorBackend`
-protocol of `edit-cfg-json`, for an application that builds the model
-itself. It has the one method that protocol asks for:
-
-````python
-from edit_cfg_json import EditModel, load_config
-from {{import_name}} import TextualEditor
-
-loaded = load_config(config=config, in_file='my_config.json')
-model = EditModel(config=loaded.config, report=loaded.report,
-                  out_file='my_config.json')
-TextualEditor().run_editor(model)
-saved = model.saved_config
-````
+Every keyword of `edit_cfg_json.edit` except the backend is taken here too:
+`descriptions` says what the members are for, `settings` says what the
+application has already decided about keys and files, and `loader` is for a
+class this library cannot construct on its own.
 
 `EditorPanel` and `EditorScreen` are the same editor for an application that
-**already runs Textual**. `edit` and `TextualEditor` cannot serve one of
-those: `App.run()` calls `asyncio.run`, so calling it from inside a running
-application raises or deadlocks, and `run_editor` promises to run until the
-user is done, which an editor in one panel of somebody else's application can
-never do. So these two are a separate entry point, and neither of them blocks:
+**already runs Textual**. `edit` and `TextualEditor` cannot serve one of those:
+`App.run()` calls `asyncio.run`, so calling it from inside a running
+application raises or deadlocks. So these two are a separate entry point, they
+read the configuration themselves in exactly the way `edit` does, and neither
+of them blocks:
 
 ````python
 from {{import_name}} import EditorPanel, EditorScreen
@@ -52,64 +41,41 @@ self.push_screen(EditorScreen(config, in_file='my_config.json',
                               on_close=self.editor_gone))
 ````
 
-Both read the configuration themselves in exactly the way `edit` does: after
-the configuration object they take the keywords of `edit` less the backend —
-`descriptions`, `in_file`, `loader`, `out_file`, `policy`, `settings` and
-`stderr_file` — which all mean here what they mean there, because the same
-`edit_cfg_json.editor_model` reads them.
-
 `EditorPanel` is a widget, so it goes wherever the application puts a widget
-and the application keeps its own header, its own footer and its own command
-palette. `EditorScreen` is that same panel with a header, a footer and the
-palette entries of the editor around it, for an application that wants the
-editor to have the terminal for a while; it **takes itself off the
-application** when the session ends, so the application's own screen is back
-on top by the time it is told, and an application that pushed it pops nothing.
+and the application keeps its own header, footer and command palette.
+`EditorScreen` is that same panel with a header, a footer and the palette
+entries of the editor around it, and it **takes itself off the application**
+when the session ends, so an application that pushed it pops nothing.
 
 What the application learns is `on_close`, which says that the session has
 ended, and `saved_config` on the panel or the screen, which says what came of
-it — a widget has no moment at which it could return anything. `model` on
-either of them is the whole model of the session, for an application that
-wants more than the outcome.
+it — a widget has no moment at which it could return anything.
+`panel.close(ask_about_unsaved=True)` is how the application closes the editor
+itself, from a button or a menu of its own.
 
-`panel.close(ask_about_unsaved=True)`, and `screen.close(...)` for the other
-shape, is how the application closes the editor itself, from a button or a
-menu of its own. The editor's own Close and its quit key are that same call
-with the default, so the question about what has not been saved is put in the
-same words whichever of them ended the session; an application that is
-shutting down for reasons of its own passes `False`, because it already has a
-question to put and does not want two. Closing again once the session has
-ended does nothing.
-
-**The keys of the editor are bound on the panel**, so Textual offers them
-while the focus is inside the editor and never while it is elsewhere in the
+**The keys of the editor are bound on the panel**, so Textual offers them while
+the focus is inside the editor and never while it is elsewhere in the
 application. They are priority bindings, so a user who presses Save while
-typing into a field means Save;
-`edit_cfg_json.Settings.priority_keys` is how an application whose own widget
-inside that area already reads one of these combinations says otherwise.
+typing into a field means Save. One combination is worth knowing about before
+it surprises anybody: `ctrl+q` is the default close key of this editor and also
+Textual's own key for quitting an application, and an application's binding is
+offered the key first — so an application that wants the editor's close key to
+work inside it gives the editor another one.
 
-One combination is worth knowing about before it surprises anybody: `ctrl+q`
-is the default close key of this editor and also Textual's own key for quitting
-an application, and an application's binding is offered the key before a
-panel's. An application that wants the editor's close key to work inside it
-gives the editor another one, with
-`Settings(actions=ActionSettings(quit=...))`, or offers a control of its own
-that calls `close`.
+`TextualEditor` is the Textual implementation of the `EditorBackend` protocol
+of `edit-cfg-json`, for an application that builds the model itself. Every
+public name of this package, that one included, is described in
+[the api document](https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/{{dist_name}}_api.md).
 
 ## The {{dist_name}} program
 
 Installing this package also installs a program of the same name, so an
 application author gets a Textual editor for their own configuration class
-without writing a line of code:
-
-````sh
-{{dist_name}} --module myapp.config --class AppConfig -i /etc/myapp.json
-````
-
-The screen it opens is the one this page describes, on the class that was
-named. It is `edit_cfg_json.run_cli` with this package's backend filled in, so
-the command line below is the same one that `edit-cfg-json-tk` has; what
-differs is which of the two shows the configuration.
+without writing a line of code. The screen it opens is the one this page
+describes, on the class that was named. It is `edit_cfg_json.run_cli` with this
+package's backend filled in, so the command line below is the same one that
+`edit-cfg-json-tk` has; what differs is which of the two shows the
+configuration.
 
 {{include: program.md}}
 
@@ -117,14 +83,9 @@ differs is which of the two shows the configuration.
 
 The screen holds a header, then what the configuration class says about itself,
 what reading the input file did, and one row per node of the configuration.
-Below those, and not scrolling with them, are the validation verdict, the saving
-line and the footer of keys. The title is marked while the model holds a change
-worth saving.
-
-Every change of a field goes straight into the model. The keys are the ones the
-application chose in the `actions` of its `edit_cfg_json.Settings`, and with an
-application that chose nothing they are the defaults of
-`edit_cfg_json.ActionSettings`:
+Below those, and not scrolling with them, are the validation verdict, the
+saving line and the footer of keys. The title is marked while the model holds a
+change worth saving.
 
 | Key | What it does |
 | --- | --- |
@@ -135,200 +96,71 @@ application that chose nothing they are the defaults of
 | `f2`, or `ctrl+t` | Fold all, or Unfold all |
 | `ctrl+q` | Quit |
 
-### One row per node
+Those are the defaults of `edit_cfg_json.ActionSettings`, and an application
+that needs one of these combinations for itself moves it, or empties it, in the
+`actions` of its own `edit_cfg_json.Settings`. **Validate, Save, Save as,
+Explain and the fold action are also in the command palette**, which `ctrl+p`
+opens, so an action with no key at all stays reachable — and so does one whose
+combination the terminal cannot deliver, which `ctrl+shift+s` is on a legacy
+terminal that has nowhere to put the shift.
 
-A member that holds a list, a dict or a nested `config_as_json.Config` object
-is not one field. It is a row of its own with the rows of what it holds
-indented below it, a field at every value, and no field on the row of the
-container itself — which says how many things it holds, or which class the
-object at it is, where a value would be.
+**Every change of a field goes straight into the model.**
 
-A container has a control at the left of its row, `-` while it is open and `+`
-while it is folded, and pressing it hides or shows everything inside it. The
-fold action does the same to all of them at once, and it is named for what the
-next press will do — "Fold all" while anything is open, "Unfold all" once
-nothing is — in the footer and in the command palette alike. A configuration
-with nothing to fold is offered neither the action nor the column that the
-controls sit in, so the values keep that width.
+**A container is a row and not a field.** The rows of what it holds are
+indented below it, there is a field at every value, and the container row says
+how many things it holds — or which class the object at it is — where a value
+would be. A control at the left of the row folds it away, and the fold action
+does the same to all of them at once, named for what the next press will do. A
+configuration with nothing to fold is offered neither the action nor the column
+that the controls sit in, so the values keep that width.
 
-A nested configuration object shows its own docstring below its row and its own
-members as the rows under that, in the order *its* class declares them. Folding
-it leaves the first paragraph of that docstring, because an object showing less
-of itself says less about itself.
+**At the end of the line of a node are its element controls**: `Add`, `Del`,
+`Up` and `Down`, and only the ones that node really offers. Adding an entry to
+a dict opens a small screen that asks for the key, because nothing but the
+person configuring the application knows what a new entry is called. A
+container that can be given nothing gets no `Add` at all and says why below
+itself instead.
 
-### What one nested object is on its own
+**Beside the class on the row of a nested object is what that object is on its
+own**: *valid on its own*, or *refused on its own* with the member it was about
+saying why below itself. A list or a dict of such objects says what the objects
+in it amount to, because its row is the only one that folding leaves on the
+screen. The qualifying words are the whole point — a rule of the class above
+may refuse a configuration in which every object is valid on its own — so the
+verdict line below the rows is the only thing that answers whether the file can
+be saved.
 
-Beside the class on the row of a nested object is what that object is when it is
-asked about itself: *valid on its own* or *refused on its own*. A list or a dict
-of such objects says what the objects in it amount to — *valid inside* or
-*refused inside* — because its row is the only one that folding leaves on the
-screen.
+**Validating** shows what the application's own configuration class would say
+about the values that are in the fields, below the node each remark is about.
+**Leaving a field** asks the smaller question of whether what was typed into it
+means a value of that member at all, which is what an enum member name answers
+only once it is fully typed. **Saving** writes the output file and refuses to
+write values the application would not accept, leaving the file on disk exactly
+as it was; it asks first before writing over a file this session has not
+written, and says where the previous content was kept. **Save as** asks on a
+small screen of its own, starting at the file that would be written now.
+**Quitting** writes nothing, and asks whether unsaved changes may be dropped,
+with the focus on the answer that keeps them.
 
-Folding a node asks every object at or inside it, and so does opening one, so
-the badge appears as soon as a container is folded out of the way. A member that
-one of those objects refused says why below itself, exactly as the verdict of
-the whole configuration does; what an object refused about no member of itself
-is said at the object.
+**Explaining** shows or hides what the application says about these values: the
+class docstring, the docstring of each nested object, the description of each
+described member below its own field, what kind of value each member holds, and
+why a container cannot be given an element. The editor opens with them shown,
+and what is left when they are hidden is the first paragraph of the class
+docstring. The action is named for what the next press will do — "Explain"
+while they are hidden and "Hide explanation" while they are shown — because
+"Explain" beside explanations that are already there would be offering
+something that has been done.
 
-The words that qualify the badge are the whole point. A rule of the class above
-may relate two objects across the boundary between them, and then every object
-is valid on its own while the configuration cannot be written. The verdict line
-below the rows is the only thing that answers whether the file can be saved.
+**A configuration bigger than the terminal** is scrolled through: the rows
+scroll while the verdict, the saving line and the footer stay where they are,
+and a container that would add more rows than the editor opens at is folded to
+begin with, so a long list does not fill the screen before the user has seen
+the members below it.
 
-### Changing how many things a member holds
-
-At the end of the line of a node are the controls for its elements: `Add`,
-`Del`, `Up` and `Down`, and only the ones that node really offers. They sit at
-the end rather than in a column of their own, so a node that offers none of them
-costs the values no width at all, which is what makes four of them affordable.
-
-`Add` copies: a list or a dict whose class declares that its elements are
-configuration objects gets one object of that class holding the values it
-declares, and any other list gets a copy of the element the class declares for
-it, or of the first element it holds now. Adding an entry to a dict opens a
-small screen that asks for the key, because nothing but the person configuring
-the application knows what a new entry is called; a key the dict already holds
-is asked about again rather than allowed to take the place of what is there.
-
-A container that cannot be given an element gets no `Add` at all, and says why
-below itself instead — an ordinary dict member, for instance, because
-`config_as_json` matches such a member against the keys its class declares, so
-a dict that gained one would be refused by the configuration class itself. That
-line is explanation rather than something to act on, so it is muted and the
-explain action covers it.
-
-### Validating, saving and quitting
-
-Validating runs the validation of the application's own configuration class
-and shows what that class would say about the values that are in the fields.
-What it said about one node is shown **below that node**, and the line
-below the rows names the nodes it was about, by the whole path to each of them,
-so a configuration too tall for the terminal does not leave the user hunting for
-the field. What the class said that is about no single node — a
-whole-configuration rule, a key that does not match — stays in that line,
-because there is no field it belongs to. Every refused node is marked at once,
-and not only the first one, because the editor walks the validation plan itself
-rather than stopping where `Config.validate()` stops.
-
-A pass is not read only: a validator returns the value that is stored back
-into the member, so the fields are written back from the model afterwards, and
-a member that a validator rewrote says so beside its field. A pass can also
-change how many rows there are — a validator that sorts a list and removes its
-duplicates removes one — and the screen then builds its rows again rather than
-writing into a widget for a value that is no longer there.
-
-**Leaving a field** asks a smaller question of that one member: whether what
-was typed into it means a value of that member at all. It is the question a
-`parse_converters()` entry answers, an enum being the case that arises in
-practice, and it is asked when the field loses the focus rather than on every
-key, because a name that is being typed is no name of a member for most of
-the time it takes to type it.
-
-Saving writes the output file, and refuses to write values the application
-would not accept: the diagnostics then say what is wrong with them and the
-file on disk is left exactly as it was. Saving runs the same pass as
-validating does, so it can rewrite a value as well, and the fields show what
-really reached the file. What was written is no longer waiting to be written,
-so the title loses its mark and the editor stays open.
-
-Save as asks for the file in a small screen of its own, where `enter` writes
-it and the `cancel` key, `escape` unless the application moved it, leaves the
-question unanswered. The screen names that key itself, so it cannot tell the
-user to press one that does nothing. `ctrl+s` asks the same question when the
-session has no file to write yet, which is what every editor does. The
-question starts at the file that would be written now, so saving a copy
-beside the original is a matter of changing a few characters.
-
-**A save that would write over a file this session has not written asks
-first**, on a modal screen whose focus is on the answer that leaves the file
-alone. The previous content is then kept under the name the application chose,
-and the saving line says where it went. Both the question and the name are the
-core's, so this backend and the Tkinter one cannot treat the user's old
-configuration differently.
-
-Quitting writes nothing of its own. It is the "cancel" of the editor; saving
-leaves the editor open, and what has been saved has been saved.
-
-**Quitting an editor that holds something unsaved asks whether the changes may
-be dropped**, on a modal screen whose focus is on the answer that keeps them, so
-that a user who presses `enter` without reading keeps what they have. Quitting
-again after a Save asks nothing, because a save leaves nothing to lose.
-
-Explaining shows or hides what the application says about these values: the
-whole docstring of the configuration class above the rows, the docstring of
-each nested object, the description of each described member below its own
-field, what kind of value each member holds, and why a container cannot be
-given an element. The editor opens with them shown, and what is left when they
-are hidden is the first paragraph of the class docstring, because one line for
-the whole configuration is worth keeping. A member the application described
-gets a line and one it said nothing about gets none, rather than an empty one.
-Which of the two states the editor is in belongs to the model, so this backend
-and the Tk one cannot disagree about it.
-
-The action is named for what the next press of it will do: it is "Explain"
-while the explanations are hidden and "Hide explanation" while they are shown,
-in the footer and in the command palette alike. "Explain" beside explanations
-that are already there would be offering something that has been done. The Tk
-backend answers the same question with a tick-box, which a footer cannot be.
-
-What reading the input file did is shown above the rows, when it did
-anything, because it is what explains the marks below it: a member that the
-file did not hold says so beside its field, and so does one whose value the
-reading of the file put there or altered — with the older key it was read from,
-where the class recorded one. Both the message and the marks are read from the
-model, so the two backends cannot tell the user two different things about one
-file.
-
-## Scrolling, and the colours
-
-The docstring, the load message and the member rows are in the part of the
-screen that scrolls, and the verdict, the saving line and the footer are below
-it and stay where they are: they are what a user reaches for after editing
-rather than something to scroll to. A configuration of any size therefore fits
-a terminal of any size, and a container that would add more rows than the
-editor opens at is folded to begin with, so that a long list does not fill the
-screen before the user has seen the members below it.
-
-Each kind of text has a colour, so that the explanations do not read as loudly
-as the values and a refused validation does not read like an accepted one.
-Which kind each piece of text is comes from `edit_cfg_json.Emphasis` and is
-therefore the same here as in the Tkinter backend; what the colours are is
-this package's own, and they are the colours of the terminal's theme rather
-than colours named here, so the editor follows the terminal into its light or
-its dark mode.
-
-## About the keys
-
-None of the defaults is a plain letter, because an unmodified letter belongs
-to whichever field has the focus: a user who types it expects to see it
-appear in the field. Neither `ctrl+s` nor `ctrl+q` is taken for flow control,
-because Textual's driver clears `IXON` and `IXOFF` when it puts the terminal
-into raw mode. `ctrl+f` and `f3` are taken by no default of this editor,
-because a search over a configuration too big for the terminal is something
-this editor is likely to be asked for, and no version number protects a key a
-user has learnt.
-
-`f5` validates as well, and is left out of the footer so that one action is
-not named twice there; a function key is the one of the two that a keyboard
-or a terminal is most likely not to deliver, which is why the footer names
-`ctrl+r` instead. The same holds for `ctrl+t` beside `f2`.
-
-`ctrl+shift+s` needs a word of warning. A legacy terminal encodes a control
-letter as a single byte with nowhere to put the shift, so on such a terminal
-this key arrives as `ctrl+s` and saves instead of asking where to save.
-Textual asks the terminal for the Kitty keyboard protocol at startup, and a
-terminal that speaks it reports the two keys apart. That is why **Validate,
-Save, Save as, Explain and the fold action are also in the command palette**,
-which `ctrl+p` opens:
-every terminal can reach the palette, because it is a letter typed into a
-field and not a key combination at all. The palette's own **Keys** entry
-lists every binding of the editor, including the ones the footer has no room
-for.
-
-An application that needs one of these combinations for itself moves it, or
-empties it, in its own `ActionSettings`. An action with no key at all keeps
-its command palette entry, so nothing becomes unreachable. The bindings are
-made when the application starts, which is the one thing a later answer from
-a settings callable cannot change; the two actions that are named for what
-they will do next are the exception, because renaming one is making its
-bindings afresh.
+**Each kind of text has a colour**, so that the explanations do not read as
+loudly as the values and a refused validation does not read like an accepted
+one. Which kind each piece of text is comes from `edit_cfg_json.Emphasis`, so
+it is the same here as in the Tkinter backend; the colours are those of the
+terminal's theme rather than colours named here, so the editor follows the
+terminal into its light or its dark mode.

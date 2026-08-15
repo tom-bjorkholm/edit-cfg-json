@@ -10,5 +10,7 @@ that nothing has to be imported from an internal module.
 
 from edit_cfg_json_textual.textual_editor import TextualEditor, edit
 from edit_cfg_json_textual.textual_mount import EditorPanel, EditorScreen
+from edit_cfg_json_textual.textual_version import TextualVersionReporter
 
-__all__ = ['EditorPanel', 'EditorScreen', 'TextualEditor', 'edit']
+__all__ = ['EditorPanel', 'EditorScreen', 'TextualEditor',
+           'TextualVersionReporter', 'edit']

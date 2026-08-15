@@ -19,6 +19,7 @@ from typing import Optional
 import sys
 from edit_cfg_json import run_cli
 from edit_cfg_json_tk.tk_editor import TkEditor
+from edit_cfg_json_tk.tk_version import TkVersionReporter
 
 PROGRAM = 'edit-cfg-json-tk'
 """Name that this program is installed under."""
@@ -42,6 +43,7 @@ def main(args: Optional[Sequence[str]] = None) -> int:
         What this run ends with, as one of `edit_cfg_json.ExitCode`.
     """
     return run_cli(backend=TkEditor(), prog=PROGRAM, args=args,
+                   version_reporter=TkVersionReporter(),
                    home_settings=HOME_SETTINGS)
 
 
