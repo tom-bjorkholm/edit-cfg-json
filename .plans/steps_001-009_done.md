@@ -2,11 +2,12 @@
 
 ## Where everything is
 
-Steps 1 to 9 are implemented and committed, and each is written up in
-[steps_001-009_done.md](steps_001-009_done.md). The steps still to build are
-in [steps_010-x.md](steps_010-x.md). Where either file mentions a design
-decision, [`doc/design.md`](../doc/design.md) remains the authority and the
-plan says only *when* that decision gets built.
+Steps 1 to 21 are implemented and committed. Steps 1 to 9 are written up in
+[steps_001-009_done.md](steps_001-009_done.md) and steps 10 to 21 in
+[steps_010-021.md](steps_010-021.md). The steps still to build are in
+[steps_022-x.md](steps_022-x.md). Where any of the three files mentions a
+design decision, [`doc/design.md`](../doc/design.md) remains the authority and
+the plan says only *when* that decision gets built.
 
 - [The decisions the plan is built on][dec] — the seven settled before the
   first step, from example observability to per-step verification.
@@ -38,6 +39,45 @@ plan says only *when* that decision gets built.
 - [Step 9][s9] — the explicit loader: `ConfigLoader`, `derived_loader`, and
   a save that refuses a file the loader would not read back as the same
   class.
+- [Step 10][s10] — lists and dicts as a tree of rows with a field at every
+  value, folding, and the rows being built again when a validator changes how
+  many of them there are.
+- [Step 11][s11] — a nested `Config` object as a node with a class, a
+  docstring and members of its own, and the ownership of everything inside it.
+- [Step 12][s12] — every nested object asked whether it is a configuration on
+  its own, which both puts a badge on its row and names the member inside it
+  that a validator refused.
+- [Step 13][s13] — a list of configuration objects and a dict of them, one
+  description reaching every one of them, and the confirmation that step 11 had
+  already built the mechanism.
+- [Step 14][s14] — how many things a member holds, where a new element is
+  copied from, and the containers that say why they cannot be given one.
+- [Step 15][s15] — closing an editor that holds something unsaved asks first,
+  in words the core owns and in a dialog or a screen that each backend puts.
+- [Step 15B][s15b] — the two interactive editors described as the product they
+  are, and `--ui dump` as the very limited non-interactive user interface it
+  is.
+- [Step 16][s16] — the file that a save writes over kept under the name the
+  application chose, once per destination per session, and a question before
+  it happens.
+- [Step 16B][s16b] — the name `edit-cfg-json` freed for the editor it
+  promises, and the backend that prints once reached as the small utility it
+  is.
+- [Step 17][s17] — every document rewritten against what was actually built,
+  the order of the work taken out of all of them but this one, and the release
+  readiness of the three packages checked rather than assumed.
+- [Step 18][s18] — the editor mounted in a window an application already owns,
+  in both toolkits, with its keys reaching the editor and nothing else.
+- [Step 18B][s18b] — one call per shape per toolkit, taking the keywords of
+  `edit()`, and four examples where there were two.
+- [Step 19][s19] — the settings of the editor as a configuration class of
+  their own, editable in the editor, declarable inside an application's own
+  configuration, and looked for in five places by each program.
+- [Step 20][s20] — the command line of a program saying what to edit and which
+  files and never how the editor behaves, which is the whole of the answer once
+  every setting can be written in a file.
+- [Step 21][s21] — `--version` on all three programs, as a fourth thing a run
+  does instead of editing, answered by one version reporter per distribution.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -52,6 +92,21 @@ plan says only *when* that decision gets built.
 [s7b]: steps_001-009_done.md#step-7b--a-ready-to-run-program-in-every-package
 [s8]: steps_001-009_done.md#step-8--automatic-change-visibility
 [s9]: steps_001-009_done.md#step-9--the-explicit-loader
+[s10]: steps_010-021.md#step-10--lists-and-dicts-of-scalars
+[s11]: steps_010-021.md#step-11--nested-config-objects
+[s12]: steps_010-021.md#step-12--subtree-validation
+[s13]: steps_010-021.md#step-13--list_element-and-dict_value-nesting
+[s14]: steps_010-021.md#step-14--adding-and-removing-elements
+[s15]: steps_010-021.md#step-15--confirmation-before-dropping-edits
+[s15b]: steps_010-021.md#step-15b---changed-descriptions-of---ui-dump
+[s16]: steps_010-021.md#step-16--oldbackup-file-when-overwriting
+[s16b]: steps_010-021.md#step-16b---fix-ux-problem-with-edit_cfg_json
+[s17]: steps_010-021.md#step-17--first-release-polish
+[s18]: steps_010-021.md#step-18--embedding-in-an-applications-own-window
+[s18b]: steps_010-021.md#step-18b---redesign-api-and-examples-for-embedding
+[s19]: steps_010-021.md#step-19---config_as_jsonconfig-for-storing-the-settings
+[s20]: steps_010-021.md#step-20--the-rest-of-the-programs-command-line
+[s21]: steps_010-021.md#step-21---version-command-line-flag
 
 ## 1. Decisions this plan is built on
 
