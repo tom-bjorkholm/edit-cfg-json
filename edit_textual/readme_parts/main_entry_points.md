@@ -41,33 +41,45 @@ user is done, which an editor in one panel of somebody else's application can
 never do. So these two are a separate entry point, and neither of them blocks:
 
 ````python
-from edit_cfg_json import EditModel, load_config
 from {{import_name}} import EditorPanel, EditorScreen
 
-loaded = load_config(config=config, in_file='my_config.json')
-model = EditModel(config=loaded.config, report=loaded.report,
-                  out_file='my_config.json')
-
 # in the application's own `compose`, for an area of its own screen
-yield EditorPanel(model, on_close=self.editor_gone)
+yield EditorPanel(config, in_file='my_config.json',
+                  on_close=self.editor_gone)
 
 # or pushed as a screen of its own
-self.push_screen(EditorScreen(model, on_close=self.editor_gone))
+self.push_screen(EditorScreen(config, in_file='my_config.json',
+                              on_close=self.editor_gone))
 ````
 
-`EditorPanel` is a widget, so the application keeps its own header, its own
-footer and its own command palette. `EditorScreen` is that same panel with a
-header, a footer and the palette entries of the editor around it. What the
-application learns is `on_close`, which says that the session has ended, and
-`edit_cfg_json.EditModel.saved_config`, which says what came of it — a widget
-has no moment at which it could return anything.
+Both read the configuration themselves in exactly the way `edit` does: after
+the configuration object they take the keywords of `edit` less the backend —
+`descriptions`, `in_file`, `loader`, `out_file`, `policy`, `settings` and
+`stderr_file` — which all mean here what they mean there, because the same
+`edit_cfg_json.editor_model` reads them.
 
-`panel.close(ask_about_unsaved=True)` is how the application closes the editor
-itself, from a menu of its own. The editor's own Close and its quit key are
-that same call with the default, so the question about what has not been saved
-is put in the same words whichever of the three ended the session; an
-application that is shutting down for reasons of its own passes `False`,
-because it already has a question to put and does not want two.
+`EditorPanel` is a widget, so it goes wherever the application puts a widget
+and the application keeps its own header, its own footer and its own command
+palette. `EditorScreen` is that same panel with a header, a footer and the
+palette entries of the editor around it, for an application that wants the
+editor to have the terminal for a while; it **takes itself off the
+application** when the session ends, so the application's own screen is back
+on top by the time it is told, and an application that pushed it pops nothing.
+
+What the application learns is `on_close`, which says that the session has
+ended, and `saved_config` on the panel or the screen, which says what came of
+it — a widget has no moment at which it could return anything. `model` on
+either of them is the whole model of the session, for an application that
+wants more than the outcome.
+
+`panel.close(ask_about_unsaved=True)`, and `screen.close(...)` for the other
+shape, is how the application closes the editor itself, from a button or a
+menu of its own. The editor's own Close and its quit key are that same call
+with the default, so the question about what has not been saved is put in the
+same words whichever of them ended the session; an application that is
+shutting down for reasons of its own passes `False`, because it already has a
+question to put and does not want two. Closing again once the session has
+ended does nothing.
 
 **The keys of the editor are bound on the panel**, so Textual offers them
 while the focus is inside the editor and never while it is elsewhere in the
@@ -75,6 +87,14 @@ application. They are priority bindings, so a user who presses Save while
 typing into a field means Save;
 `edit_cfg_json.Settings.priority_keys` is how an application whose own widget
 inside that area already reads one of these combinations says otherwise.
+
+One combination is worth knowing about before it surprises anybody: `ctrl+q`
+is the default close key of this editor and also Textual's own key for quitting
+an application, and an application's binding is offered the key before a
+panel's. An application that wants the editor's close key to work inside it
+gives the editor another one, with
+`Settings(actions=ActionSettings(quit=...))`, or offers a control of its own
+that calls `close`.
 
 ## The {{dist_name}} program
 

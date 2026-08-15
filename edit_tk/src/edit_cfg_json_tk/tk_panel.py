@@ -1,18 +1,12 @@
 #! /usr/bin/env python3
-"""One editor mounted in a window that an application already owns.
+"""The editor in a window, or in an area, of an application that runs Tk.
 
-`TkEditor` runs an editor that owns a window and a Tk of its own, and it
-cannot be what an application which already runs Tk uses: a second
-`tkinter.Tk` is a second Tcl interpreter, and no widget, variable, font or
-image crosses between two of them. `EditorBackend.run_editor` could not serve
-such an application either, whatever it created, because that method promises
-to run until the user is done and an editor in a panel of somebody else's
-window has no such moment.
-
-So this is the other entry point, and it is non-blocking: the application
-builds the model, mounts this in a widget of its own, and goes on running its
-own event loop. What it gets back is `on_close`, which says the session
-ended, and `edit_cfg_json.EditModel.saved_config`, which says what came of it.
+An application with no Tk of its own calls `edit_cfg_json_tk.edit`, which
+owns a `tkinter.Tk` and runs until the user is done. An application that
+already runs Tk cannot use that: a second `tkinter.Tk` is a second Tcl
+interpreter, and no widget, variable, font or image crosses between two of
+them. It uses `TkEditorPanel` instead, which builds the editor where it is
+told and returns at once.
 
 Everything this backend takes from the core is reached through `core`, which
 is `edit_cfg_json` itself, in the same way as the rest of this package.
@@ -22,105 +16,194 @@ is `edit_cfg_json` itself, in the same way as the rest of this package.
 # MIT License
 
 from collections.abc import Callable
-from typing import Optional
+from typing import Optional, TextIO
+import sys
 import tkinter
+from config_as_json import Config, PathOrStr
 import edit_cfg_json as core
 from edit_cfg_json_tk.tk_editor import EditorWidgets
 
 
-class TkEditorPanel:  # pylint: disable=too-few-public-methods
-    """The editor of this package, inside a widget an application owns.
+class TkEditorPanel:
+    """One editor of a configuration, in a window or in an area of one.
 
-    It creates one frame inside the widget it is given and builds the editor
-    in that frame, which is what makes the two rules of this entry point
-    true: the editor destroys only what it created, and its keys and its
-    mouse wheel reach only the part of the window it built.
+    Give it `parent` and it builds a window of its own over that widget;
+    give it `area` and it fills that widget instead. It never blocks: the
+    application's own `mainloop` is already running, `on_close` says that the
+    session has ended, and `saved_config` says what came of it.
 
-    Where that frame goes is the application's decision and is made by
-    handing over the widget it belongs in. An application that wants the
-    editor in a window of its own creates that window — `tkinter.Toplevel` —
-    and passes it, which keeps the title, the geometry, the close protocol
-    and the grab where they belong.
+    Only what the editor created is destroyed when it closes, so the window
+    or the area the application named is left as it was.
     """
 
-    def __init__(self, parent: tkinter.Misc, model: core.EditModel, *,
-                 on_close: Optional[Callable[[], None]] = None) -> None:
-        """Mount one editor in the widget the application named.
+    # Every keyword after the first says one independent thing about the
+    # session, exactly as `edit_cfg_json.edit` takes them.
+    # pylint: disable-next=too-many-arguments
+    def __init__(self, config: Config, *,
+                 parent: Optional[tkinter.Misc] = None,
+                 area: Optional[tkinter.Misc] = None, modal: bool = True,
+                 on_close: Optional[Callable[[], None]] = None,
+                 descriptions: Optional[core.Descriptions] = None,
+                 in_file: Optional[PathOrStr] = None,
+                 loader: Optional[core.ConfigLoader] = None,
+                 out_file: Optional[PathOrStr] = None,
+                 policy: core.LoadPolicy = core.DEFAULT_POLICY,
+                 settings: core.SettingsSource = core.Settings(),
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Read the configuration and build the editor where it was told.
 
         Args:
-            parent: Widget the editor is mounted in. The editor fills it and
-                never touches it otherwise: the frame it builds in is its
-                own, and closing destroys that frame and not this widget.
-            model: Model to show and to edit. The application builds it
-                itself, with `edit_cfg_json.load_config` and
-                `edit_cfg_json.EditModel`, because reading a file is what an
-                application does before it shows an editor at all.
-            on_close: What the application does when the session has ended,
-                or None for an application that reads the outcome some other
-                way. It is called after the editor has taken itself off the
-                window, so that `edit_cfg_json.EditModel.saved_config` can be
-                read from it.
+            config: Configuration object to edit. It is never modified.
+            parent: The widget the editor's own new window is shown over.
+                Exactly one of parent and area is given; an application with
+                no Tk of its own has neither and uses `edit_cfg_json_tk.edit`.
+            area: The existing container the editor fills instead of a window
+                of its own. It cannot be given together with parent.
+            modal: Whether the editor grabs its window, or the area, for the
+                session, so that nothing else of the application answers until
+                it closes. Tk refuses a grab for a window that is not on the
+                screen yet, and the editor then opens without one rather than
+                not opening.
+            on_close: What the application does once the session has ended,
+                or None for one that reads `saved_config` some other way.
+            descriptions: What the application says about the members it
+                declares, or None when it says nothing.
+            in_file: File to read, or None to start from the declared
+                defaults.
+            loader: How this application constructs its configuration, or
+                None for a class the editor can construct on its own.
+            out_file: File to write, or None to write the input file.
+            policy: What to do about declared keys the input file does not
+                hold.
+            settings: What this application has already decided about key
+                combinations and file names, or a callable answering with it.
+            stderr_file: Stream used for user-facing diagnostics.
+
+        Raises:
+            ValueError: Both parent and area were given, or neither was.
+            ConfigLoadError: The input file cannot be opened for editing.
         """
+        self._model = core.editor_model(config, descriptions=descriptions,
+                                        in_file=in_file, loader=loader,
+                                        out_file=out_file, policy=policy,
+                                        settings=settings,
+                                        stderr_file=stderr_file)
         self._on_close = on_close
         self._ended = False
-        self._frame = tkinter.Frame(parent)
-        self._frame.pack(fill='both', expand=True)
-        self._frame.bind('<Button-1>', self._take_focus)
-        self._widgets = EditorWidgets(parent=self._frame, model=model,
+        self._built = _built_widget(parent=parent, area=area,
+                                    closer=self.close,
+                                    title=self._model.config_type_name)
+        self._modal = modal and _grabbed(self._built)
+        self._widgets = EditorWidgets(parent=self._built, model=self._model,
                                       on_close=self._end_session)
 
-    def _take_focus(self, *event: 'tkinter.Event[tkinter.Misc]') -> None:
-        """Give the editor the focus when it is clicked on.
+    @property
+    def model(self) -> core.EditModel:
+        """Return the model of this session, which the editor built."""
+        return self._model
 
-        The keys of the editor reach the part of the window it built and
-        nothing else, so a user who has not been in the editor yet would
-        otherwise press one of them and see nothing happen. A field and a
-        button take the focus of their own accord when they are clicked, and
-        this is what a click on anything else does.
-        """
-        _ = event
-        self._frame.focus_set()
+    @property
+    def saved_config(self) -> Optional[Config]:
+        """Return the configuration this session wrote, None until it does."""
+        return self._model.saved_config
 
     def close(self, ask_about_unsaved: bool = True) -> None:
         """End the session and take the editor off the window.
 
         Whether the user is asked about what has not been saved is the
-        application's to decide, because only the application knows what it
-        is closing the editor for: a menu entry that closes the editor should
-        ask, and an application that is putting a question of its own to the
-        user already has one question too many.
-
-        The editor's own Close button and its quit key are this method with
-        the default, so the question is put in the same words and answered in
-        the same dialog whichever of the three ended the session.
-
-        Calling this again once the session has ended does nothing, so an
-        application need not keep track of whether the user has closed the
-        editor already.
+        application's to decide: a menu entry that closes the editor should
+        ask, and an application that is putting a question of its own already
+        has one question too many. The editor's own Close button, its quit
+        key and the close button of a window it made are this call with the
+        default. Calling it again once the session has ended does nothing.
 
         Args:
             ask_about_unsaved: Whether the user is asked before a buffer that
-                holds something unsaved is dropped. The default asks, which
-                is the way a default about something that cannot be undone
-                should lean.
+                holds something unsaved is dropped.
         """
-        if ask_about_unsaved:
+        if ask_about_unsaved and not self._ended:
             self._widgets.close_editor()
             return
         self._end_session()
 
     def _end_session(self) -> None:
-        """Take the editor off the window, and say that it has gone.
-
-        Only what the editor created is destroyed, which is the frame it
-        built in. The widget the application named is left exactly as it was,
-        because an editor that destroyed a window it did not create would be
-        deciding something that is not its to decide.
-        """
+        """Destroy what the editor built, and say that it has gone."""
         if self._ended:
             return
         self._ended = True
         self._widgets.release_keys()
-        self._frame.destroy()
+        if self._modal:
+            self._built.grab_release()
+        self._built.destroy()
         if self._on_close is not None:
             self._on_close()
+
+
+def _built_widget(parent: Optional[tkinter.Misc], area: Optional[tkinter.Misc],
+                  closer: Callable[[], None], title: str) -> tkinter.Misc:
+    """Return the widget the editor builds in, which is its own to destroy.
+
+    Args:
+        parent: Widget a new window is shown over, or None.
+        area: Widget the editor fills, or None.
+        closer: What the close button of such a window does.
+        title: Name of the configuration class, for a window of its own.
+
+    Returns:
+        The window or the frame that the editor created.
+
+    Raises:
+        ValueError: Both parent and area were given, or neither was.
+    """
+    if (parent is None) == (area is None):
+        raise ValueError('Give the editor either a parent or an area.')
+    if area is not None:
+        frame = tkinter.Frame(area)
+        frame.pack(fill='both', expand=True)
+        frame.bind('<Button-1>', _focus_taker(frame))
+        return frame
+    assert parent is not None
+    window = tkinter.Toplevel(parent)
+    window.title(title)
+    window.transient(parent.winfo_toplevel())
+    window.protocol('WM_DELETE_WINDOW', closer)
+    return window
+
+
+def _focus_taker(frame: tkinter.Misc) -> Callable[..., None]:
+    """Return what a click on the editor's own frame does.
+
+    The keys of the editor reach the part of the window it built and nothing
+    else, so a user who has not been in the editor yet would otherwise press
+    one of them and see nothing happen. A field and a button take the focus of
+    their own accord, and this is what a click on anything else does.
+
+    Args:
+        frame: Frame the editor was built in.
+
+    Returns:
+        A callback that gives that frame the keyboard focus.
+    """
+    def take_focus(*event: object) -> None:
+        """Give the editor the focus when it is clicked on."""
+        _ = event
+        frame.focus_set()
+    return take_focus
+
+
+def _grabbed(widget: tkinter.Misc) -> bool:
+    """Take the events of the application for one widget, if Tk allows it.
+
+    Args:
+        widget: Widget the editor was built in.
+
+    Returns:
+        Whether the grab was made, which is what has to be released again. Tk
+        refuses to grab for a window that is not on the screen, and an editor
+        that opened without a grab is worth more than one that did not open.
+    """
+    try:
+        widget.grab_set()
+    except tkinter.TclError:
+        return False
+    return True

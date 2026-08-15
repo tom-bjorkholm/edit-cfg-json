@@ -29,8 +29,8 @@ from edit_cfg_json_textual.textual_editor import EditorApp
 from edit_cfg_json_textual.textual_look import DOCSTRING_ID, NAME_CLASS, \
     SAVE_AS_ID, SAVE_ID, TITLE_ID, VERDICT_ID, description_id, diagnostic_id, \
     mark_id, value_id
-from edit_cfg_json_textual.textual_panel import EditorPanel
-from edit_cfg_json_textual.textual_screen import EditorScreen
+from edit_cfg_json_textual.textual_panel import ModelPanel
+from edit_cfg_json_textual.textual_screen import ModelScreen
 from example.e01_flat_config import FlatConfig
 
 DEFAULT_ACTIONS = ActionSettings()
@@ -172,7 +172,7 @@ def mark_of(app: EditorApp, member_name: str) -> str:
     return str(widget.content)
 
 
-def panel_of(app: EditorApp) -> EditorPanel:
+def panel_of(app: EditorApp) -> ModelPanel:
     """Return the editor that the application is showing.
 
     The editor is a widget of a screen rather than the application itself, so
@@ -180,7 +180,7 @@ def panel_of(app: EditorApp) -> EditorPanel:
     its own. That is what these tests reach it through.
     """
     screen = app.screen
-    assert isinstance(screen, EditorScreen)
+    assert isinstance(screen, ModelScreen)
     return screen.panel
 
 

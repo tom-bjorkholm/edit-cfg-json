@@ -1119,7 +1119,10 @@ The first release is published
 
 #### Step 18 — Embedding in an application's own window
 
-Status: **Implemented and committed.** 
+Status: **Implemented and committed**, and then **superseded by step 18B**,
+which replaced its two examples with four and changed what the entry points
+are told. What follows is step 18 as it was, because a plan that rewrote a
+finished step would lose the reasoning that step 18B had to answer.
 
 Designed in full in `doc/design.md` section 8.2. The design was recorded
 before the code because two of its questions were cheaper to answer while
@@ -1245,48 +1248,161 @@ We need to redesign the embedding of edit_cfg_json for both Tk and Textual,
 so that it is just as easy to embed edti_cfg_json and it is to embedd wizard_tk_bridge,
 and we need examples that describe it as simple as well.
 
+Status: **Implemented and committed.**
 
-#### Step 19 — The rest of the program's command line
+**Observable outcome.** Four examples where step 18 had two, one per toolkit
+per shape, and each of them an application whose own button builds the editor:
+`python3 examples/src/example/e13_embedded_tk.py` fills an area of a Tk window
+the application also uses for other things, `e15_window_tk.py` opens the editor
+in a window of its own over the application, `e14_embedded_textual.py` mounts
+it in an area of the application's own Textual screen, and
+`e16_screen_textual.py` pushes it as a screen. All four press *Edit the
+configuration* to build the editor and *Close the editor* to end it from the
+application, and all four read the file the command line names in the same call
+that says where the editor goes.
 
-The options step 7B deliberately left out, less the one that step 9 brought
-forward: `--extension` and `--enforce-extension` for an application whose
-configuration files are not called `.json`, and `--key ACTION=COMBINATIONS`
-for one whose users want other keys. `--descriptions NAME` was the
-interesting one and is done: a review of step 9 asked why a program showed
-no explanations under the members, and the answer was that what an
-application says about its own members is the one thing an application can
-tell the editor that the program could not pass on. Whether the two parsers
-of the repository share their definitions was settled at step 7B rather than
-here: `add_file_options` and `named_policy` are shared already, and each
-option this step adds is a candidate for the same treatment. Consider if
-adding a class derived from `config_as_json.Config` for storing the
-`Settings` of the 7B programs instead of passing them as arguments. Using
-such a configuration file is probably a better idea than a very long command
-line.
+**What it decided.** Four things.
 
-#### Step 20 - version command line flag
+- **The mounting entry points take a configuration and the keywords of
+  `edit()`**, and not a model the application built. That is what made the
+  three-statement preamble of step 18 — `load_config`, `EditModel`, mount —
+  into one call, and it is what `wizard_tk_bridge` had already settled: an
+  application should say what it wants edited once, in the words it already
+  knows. `edit_cfg_json.editor_model` is the core function they share, and
+  `edit()` is that call plus `run_editor`.
+- **Tk is told `parent` or `area`, and `modal`.** `area` fills a widget;
+  `parent` gets the editor a `Toplevel` of its own that the editor names,
+  makes transient, routes the close button of, and destroys. This **reverses**
+  a rejected alternative of step 18, and design sections 8.2.2 and 12 record
+  the reversal rather than quietly replacing the old answer: two mutually
+  exclusive arguments really are two, and every application that wanted a
+  window of its own was writing the same five lines of `tkinter` without them.
+- **Textual keeps two classes and gains two more.** `ModelPanel` and
+  `ModelScreen` are what `EditorApp` shows and take a model; `EditorPanel` and
+  `EditorScreen` are one subclass each, take a configuration, and are the
+  public names. A flag on one constructor would have been the same two doors
+  with the body knowing which one it came through.
+- **A pushed screen pops itself.** Everywhere else the editor destroys what it
+  created and leaves the rest to the application; a screen it pushed *is* what
+  it created, and an application that had to pop it would show the editor's own
+  empty screen until it was told. Section 8.2.3.
+
+**Core.** `editor_model`, and `DEFAULT_POLICY` exported so that the three
+signatures can name the same default rather than write it out. `edit()` gained
+nothing and means what it meant.
+
+**What building it found.**
+
+- **`Settings.priority_keys` had lost its only demonstration.** The
+  `--ordinary-keys` flag went with `embedded_parser`, and nothing was left that
+  showed the setting. Example 14 now builds a `Settings` in Python, the way
+  example 12 does and the way a real application does, and puts the explain
+  action on `ctrl+e` beside `f1` — a combination Textual's own `Input` reads as
+  "go to the end of the line", so the difference is on the screen rather than
+  in a docstring.
+- **A modal editor cannot be closed by the application's own button**, which is
+  what modal means and is now what example 15 says about it. The button is
+  there because `close` is the same call in all four examples; a user reaches
+  it in three of them.
+- **Tk grants a grab on a window that is not on the screen yet**, at least on
+  macOS Aqua, so `modal=True` works from the constructor there. X11 refuses one
+  for a window that is not viewable, and the panel treats a refused grab as a
+  non-modal editor rather than as an error — an editor that opened without its
+  grab is worth more than one that did not open. Nothing tests the difference,
+  because nothing in this repository runs X11.
+
+#### Step 19 - config_as_json.Config for storing the Settings
+
+The `./edit` core shall define a class derived from `config_as_json.Config`
+for storing the `Settings`, and make definition complete with descriptions. 
+The primary users of this configuration are the programs
+`edit-cfg-json-textual` and `edit-cfg-json-tk` but it may also be used
+as a building block in the configuration of other applications that use
+these libraries.
+
+The `Settings` dataclasses should probably change from frozen to not
+frozen, to support that they are used directly as `config_as_json.Config`,
+see https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e04_third_party_class.py 
+
+`edit-cfg-json-textual` and `edit-cfg-json-tk` shall take command line
+switches:
+
+- `-c`/`--cfg` to name the configuration file to load and use as their
+  `Settings`
+
+- `--own-file` together with `-i` when editing a file to specify that
+  the CLASS and DESCRIPTIONS to use are the ones defined in `./edit`
+  Name of flag shall be re-evaluated and alternatives shall be considered.
+
+- `--new-cfg` instead of `-i` to internally generate a new configuration
+  that will be opened for edit and saving (CLASS and DESCRIPTIONS to use
+  are the ones defined in `./edit`).
+  Name of flag shall be re-evaluated and alternatives shall be considered.
+
+When `edit-cfg-json-textual` and `edit-cfg-json-tk` start they shall look
+for a configuration file to load their settings from, in the following
+priority order:
+
+1. The file specified by `-c`/`--cfg` 
+
+2. If environment variable `CFG_EDIT_CFG_JSON` is set, its value is the
+   path and filename of the configuration file to load.
+
+3. File `$HOME/.edit-cfg-json-tk.cfg` if Tk and
+   `$HOME/.edit-cfg-json-textual.cfg` if Textual
+
+4. File `$HOME/.edit-cfg-json.cfg`
+
+5. Run without loading a configuration file using default values for
+   `Settings`
+
+To the extent applicable what is said here about `edit-cfg-json-textual`
+and `edit-cfg-json-tk` should also be applied to `edit_cfg_json.dump`
+
+#### Step 20 — The rest of the program's command line
+
+Any other command line options of `edit-cfg-json-textual`, `edit-cfg-json-tk`
+and `edit_cfg_json.dump` should have according to the design,
+that have not already been implemented.
+
+This includes the options step 7B deliberately left out, less the one that
+step 9 brought forward: `--extension` and `--enforce-extension` for an
+application whose configuration files are not called `.json`.
+ `--descriptions NAME` was the interesting one and is done. Whether the
+two parsers of the repository share their definitions was settled at step
+7B rather than here: `add_file_options` and `named_policy` are shared
+already, and each option this step adds is a candidate for the same
+treatment.
+
+For each command line flag considered, also consider if it would be
+better to specify it in `Settings` and thus in the configuration file.
+
+We will not implement any `--key ACTION=COMBINATIONS` as this is better
+set using the configuration file or step 19
+
+#### Step 21 - version command line flag
 
 Add version reporting using
 [https://pypi.org/project/versionreporter/](https://pypi.org/project/versionreporter/)
 as a `--version` flag to all 3 programs (created at step 7B):
-`edit-cfg-json.dump`, `edit-cfg-json-tk` and `edit-cfg-json-textual`.
+`edit_cfg_json.dump`, `edit-cfg-json-tk` and `edit-cfg-json-textual`.
 Implement as a class `EcajVersionReporter` derived from `VersionReporter` in
 `./edit` and classes derived from `EcajVersionReporter` in `./edit_tk` and
 `./edit_textual` so that the backends get the dependencies of `edit-cfg-json`
 without repeating the list of dependencies.
 
-#### Step 21 - Add and remove ommitted members
+#### Step 22 - Add and remove ommitted members
 
 A member that a class omits from JSON while it holds no object shall also
 be possible to add and remove in the editor. Exactly how to achieve this
 is the subject of a design investigation in the beginning of this step.
 
-#### Step 22 - Full support for `DICT_VALUE_BY_KEY`
+#### Step 23 - Full support for `DICT_VALUE_BY_KEY`
 
 Add full support for adding and deleting values in a dict that are
 declared by `DICT_VALUE_BY_KEY`.
 
-#### Step 23 — The program asks for what the command line left out
+#### Step 24 — The program asks for what the command line left out
 
 A wizard: the program opens with no location, no class name and no files,
 and asks for them in the toolkit it was started in. What has been chosen,
@@ -1294,18 +1410,14 @@ what is still missing and whether the class could be loaded is state, and by
 the lesson of step 6 about the explanation toggle it belongs in the core so
 that the two backends cannot drift about it. Each backend then contributes a
 dialog or a screen, and a file chooser, which is where the two toolkits
-differ most and where neither has a headless test that is worth much. This
-is a bigger step than the program it completes — roughly the whole of step
-7B again per backend — and it is only worth building once the program has
-users who would rather not type a module path. It is the reason step 7B puts
-the loading and the reporting in the core: a wizard replaces the argument
-parsing and nothing else. When we get here investigate if using
+differ most and where neither has a headless test that is worth much. 
+
+When we get here investigate if using
 [https://pypi.org/project/wizard-ui-bridge/](https://pypi.org/project/wizard-ui-bridge/)
 and
 [https://pypi.org/project/wizard-tk-bridge/](https://pypi.org/project/wizard-tk-bridge/)
 makes implementing the wizards simpler.
-If step 19 did select the use a configuration file for the editor
-the need for the wizard may be smaller.
+
 Alternatively, consider if we should use the menubar and menu items like
 File - Open. (Using the menubar may feel very natural in the Tk version.)
 

@@ -39,33 +39,58 @@ Tk**. `edit` and `TkEditor` cannot serve one of those: each of them creates a
 widget, variable, font or image crosses between two of them. `run_editor`
 could not serve one either, because it promises to run until the user is done
 and an editor in one panel of somebody else's window can never do that. So
-this is a separate entry point, and it does not block:
+this is a separate entry point, it reads the configuration itself in exactly
+the way `edit` does, and it does not block:
 
 ````python
-from edit_cfg_json import EditModel, load_config
 from {{import_name}} import TkEditorPanel
 
-loaded = load_config(config=config, in_file='my_config.json')
-model = EditModel(config=loaded.config, report=loaded.report,
-                  out_file='my_config.json')
-panel = TkEditorPanel(parent=area, model=model, on_close=editor_gone)
+# a window of its own, over the application's, holding the application
+panel = TkEditorPanel(config, parent=self.window, in_file='my_config.json',
+                      on_close=self.editor_gone)
+
+# or filling a frame of a window the application also uses for other things
+panel = TkEditorPanel(config, area=self.frame, modal=False,
+                      in_file='my_config.json', on_close=self.editor_gone)
 ````
 
-`parent` is a widget of the application's own that the editor fills — a frame
-of a window, or a `tkinter.Toplevel` the application created for it. The
-editor builds one frame inside it and touches nothing else, so the title of
-the window, its size, its close protocol and its grab stay the application's,
-and closing destroys only what the editor created. What the application learns
-is `on_close`, which says that the session has ended, and
-`edit_cfg_json.EditModel.saved_config`, which says what came of it — a widget
-has no moment at which it could return anything.
+**`parent` or `area`, and never both**, is where the editor goes, and it is
+the one decision this entry point asks of the application:
+
+- **`parent`** is a widget of the application's own that the editor opens a
+  window *over*. The editor creates that `tkinter.Toplevel` itself, names it
+  after the configuration class, makes it transient for the application's
+  window and destroys it again when the session ends.
+- **`area`** is a widget of the application's own that the editor *fills*
+  instead. It builds one frame inside it and touches nothing else, so what the
+  application has on the screen beside the editor is untouched.
+
+Everything after that is the session, and it is the keywords of `edit` less
+the backend: `descriptions`, `in_file`, `loader`, `out_file`, `policy`,
+`settings` and `stderr_file` all mean here exactly what they mean there,
+because the same `edit_cfg_json.editor_model` reads them.
+
+`modal` says whether the editor holds the application for the session, and it
+is `True` by default, which is what an application that wants its
+configuration seen to usually means. An application whose own controls are to
+go on answering beside the editor passes `False` — which is the usual answer
+for `area` and the unusual one for `parent`.
+
+What the application learns is `on_close`, which says that the session has
+ended, and `panel.saved_config`, which says what came of it — an editor that
+returns at once has no moment at which it could return anything. `panel.model`
+is the whole model of the session, for an application that wants more than the
+outcome.
 
 `panel.close(ask_about_unsaved=True)` is how the application closes the editor
-itself, from a menu of its own. The editor's own Close button and its quit key
-are that same call with the default, so the question about what has not been
-saved is put in the same words whichever of the three ended the session; an
-application that is shutting down for reasons of its own passes `False`,
-because it already has a question to put and does not want two.
+itself, from a button or a menu of its own. The editor's own Close button, its
+quit key and the close button of a window it made are that same call with the
+default, so the question about what has not been saved is put in the same
+words whichever of them ended the session; an application that is shutting
+down for reasons of its own passes `False`, because it already has a question
+to put and does not want two. Closing again once the session has ended does
+nothing, so an application need not keep track of whether the user closed the
+editor already.
 
 **The keys of the editor and its mouse wheel reach the part of the window it
 built and nothing else.** They are bound on a Tk bind tag of the editor's own,

@@ -25,7 +25,7 @@ from textual.app import App
 from textual.screen import Screen
 import edit_cfg_json as core
 from edit_cfg_json_textual.textual_ask import QUESTION_SCREENS
-from edit_cfg_json_textual.textual_screen import EditorScreen
+from edit_cfg_json_textual.textual_screen import ModelScreen
 
 QUIT_ACTION = 'quit'
 """Name of the action of Textual itself that would end the application.
@@ -62,7 +62,7 @@ class EditorApp(App[None]):
             when the session ends: there is nothing else for the application
             to show, so an editor that had gone would leave an empty terminal.
         """
-        return EditorScreen(self._model, on_close=self.exit)
+        return ModelScreen(self._model, on_close=self.exit)
 
     async def action_quit(self) -> None:
         """End the session, asking first where there is something to lose.
@@ -73,7 +73,7 @@ class EditorApp(App[None]):
         question in the one place.
         """
         screen = self.screen
-        if isinstance(screen, EditorScreen):
+        if isinstance(screen, ModelScreen):
             screen.panel.close()
             return
         await super().action_quit()
@@ -130,7 +130,7 @@ def edit(config: Config, *, descriptions: Optional[core.Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
          loader: Optional[core.ConfigLoader] = None,
          out_file: Optional[PathOrStr] = None,
-         policy: core.LoadPolicy = core.LoadPolicy.STRICT_THEN_DEFAULTS,
+         policy: core.LoadPolicy = core.DEFAULT_POLICY,
          settings: core.SettingsSource = core.Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]:
     """Edit one configuration in the terminal, and return what was saved.

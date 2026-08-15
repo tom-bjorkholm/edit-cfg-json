@@ -22,7 +22,7 @@ neither backend may import the other.
 
 from collections.abc import Callable, Sequence
 from typing import ClassVar, NamedTuple, Optional
-from config_as_json import ConfigPath
+from config_as_json import Config, ConfigPath
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widget import Widget
@@ -136,7 +136,7 @@ class EditorCommand(NamedTuple):
 # arrives, which is what having one body for both ways of running the editor
 # means. See the same disable on the model in the core.
 # pylint: disable-next=too-many-public-methods
-class EditorPanel(Widget):
+class ModelPanel(Widget):
     """The whole editor of one edit model, as one widget.
 
     It holds the label of the configuration, what the class says about itself,
@@ -147,9 +147,13 @@ class EditorPanel(Widget):
     The keys of the editor are bound on this widget, so they are acted on
     while the focus is inside the editor and not while it is elsewhere in a
     window that an application owns.
+
+    It takes a model, which is what this package has of its own and what
+    `EditorApp` shows. An application reads a configuration instead, with
+    `edit_cfg_json_textual.EditorPanel`.
     """
 
-    DEFAULT_CSS: ClassVar[str] = PANEL_CSS.replace(TYPE_MARK, 'EditorPanel')
+    DEFAULT_CSS: ClassVar[str] = PANEL_CSS.replace(TYPE_MARK, 'ModelPanel')
     """The widths and the heights that make one member fit on one line.
 
     See `PANEL_CSS`, which is where each of them is explained. It is
@@ -167,8 +171,7 @@ class EditorPanel(Widget):
             on_close: What the application does once the session has ended,
                 or None for an application that reads the outcome some other
                 way. It is called after the editor has taken itself off the
-                screen, so that `edit_cfg_json.EditModel.saved_config` can be
-                read from it.
+                screen, so that `saved_config` can be read from it.
         """
         super().__init__()
         self._model = model
@@ -179,6 +182,16 @@ class EditorPanel(Widget):
         self._element_rows: dict[str, tuple[core.MemberRow, str]] = {}
         self._built: tuple[ConfigPath, ...] = ()
         self._bind_editor_keys()
+
+    @property
+    def model(self) -> core.EditModel:
+        """Return the model of this session."""
+        return self._model
+
+    @property
+    def saved_config(self) -> Optional[Config]:
+        """Return the configuration this session wrote, None until it does."""
+        return self._model.saved_config
 
     def _bind_editor_keys(self) -> None:
         """Bind the key combinations that the application chose.

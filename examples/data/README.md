@@ -135,15 +135,16 @@ file when a save writes over it.
 | --- | --- |
 | [e12_archive.cfg](e12_archive.cfg) | Opens with every value from the file. It is the one data file with another extension, because that application uses `.cfg` for its configuration. Copy it somewhere else before saving over it, which is what the example says to do: the round trip is what keeps the previous content beside the file as `archive.cfg.old_1`. |
 
-## Files for `e13_embedded_tk.py` and `e14_embedded_textual.py`
+## Files for the four examples that mount the editor
 
-`PipelineConfig` declares one text member and one number member. Those two
-examples are not about them either: they are about where the editor is in a
-window that an application already owns.
+`PipelineConfig` declares one text member and one number member.
+`e13_embedded_tk.py`, `e14_embedded_textual.py`, `e15_window_tk.py` and
+`e16_screen_textual.py` are not about them either: they are about where the
+editor is in an application that already runs a user interface.
 
 | File | What happens |
 | --- | --- |
-| [e13_pipeline.json](e13_pipeline.json) | Opens with both values from the file. It is one file for the two examples, because the two are the same application in two toolkits and the point of reading it at all is that an application which mounts the editor builds the model itself. |
+| [e13_pipeline.json](e13_pipeline.json) | Opens with both values from the file. It is one file for all four examples, because they are two applications in two toolkits each and the point of reading it at all is that the editor is told which file to read in the same call that says where it goes. It keeps its name from the example it was written for. |
 
 ## Why a file with a bad value cannot be opened
 

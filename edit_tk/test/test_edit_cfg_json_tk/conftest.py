@@ -10,7 +10,7 @@ import pytest
 from .helpers import FakeFlag, FakeVar, FakeWidget
 
 STUBBED_WIDGETS = ('Frame', 'Label', 'Button', 'Checkbutton', 'Entry',
-                   'Canvas', 'Scrollbar')
+                   'Canvas', 'Scrollbar', 'Toplevel')
 """Every Tkinter widget class that the stubbed tests replace.
 
 One stub stands in for all of them, because what those tests are about is

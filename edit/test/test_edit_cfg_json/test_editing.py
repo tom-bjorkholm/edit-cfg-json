@@ -15,7 +15,7 @@ from pathlib import Path
 import json
 import pytest
 from edit_cfg_json import ConfigLoadError, EditModel, LoadPolicy, Settings, \
-    edit
+    edit, editor_model
 from .sample_cfg import PICKED_NAME, ExtraArgCfg, FlatCfg, RangeCfg, \
     RewriteCfg, extra_arg_loader, picking_loader
 
@@ -317,3 +317,59 @@ def test_other_class_kept(tmp_path: Path) -> None:
                  backend=Saver('name', PICKED_NAME), out_file=out_file)
     assert saved is None
     assert not out_file.exists()
+
+
+def test_model_holds_the_file(tmp_path: Path) -> None:
+    """Test `editor_model` reads the file and answers with a model of it.
+
+    It is what an application that mounts the editor in a window of its own
+    reaches through the entry point of its backend, and what `edit` does
+    before it runs one, so the two cannot differ about a session.
+    """
+    model = editor_model(FlatCfg(), in_file=_input_file(tmp_path, COMPLETE))
+    assert isinstance(model, EditModel)
+    assert [row.value for row in model.rows] == ['From a file', 7]
+    assert not model.dirty
+
+
+def test_model_report_reaches(tmp_path: Path) -> None:
+    """Test what a permissive load did is on the model it answers with."""
+    model = editor_model(FlatCfg(), in_file=_input_file(tmp_path, INCOMPLETE))
+    assert 'filled in from the defaults' in model.load_message
+    assert [row.filled_from_default for row in model.rows] == [False, True]
+
+
+def test_model_file_refused(tmp_path: Path) -> None:
+    """Test a file that cannot be opened is refused here as well."""
+    with pytest.raises(ConfigLoadError):
+        editor_model(FlatCfg(), in_file=_input_file(tmp_path, INCOMPLETE),
+                     policy=LoadPolicy.STRICT)
+
+
+def test_model_out_completed(tmp_path: Path) -> None:
+    """Test a destination this call names gets the extension it lacks.
+
+    That is the one rule `edit` applies to its arguments beyond handing them
+    on, so it has to be here rather than in `edit`.
+    """
+    model = editor_model(FlatCfg(), out_file=tmp_path / 'out',
+                         settings=Settings(file_extension='.cfg'))
+    assert str(model.out_file) == str(tmp_path / 'out.cfg')
+
+
+def test_model_writes_input(tmp_path: Path) -> None:
+    """Test the input file is what a save writes when nothing else is named."""
+    in_file = _input_file(tmp_path, COMPLETE)
+    assert str(editor_model(FlatCfg(),
+                            in_file=in_file).out_file) == str(in_file)
+
+
+def test_model_is_described() -> None:
+    """Test what the application says about its members reaches the model.
+
+    What the editor says about a member is what the application said plus what
+    kind of value it holds, which the core decides and tests of its own cover.
+    """
+    about_name = 'What the name is for.'
+    model = editor_model(FlatCfg(), descriptions={('name',): about_name})
+    assert model.rows[0].description.startswith(about_name)

@@ -9,7 +9,6 @@ that nothing has to be imported from an internal module.
 # MIT License
 
 from edit_cfg_json_textual.textual_editor import TextualEditor, edit
-from edit_cfg_json_textual.textual_panel import EditorPanel
-from edit_cfg_json_textual.textual_screen import EditorScreen
+from edit_cfg_json_textual.textual_mount import EditorPanel, EditorScreen
 
 __all__ = ['EditorPanel', 'EditorScreen', 'TextualEditor', 'edit']

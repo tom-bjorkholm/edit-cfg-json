@@ -1,19 +1,20 @@
 #! /usr/bin/env python3
 """Tests for the editor mounted in a window that an application owns.
 
-What these are about is the two rules that make an embedded editor different
-from one that owns its window: it builds and destroys only its own widgets,
-and its keys and its mouse wheel reach only what it built. Everything else
-about the editor is the same editor and is tested where it always was.
+What these are about is what makes an embedded editor different from one that
+owns its window: it reads the configuration itself, it builds either a window
+of its own or the area it was given, it destroys only what it built, and its
+keys and its mouse wheel reach only that. Everything else about the editor is
+the same editor and is tested where it always was.
 """
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from typing import cast
+from typing import Optional, cast
 import tkinter
 import pytest
-from edit_cfg_json import EditModel, Settings
+from edit_cfg_json import Settings
 from edit_cfg_json_tk import TkEditorPanel
 from edit_cfg_json_tk.tk_scope import TAG_PREFIX
 from example.e01_flat_config import FlatConfig
@@ -29,18 +30,21 @@ about is the panel and pressing that button is how a user reaches it.
 """
 
 
-def _stub_panel(model: EditModel) -> tuple[TkEditorPanel, FakeWidget]:
+def _stub_panel(settings: Optional[Settings] = None,
+                modal: bool = False) -> tuple[TkEditorPanel, FakeWidget]:
     """Return a stubbed panel and the widget the application gave it.
 
     Args:
-        model: Model for the panel to show.
+        settings: What the application decided, or None for no opinion.
+        modal: Whether the editor grabs the application for the session.
 
     Returns:
         The panel, and the stub widget standing in for the area of the
         application's window that the editor was mounted in.
     """
     area = FakeWidget()
-    panel = TkEditorPanel(parent=cast(tkinter.Misc, area), model=model)
+    panel = TkEditorPanel(FlatConfig(), area=cast(tkinter.Misc, area),
+                          modal=modal, settings=settings or Settings())
     return panel, area
 
 
@@ -51,7 +55,7 @@ def test_stub_builds_its_own(stub_tk: None) -> None:
     what closing destroys, and it is what the keys reach.
     """
     _ = stub_tk
-    _, area = _stub_panel(EditModel(FlatConfig()))
+    _, area = _stub_panel()
     assert len(area.winfo_children()) == 1
 
 
@@ -63,7 +67,7 @@ def test_stub_keys_scoped(stub_tk: None) -> None:
     has widgets of its own cannot have.
     """
     _ = stub_tk
-    _, area = _stub_panel(EditModel(FlatConfig()))
+    _, area = _stub_panel()
     frame = area.winfo_children()[0]
     assert stub_tags(frame)[0].startswith(TAG_PREFIX)
     assert not any(tag.startswith(TAG_PREFIX) for tag in stub_tags(area))
@@ -76,8 +80,7 @@ def test_stub_ordinary_keys(stub_tk: None) -> None:
     editor going last is the editor being offered what is left of a key.
     """
     _ = stub_tk
-    _, area = _stub_panel(EditModel(FlatConfig(),
-                                    settings=Settings(priority_keys=False)))
+    _, area = _stub_panel(settings=Settings(priority_keys=False))
     assert stub_tags(area.winfo_children()[0])[-1].startswith(TAG_PREFIX)
 
 
@@ -88,8 +91,8 @@ def test_stub_two_panels(stub_tk: None) -> None:
     editors sharing one name would each run the other's actions.
     """
     _ = stub_tk
-    _, first = _stub_panel(EditModel(FlatConfig()))
-    _, second = _stub_panel(EditModel(FlatConfig()))
+    _, first = _stub_panel()
+    _, second = _stub_panel()
     assert stub_tags(first.winfo_children()[0])[0] != \
         stub_tags(second.winfo_children()[0])[0]
 
@@ -102,7 +105,7 @@ def test_stub_click_focuses(stub_tk: None) -> None:
     editor and see nothing happen.
     """
     _ = stub_tk
-    _, area = _stub_panel(EditModel(FlatConfig()))
+    _, area = _stub_panel()
     frame = area.winfo_children()[0]
     frame.bindings['<Button-1>']()
     assert FakeWidget.focused == [frame]
@@ -111,7 +114,7 @@ def test_stub_click_focuses(stub_tk: None) -> None:
 def test_stub_close_destroys(stub_tk: None) -> None:
     """Test closing destroys what the editor built and nothing else."""
     _ = stub_tk
-    panel, area = _stub_panel(EditModel(FlatConfig()))
+    panel, area = _stub_panel()
     frame = area.winfo_children()[0]
     panel.close()
     assert frame not in FakeWidget.created
@@ -122,9 +125,8 @@ def test_stub_close_tells(stub_tk: None) -> None:
     """Test the application is told once the session has ended."""
     _ = stub_tk
     ended: list[str] = []
-    TkEditorPanel(parent=cast(tkinter.Misc, FakeWidget()),
-                  model=EditModel(FlatConfig()),
-                  on_close=lambda: ended.append('gone'))
+    TkEditorPanel(FlatConfig(), area=cast(tkinter.Misc, FakeWidget()),
+                  modal=False, on_close=lambda: ended.append('gone'))
     stub_press(CLOSE_TEXT)
     assert ended == ['gone']
 
@@ -135,8 +137,8 @@ def test_stub_close_asks(stub_tk: None,
     _ = stub_tk
     asked = answer_question(monkeypatch, answer=False)
     ended: list[str] = []
-    panel = TkEditorPanel(parent=cast(tkinter.Misc, FakeWidget()),
-                          model=EditModel(FlatConfig()),
+    panel = TkEditorPanel(FlatConfig(), modal=False,
+                          area=cast(tkinter.Misc, FakeWidget()),
                           on_close=lambda: ended.append('gone'))
     FakeVar.created[1].set('7')
     panel.close()
@@ -155,8 +157,8 @@ def test_stub_close_not_asked(stub_tk: None,
     _ = stub_tk
     asked = answer_question(monkeypatch, answer=False)
     ended: list[str] = []
-    panel = TkEditorPanel(parent=cast(tkinter.Misc, FakeWidget()),
-                          model=EditModel(FlatConfig()),
+    panel = TkEditorPanel(FlatConfig(), modal=False,
+                          area=cast(tkinter.Misc, FakeWidget()),
                           on_close=lambda: ended.append('gone'))
     FakeVar.created[1].set('7')
     panel.close(ask_about_unsaved=False)
@@ -168,8 +170,8 @@ def test_stub_close_twice(stub_tk: None) -> None:
     """Test closing an editor that has ended does nothing at all."""
     _ = stub_tk
     ended: list[str] = []
-    panel = TkEditorPanel(parent=cast(tkinter.Misc, FakeWidget()),
-                          model=EditModel(FlatConfig()),
+    panel = TkEditorPanel(FlatConfig(), modal=False,
+                          area=cast(tkinter.Misc, FakeWidget()),
                           on_close=lambda: ended.append('gone'))
     panel.close()
     panel.close()
@@ -184,10 +186,89 @@ def test_stub_keys_released(stub_tk: None) -> None:
     runs.
     """
     _ = stub_tk
-    panel, _ = _stub_panel(EditModel(FlatConfig()))
+    panel, _ = _stub_panel()
     assert stub_keys()
     panel.close()
     assert not stub_keys()
+
+
+def test_stub_builds_model(stub_tk: None) -> None:
+    """Test the editor builds the model of the configuration it was given.
+
+    An application says what to edit in the same call that says where the
+    editor goes, and reads the outcome off the panel afterwards.
+    """
+    _ = stub_tk
+    panel, _ = _stub_panel()
+    assert panel.model.config_type_name == 'FlatConfig'
+    assert panel.saved_config is None
+
+
+def test_stub_area_modal(stub_tk: None) -> None:
+    """Test a modal editor in an area takes the events for that area.
+
+    An application that wants its own widgets answering beside the editor
+    passes modal=False, which is what every other test here does.
+    """
+    _ = stub_tk
+    _, area = _stub_panel(modal=True)
+    assert area.winfo_children()[0].grabbed
+
+
+def test_stub_own_window(stub_tk: None) -> None:
+    """Test a parent gets the editor a window of its own, named and modal."""
+    _ = stub_tk
+    parent = FakeWidget()
+    TkEditorPanel(FlatConfig(), parent=cast(tkinter.Misc, parent))
+    window = parent.winfo_children()[0]
+    assert window.window_title == 'FlatConfig'
+    assert window.transient_to is parent
+    assert window.grabbed
+
+
+def test_stub_window_closed(stub_tk: None) -> None:
+    """Test closing destroys the window the editor made and frees the grab."""
+    _ = stub_tk
+    ended: list[str] = []
+    parent = FakeWidget()
+    panel = TkEditorPanel(FlatConfig(), parent=cast(tkinter.Misc, parent),
+                          on_close=lambda: ended.append('gone'))
+    window = parent.winfo_children()[0]
+    panel.close()
+    assert not window.grabbed
+    assert window not in FakeWidget.created
+    assert parent in FakeWidget.created
+    assert ended == ['gone']
+
+
+def test_stub_window_button(stub_tk: None) -> None:
+    """Test the close button of that window ends the session as Close does."""
+    _ = stub_tk
+    ended: list[str] = []
+    parent = FakeWidget()
+    TkEditorPanel(FlatConfig(), parent=cast(tkinter.Misc, parent),
+                  on_close=lambda: ended.append('gone'))
+    parent.winfo_children()[0].protocols['WM_DELETE_WINDOW']()
+    assert ended == ['gone']
+
+
+def test_stub_nowhere_refused(stub_tk: None) -> None:
+    """Test the editor refuses to guess which window it belongs in.
+
+    An application with no Tk of its own uses `edit_cfg_json_tk.edit`, which
+    owns a window and runs until the user is done.
+    """
+    _ = stub_tk
+    with pytest.raises(ValueError):
+        TkEditorPanel(FlatConfig())
+
+
+def test_stub_both_refused(stub_tk: None) -> None:
+    """Test naming a parent and an area is two answers to one question."""
+    _ = stub_tk
+    with pytest.raises(ValueError):
+        TkEditorPanel(FlatConfig(), parent=cast(tkinter.Misc, FakeWidget()),
+                      area=cast(tkinter.Misc, FakeWidget()))
 
 
 def test_real_panel_scoped(root_or_skip: tkinter.Tk) -> None:
@@ -198,7 +279,7 @@ def test_real_panel_scoped(root_or_skip: tkinter.Tk) -> None:
     """
     area = tkinter.Frame(root_or_skip)
     area.pack()
-    TkEditorPanel(parent=area, model=EditModel(FlatConfig()))
+    TkEditorPanel(FlatConfig(), area=area, modal=False)
     frame = area.winfo_children()[0]
     assert frame.bindtags()[0].startswith(TAG_PREFIX)
     assert not any(tag.startswith(TAG_PREFIX)
@@ -215,7 +296,7 @@ def test_real_field_reaches(root_or_skip: tkinter.Tk) -> None:
     """
     area = tkinter.Frame(root_or_skip)
     area.pack()
-    TkEditorPanel(parent=area, model=EditModel(FlatConfig()))
+    TkEditorPanel(FlatConfig(), area=area, modal=False)
     tag = area.winfo_children()[0].bindtags()[0]
     assert all(tag in field.bindtags() for field in real_fields(area))
 
@@ -225,7 +306,7 @@ def test_real_close_keeps(root_or_skip: tkinter.Tk) -> None:
     area = tkinter.Frame(root_or_skip)
     area.pack()
     ended: list[str] = []
-    panel = TkEditorPanel(parent=area, model=EditModel(FlatConfig()),
+    panel = TkEditorPanel(FlatConfig(), area=area, modal=False,
                           on_close=lambda: ended.append('gone'))
     frame = area.winfo_children()[0]
     panel.close()
@@ -240,9 +321,30 @@ def test_real_close_asks(root_or_skip: tkinter.Tk,
     asked = answer_question(monkeypatch, answer=False)
     area = tkinter.Frame(root_or_skip)
     area.pack()
-    TkEditorPanel(parent=area, model=EditModel(FlatConfig()))
+    TkEditorPanel(FlatConfig(), area=area, modal=False)
     frame = area.winfo_children()[0]
     retype(real_fields(area)[1], '7')
     real_press(area, CLOSE_TEXT)
     assert len(asked) == 1
     assert frame.winfo_exists()
+
+
+def test_real_own_window(root_or_skip: tkinter.Tk) -> None:
+    """Test a real window of the editor's own is created and destroyed.
+
+    It is asked for without the grab, and the window is taken off the screen
+    as soon as it is there: a test that really grabbed would hold the pointer
+    and the keyboard of the machine it runs on, and a window of its own is
+    the one part of this editor that a test cannot keep withdrawn from the
+    start. That the editor asks for the grab is tested with the stub above.
+    """
+    ended: list[str] = []
+    panel = TkEditorPanel(FlatConfig(), parent=root_or_skip, modal=False,
+                          on_close=lambda: ended.append('gone'))
+    window = root_or_skip.winfo_children()[0]
+    assert isinstance(window, tkinter.Toplevel)
+    window.withdraw()
+    assert window.title() == 'FlatConfig'
+    panel.close()
+    assert not window.winfo_exists()
+    assert ended == ['gone']

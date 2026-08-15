@@ -1582,19 +1582,30 @@ really came to.
 
 - The model is a standalone object. It does no I/O in its constructor
   and owns no event loop.
-- `edit()` is a thin convenience wrapper: build the model, run a backend
-  to completion, return the result.
+- `edit()` is a thin convenience wrapper: build the model with
+  `editor_model()`, run a backend to completion, return the result.
 - The backend `Protocol` is phrased against the **model**, never against
-  `edit()`. Embedding is then additive: the host application builds the
-  model itself and mounts the backend as a widget.
+  `edit()`. Embedding is then additive: the mounting entry point of a backend
+  package builds the model with the same `editor_model()` and shows it in a
+  widget of the application's.
 
 ```python
+def editor_model(config: Config, *,
+                 descriptions: Optional[Descriptions] = None,
+                 in_file: Optional[PathOrStr] = None,
+                 loader: Optional[ConfigLoader] = None,
+                 out_file: Optional[PathOrStr] = None,
+                 policy: LoadPolicy = DEFAULT_POLICY,
+                 settings: SettingsSource = Settings(),
+                 stderr_file: TextIO = sys.stderr) -> EditModel:
+
+
 def edit(config: Config, backend: EditorBackend, *,
          descriptions: Optional[Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
          loader: Optional[ConfigLoader] = None,
          out_file: Optional[PathOrStr] = None,
-         policy: LoadPolicy = LoadPolicy.STRICT_THEN_DEFAULTS,
+         policy: LoadPolicy = DEFAULT_POLICY,
          settings: SettingsSource = Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]:
 ```
@@ -1652,10 +1663,14 @@ was **designed here before it was built**, because two of its questions have
 answers that are cheaper to give early than to retrofit: which toolkit
 instance the editor attaches to, and where in an existing window it is placed.
 What embedding asked of the design that was already here is recorded in
-section 8.2.5, and it turned out to be two rules and nothing else; everything
-the rest of this section names is an addition.
+section 8.2.5, and it turned out to be three rules and nothing else;
+everything the rest of this section names is an addition.
 
-The two questions are the same in both toolkits, and so are the answers.
+The first question is the same in both toolkits and so is its answer. The
+second was answered twice: step 18 built it, step 18B rebuilt it around what
+an application actually writes, and section 8.2.2 records both the answer and
+the reversal, because a design document that quietly replaced one is worth
+less than one that says which way it went and why.
 
 #### 8.2.1 Which instance does the editor attach to?
 
@@ -1677,22 +1692,57 @@ way to ask.
 So `run_editor` stays what it is — the editor that owns a window and a
 loop — and it is documented as being for an application that runs neither
 yet. An application that runs one already uses the entry point of
-section 8.2.3, and hands over the parent it wants.
+section 8.2.3, and says with it where the editor is to go.
 
 #### 8.2.2 Where in an existing window is it placed?
 
-**Inside the widget the application names, and the editor destroys only
-what it created.** One rule, one argument, both toolkits.
+**In the widget the application names, and the editor destroys only what it
+created.** What differs between the two toolkits is what "a window of its own"
+even is, so each of them answers the second half of the question in its own
+way: Tk is told which of the two the application wants, and Textual has a
+class for each.
 
-An application that wants the editor in a window of its own creates that
-window itself — `tkinter.Toplevel(root)`, or a Textual `Screen` — and
-passes it. This is one line in the application, and it buys three things:
-the library never has to guess whether a given widget was meant as a
-container or as a master; the window title, geometry, `WM_DELETE_WINDOW`,
-`transient` and `grab_set` stay with the application, which is where they
-belong; and the editor can state one rule about closing instead of two.
+- **Tk: `parent` or `area`, and never both.** `area` is a widget the editor
+  fills — it builds one frame inside it and destroys that frame again.
+  `parent` is a widget the editor opens a window *over* — it creates the
+  `tkinter.Toplevel` itself, names it after the configuration class, makes it
+  transient for the application's window, routes its close button through
+  `close`, and destroys it when the session ends. Neither of the two given, or
+  both, is a `ValueError`: an application with no Tk of its own uses
+  `run_editor`, and one that named both has answered one question twice.
+- **Textual: `EditorPanel` or `EditorScreen`.** A widget and a screen are
+  different Textual types, so which one it is *is* the class, and there is
+  nothing to be told. Section 8.2.4.
 
-The rejected alternatives are in section 12.
+**This is a reversal, and it is recorded as one.** Until step 18B the editor
+took one widget and filled it, and an application that wanted a window of its
+own created the `Toplevel` itself and passed it; section 12 listed the
+alternative as rejected, on the grounds that two mutually exclusive arguments
+do the work of one and that the title, the geometry, the close protocol and the
+grab belong to the application. What that reasoning missed is that **every**
+application that wants a window of its own then writes those same five lines,
+and writes them against a toolkit rather than against this library — so the
+argument that was saved cost every caller a paragraph. `wizard_tk_bridge` had
+already answered the same question the other way, with `parent`, `area` and
+`modal`, and an application that embeds both should not have to learn two
+shapes for one idea. The five lines are the editor's now, and an application
+that really wants its own decisions about that window can still pass `area`
+after making one.
+
+**`modal` is a third thing the application says**, and it is `True` by default.
+It is a Tk word and a Tk argument: the editor asks Tk to hold the events of the
+application for the window or the frame it built, and gives the grab back when
+it closes. Textual has no equivalent and needs none — a pushed screen already
+has the terminal, and a mounted panel already does not. A grab is asked for at
+the moment the editor is built, which is before the window it made has been
+mapped, and whether Tk allows that is a platform question: Aqua does, and X11
+refuses a grab for a window that is not viewable. An editor that opened without
+its grab is worth more than one that did not open, so a refused grab is a
+non-modal editor rather than an error — which means an application that must
+be held on every platform makes its own window, maps it, and passes it as
+`area`.
+
+The remaining rejected alternatives are in section 12.
 
 #### 8.2.3 It cannot be `run_editor`, so it is a second entry point
 
@@ -1703,33 +1753,66 @@ editor mounted in a panel of the application's window should not suspend
 the application's call stack in either toolkit.
 
 Embedding is therefore a **separate, non-blocking entry point per backend
-package**, additive to the protocol rather than a change to it:
+package**, additive to the protocol rather than a change to it. Each of them
+is *one call*, and it says the same things about a session that `edit()` says,
+because an application should not have to learn a second vocabulary to put the
+editor somewhere else:
 
 ```python
 # edit_cfg_json_tk
 class TkEditorPanel:
-    def __init__(self, parent: tkinter.Misc, model: EditModel, *,
-                 on_close: Optional[Callable[[], None]] = None) -> None: ...
+    def __init__(self, config: Config, *,
+                 parent: Optional[tkinter.Misc] = None,
+                 area: Optional[tkinter.Misc] = None, modal: bool = True,
+                 on_close: Optional[Callable[[], None]] = None,
+                 descriptions: Optional[Descriptions] = None,
+                 in_file: Optional[PathOrStr] = None,
+                 loader: Optional[ConfigLoader] = None,
+                 out_file: Optional[PathOrStr] = None,
+                 policy: LoadPolicy = DEFAULT_POLICY,
+                 settings: SettingsSource = Settings(),
+                 stderr_file: TextIO = sys.stderr) -> None: ...
     def close(self, ask_about_unsaved: bool = True) -> None: ...
+    @property
+    def model(self) -> EditModel: ...
+    @property
+    def saved_config(self) -> Optional[Config]: ...
 
-# edit_cfg_json_textual
+# edit_cfg_json_textual — the seven session keywords again, and no place
 class EditorPanel(Widget):        # mounted into an area
-    def __init__(self, model: EditModel, *,
-                 on_close: Optional[Callable[[], None]] = None) -> None: ...
-    def close(self, ask_about_unsaved: bool = True) -> None: ...
+    def __init__(self, config: Config, *,
+                 on_close: Optional[Callable[[], None]] = None,
+                 ...) -> None: ...
+    # close, model and saved_config as above
 
 class EditorScreen(Screen):       # pushed as a screen of its own
-    def __init__(self, model: EditModel, *,
-                 on_close: Optional[Callable[[], None]] = None) -> None: ...
+    def __init__(self, config: Config, *,
+                 on_close: Optional[Callable[[], None]] = None,
+                 ...) -> None: ...
     @property
     def panel(self) -> EditorPanel: ...
 ```
 
+The seven after `on_close` are the keywords of `edit()` less the backend, and
+each of the three classes spells them out rather than taking a bundle: a
+reader of one signature sees the whole of it, and a type checker sees every
+name. The `...` above is this document being brief and is no part of the code.
+
+**The seven keywords are one function, and it is in the core.**
+`edit_cfg_json.editor_model` is the first half of `edit()` — read the input
+file, build the model — and `edit()` is now that call plus `run_editor`.
+Without it the two backend packages would each be reimplementing the loading
+rules of section 5 against a `load_config` and an `EditModel` constructor, and
+the three ways of opening the editor would drift apart in what an `out_file`
+or a `policy` means. It is public rather than internal because an application
+that writes a backend of its own wants the same half.
+
 `on_close` is how the application learns the session ended; the outcome is
-`model.saved_config`, which is where `run_editor` already leaves it
-(section 8). Neither `edit()` gains an argument: an embedded editor has no
-moment at which it can return what was saved, so the wrapper that exists to
-return it has nothing to offer here.
+`saved_config`, which the panel and the screen offer beside the `model` it
+comes from, so that an application need not hold a model it did not build.
+`edit()` gains no argument: an embedded editor has no moment at which it can
+return what was saved, so the wrapper that exists to return it has nothing to
+offer here.
 
 **`close` is the application's way out, and it says whether the user is
 asked.** The editor's own Close and its quit key are that same call with the
@@ -1751,10 +1834,21 @@ a return value in one of them.
 **Closing again once the session has ended does nothing**, so an application
 need not keep track of whether the user has closed the editor already.
 
-**Only what the editor created is destroyed.** The Tk panel builds one frame
-of its own inside the widget it was given and destroys that frame; the Textual
-panel removes itself. What the application had on the screen beside the editor
+**Only what the editor created is destroyed.** The Tk panel destroys the frame
+it built inside the given `area`, or the window it opened over the given
+`parent`; the Textual panel removes itself, and the Textual screen pops itself
+off the application. What the application had on the screen beside the editor
 is untouched, which is section 8.2.2 acted on rather than only stated.
+
+**A screen pops itself, and that is not the same decision as the rest of this
+section.** Everywhere else the editor destroys what it created and leaves the
+application to decide what happens next; a screen it pushed is what it created,
+and an application that had to pop it would be left with the editor's own empty
+screen on top of its own for as long as it took to be told. The application's
+screen is therefore back on top by the time `on_close` runs, which is what
+makes reading `saved_config` from there the same in both shapes. A screen that
+is the *only* screen — which is what `EditorApp` shows — is not popped, because
+there is nothing underneath it.
 
 #### 8.2.4 What Textual has to be split into
 
@@ -1770,14 +1864,27 @@ at App level that an embedded editor cannot have:
 | `get_system_commands` | `COMMANDS` exists on `App` and `Screen`, not on `Widget`. An embedded widget cannot offer palette entries; an embedded screen can. |
 | `action_quit` | It ends the application. |
 
-So `EditorApp` splits three ways: `EditorPanel(Widget)` holds the whole
-body with its `DEFAULT_CSS` and its instance bindings, `EditorScreen`
+So `EditorApp` splits three ways: `ModelPanel(Widget)` holds the whole
+body with its `DEFAULT_CSS` and its instance bindings, `ModelScreen`
 adds the header, the footer and the palette entries, and `EditorApp`
 composes the screen. One body, so the two backends cannot drift and the
 CSS and the bindings exist once. The model title moves from `App.title`
 into a label of the panel, which is what the Tk backend already does; the
 application title becomes the name of the configuration class, which is what
 `TkEditor` puts in the title bar of the window it owns.
+
+**The two the application mounts take a configuration and not a model**, and
+that is one subclass each: `EditorPanel(ModelPanel)` and
+`EditorScreen(ModelScreen)` call `editor_model` on the seven keywords of
+section 8.2.3 and hand the model up. The pair with the model stays because
+`EditorApp` has one already — it was given a model by `run_editor`, which is
+what `EditorBackend` promises — and because a backend of somebody else's could
+want the same. Subclassing is what keeps that from being two constructors with
+a flag: nothing in the body knows which of the two doors it was reached
+through, and the public names are the short ones. Textual matches a type
+selector against every class name in the hierarchy, so the sheet `ModelPanel`
+declares for itself reaches the subclass too, which is the one thing this
+split had to be true of.
 
 Three things about the split had to be learnt from Textual rather than from a
 design, and are recorded because none of them is obvious:
@@ -1823,6 +1930,15 @@ Everything else is genuinely additive: the public surface of both backend
 packages is `TkEditor`, `TextualEditor` and `edit`, none of them changes
 meaning under embedding, and every name section 8.2.3 introduces is new. That
 is what section 8's decision to phrase the protocol against the model bought.
+
+**Step 18B added a third rule, and it is about the core rather than about a
+backend.** `edit()` was the only place that knew how to turn the seven
+keywords of a session into a model, and an entry point that could not run to
+completion could not reach it. Splitting `editor_model` out is what let the
+mounting entry points take the same keywords rather than a model the
+application had to build; `edit()` is that call plus `run_editor` and means
+exactly what it meant before. Nothing else in the core moved, which is what
+section 8.2.5 was written to check.
 
 #### 8.2.6 A Tk variable names its parent
 
@@ -1878,13 +1994,15 @@ from the focused widget upwards.
 
 - **The core does not name the mounting contract.** A `Protocol` for it would
   let a third-party backend implement the same shape, as `EditorBackend` does
-  for the modal one, and it is additive whenever it is added. There are now two
-  implementations and they do not share a shape: the Tk one is told the parent
-  it builds into, and the Textual one is a widget that the application mounts
-  where it likes and never hears of a parent. A protocol over two things that
-  differ in their first argument would be a protocol over one of them with the
-  other one written down beside it. It waits for a third implementation, or for
-  the first backend somebody else writes.
+  for the modal one, and it is additive whenever it is added. There are now
+  three implementations and they still do not share a shape: the Tk one is told
+  a parent or an area and whether to be modal, and the two Textual ones are a
+  widget the application mounts where it likes and a screen it pushes, neither
+  of which ever hears of a parent. A protocol over things that differ in what
+  they are told would be a protocol over one of them with the others written
+  down beside it. What they *do* share is the seven session keywords, and that
+  is named in the core, as `editor_model`. The rest waits for the first backend
+  somebody else writes.
 - **`Settings` gains one attribute and it is not about mounting.**
   `priority_keys` is what an embedded editor really asked for, and it is about
   keys rather than about panels: an application that has taken one of these
@@ -2420,9 +2538,14 @@ validators.
   `textual._context.active_app`, both private, to guess something the
   application could simply have said. Section 8.2.1.
 - **A `master` argument beside the parent, with the backend creating the
-  `Toplevel`.** Two arguments where one does, mutually exclusive, and it
-  gives the editor window decisions — title, geometry, the close protocol,
-  grab — that belong to the application. Section 8.2.2.
+  `Toplevel`.** Rejected at step 18 and **built at step 18B**, as `parent`
+  beside `area`. Two mutually exclusive arguments really are two where one
+  would do, and the window decisions really do belong to the application — but
+  every application that wanted a window of its own was then writing the same
+  five lines of `tkinter` against this library rather than with it, and the
+  library it is most likely to be embedded beside had already answered the
+  question the other way. An application that wants those five lines back
+  passes `area` after making the window itself. Section 8.2.2.
 - **Blocking while embedded, with Tk's nested `wait_window`.** It would
   keep `run_editor` honest in one backend and is impossible in the other,
   which is the worst place for a difference between them to be. Section

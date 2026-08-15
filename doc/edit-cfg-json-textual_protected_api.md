@@ -101,16 +101,25 @@
   * [plain\_widget](#edit_cfg_json_textual.textual_look.plain_widget)
   * [show\_emphasis](#edit_cfg_json_textual.textual_look.show_emphasis)
   * [bind\_action](#edit_cfg_json_textual.textual_look.bind_action)
+* [edit\_cfg\_json\_textual.textual\_mount](#edit_cfg_json_textual.textual_mount)
+  * [EditorPanel](#edit_cfg_json_textual.textual_mount.EditorPanel)
+    * [\_\_init\_\_](#edit_cfg_json_textual.textual_mount.EditorPanel.__init__)
+  * [EditorScreen](#edit_cfg_json_textual.textual_mount.EditorScreen)
+    * [\_\_init\_\_](#edit_cfg_json_textual.textual_mount.EditorScreen.__init__)
 * [edit\_cfg\_json\_textual.textual\_screen](#edit_cfg_json_textual.textual_screen)
   * [EditorCommands](#edit_cfg_json_textual.textual_screen.EditorCommands)
     * [\_offered](#edit_cfg_json_textual.textual_screen.EditorCommands._offered)
     * [discover](#edit_cfg_json_textual.textual_screen.EditorCommands.discover)
     * [search](#edit_cfg_json_textual.textual_screen.EditorCommands.search)
-  * [EditorScreen](#edit_cfg_json_textual.textual_screen.EditorScreen)
-    * [COMMANDS](#edit_cfg_json_textual.textual_screen.EditorScreen.COMMANDS)
-    * [\_\_init\_\_](#edit_cfg_json_textual.textual_screen.EditorScreen.__init__)
-    * [panel](#edit_cfg_json_textual.textual_screen.EditorScreen.panel)
-    * [compose](#edit_cfg_json_textual.textual_screen.EditorScreen.compose)
+  * [ModelScreen](#edit_cfg_json_textual.textual_screen.ModelScreen)
+    * [COMMANDS](#edit_cfg_json_textual.textual_screen.ModelScreen.COMMANDS)
+    * [\_\_init\_\_](#edit_cfg_json_textual.textual_screen.ModelScreen.__init__)
+    * [panel](#edit_cfg_json_textual.textual_screen.ModelScreen.panel)
+    * [model](#edit_cfg_json_textual.textual_screen.ModelScreen.model)
+    * [saved\_config](#edit_cfg_json_textual.textual_screen.ModelScreen.saved_config)
+    * [close](#edit_cfg_json_textual.textual_screen.ModelScreen.close)
+    * [compose](#edit_cfg_json_textual.textual_screen.ModelScreen.compose)
+    * [\_session\_ended](#edit_cfg_json_textual.textual_screen.ModelScreen._session_ended)
 * [edit\_cfg\_json\_textual.textual\_panel](#edit_cfg_json_textual.textual_panel)
   * [CLOSE\_COMMAND](#edit_cfg_json_textual.textual_panel.CLOSE_COMMAND)
   * [VALIDATE\_COMMAND](#edit_cfg_json_textual.textual_panel.VALIDATE_COMMAND)
@@ -132,59 +141,61 @@
     * [name](#edit_cfg_json_textual.textual_panel.EditorCommand.name)
     * [help\_text](#edit_cfg_json_textual.textual_panel.EditorCommand.help_text)
     * [run](#edit_cfg_json_textual.textual_panel.EditorCommand.run)
-  * [EditorPanel](#edit_cfg_json_textual.textual_panel.EditorPanel)
-    * [DEFAULT\_CSS](#edit_cfg_json_textual.textual_panel.EditorPanel.DEFAULT_CSS)
-    * [\_\_init\_\_](#edit_cfg_json_textual.textual_panel.EditorPanel.__init__)
-    * [\_bind\_editor\_keys](#edit_cfg_json_textual.textual_panel.EditorPanel._bind_editor_keys)
-    * [\_bind](#edit_cfg_json_textual.textual_panel.EditorPanel._bind)
-    * [\_bind\_explain](#edit_cfg_json_textual.textual_panel.EditorPanel._bind_explain)
-    * [\_bind\_fold](#edit_cfg_json_textual.textual_panel.EditorPanel._bind_fold)
-    * [\_rebind](#edit_cfg_json_textual.textual_panel.EditorPanel._rebind)
-    * [\_explain\_name](#edit_cfg_json_textual.textual_panel.EditorPanel._explain_name)
-    * [\_fold\_name](#edit_cfg_json_textual.textual_panel.EditorPanel._fold_name)
-    * [compose](#edit_cfg_json_textual.textual_panel.EditorPanel.compose)
-    * [\_row\_widgets](#edit_cfg_json_textual.textual_panel.EditorPanel._row_widgets)
-    * [\_member\_widget](#edit_cfg_json_textual.textual_panel.EditorPanel._member_widget)
-    * [\_element\_widgets](#edit_cfg_json_textual.textual_panel.EditorPanel._element_widgets)
-    * [\_subtree\_widgets](#edit_cfg_json_textual.textual_panel.EditorPanel._subtree_widgets)
-    * [\_fold\_widget](#edit_cfg_json_textual.textual_panel.EditorPanel._fold_widget)
-    * [command\_entries](#edit_cfg_json_textual.textual_panel.EditorPanel.command_entries)
-    * [\_load\_widgets](#edit_cfg_json_textual.textual_panel.EditorPanel._load_widgets)
-    * [\_docstring\_widgets](#edit_cfg_json_textual.textual_panel.EditorPanel._docstring_widgets)
-    * [\_description\_widgets](#edit_cfg_json_textual.textual_panel.EditorPanel._description_widgets)
-    * [\_diagnostic\_widget](#edit_cfg_json_textual.textual_panel.EditorPanel._diagnostic_widget)
-    * [\_value\_widget](#edit_cfg_json_textual.textual_panel.EditorPanel._value_widget)
-    * [on\_input\_changed](#edit_cfg_json_textual.textual_panel.EditorPanel.on_input_changed)
-    * [on\_input\_blurred](#edit_cfg_json_textual.textual_panel.EditorPanel.on_input_blurred)
-    * [action\_close](#edit_cfg_json_textual.textual_panel.EditorPanel.action_close)
-    * [close](#edit_cfg_json_textual.textual_panel.EditorPanel.close)
-    * [\_ask](#edit_cfg_json_textual.textual_panel.EditorPanel._ask)
-    * [\_end\_if\_dropped](#edit_cfg_json_textual.textual_panel.EditorPanel._end_if_dropped)
-    * [\_end\_session](#edit_cfg_json_textual.textual_panel.EditorPanel._end_session)
-    * [action\_validate](#edit_cfg_json_textual.textual_panel.EditorPanel.action_validate)
-    * [action\_save](#edit_cfg_json_textual.textual_panel.EditorPanel.action_save)
-    * [\_write\_if\_allowed](#edit_cfg_json_textual.textual_panel.EditorPanel._write_if_allowed)
-    * [\_write\_file](#edit_cfg_json_textual.textual_panel.EditorPanel._write_file)
-    * [action\_explain](#edit_cfg_json_textual.textual_panel.EditorPanel.action_explain)
-    * [action\_fold](#edit_cfg_json_textual.textual_panel.EditorPanel.action_fold)
-    * [on\_button\_pressed](#edit_cfg_json_textual.textual_panel.EditorPanel.on_button_pressed)
-    * [\_change\_elements](#edit_cfg_json_textual.textual_panel.EditorPanel._change_elements)
-    * [\_ask\_key](#edit_cfg_json_textual.textual_panel.EditorPanel._ask_key)
-    * [\_rebuilt\_elements](#edit_cfg_json_textual.textual_panel.EditorPanel._rebuilt_elements)
-    * [\_show\_folding](#edit_cfg_json_textual.textual_panel.EditorPanel._show_folding)
-    * [\_show\_subtrees](#edit_cfg_json_textual.textual_panel.EditorPanel._show_subtrees)
-    * [\_show\_explanations](#edit_cfg_json_textual.textual_panel.EditorPanel._show_explanations)
-    * [\_show\_descriptions](#edit_cfg_json_textual.textual_panel.EditorPanel._show_descriptions)
-    * [action\_save\_as](#edit_cfg_json_textual.textual_panel.EditorPanel.action_save_as)
-    * [check\_action](#edit_cfg_json_textual.textual_panel.EditorPanel.check_action)
-    * [\_out\_file\_text](#edit_cfg_json_textual.textual_panel.EditorPanel._out_file_text)
-    * [\_save\_to](#edit_cfg_json_textual.textual_panel.EditorPanel._save_to)
-    * [\_refresh](#edit_cfg_json_textual.textual_panel.EditorPanel._refresh)
-    * [\_rebuild\_rows](#edit_cfg_json_textual.textual_panel.EditorPanel._rebuild_rows)
-    * [\_field](#edit_cfg_json_textual.textual_panel.EditorPanel._field)
-    * [\_show\_state](#edit_cfg_json_textual.textual_panel.EditorPanel._show_state)
-    * [\_show\_diagnostics](#edit_cfg_json_textual.textual_panel.EditorPanel._show_diagnostics)
-    * [\_told](#edit_cfg_json_textual.textual_panel.EditorPanel._told)
+  * [ModelPanel](#edit_cfg_json_textual.textual_panel.ModelPanel)
+    * [DEFAULT\_CSS](#edit_cfg_json_textual.textual_panel.ModelPanel.DEFAULT_CSS)
+    * [\_\_init\_\_](#edit_cfg_json_textual.textual_panel.ModelPanel.__init__)
+    * [model](#edit_cfg_json_textual.textual_panel.ModelPanel.model)
+    * [saved\_config](#edit_cfg_json_textual.textual_panel.ModelPanel.saved_config)
+    * [\_bind\_editor\_keys](#edit_cfg_json_textual.textual_panel.ModelPanel._bind_editor_keys)
+    * [\_bind](#edit_cfg_json_textual.textual_panel.ModelPanel._bind)
+    * [\_bind\_explain](#edit_cfg_json_textual.textual_panel.ModelPanel._bind_explain)
+    * [\_bind\_fold](#edit_cfg_json_textual.textual_panel.ModelPanel._bind_fold)
+    * [\_rebind](#edit_cfg_json_textual.textual_panel.ModelPanel._rebind)
+    * [\_explain\_name](#edit_cfg_json_textual.textual_panel.ModelPanel._explain_name)
+    * [\_fold\_name](#edit_cfg_json_textual.textual_panel.ModelPanel._fold_name)
+    * [compose](#edit_cfg_json_textual.textual_panel.ModelPanel.compose)
+    * [\_row\_widgets](#edit_cfg_json_textual.textual_panel.ModelPanel._row_widgets)
+    * [\_member\_widget](#edit_cfg_json_textual.textual_panel.ModelPanel._member_widget)
+    * [\_element\_widgets](#edit_cfg_json_textual.textual_panel.ModelPanel._element_widgets)
+    * [\_subtree\_widgets](#edit_cfg_json_textual.textual_panel.ModelPanel._subtree_widgets)
+    * [\_fold\_widget](#edit_cfg_json_textual.textual_panel.ModelPanel._fold_widget)
+    * [command\_entries](#edit_cfg_json_textual.textual_panel.ModelPanel.command_entries)
+    * [\_load\_widgets](#edit_cfg_json_textual.textual_panel.ModelPanel._load_widgets)
+    * [\_docstring\_widgets](#edit_cfg_json_textual.textual_panel.ModelPanel._docstring_widgets)
+    * [\_description\_widgets](#edit_cfg_json_textual.textual_panel.ModelPanel._description_widgets)
+    * [\_diagnostic\_widget](#edit_cfg_json_textual.textual_panel.ModelPanel._diagnostic_widget)
+    * [\_value\_widget](#edit_cfg_json_textual.textual_panel.ModelPanel._value_widget)
+    * [on\_input\_changed](#edit_cfg_json_textual.textual_panel.ModelPanel.on_input_changed)
+    * [on\_input\_blurred](#edit_cfg_json_textual.textual_panel.ModelPanel.on_input_blurred)
+    * [action\_close](#edit_cfg_json_textual.textual_panel.ModelPanel.action_close)
+    * [close](#edit_cfg_json_textual.textual_panel.ModelPanel.close)
+    * [\_ask](#edit_cfg_json_textual.textual_panel.ModelPanel._ask)
+    * [\_end\_if\_dropped](#edit_cfg_json_textual.textual_panel.ModelPanel._end_if_dropped)
+    * [\_end\_session](#edit_cfg_json_textual.textual_panel.ModelPanel._end_session)
+    * [action\_validate](#edit_cfg_json_textual.textual_panel.ModelPanel.action_validate)
+    * [action\_save](#edit_cfg_json_textual.textual_panel.ModelPanel.action_save)
+    * [\_write\_if\_allowed](#edit_cfg_json_textual.textual_panel.ModelPanel._write_if_allowed)
+    * [\_write\_file](#edit_cfg_json_textual.textual_panel.ModelPanel._write_file)
+    * [action\_explain](#edit_cfg_json_textual.textual_panel.ModelPanel.action_explain)
+    * [action\_fold](#edit_cfg_json_textual.textual_panel.ModelPanel.action_fold)
+    * [on\_button\_pressed](#edit_cfg_json_textual.textual_panel.ModelPanel.on_button_pressed)
+    * [\_change\_elements](#edit_cfg_json_textual.textual_panel.ModelPanel._change_elements)
+    * [\_ask\_key](#edit_cfg_json_textual.textual_panel.ModelPanel._ask_key)
+    * [\_rebuilt\_elements](#edit_cfg_json_textual.textual_panel.ModelPanel._rebuilt_elements)
+    * [\_show\_folding](#edit_cfg_json_textual.textual_panel.ModelPanel._show_folding)
+    * [\_show\_subtrees](#edit_cfg_json_textual.textual_panel.ModelPanel._show_subtrees)
+    * [\_show\_explanations](#edit_cfg_json_textual.textual_panel.ModelPanel._show_explanations)
+    * [\_show\_descriptions](#edit_cfg_json_textual.textual_panel.ModelPanel._show_descriptions)
+    * [action\_save\_as](#edit_cfg_json_textual.textual_panel.ModelPanel.action_save_as)
+    * [check\_action](#edit_cfg_json_textual.textual_panel.ModelPanel.check_action)
+    * [\_out\_file\_text](#edit_cfg_json_textual.textual_panel.ModelPanel._out_file_text)
+    * [\_save\_to](#edit_cfg_json_textual.textual_panel.ModelPanel._save_to)
+    * [\_refresh](#edit_cfg_json_textual.textual_panel.ModelPanel._refresh)
+    * [\_rebuild\_rows](#edit_cfg_json_textual.textual_panel.ModelPanel._rebuild_rows)
+    * [\_field](#edit_cfg_json_textual.textual_panel.ModelPanel._field)
+    * [\_show\_state](#edit_cfg_json_textual.textual_panel.ModelPanel._show_state)
+    * [\_show\_diagnostics](#edit_cfg_json_textual.textual_panel.ModelPanel._show_diagnostics)
+    * [\_told](#edit_cfg_json_textual.textual_panel.ModelPanel._told)
 * [edit\_cfg\_json\_textual.\_\_main\_\_](#edit_cfg_json_textual.__main__)
   * [PROGRAM](#edit_cfg_json_textual.__main__.PROGRAM)
   * [main](#edit_cfg_json_textual.__main__.main)
@@ -795,7 +806,7 @@ def edit(config: Config,
          in_file: Optional[PathOrStr] = None,
          loader: Optional[core.ConfigLoader] = None,
          out_file: Optional[PathOrStr] = None,
-         policy: core.LoadPolicy = core.LoadPolicy.STRICT_THEN_DEFAULTS,
+         policy: core.LoadPolicy = core.DEFAULT_POLICY,
          settings: core.SettingsSource = core.Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]
 ```
@@ -1348,6 +1359,137 @@ says of itself that it may be removed.
   `edit_cfg_json.Settings.priority_keys` for the actions of the
   editor and always true for leaving a question of its own.
 
+<a id="edit_cfg_json_textual.textual_mount"></a>
+
+# edit\_cfg\_json\_textual.textual\_mount
+
+The editor in an area, or on a screen, of an application that runs Textual.
+
+An application with no Textual of its own calls `edit_cfg_json_textual.edit`,
+which owns the terminal and runs until the user is done. An application that
+already runs Textual cannot use that: `App.run` calls `asyncio.run`, so
+calling it from inside a running application raises or deadlocks. It mounts
+`EditorPanel` in an area of its own screen, or pushes `EditorScreen` to give
+the editor the terminal for a while.
+
+Both read the configuration themselves and take the keywords of
+`edit_cfg_json.edit`, so an application says the same things about a session
+whichever way it opens the editor.
+
+<a id="edit_cfg_json_textual.textual_mount.EditorPanel"></a>
+
+## EditorPanel Objects
+
+```python
+class EditorPanel(ModelPanel)
+```
+
+One editor of a configuration, as a widget to mount.
+
+The application mounts it where it likes and keeps its own header, its own
+footer and its own command palette. Mounting never blocks: `on_close` says
+that the session has ended, and `saved_config` says what came of it.
+
+<a id="edit_cfg_json_textual.textual_mount.EditorPanel.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(config: Config,
+             *,
+             on_close: Optional[Callable[[], None]] = None,
+             descriptions: Optional[core.Descriptions] = None,
+             in_file: Optional[PathOrStr] = None,
+             loader: Optional[core.ConfigLoader] = None,
+             out_file: Optional[PathOrStr] = None,
+             policy: core.LoadPolicy = core.DEFAULT_POLICY,
+             settings: core.SettingsSource = core.Settings(),
+             stderr_file: TextIO = sys.stderr) -> None
+```
+
+Read the configuration and show it in this widget.
+
+**Arguments**:
+
+- `config` - Configuration object to edit. It is never modified.
+- `on_close` - What the application does once the session has ended,
+  or None for one that reads `saved_config` some other way.
+- `descriptions` - What the application says about the members it
+  declares, or None when it says nothing.
+- `in_file` - File to read, or None to start from the declared
+  defaults.
+- `loader` - How this application constructs its configuration, or
+  None for a class the editor can construct on its own.
+- `out_file` - File to write, or None to write the input file.
+- `policy` - What to do about declared keys the input file does not
+  hold.
+- `settings` - What this application has already decided about key
+  combinations and file names, or a callable answering with it.
+- `stderr_file` - Stream used for user-facing diagnostics.
+  
+
+**Raises**:
+
+- `ConfigLoadError` - The input file cannot be opened for editing.
+
+<a id="edit_cfg_json_textual.textual_mount.EditorScreen"></a>
+
+## EditorScreen Objects
+
+```python
+class EditorScreen(ModelScreen)
+```
+
+One editor of a configuration, as a screen to push.
+
+It is `EditorPanel` with a header, a footer and the palette entries of the
+editor around it, and it takes itself off the application when the session
+ends. Pushing it never blocks: `on_close` says that the session has ended,
+and `saved_config` says what came of it.
+
+<a id="edit_cfg_json_textual.textual_mount.EditorScreen.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(config: Config,
+             *,
+             on_close: Optional[Callable[[], None]] = None,
+             descriptions: Optional[core.Descriptions] = None,
+             in_file: Optional[PathOrStr] = None,
+             loader: Optional[core.ConfigLoader] = None,
+             out_file: Optional[PathOrStr] = None,
+             policy: core.LoadPolicy = core.DEFAULT_POLICY,
+             settings: core.SettingsSource = core.Settings(),
+             stderr_file: TextIO = sys.stderr) -> None
+```
+
+Read the configuration and show it on this screen.
+
+**Arguments**:
+
+- `config` - Configuration object to edit. It is never modified.
+- `on_close` - What the application does once the session has ended,
+  or None for one that reads `saved_config` some other way. The
+  screen has taken itself off the application by then.
+- `descriptions` - What the application says about the members it
+  declares, or None when it says nothing.
+- `in_file` - File to read, or None to start from the declared
+  defaults.
+- `loader` - How this application constructs its configuration, or
+  None for a class the editor can construct on its own.
+- `out_file` - File to write, or None to write the input file.
+- `policy` - What to do about declared keys the input file does not
+  hold.
+- `settings` - What this application has already decided about key
+  combinations and file names, or a callable answering with it.
+- `stderr_file` - Stream used for user-facing diagnostics.
+  
+
+**Raises**:
+
+- `ConfigLoadError` - The input file cannot be opened for editing.
+
 <a id="edit_cfg_json_textual.textual_screen"></a>
 
 # edit\_cfg\_json\_textual.textual\_screen
@@ -1361,8 +1503,9 @@ application pushes when it wants the editor to take the whole terminal for a
 while, and it is what `EditorApp` shows when the editor is the whole program.
 
 An application that wants the editor in an area of its own screen mounts
-`EditorPanel` instead and keeps its own header, its own footer and its own
-palette. That is the difference between the two, and it is the whole of it.
+`edit_cfg_json_textual.EditorPanel` instead and keeps its own header, its own
+footer and its own palette. That is the difference between the two, and it is
+the whole of it.
 
 <a id="edit_cfg_json_textual.textual_screen.EditorCommands"></a>
 
@@ -1428,17 +1571,21 @@ Offer the actions whose names match what the user is typing.
   One hit per action whose name matches, as the matcher of the
   palette scores it.
 
-<a id="edit_cfg_json_textual.textual_screen.EditorScreen"></a>
+<a id="edit_cfg_json_textual.textual_screen.ModelScreen"></a>
 
-## EditorScreen Objects
+## ModelScreen Objects
 
 ```python
-class EditorScreen(Screen[None])
+class ModelScreen(Screen[None])
 ```
 
 A screen holding one editor, with a header and a footer of its own.
 
-<a id="edit_cfg_json_textual.textual_screen.EditorScreen.COMMANDS"></a>
+It takes a model, which is what this package has of its own and what
+`EditorApp` shows. An application reads a configuration instead, with
+`edit_cfg_json_textual.EditorScreen`.
+
+<a id="edit_cfg_json_textual.textual_screen.ModelScreen.COMMANDS"></a>
 
 #### COMMANDS
 
@@ -1448,7 +1595,7 @@ They are declared here and not on an application, because an application
 that pushed this screen has a palette of its own and would otherwise be
 made to name the actions of a screen it did not write.
 
-<a id="edit_cfg_json_textual.textual_screen.EditorScreen.__init__"></a>
+<a id="edit_cfg_json_textual.textual_screen.ModelScreen.__init__"></a>
 
 #### \_\_init\_\_
 
@@ -1465,21 +1612,57 @@ Show one model on a screen of its own.
 - `model` - Model to show and to edit.
 - `on_close` - What the application does once the session has ended,
   or None for an application that reads the outcome some other
-  way. An application that pushed this screen usually pops it
-  here.
+  way. This screen has taken itself off the application by then.
 
-<a id="edit_cfg_json_textual.textual_screen.EditorScreen.panel"></a>
+<a id="edit_cfg_json_textual.textual_screen.ModelScreen.panel"></a>
 
 #### panel
 
 ```python
 @property
-def panel() -> EditorPanel
+def panel() -> ModelPanel
 ```
 
 Return the editor that this screen is showing.
 
-<a id="edit_cfg_json_textual.textual_screen.EditorScreen.compose"></a>
+<a id="edit_cfg_json_textual.textual_screen.ModelScreen.model"></a>
+
+#### model
+
+```python
+@property
+def model() -> core.EditModel
+```
+
+Return the model of this session.
+
+<a id="edit_cfg_json_textual.textual_screen.ModelScreen.saved_config"></a>
+
+#### saved\_config
+
+```python
+@property
+def saved_config() -> Optional[Config]
+```
+
+Return the configuration this session wrote, None until it does.
+
+<a id="edit_cfg_json_textual.textual_screen.ModelScreen.close"></a>
+
+#### close
+
+```python
+def close(ask_about_unsaved: bool = True) -> None
+```
+
+End the session, which takes this screen off the application.
+
+**Arguments**:
+
+- `ask_about_unsaved` - Whether the user is asked before a buffer that
+  holds something unsaved is dropped.
+
+<a id="edit_cfg_json_textual.textual_screen.ModelScreen.compose"></a>
 
 #### compose
 
@@ -1488,6 +1671,22 @@ def compose() -> ComposeResult
 ```
 
 Create the header, the editor and the footer, in that order.
+
+<a id="edit_cfg_json_textual.textual_screen.ModelScreen._session_ended"></a>
+
+#### \_session\_ended
+
+```python
+def _session_ended() -> None
+```
+
+Take this screen off the application, and say that it has gone.
+
+An application that pushed this screen would otherwise be left with
+an empty screen on top of its own, and popping it is this screen's to
+do: it is what the editor was mounted as. The screen of an application
+that shows nothing but the editor is its only one and is not popped,
+because there is nothing underneath it.
 
 <a id="edit_cfg_json_textual.textual_panel"></a>
 
@@ -1657,12 +1856,12 @@ What the palette says it does.
 
 What choosing it in the palette runs.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel"></a>
 
-## EditorPanel Objects
+## ModelPanel Objects
 
 ```python
-class EditorPanel(Widget)
+class ModelPanel(Widget)
 ```
 
 The whole editor of one edit model, as one widget.
@@ -1676,7 +1875,11 @@ The keys of the editor are bound on this widget, so they are acted on
 while the focus is inside the editor and not while it is elsewhere in a
 window that an application owns.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel.DEFAULT_CSS"></a>
+It takes a model, which is what this package has of its own and what
+`EditorApp` shows. An application reads a configuration instead, with
+`edit_cfg_json_textual.EditorPanel`.
+
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.DEFAULT_CSS"></a>
 
 #### DEFAULT\_CSS
 
@@ -1687,7 +1890,7 @@ See `PANEL_CSS`, which is where each of them is explained. It is
 on a widget and says so, and the name of the class is written into it
 because a widget styles itself by its type name.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel.__init__"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.__init__"></a>
 
 #### \_\_init\_\_
 
@@ -1705,10 +1908,31 @@ Remember the model and bind the keys the application chose.
 - `on_close` - What the application does once the session has ended,
   or None for an application that reads the outcome some other
   way. It is called after the editor has taken itself off the
-  screen, so that `edit_cfg_json.EditModel.saved_config` can be
-  read from it.
+  screen, so that `saved_config` can be read from it.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._bind_editor_keys"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.model"></a>
+
+#### model
+
+```python
+@property
+def model() -> core.EditModel
+```
+
+Return the model of this session.
+
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.saved_config"></a>
+
+#### saved\_config
+
+```python
+@property
+def saved_config() -> Optional[Config]
+```
+
+Return the configuration this session wrote, None until it does.
+
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._bind_editor_keys"></a>
 
 #### \_bind\_editor\_keys
 
@@ -1729,7 +1953,7 @@ A footer too narrow for all of them shows what fits, which costs
 nothing: the key panel of the command palette lists every binding,
 including the ones the footer never shows.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._bind"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._bind"></a>
 
 #### \_bind
 
@@ -1745,7 +1969,7 @@ Bind one action of the editor, as hard as the application asked.
 - `action` - Name of the action, without its `action_` prefix.
 - `name` - What the footer and the palette call it.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._bind_explain"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._bind_explain"></a>
 
 #### \_bind\_explain
 
@@ -1760,7 +1984,7 @@ bindings are made again whenever that state changes. A `Binding` cannot
 be renamed, so the bindings of these keys are dropped and made afresh;
 `refresh_bindings` is then what tells the footer to read them again.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._bind_fold"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._bind_fold"></a>
 
 #### \_bind\_fold
 
@@ -1774,7 +1998,7 @@ Nothing at all is bound for a configuration with no list and no dict
 in it, because there would be nothing for the action to do and a
 footer that offered it would be offering something that is not there.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._rebind"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._rebind"></a>
 
 #### \_rebind
 
@@ -1794,7 +2018,7 @@ footer to read them again.
 - `action` - Name of the action, without its `action_` prefix.
 - `name` - What the footer and the palette call it as things stand.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._explain_name"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._explain_name"></a>
 
 #### \_explain\_name
 
@@ -1804,7 +2028,7 @@ def _explain_name() -> str
 
 Return what the explain action is called as things stand now.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._fold_name"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._fold_name"></a>
 
 #### \_fold\_name
 
@@ -1814,7 +2038,7 @@ def _fold_name() -> str
 
 Return what the fold action is called as things stand now.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel.compose"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.compose"></a>
 
 #### compose
 
@@ -1842,7 +2066,7 @@ the application makes of the values and where they would be written
 stay below it, where a user who has just edited something looks for
 them.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._row_widgets"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._row_widgets"></a>
 
 #### \_row\_widgets
 
@@ -1856,7 +2080,7 @@ Return the widgets of every node, and forget the ones before.
 
   One widget per node of the model, in the order it reports them.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._member_widget"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._member_widget"></a>
 
 #### \_member\_widget
 
@@ -1881,7 +2105,7 @@ containers is folded away.
 
   A widget holding the line of that node and what is said below it.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._element_widgets"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._element_widgets"></a>
 
 #### \_element\_widgets
 
@@ -1907,7 +2131,7 @@ a container has to keep a column clear on every row.
   The controls that node offers, and none at all for one that
   offers none, which is most nodes of most configurations.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._subtree_widgets"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._subtree_widgets"></a>
 
 #### \_subtree\_widgets
 
@@ -1933,7 +2157,7 @@ is a piece of the screen spent on nothing.
   One widget for a nested configuration object, and none at all for
   every other node.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._fold_widget"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._fold_widget"></a>
 
 #### \_fold\_widget
 
@@ -1960,7 +2184,7 @@ hold anything is width taken from the values for nothing.
   A button for a container, a label for every other node of a
   configuration that has one, and None for one that has none.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel.command_entries"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.command_entries"></a>
 
 #### command\_entries
 
@@ -1985,7 +2209,7 @@ that was written once.
 
   One entry per action this editor offers as things stand.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._load_widgets"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._load_widgets"></a>
 
 #### \_load\_widgets
 
@@ -1995,7 +2219,7 @@ def _load_widgets() -> ComposeResult
 
 Create the widget that says what reading the input file did.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._docstring_widgets"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._docstring_widgets"></a>
 
 #### \_docstring\_widgets
 
@@ -2005,7 +2229,7 @@ def _docstring_widgets() -> ComposeResult
 
 Create the widget that says what the configuration class says.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._description_widgets"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._description_widgets"></a>
 
 #### \_description\_widgets
 
@@ -2024,7 +2248,7 @@ A widget that is created starts out shown or hidden as the model says,
 which is not the same as shown: a model can have been told to hide the
 explanations before the editor was started.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._diagnostic_widget"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._diagnostic_widget"></a>
 
 #### \_diagnostic\_widget
 
@@ -2040,7 +2264,7 @@ anything. It starts out hidden unless the model already has something
 to say about that node, which it has when a model that has been
 validated already reaches this backend.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._value_widget"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._value_widget"></a>
 
 #### \_value\_widget
 
@@ -2055,7 +2279,7 @@ because there is nothing the user could do to it: a list, a dict and a
 nested configuration object are each edited through the rows below
 them, and a declared member that holds no object holds no text either.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel.on_input_changed"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.on_input_changed"></a>
 
 #### on\_input\_changed
 
@@ -2069,7 +2293,7 @@ A field posts this message when it is given its initial value as
 well, which the model handles by treating a set that changes no text
 as no edit at all.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel.on_input_blurred"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.on_input_blurred"></a>
 
 #### on\_input\_blurred
 
@@ -2085,7 +2309,7 @@ of that member at all. Nothing is validated here: the whole
 configuration is what a validation pass is about, and this is one
 field answering for itself.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel.action_close"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.action_close"></a>
 
 #### action\_close
 
@@ -2095,7 +2319,7 @@ def action_close() -> None
 
 End the session, asking first where there is something to lose.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel.close"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.close"></a>
 
 #### close
 
@@ -2129,7 +2353,7 @@ editor already.
   the way a default about something that cannot be undone should
   lean.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._ask"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._ask"></a>
 
 #### \_ask
 
@@ -2148,7 +2372,7 @@ Put one question of the editor on a screen of its own.
 - `answered` - What is called with the answer, and with None where the
   question was left unanswered.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._end_if_dropped"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._end_if_dropped"></a>
 
 #### \_end\_if\_dropped
 
@@ -2163,7 +2387,7 @@ End the session where the changes were given up, and not else.
 - `discard` - What the user answered, and None where the question was
   left unanswered, which is the same as keeping them.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._end_session"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._end_session"></a>
 
 #### \_end\_session
 
@@ -2177,7 +2401,7 @@ Only what the editor created is removed, which is this widget and
 everything it built inside it. What the application had on the screen
 beside it is left exactly as it was.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel.action_validate"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.action_validate"></a>
 
 #### action\_validate
 
@@ -2187,7 +2411,7 @@ def action_validate() -> None
 
 Validate the buffer and show what the application would say.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel.action_save"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.action_save"></a>
 
 #### action\_save
 
@@ -2211,7 +2435,7 @@ shown when the user says no: they have just been asked and answered,
 and a line saying that nothing was written would be telling them what
 they decided.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._write_if_allowed"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._write_if_allowed"></a>
 
 #### \_write\_if\_allowed
 
@@ -2226,7 +2450,7 @@ Write the file where that was agreed to, and not else.
 - `overwrite` - What the user answered, and None where the question was
   left unanswered, which is the same as leaving the file alone.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._write_file"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._write_file"></a>
 
 #### \_write\_file
 
@@ -2236,7 +2460,7 @@ def _write_file() -> None
 
 Write the output file and show what came of trying.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel.action_explain"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.action_explain"></a>
 
 #### action\_explain
 
@@ -2250,7 +2474,7 @@ The action is renamed as well, because what it is called says what the
 next press will do: "Explain" beside explanations that are already
 there would read as an offer to do something that has been done.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel.action_fold"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.action_fold"></a>
 
 #### action\_fold
 
@@ -2260,7 +2484,7 @@ def action_fold() -> None
 
 Fold every container away, or open every one of them.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel.on_button_pressed"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.on_button_pressed"></a>
 
 #### on\_button\_pressed
 
@@ -2275,7 +2499,7 @@ that folds one container, and the ones that change how many elements
 a node holds. The message is stopped here because nothing above them
 has any use for it.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._change_elements"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._change_elements"></a>
 
 #### \_change\_elements
 
@@ -2290,7 +2514,7 @@ Add, remove or move one element, asking for a key where needed.
 - `row` - Node whose control was pressed.
 - `action` - What that control is for.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._ask_key"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._ask_key"></a>
 
 #### \_ask\_key
 
@@ -2307,7 +2531,7 @@ person configuring the application knows what.
 
 - `row` - Node that is about to be given an entry.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._rebuilt_elements"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._rebuilt_elements"></a>
 
 #### \_rebuilt\_elements
 
@@ -2322,7 +2546,7 @@ differ as a validation pass leaves them: which controls a row offers
 changes with the elements, so a row that is still at the same path is
 not necessarily still offering the same things.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._show_folding"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._show_folding"></a>
 
 #### \_show\_folding
 
@@ -2342,7 +2566,7 @@ it is about.
 This is not part of `_show_state`, which runs on every key the user
 types: nothing typed into a field folds anything.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._show_subtrees"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._show_subtrees"></a>
 
 #### \_show\_subtrees
 
@@ -2356,7 +2580,7 @@ It is shown after folding as well as after a validation pass, because
 folding a nested object is one of the moments the model asks that
 object about itself.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._show_explanations"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._show_explanations"></a>
 
 #### \_show\_explanations
 
@@ -2374,7 +2598,7 @@ This is not part of `_show_state`, which runs on every key the user
 types: nothing typed into a field can change what this configuration
 is for or what one of its members means.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._show_descriptions"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._show_descriptions"></a>
 
 #### \_show\_descriptions
 
@@ -2384,7 +2608,7 @@ def _show_descriptions() -> None
 
 Show what belongs below every node, as the model says it now.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel.action_save_as"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.action_save_as"></a>
 
 #### action\_save\_as
 
@@ -2394,7 +2618,7 @@ def action_save_as() -> None
 
 Ask which file to write, and write it when one was named.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel.check_action"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.check_action"></a>
 
 #### check\_action
 
@@ -2421,7 +2645,7 @@ be able to see that the rest of the editor is waiting for them.
   None while the question is open and the action is the editor's
   own, and True for every other action at every other time.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._out_file_text"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._out_file_text"></a>
 
 #### \_out\_file\_text
 
@@ -2431,7 +2655,7 @@ def _out_file_text() -> str
 
 Return the file saving would write now, as text to be edited.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._save_to"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._save_to"></a>
 
 #### \_save\_to
 
@@ -2447,7 +2671,7 @@ Write the file that was named, and nothing when none was.
   unanswered. An empty answer is the same as no answer: there
   is no file whose name is nothing.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._refresh"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._refresh"></a>
 
 #### \_refresh
 
@@ -2470,7 +2694,7 @@ message rather than inside it, because taking a widget out of the
 screen and putting another one in its place is awaited and this is
 not.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._rebuild_rows"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._rebuild_rows"></a>
 
 #### \_rebuild\_rows
 
@@ -2480,7 +2704,7 @@ async def _rebuild_rows() -> None
 
 Show the rows the model has now instead of the ones it had.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._field"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._field"></a>
 
 #### \_field
 
@@ -2490,7 +2714,7 @@ def _field(index: int) -> Input
 
 Return the field that this editor shows for one node.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._show_state"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._show_state"></a>
 
 #### \_show\_state
 
@@ -2510,7 +2734,7 @@ explanations: a description says what a node is for and stays until
 the user asks for it to go, while a refusal is answered afresh by
 every pass and by every field that is left.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._show_diagnostics"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._show_diagnostics"></a>
 
 #### \_show\_diagnostics
 
@@ -2520,7 +2744,7 @@ def _show_diagnostics() -> None
 
 Show what is wrong with every node, as the model says it now.
 
-<a id="edit_cfg_json_textual.textual_panel.EditorPanel._told"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._told"></a>
 
 #### \_told
 

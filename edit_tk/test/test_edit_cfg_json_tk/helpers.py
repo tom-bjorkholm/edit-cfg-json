@@ -174,7 +174,44 @@ their order can be read.
 """
 
 
-class FakeCanvas:
+class FakeWindow:
+    """The part of the stand-in that stands in for a Tkinter window.
+
+    A window is asked things no other widget is asked — its name, what its
+    close button does, which window it belongs over and whether it holds the
+    events of the application — and those are here so that what a stub widget
+    is stays readable beside them.
+    """
+
+    def __init__(self) -> None:
+        """Start with a window that is named nothing and grabs nothing."""
+        self.window_title = ''
+        self.protocols: dict[str, Callable[[], None]] = {}
+        self.transient_to: object = None
+        self.grabbed = False
+
+    def title(self, text: str) -> None:
+        """Name this window, as a real Tk toplevel is named."""
+        self.window_title = text
+
+    def protocol(self, name: str, callback: Callable[[], None]) -> None:
+        """Record what one window manager protocol of this window does."""
+        self.protocols[name] = callback
+
+    def transient(self, parent: object) -> None:
+        """Record which window this one is a transient of."""
+        self.transient_to = parent
+
+    def grab_set(self) -> None:
+        """Take the events of the application for this widget."""
+        self.grabbed = True
+
+    def grab_release(self) -> None:
+        """Give the events of the application back."""
+        self.grabbed = False
+
+
+class FakeCanvas(FakeWindow):
     """The part of the stand-in that stands in for a Tkinter canvas.
 
     One stub serves every widget class the editor creates, and the scrolling
@@ -185,6 +222,7 @@ class FakeCanvas:
 
     def __init__(self) -> None:
         """Start with a canvas that has not been scrolled."""
+        super().__init__()
         self.scrolled = 0
 
     def create_window(self, *place: int, **options: object) -> int:

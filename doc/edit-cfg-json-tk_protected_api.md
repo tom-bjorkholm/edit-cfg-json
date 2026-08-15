@@ -122,9 +122,13 @@
 * [edit\_cfg\_json\_tk.tk\_panel](#edit_cfg_json_tk.tk_panel)
   * [TkEditorPanel](#edit_cfg_json_tk.tk_panel.TkEditorPanel)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_panel.TkEditorPanel.__init__)
-    * [\_take\_focus](#edit_cfg_json_tk.tk_panel.TkEditorPanel._take_focus)
+    * [model](#edit_cfg_json_tk.tk_panel.TkEditorPanel.model)
+    * [saved\_config](#edit_cfg_json_tk.tk_panel.TkEditorPanel.saved_config)
     * [close](#edit_cfg_json_tk.tk_panel.TkEditorPanel.close)
     * [\_end\_session](#edit_cfg_json_tk.tk_panel.TkEditorPanel._end_session)
+  * [\_built\_widget](#edit_cfg_json_tk.tk_panel._built_widget)
+  * [\_focus\_taker](#edit_cfg_json_tk.tk_panel._focus_taker)
+  * [\_grabbed](#edit_cfg_json_tk.tk_panel._grabbed)
 * [edit\_cfg\_json\_tk.tk\_scope](#edit_cfg_json_tk.tk_scope)
   * [TAG\_PREFIX](#edit_cfg_json_tk.tk_scope.TAG_PREFIX)
   * [\_scope\_numbers](#edit_cfg_json_tk.tk_scope._scope_numbers)
@@ -1191,7 +1195,7 @@ def edit(config: Config,
          in_file: Optional[PathOrStr] = None,
          loader: Optional[core.ConfigLoader] = None,
          out_file: Optional[PathOrStr] = None,
-         policy: core.LoadPolicy = core.LoadPolicy.STRICT_THEN_DEFAULTS,
+         policy: core.LoadPolicy = core.DEFAULT_POLICY,
          settings: core.SettingsSource = core.Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]
 ```
@@ -1926,20 +1930,14 @@ read in.
 
 # edit\_cfg\_json\_tk.tk\_panel
 
-One editor mounted in a window that an application already owns.
+The editor in a window, or in an area, of an application that runs Tk.
 
-`TkEditor` runs an editor that owns a window and a Tk of its own, and it
-cannot be what an application which already runs Tk uses: a second
-`tkinter.Tk` is a second Tcl interpreter, and no widget, variable, font or
-image crosses between two of them. `EditorBackend.run_editor` could not serve
-such an application either, whatever it created, because that method promises
-to run until the user is done and an editor in a panel of somebody else's
-window has no such moment.
-
-So this is the other entry point, and it is non-blocking: the application
-builds the model, mounts this in a widget of its own, and goes on running its
-own event loop. What it gets back is `on_close`, which says the session
-ended, and `edit_cfg_json.EditModel.saved_config`, which says what came of it.
+An application with no Tk of its own calls `edit_cfg_json_tk.edit`, which
+owns a `tkinter.Tk` and runs until the user is done. An application that
+already runs Tk cannot use that: a second `tkinter.Tk` is a second Tcl
+interpreter, and no widget, variable, font or image crosses between two of
+them. It uses `TkEditorPanel` instead, which builds the editor where it is
+told and returns at once.
 
 Everything this backend takes from the core is reached through `core`, which
 is `edit_cfg_json` itself, in the same way as the rest of this package.
@@ -1952,62 +1950,93 @@ is `edit_cfg_json` itself, in the same way as the rest of this package.
 class TkEditorPanel()
 ```
 
-The editor of this package, inside a widget an application owns.
+One editor of a configuration, in a window or in an area of one.
 
-It creates one frame inside the widget it is given and builds the editor
-in that frame, which is what makes the two rules of this entry point
-true: the editor destroys only what it created, and its keys and its
-mouse wheel reach only the part of the window it built.
+Give it `parent` and it builds a window of its own over that widget;
+give it `area` and it fills that widget instead. It never blocks: the
+application's own `mainloop` is already running, `on_close` says that the
+session has ended, and `saved_config` says what came of it.
 
-Where that frame goes is the application's decision and is made by
-handing over the widget it belongs in. An application that wants the
-editor in a window of its own creates that window — `tkinter.Toplevel` —
-and passes it, which keeps the title, the geometry, the close protocol
-and the grab where they belong.
+Only what the editor created is destroyed when it closes, so the window
+or the area the application named is left as it was.
 
 <a id="edit_cfg_json_tk.tk_panel.TkEditorPanel.__init__"></a>
 
 #### \_\_init\_\_
 
 ```python
-def __init__(parent: tkinter.Misc,
-             model: core.EditModel,
+def __init__(config: Config,
              *,
-             on_close: Optional[Callable[[], None]] = None) -> None
+             parent: Optional[tkinter.Misc] = None,
+             area: Optional[tkinter.Misc] = None,
+             modal: bool = True,
+             on_close: Optional[Callable[[], None]] = None,
+             descriptions: Optional[core.Descriptions] = None,
+             in_file: Optional[PathOrStr] = None,
+             loader: Optional[core.ConfigLoader] = None,
+             out_file: Optional[PathOrStr] = None,
+             policy: core.LoadPolicy = core.DEFAULT_POLICY,
+             settings: core.SettingsSource = core.Settings(),
+             stderr_file: TextIO = sys.stderr) -> None
 ```
 
-Mount one editor in the widget the application named.
+Read the configuration and build the editor where it was told.
 
 **Arguments**:
 
-- `parent` - Widget the editor is mounted in. The editor fills it and
-  never touches it otherwise: the frame it builds in is its
-  own, and closing destroys that frame and not this widget.
-- `model` - Model to show and to edit. The application builds it
-  itself, with `edit_cfg_json.load_config` and
-  `edit_cfg_json.EditModel`, because reading a file is what an
-  application does before it shows an editor at all.
-- `on_close` - What the application does when the session has ended,
-  or None for an application that reads the outcome some other
-  way. It is called after the editor has taken itself off the
-  window, so that `edit_cfg_json.EditModel.saved_config` can be
-  read from it.
+- `config` - Configuration object to edit. It is never modified.
+- `parent` - The widget the editor's own new window is shown over.
+  Exactly one of parent and area is given; an application with
+  no Tk of its own has neither and uses `edit_cfg_json_tk.edit`.
+- `area` - The existing container the editor fills instead of a window
+  of its own. It cannot be given together with parent.
+- `modal` - Whether the editor grabs its window, or the area, for the
+  session, so that nothing else of the application answers until
+  it closes. Tk refuses a grab for a window that is not on the
+  screen yet, and the editor then opens without one rather than
+  not opening.
+- `on_close` - What the application does once the session has ended,
+  or None for one that reads `saved_config` some other way.
+- `descriptions` - What the application says about the members it
+  declares, or None when it says nothing.
+- `in_file` - File to read, or None to start from the declared
+  defaults.
+- `loader` - How this application constructs its configuration, or
+  None for a class the editor can construct on its own.
+- `out_file` - File to write, or None to write the input file.
+- `policy` - What to do about declared keys the input file does not
+  hold.
+- `settings` - What this application has already decided about key
+  combinations and file names, or a callable answering with it.
+- `stderr_file` - Stream used for user-facing diagnostics.
+  
 
-<a id="edit_cfg_json_tk.tk_panel.TkEditorPanel._take_focus"></a>
+**Raises**:
 
-#### \_take\_focus
+- `ValueError` - Both parent and area were given, or neither was.
+- `ConfigLoadError` - The input file cannot be opened for editing.
+
+<a id="edit_cfg_json_tk.tk_panel.TkEditorPanel.model"></a>
+
+#### model
 
 ```python
-def _take_focus(*event: 'tkinter.Event[tkinter.Misc]') -> None
+@property
+def model() -> core.EditModel
 ```
 
-Give the editor the focus when it is clicked on.
+Return the model of this session, which the editor built.
 
-The keys of the editor reach the part of the window it built and
-nothing else, so a user who has not been in the editor yet would
-otherwise press one of them and see nothing happen. A field and a
-button take the focus of their own accord when they are clicked, and
-this is what a click on anything else does.
+<a id="edit_cfg_json_tk.tk_panel.TkEditorPanel.saved_config"></a>
+
+#### saved\_config
+
+```python
+@property
+def saved_config() -> Optional[Config]
+```
+
+Return the configuration this session wrote, None until it does.
 
 <a id="edit_cfg_json_tk.tk_panel.TkEditorPanel.close"></a>
 
@@ -2020,25 +2049,16 @@ def close(ask_about_unsaved: bool = True) -> None
 End the session and take the editor off the window.
 
 Whether the user is asked about what has not been saved is the
-application's to decide, because only the application knows what it
-is closing the editor for: a menu entry that closes the editor should
-ask, and an application that is putting a question of its own to the
-user already has one question too many.
-
-The editor's own Close button and its quit key are this method with
-the default, so the question is put in the same words and answered in
-the same dialog whichever of the three ended the session.
-
-Calling this again once the session has ended does nothing, so an
-application need not keep track of whether the user has closed the
-editor already.
+application's to decide: a menu entry that closes the editor should
+ask, and an application that is putting a question of its own already
+has one question too many. The editor's own Close button, its quit
+key and the close button of a window it made are this call with the
+default. Calling it again once the session has ended does nothing.
 
 **Arguments**:
 
 - `ask_about_unsaved` - Whether the user is asked before a buffer that
-  holds something unsaved is dropped. The default asks, which
-  is the way a default about something that cannot be undone
-  should lean.
+  holds something unsaved is dropped.
 
 <a id="edit_cfg_json_tk.tk_panel.TkEditorPanel._end_session"></a>
 
@@ -2048,12 +2068,80 @@ editor already.
 def _end_session() -> None
 ```
 
-Take the editor off the window, and say that it has gone.
+Destroy what the editor built, and say that it has gone.
 
-Only what the editor created is destroyed, which is the frame it
-built in. The widget the application named is left exactly as it was,
-because an editor that destroyed a window it did not create would be
-deciding something that is not its to decide.
+<a id="edit_cfg_json_tk.tk_panel._built_widget"></a>
+
+#### \_built\_widget
+
+```python
+def _built_widget(parent: Optional[tkinter.Misc], area: Optional[tkinter.Misc],
+                  closer: Callable[[], None], title: str) -> tkinter.Misc
+```
+
+Return the widget the editor builds in, which is its own to destroy.
+
+**Arguments**:
+
+- `parent` - Widget a new window is shown over, or None.
+- `area` - Widget the editor fills, or None.
+- `closer` - What the close button of such a window does.
+- `title` - Name of the configuration class, for a window of its own.
+  
+
+**Returns**:
+
+  The window or the frame that the editor created.
+  
+
+**Raises**:
+
+- `ValueError` - Both parent and area were given, or neither was.
+
+<a id="edit_cfg_json_tk.tk_panel._focus_taker"></a>
+
+#### \_focus\_taker
+
+```python
+def _focus_taker(frame: tkinter.Misc) -> Callable[..., None]
+```
+
+Return what a click on the editor's own frame does.
+
+The keys of the editor reach the part of the window it built and nothing
+else, so a user who has not been in the editor yet would otherwise press
+one of them and see nothing happen. A field and a button take the focus of
+their own accord, and this is what a click on anything else does.
+
+**Arguments**:
+
+- `frame` - Frame the editor was built in.
+  
+
+**Returns**:
+
+  A callback that gives that frame the keyboard focus.
+
+<a id="edit_cfg_json_tk.tk_panel._grabbed"></a>
+
+#### \_grabbed
+
+```python
+def _grabbed(widget: tkinter.Misc) -> bool
+```
+
+Take the events of the application for one widget, if Tk allows it.
+
+**Arguments**:
+
+- `widget` - Widget the editor was built in.
+  
+
+**Returns**:
+
+  Whether the grab was made, which is what has to be released again. Tk
+  refuses to grab for a window that is not on the screen, and an editor
+  that opened without a grab is worth more than one that did not open.
 
 <a id="edit_cfg_json_tk.tk_scope"></a>
 

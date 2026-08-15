@@ -924,7 +924,7 @@ def edit(config: Config, *, descriptions: Optional[core.Descriptions] = None,
          in_file: Optional[PathOrStr] = None,
          loader: Optional[core.ConfigLoader] = None,
          out_file: Optional[PathOrStr] = None,
-         policy: core.LoadPolicy = core.LoadPolicy.STRICT_THEN_DEFAULTS,
+         policy: core.LoadPolicy = core.DEFAULT_POLICY,
          settings: core.SettingsSource = core.Settings(),
          stderr_file: TextIO = sys.stderr) -> Optional[Config]:
     """Edit one configuration in a Tk window, and return what was saved.

@@ -68,6 +68,7 @@
   * [DumpEditor](#edit_cfg_json.backend.DumpEditor)
     * [run\_editor](#edit_cfg_json.backend.DumpEditor.run_editor)
 * [edit\_cfg\_json.editing](#edit_cfg_json.editing)
+  * [editor\_model](#edit_cfg_json.editing.editor_model)
   * [edit](#edit_cfg_json.editing.edit)
 * [edit\_cfg\_json.elements](#edit_cfg_json.elements)
   * [BUILD\_ERRORS](#edit_cfg_json.elements.BUILD_ERRORS)
@@ -1568,10 +1569,54 @@ should be validated.
 
 One editing session, from the input file to what was saved.
 
-This is the convenience wrapper and deliberately nothing more. Everything it
-does an application can do for itself, in three statements, which is what an
-application that already runs its own event loop has to do: read the file,
-build the model, mount the backend.
+`editor_model` reads the input file and returns the model of one session.
+`edit` is that model run in a backend that owns a window, and the embedding
+entry points of the two backend packages are that model mounted in a window
+an application owns. All three take the same few keywords, so an application
+says the same things about a session however it opens the editor.
+
+<a id="edit_cfg_json.editing.editor_model"></a>
+
+#### editor\_model
+
+```python
+def editor_model(config: Config,
+                 *,
+                 descriptions: Optional[Descriptions] = None,
+                 in_file: Optional[PathOrStr] = None,
+                 loader: Optional[ConfigLoader] = None,
+                 out_file: Optional[PathOrStr] = None,
+                 policy: LoadPolicy = DEFAULT_POLICY,
+                 settings: SettingsSource = Settings(),
+                 stderr_file: TextIO = sys.stderr) -> EditModel
+```
+
+Read one configuration from a file and return the model to edit it.
+
+**Arguments**:
+
+- `config` - Configuration object saying which class to edit and what its
+  declared defaults are. It is never modified.
+- `descriptions` - What the application says about the members it
+  declares, or None when it says nothing.
+- `in_file` - File to read, or None to start from the declared defaults.
+- `loader` - How this application constructs its configuration, or None for
+  a class the editor can construct from the signature it declares.
+- `out_file` - File to write, or None to write the input file.
+- `policy` - What to do about declared keys the input file does not hold.
+- `settings` - What the application around the editor has already decided,
+  or a callable that answers with it.
+- `stderr_file` - Stream used for user-facing diagnostics.
+  
+
+**Returns**:
+
+  The model of one editing session, ready to be shown.
+  
+
+**Raises**:
+
+- `ConfigLoadError` - The input file cannot be opened for editing.
 
 <a id="edit_cfg_json.editing.edit"></a>
 
@@ -1595,7 +1640,10 @@ Edit one configuration and return the object that was saved.
 The backend is a parameter because the core never imports a user
 interface library, so it cannot name one. Each backend package also has
 an `edit` of its own that supplies itself, which is the shorter door for
-an application that has already chosen its user interface.
+an application that has already chosen its user interface. An application
+that already runs that user interface mounts the editor instead, with the
+entry point of its backend package, and `editor_model` is what those two
+ways of opening the editor have in common.
 
 Without an output file the input file is written, which is what an
 editor is normally asked to do. With neither, there is nowhere to write

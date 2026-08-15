@@ -8,8 +8,9 @@ application pushes when it wants the editor to take the whole terminal for a
 while, and it is what `EditorApp` shows when the editor is the whole program.
 
 An application that wants the editor in an area of its own screen mounts
-`EditorPanel` instead and keeps its own header, its own footer and its own
-palette. That is the difference between the two, and it is the whole of it.
+`edit_cfg_json_textual.EditorPanel` instead and keeps its own header, its own
+footer and its own palette. That is the difference between the two, and it is
+the whole of it.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -17,12 +18,13 @@ palette. That is the difference between the two, and it is the whole of it.
 
 from collections.abc import Callable
 from typing import ClassVar, Optional
+from config_as_json import Config
 from textual.app import ComposeResult
 from textual.command import DiscoveryHit, Hit, Hits, Provider
 from textual.screen import Screen
 from textual.widgets import Footer, Header
 import edit_cfg_json as core
-from edit_cfg_json_textual.textual_panel import EditorCommand, EditorPanel
+from edit_cfg_json_textual.textual_panel import EditorCommand, ModelPanel
 
 
 class EditorCommands(Provider):
@@ -42,7 +44,7 @@ class EditorCommands(Provider):
             put on by mistake should say.
         """
         screen = self.screen
-        if not isinstance(screen, EditorScreen):
+        if not isinstance(screen, ModelScreen):
             return ()
         return screen.panel.command_entries()
 
@@ -73,8 +75,13 @@ class EditorCommands(Provider):
                           help=entry.help_text)
 
 
-class EditorScreen(Screen[None]):
-    """A screen holding one editor, with a header and a footer of its own."""
+class ModelScreen(Screen[None]):
+    """A screen holding one editor, with a header and a footer of its own.
+
+    It takes a model, which is what this package has of its own and what
+    `EditorApp` shows. An application reads a configuration instead, with
+    `edit_cfg_json_textual.EditorScreen`.
+    """
 
     COMMANDS: ClassVar[set[type[Provider] | Callable[[], type[Provider]]]] = \
         {EditorCommands}
@@ -93,19 +100,52 @@ class EditorScreen(Screen[None]):
             model: Model to show and to edit.
             on_close: What the application does once the session has ended,
                 or None for an application that reads the outcome some other
-                way. An application that pushed this screen usually pops it
-                here.
+                way. This screen has taken itself off the application by then.
         """
         super().__init__()
-        self._panel = EditorPanel(model, on_close=on_close)
+        self._on_close = on_close
+        self._panel = ModelPanel(model, on_close=self._session_ended)
 
     @property
-    def panel(self) -> EditorPanel:
+    def panel(self) -> ModelPanel:
         """Return the editor that this screen is showing."""
         return self._panel
+
+    @property
+    def model(self) -> core.EditModel:
+        """Return the model of this session."""
+        return self._panel.model
+
+    @property
+    def saved_config(self) -> Optional[Config]:
+        """Return the configuration this session wrote, None until it does."""
+        return self._panel.saved_config
+
+    def close(self, ask_about_unsaved: bool = True) -> None:
+        """End the session, which takes this screen off the application.
+
+        Args:
+            ask_about_unsaved: Whether the user is asked before a buffer that
+                holds something unsaved is dropped.
+        """
+        self._panel.close(ask_about_unsaved)
 
     def compose(self) -> ComposeResult:
         """Create the header, the editor and the footer, in that order."""
         yield Header()
         yield self._panel
         yield Footer()
+
+    def _session_ended(self) -> None:
+        """Take this screen off the application, and say that it has gone.
+
+        An application that pushed this screen would otherwise be left with
+        an empty screen on top of its own, and popping it is this screen's to
+        do: it is what the editor was mounted as. The screen of an application
+        that shows nothing but the editor is its only one and is not popped,
+        because there is nothing underneath it.
+        """
+        if self.app.screen is self and len(self.app.screen_stack) > 1:
+            self.app.pop_screen()
+        if self._on_close is not None:
+            self._on_close()

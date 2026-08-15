@@ -15,21 +15,27 @@ running.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Optional
 import asyncio
+import json
 import tkinter
 from config_as_json import Config
 import pytest
 from textual.app import App
-from textual.widgets import Static
+from textual.pilot import Pilot
+from textual.widgets import Button, Input, Label, Static
 from edit_cfg_json import ActionSettings, EditModel
 # The identifier of the label is taken from the backend rather than written
 # out here, in the same way as every widget identifier a test of that backend
 # reaches for. What the label says is the core's `model_title`, which is what
 # these tests are really about.
-from edit_cfg_json_textual.textual_look import TITLE_ID
+from edit_cfg_json_textual.textual_look import DOCSTRING_ID, TITLE_ID, \
+    value_id
+
+SAVE_KEY = ActionSettings().save[0]
+"""Key that saves in the editor for an application with no opinion."""
 
 QUIT_KEY = ActionSettings().quit[0]
 """Key that ends the Textual editor for an application with no opinion.
@@ -40,6 +46,12 @@ that moves moves these tests with it.
 
 NO_DISPLAY = 'No display available for Tk.'
 """Why a test is skipped on a machine that cannot open a window."""
+
+EDITOR_SIZE = (100, 40)
+"""Terminal size with room for an application and the editor together."""
+
+PIPELINE_FILE = 'e13_pipeline.json'
+"""Input file that the four embedding examples share."""
 
 DATA_FOLDER = Path(__file__).resolve().parents[2] / 'data'
 """Folder holding the input files that the examples are run against.
@@ -235,6 +247,237 @@ def _headless_run(titles: list[str],
         """Start the application, read its label and quit it at once."""
         asyncio.run(_quit_at_once(app, titles=titles, quit_key=quit_key))
     return run_headless
+
+
+def tk_buttons(parent: tkinter.Misc) -> list[tkinter.Button]:
+    """Return every Tk button below one widget, in creation order.
+
+    Args:
+        parent: Widget whose descendants are looked through.
+
+    Returns:
+        Every button below that widget.
+    """
+    found: list[tkinter.Button] = []
+    for child in parent.winfo_children():
+        if isinstance(child, tkinter.Button):
+            found.append(child)
+        found.extend(tk_buttons(child))
+    return found
+
+
+def tk_fields(parent: tkinter.Misc) -> list[tkinter.Entry]:
+    """Return every Tk edit field below one widget, in creation order.
+
+    Args:
+        parent: Widget whose descendants are looked through.
+
+    Returns:
+        Every edit field below that widget.
+    """
+    found: list[tkinter.Entry] = []
+    for child in parent.winfo_children():
+        if isinstance(child, tkinter.Entry):
+            found.append(child)
+        found.extend(tk_fields(child))
+    return found
+
+
+def tk_press(parent: tkinter.Misc, text: str) -> None:
+    """Press the one button below one widget that shows the given text.
+
+    Args:
+        parent: Widget whose descendants are looked through.
+        text: What the button to press says.
+    """
+    buttons = [button for button in tk_buttons(parent)
+               if str(button.cget('text')) == text]
+    assert len(buttons) == 1
+    buttons[0].invoke()
+
+
+def _no_grab(widget: tkinter.Misc) -> None:
+    """Stand in for taking or giving back the events of the application.
+
+    Args:
+        widget: Widget that asked for the grab, which is left alone.
+    """
+    _ = widget
+
+
+def run_tk_example(main: Callable[[list[str]], None],
+                   monkeypatch: pytest.MonkeyPatch,
+                   acting: Callable[[tkinter.Tk], None],
+                   *settings: str) -> None:
+    """Run one embedding example and act on its window instead of looping.
+
+    The examples that mount the editor have no `--ui dump`, and cannot have
+    one: what they teach is where the editor is in a window, and a printout
+    has no window to be one part of. So this runs the real application, with
+    `Tk.mainloop` replaced by what a user would do next, which is category 2
+    of design section 10.2 and skips where there is no display.
+
+    A modal editor is asked for by two of these examples, and a real grab is
+    taken away from it here: a test that grabbed the pointer and the keyboard
+    would hold the machine it runs on, and a grab left behind by a window the
+    test then destroys hangs whatever runs next. That the editor asks for the
+    grab is tested with a stub, where it costs nothing.
+
+    Args:
+        main: The `main` function of the example to run.
+        monkeypatch: The pytest fixture that replaces `Tk.mainloop`.
+        acting: What is done to the window of the application, standing in
+            for the user of it.
+        settings: Command line arguments of the run.
+    """
+    def instead(window: tkinter.Tk) -> None:
+        """Stand in for Tk.mainloop by acting on the window once."""
+        window.withdraw()
+        window.update_idletasks()
+        try:
+            acting(window)
+        finally:
+            window.destroy()
+    monkeypatch.setattr(tkinter.Misc, 'grab_set', _no_grab)
+    monkeypatch.setattr(tkinter.Misc, 'grab_release', _no_grab)
+    monkeypatch.setattr(tkinter.Tk, 'mainloop', instead)
+    try:
+        main(list(settings))
+    except tkinter.TclError:
+        pytest.skip(NO_DISPLAY)
+
+
+def run_textual_app(main: Callable[[list[str]], None],
+                    monkeypatch: pytest.MonkeyPatch,
+                    driving: Callable[[App[None], Pilot[None]],
+                                      Awaitable[None]],
+                    *settings: str) -> None:
+    """Run one embedding example headlessly and drive the application.
+
+    `App.run` is replaced rather than the application being built here, so
+    that what is driven is what the example's own `main` puts together.
+
+    Args:
+        main: The `main` function of the example to run.
+        monkeypatch: The pytest fixture that replaces `App.run`.
+        driving: What to do with the application once it is running.
+        settings: Command line arguments of the run.
+    """
+    async def started(app: App[None]) -> None:
+        """Run one application headlessly and drive it."""
+        async with app.run_test(size=EDITOR_SIZE) as pilot:
+            await pilot.pause()
+            await driving(app, pilot)
+
+    def run_headless(app: App[None]) -> None:
+        """Stand in for App.run by running the application headlessly."""
+        asyncio.run(started(app))
+    monkeypatch.setattr(App, 'run', run_headless)
+    main(list(settings))
+
+
+async def press_own_button(app: App[None], pilot: Pilot[None],
+                           text: str) -> None:
+    """Press the one button of the application's own screen with that text.
+
+    The application's own screen is looked at rather than the whole
+    application, because an editor pushed as a screen has buttons of its own
+    on top of it.
+
+    Args:
+        app: Application that is running.
+        pilot: Driver of that application.
+        text: What the button to press says.
+    """
+    buttons = [button for button in app.screen_stack[0].query(Button)
+               if str(button.label) == text]
+    assert len(buttons) == 1
+    buttons[0].press()
+    await pilot.pause()
+
+
+def own_status(app: App[None]) -> str:
+    """Return what the application says on its own status line.
+
+    Args:
+        app: Application that is running.
+
+    Returns:
+        The text of the first label of the application's own screen.
+    """
+    return str(app.screen_stack[0].query(Label).first().content)
+
+
+def editor_title(app: App[None]) -> str:
+    """Return the label that the editor shows for the whole model.
+
+    Args:
+        app: Application that is running, with an editor showing.
+
+    Returns:
+        What the editor calls the configuration it is editing.
+    """
+    return str(app.screen.query_one(f'#{TITLE_ID}', Static).content)
+
+
+def editor_docstring(app: App[None]) -> str:
+    """Return what the editor is showing of the class docstring.
+
+    How much of it is shown is what the explain action changes, so this is
+    what says whether a key explained anything.
+
+    Args:
+        app: Application that is running, with an editor showing.
+
+    Returns:
+        The whole docstring while the explanations are shown, and its first
+        paragraph while they are hidden.
+    """
+    return str(app.screen.query_one(f'#{DOCSTRING_ID}', Static).content)
+
+
+async def focus_editor(app: App[None], pilot: Pilot[None]) -> None:
+    """Put the focus in the first field of the editor.
+
+    The keys of the editor are offered from the focused widget upwards, so a
+    test about one of them starts by getting the focus in there.
+
+    Args:
+        app: Application that is running, with an editor showing.
+        pilot: Driver of that application.
+    """
+    app.screen.query_one(f'#{value_id(0)}', Input).focus()
+    await pilot.pause()
+
+
+async def edit_and_save(app: App[None], pilot: Pilot[None], text: str) -> None:
+    """Type one value into the first field of the editor and save it.
+
+    The focus is moved into the editor first, because the keys of the editor
+    are offered from the focused widget upwards.
+
+    Args:
+        app: Application that is running, with an editor showing.
+        pilot: Driver of that application.
+        text: What to type into the first field of the editor.
+    """
+    await focus_editor(app, pilot)
+    app.screen.query_one(f'#{value_id(0)}', Input).value = text
+    await pilot.pause()
+    await pilot.press(SAVE_KEY)
+    await pilot.pause()
+
+
+def written_json(out_file: Path) -> object:
+    """Return what one output file holds, as JSON space values.
+
+    Args:
+        out_file: File that a run of an example wrote.
+
+    Returns:
+        The values in it, as JSON reads them.
+    """
+    return json.loads(out_file.read_text(encoding='UTF-8'))
 
 
 def textual_titles(main: Callable[[list[str]], None],

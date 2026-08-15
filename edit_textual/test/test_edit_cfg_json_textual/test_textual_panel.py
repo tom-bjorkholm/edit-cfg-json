@@ -16,7 +16,8 @@ from typing import ClassVar, Optional
 import asyncio
 from textual.app import App, ComposeResult
 from textual.widgets import Input, Label, Static
-from edit_cfg_json import ActionSettings, EditModel, Settings
+from config_as_json import Config
+from edit_cfg_json import ActionSettings, Settings
 from edit_cfg_json_textual import EditorPanel, EditorScreen
 from edit_cfg_json_textual.textual_look import DOCSTRING_ID, TITLE_ID, \
     value_id
@@ -51,52 +52,57 @@ class HostApp(App[None]):
     tests somewhere to put the focus that is not inside the editor.
     """
 
-    def __init__(self, model: EditModel, as_screen: bool = False) -> None:
-        """Remember the model and how the editor is to be mounted.
+    def __init__(self, config: Config, as_screen: bool = False,
+                 settings: Settings = Settings()) -> None:
+        """Remember the configuration and how the editor is to be mounted.
 
         Args:
-            model: Model for the editor to show.
+            config: Configuration for the editor to read and show.
             as_screen: Whether the editor is pushed as a screen of its own
                 rather than mounted in an area of this application's screen.
+            settings: What this application decided about the editor.
         """
         super().__init__()
         self.ended: list[str] = []
-        self._model = model
+        self._config = config
+        self._settings = settings
         self._as_screen = as_screen
         self.panel: Optional[EditorPanel] = None
+        self.editor: Optional[EditorScreen] = None
 
     def compose(self) -> ComposeResult:
         """Create this application's own widgets, and maybe the editor."""
         yield Label('the application')
         yield Input(id=OWN_FIELD_ID)
         if not self._as_screen:
-            self.panel = EditorPanel(self._model, on_close=self._gone)
+            self.panel = EditorPanel(self._config, settings=self._settings,
+                                     on_close=self._gone)
             yield self.panel
 
     def on_mount(self) -> None:
         """Push the editor as a screen, for the run that asked for one."""
         if self._as_screen:
-            screen = EditorScreen(self._model, on_close=self._gone)
-            self.panel = screen.panel
-            self.push_screen(screen)
+            self.editor = EditorScreen(self._config, settings=self._settings,
+                                       on_close=self._gone)
+            self.push_screen(self.editor)
 
     def _gone(self) -> None:
         """Record that the editor said the session had ended."""
         self.ended.append('gone')
 
 
-async def _started(model: EditModel,
+async def _started(config: Config,
                    as_screen: bool = False) -> tuple[HostApp, str]:
     """Run one host application and read the label of the editor in it.
 
     Args:
-        model: Model for the editor to show.
+        config: Configuration for the editor to read and show.
         as_screen: Whether the editor is pushed as a screen of its own.
 
     Returns:
         The application, and the label the editor shows for the model.
     """
-    app = HostApp(model, as_screen=as_screen)
+    app = HostApp(config, as_screen=as_screen)
     async with app.run_test(size=APP_SIZE) as pilot:
         await pilot.pause()
         return app, str(app.screen.query_one(f'#{TITLE_ID}', Static).content)
@@ -104,13 +110,13 @@ async def _started(model: EditModel,
 
 def test_panel_shows_model() -> None:
     """Test an application that mounts the editor gets the whole editor."""
-    _, label = asyncio.run(_started(EditModel(FlatConfig())))
+    _, label = asyncio.run(_started(FlatConfig()))
     assert label == 'FlatConfig'
 
 
 def test_screen_shows_model() -> None:
     """Test the same editor pushed as a screen shows the same thing."""
-    _, label = asyncio.run(_started(EditModel(FlatConfig()), as_screen=True))
+    _, label = asyncio.run(_started(FlatConfig(), as_screen=True))
     assert label == 'FlatConfig'
 
 
@@ -123,9 +129,9 @@ def test_screen_palette() -> None:
     """
     async def offered() -> list[str]:
         """Run a host application and read what the editor screen offers."""
-        app, _ = await _started(EditModel(FlatConfig()), as_screen=True)
-        assert app.panel is not None
-        return [entry.name for entry in app.panel.command_entries()]
+        app, _ = await _started(FlatConfig(), as_screen=True)
+        assert app.editor is not None
+        return [entry.name for entry in app.editor.panel.command_entries()]
     assert 'Validate' in asyncio.run(offered())
 
 
@@ -139,7 +145,7 @@ async def _explained_after(settings: Settings) -> bool:
         Whether pressing that key changed what the editor says about the
         configuration class, which is what its explain action does.
     """
-    app = HostApp(EditModel(FlatConfig(), settings=settings))
+    app = HostApp(FlatConfig(), settings=settings)
     async with app.run_test(size=APP_SIZE) as pilot:
         app.screen.query_one(f'#{value_id(0)}', Input).focus()
         await pilot.pause()
@@ -173,7 +179,7 @@ async def _key_outside(settings: Settings) -> bool:
     Returns:
         Whether the editor acted on the key, which it must not.
     """
-    app = HostApp(EditModel(FlatConfig(), settings=settings))
+    app = HostApp(FlatConfig(), settings=settings)
     async with app.run_test(size=APP_SIZE) as pilot:
         app.query_one(f'#{OWN_FIELD_ID}', Input).focus()
         await pilot.pause()
@@ -208,14 +214,15 @@ async def _closed(as_screen: bool, asking: bool,
     Returns:
         The application, and how many editors are left on the screen.
     """
-    app = HostApp(EditModel(FlatConfig()), as_screen=as_screen)
+    app = HostApp(FlatConfig(), as_screen=as_screen)
     async with app.run_test(size=APP_SIZE) as pilot:
         await pilot.pause()
         if typed:
             app.screen.query_one(f'#{value_id(0)}', Input).value = typed
             await pilot.pause()
-        assert app.panel is not None
-        app.panel.close(ask_about_unsaved=asking)
+        editor = app.editor or app.panel
+        assert editor is not None
+        editor.close(ask_about_unsaved=asking)
         await pilot.pause()
         return app, len(app.query(EditorPanel))
 
@@ -261,7 +268,7 @@ def test_close_twice_is_once() -> None:
     """Test closing an editor whose session has ended does nothing at all."""
     async def twice() -> list[str]:
         """Run a host application and close its editor twice."""
-        app = HostApp(EditModel(FlatConfig()))
+        app = HostApp(FlatConfig())
         async with app.run_test(size=APP_SIZE) as pilot:
             assert app.panel is not None
             app.panel.close()
@@ -284,21 +291,21 @@ class SilentHost(App[None]):
     """Nothing at all, which is what this test is about: the editor brings
     its own."""
 
-    def __init__(self, model: EditModel) -> None:
-        """Remember the model this application shows."""
+    def __init__(self, config: Config) -> None:
+        """Remember the configuration this application shows."""
         super().__init__()
-        self._model = model
+        self._config = config
 
     def compose(self) -> ComposeResult:
         """Create the editor and nothing else."""
-        yield EditorPanel(self._model)
+        yield EditorPanel(self._config)
 
 
 def test_panel_no_callback() -> None:
     """Test an editor mounted without an `on_close` closes just the same."""
     async def closed() -> int:
         """Run the silent application and close the editor in it."""
-        app = SilentHost(EditModel(FlatConfig()))
+        app = SilentHost(FlatConfig())
         async with app.run_test(size=APP_SIZE) as pilot:
             app.query_one(EditorPanel).close()
             await pilot.pause()
@@ -315,7 +322,7 @@ def test_panel_styles_itself() -> None:
     """
     async def heights() -> tuple[object, object]:
         """Run the silent application and read two heights of the editor."""
-        app = SilentHost(EditModel(FlatConfig()))
+        app = SilentHost(FlatConfig())
         async with app.run_test(size=APP_SIZE):
             panel = app.query_one(EditorPanel)
             return panel.styles.height, panel.query_one('#body').styles.height

@@ -67,21 +67,23 @@ Everything a user of this package needs is re-exported from the top-level
 
 ````python
 from edit_cfg_json import ActionSettings, ConfigLoadError, ConfigLoader, \
-    Descriptions, DumpEditor, EXPLANATION, EditModel, EditorBackend, \
-    ElementOffer, Emphasis, ExitCode, LOAD_REMARK, LoadPolicy, LoadReport, \
-    LoadedConfig, MEMBER_DIAGNOSTIC, MEMBER_MARK, MemberRow, SaveOutcome, \
-    Settings, SettingsSource, ValidationVerdict, add_file_options, can_fold, \
-    close_question, default_config, derived_loader, docstring_text, edit, \
-    fold_hides, load_config, load_text, model_as_text, model_title, \
-    named_policy, overwrite_question, path_text, row_describes, \
-    row_description, row_diagnostic, row_fold_text, row_marks, \
-    row_subtree_text, row_validates, row_value_text, run_cli, save_emphasis, \
-    save_text, subtree_emphasis, text_path, verdict_emphasis, verdict_text
+    DEFAULT_POLICY, Descriptions, DumpEditor, EXPLANATION, EditModel, \
+    EditorBackend, ElementOffer, Emphasis, ExitCode, LOAD_REMARK, \
+    LoadPolicy, LoadReport, LoadedConfig, MEMBER_DIAGNOSTIC, MEMBER_MARK, \
+    MemberRow, SaveOutcome, Settings, SettingsSource, ValidationVerdict, \
+    add_file_options, can_fold, close_question, default_config, \
+    derived_loader, docstring_text, edit, editor_model, fold_hides, \
+    load_config, load_text, model_as_text, model_title, named_policy, \
+    overwrite_question, path_text, row_describes, row_description, \
+    row_diagnostic, row_fold_text, row_marks, row_subtree_text, \
+    row_validates, row_value_text, run_cli, save_emphasis, save_text, \
+    subtree_emphasis, text_path, verdict_emphasis, verdict_text
 ````
 
 | Name | What it is |
 | --- | --- |
-| `edit` | The whole of an editing session in one call: read the input file, build the model, run a backend to completion, and give back the configuration object that was saved, or `None` when nothing was. The backend is a parameter because this package never imports a user interface library; each backend package also exports an `edit` of its own that supplies itself. |
+| `edit` | The whole of an editing session in one call: read the input file, build the model, run a backend to completion, and give back the configuration object that was saved, or `None` when nothing was. The backend is a parameter because this package never imports a user interface library; each backend package also exports an `edit` of its own that supplies itself. An application that already runs Tk or Textual mounts the editor instead, with the entry point of its backend package. |
+| `editor_model` | The first half of `edit` on its own: read the input file and give back the model of one session, for whoever shows that model themselves. It takes every keyword `edit` takes except the backend, so an application says the same things about a session whichever way it opens the editor — and it is what the mounting entry points of both backend packages call, which is why they take those same keywords too. |
 | `EditModel` | The editable state of one `config_as_json.Config` object, discovered by looking at that object. Its rows are the tree of that configuration, `set_text` writes the text of one edit field into one of them, `check_field` says whether the text of one member means a value of it at all, `toggle_fold` and `toggle_fold_all` decide how much of the tree is on the screen, `open_all` opens every container of it for a backend that shows the model once and has no control to press, `add_element`, `remove_element` and `move_element` change how many things a member holds, `validate` runs the application's own validation over the whole buffer, and `save` writes it to `out_file` if the application would accept it. |
 | `MemberRow` | One node of that tree: the path that addresses it, the value it holds now, the value it started with, how far inside the configuration it is, which paths are inside it, whether it is folded and whether it is shown, the class of the configuration object at it, what is said about it, how its text becomes a value, what it offers about its own elements, and the flags that say what has happened to it. |
 | `Descriptions` | What the application says about the members it declares: a mapping from the absolute `config_as_json.ConfigPath` of a member to the text that explains it. It is the one type alias this library declares. |
@@ -93,7 +95,7 @@ from edit_cfg_json import ActionSettings, ConfigLoadError, ConfigLoader, \
 | `ValidationVerdict` | What one validation pass found: whether the application itself would accept the buffer, what it said about each node it refused, addressed by path, and what it said that is about no single node. `EditModel.verdict` is the verdict of the last pass, or `None` while the buffer has not been validated since it last changed. |
 | `SaveOutcome` | What one attempt to save did: whether the output file was written, and what to tell the user about it. `EditModel.save_message` is the message of the last attempt and `EditModel.save_outcome` is the attempt itself, which is how a backend knows whether it succeeded. |
 | `load_config` | Reads the configuration to edit from one input file, or hands back the caller's own object when there is no file. It reads the file itself and applies it under the load policy that was asked for, rather than taking an already loaded object, because which policy applies is decided while the file is read. |
-| `LoadPolicy` | What to do about a declared value the input file does not hold: `STRICT`, `DEFAULTS`, or `STRICT_THEN_DEFAULTS`, which is the default. |
+| `LoadPolicy`, `DEFAULT_POLICY` | What to do about a declared value the input file does not hold: `STRICT`, `DEFAULTS`, or `STRICT_THEN_DEFAULTS`. `DEFAULT_POLICY` is the last of those and is what every entry point of this library uses when the application says nothing, so a program that offers the choice can name the default without writing it out again. |
 | `LoadedConfig` | What `load_config` returns: the object to edit, and the report of its load. |
 | `LoadReport` | What one load did beyond reading the values: what the user has to be told, which members the declared defaults supplied, and which members had their value put there or altered by the reading of the file. It is handed to `EditModel`, which marks both kinds. |
 | `ConfigLoadError` | The refusal of an input file that cannot be opened, holding the message for the user and the diagnostics the configuration class produced. |
@@ -675,7 +677,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 1521 passed, 3 deselected in 43s
+- Test result: 1540 passed, 3 deselected in 43s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
