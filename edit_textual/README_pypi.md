@@ -366,5 +366,5 @@ file included in the distribution.
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
-- Built version(s): 0.0.4
+- Built version(s): 0.0.5
 - Build and test using Python 3.14.7
