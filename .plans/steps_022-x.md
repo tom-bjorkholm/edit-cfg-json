@@ -184,7 +184,15 @@ is the subject of a design investigation in the beginning of this step.
 Add full support for adding and deleting values in a dict that are
 declared by `DICT_VALUE_BY_KEY`.
 
-### Step 24 — The program asks for what the command line left out
+### Step 24 - Better bool support
+
+When the user enters a bool value they should get the same support as
+when entering an enum value. The text in the text field should be
+compared to `true` and `false` in a case insensitive way and if the
+text in the field matches the beginning of `true` or `false` it should
+be expanded to that value.
+
+### Step 25 — The program asks for what the command line left out
 
 A wizard: the program opens with no location, no class name and no files,
 and asks for them in the toolkit it was started in. What has been chosen,
