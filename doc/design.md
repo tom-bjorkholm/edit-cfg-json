@@ -2252,3 +2252,8 @@ version rather than assumed.
   time `Settings` grows an attribute, and it would be a second way of saying
   what a settings file says, inside one run, with nothing to decide which of
   the two wins. Section 8.3.5.
+- **Draft file** "Invalid cannot be saved" means that in the highly unlikely
+  event that a user has a long, still-invalid editing session, there is no
+  way out but to discard it. The escape hatch that would preserves the rule
+  is an editor-owned **draft file** holding the raw JSON buffer. If has been
+  decided that we will **not implement any draft file** saving.

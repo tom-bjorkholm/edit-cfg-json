@@ -179,6 +179,20 @@ A member that a class omits from JSON while it holds no object shall also
 be possible to add and remove in the editor. Exactly how to achieve this
 is the subject of a design investigation in the beginning of this step.
 
+One possible idea to investigate for how to implement this:
+With vars() on the config object we can detect the member variable even
+when it has value None.
+We should (in most cases) be able to look up the Python code (often in
+site-packages). Most of the time the Python code is type and the type hint
+tells us what class the attribute should have. We should be able to
+create an object of that type, and then get the fields to edit from that
+object.
+For the cases when this fails, we should be clear to the user that we
+failed to discover what the types of the editable fields should be for
+this sub-object, but as a fallback we offer the user to type in raw
+JSON for this sub-object that the editor can then validate.
+This first idea could lead to better spin off ideas.
+
 ### Step 23 - Full support for `DICT_VALUE_BY_KEY`
 
 Add full support for adding and deleting values in a dict that are
@@ -192,7 +206,14 @@ compared to `true` and `false` in a case insensitive way and if the
 text in the field matches the beginning of `true` or `false` it should
 be expanded to that value.
 
-### Step 25 — The program asks for what the command line left out
+### Step 25 - Pull-down selection of enum and bool values
+
+When the type of an attribute have a well defined set of possible
+values that we know from type discovered by introspection we should
+offer the user to select the value instead of typing the value.
+This is the case for bool, and for enums.
+
+### Step 26 — The program asks for what the command line left out
 
 A wizard: the program opens with no location, no class name and no files,
 and asks for them in the toolkit it was started in. What has been chosen,
