@@ -110,11 +110,12 @@ the plan says only *when* that decision gets built.
 
 ## 1. How this plan is meant to be used
 
-This document turns section 11 of [`doc/design.md`](../doc/design.md) into an
-ordered list of small, individually reviewable and individually
-committable steps. It is a delivery plan, not a design document: where it
-mentions a design decision, `doc/design.md` remains the authority and this
-file only says *when* that decision gets built.
+This document turns the scope recorded in
+[`doc/design.md`](../doc/design.md) into an ordered list of small,
+individually reviewable and individually committable steps. It is a delivery
+plan, not a design document: where it mentions a design decision,
+`doc/design.md` remains the authority and this file only says *when* that
+decision gets built.
 
 - One step is one branch-less unit of work on `master`: implement, verify,
   ask for review, commit. The next step does not start until the previous
@@ -232,7 +233,89 @@ makes implementing the wizards simpler.
 Alternatively, consider if we should use the menubar and menu items like
 File - Open. (Using the menubar may feel very natural in the Tk version.)
 
-## 4. Open questions recorded, not answered
+### Step 27 - Adding an entry to an `_unchecked_dicts` member
+
+Section 4.9 of the design names three kinds of dict that cannot be given an
+entry. One of them is permanently impossible, one of them is step 23, and this
+is the third: a member of `_unchecked_dicts`, whose key policy the application
+defines with validators of its own, which the design marks out of v1 scope and
+no step has claimed. Such a member stops saying why it cannot be given an entry
+and is offered the controls every other container already has; a key the
+application's own validators refuse is then the ordinary verdict.
+
+It shares its mechanism with step 23, because both need a dict that accepts a
+key its class does not declare, so whichever is built first makes the other one
+cheaper. Neither forces the other's order.
+
+### Step 28 - More type information, and whether the user may change it
+
+Two things the design records and no step claims, both in section 4.2. It is an
+open question whether the user may change the type metadata of a leaf, and the
+reason it might be wanted is written down: telling a `None` apart from an empty
+string in an `Optional[str]`. And later versions are said to be likely to
+derive more type information from the attribute types than the type of the
+default value, which is all section 4.1 has today. The step answers the
+question before it builds what the answer asks for.
+
+Built before step 25 it would give the pull-down a better answer about which
+members have a known set of values, and before step 22 it would give that
+step's investigation a type model to start from. Neither is forced.
+
+### Step 29 - Finding a member
+
+Section 9.7 keeps `ctrl+f` and `f3` free from the start, because finding a
+member of a configuration that does not fit a window (section 4.6) is something
+this editor is likely to be asked for, and a test says the defaults take
+neither key. Nothing implements the search they are reserved for. What is found
+has to be reachable, so a match inside a folded container opens it, and both
+backends have to bring it into view — the canvas in Tk and `scroll_visible` in
+Textual. Which member is being looked for is state, and belongs in the core by
+the lesson of step 6 about the explanation toggle.
+
+### Step 30 - The launcher the name `edit-cfg-json` is kept for
+
+Section 8.1 of the design is headed "planned, not implemented": an
+`edit_cfg_json.ui` entry-point group would let backends register themselves for
+discovery, which is what `--ui=auto` needs. Section 8.3 keeps the command name
+`edit-cfg-json` free for the launcher that picks the editor the machine can
+run, and step 16B freed that name and said the logic for choosing "may be added
+in a later step". This is that step: both editor packages register themselves,
+the core installs the launcher it has never installed a program for, and a
+machine with no display or without `textual` gets the editor it can actually
+run, with a refusal and an exit code of its own where it can run none.
+
+## 4. Relative effort of the steps still to build
+
+Best guesses, for judging the order the rest is built in. Step 24 is the
+smallest and is 1; every other step is a multiple of it. **The number is the
+whole cost of a step** as section 1.1 defines done: the design summary, the
+code, the tests, the example, the documentation, three clean builds on 3.12,
+3.13 and 3.14, and the review. That floor is why nothing is below 1, and why
+the largest step is ten times the smallest rather than thirty times — the steps
+differ less in what they cost than in how hard they are. The rows are in effort
+order and therefore not in step order.
+
+| Step | Effort | What the number is mostly |
+| --- | --- | --- |
+| 24 Better bool support | 1 | One rule in the core's conversion path, beside the enum rule that is already there. No backend change. |
+| 27 An entry in an `_unchecked_dicts` member | 2 | Step 14's machinery reused: the row stops saying why it cannot, and both backends show controls they already have. |
+| 23 Full `DICT_VALUE_BY_KEY` | 3 | The same work, complicated by a member whose values are of two kinds, and by what deleting the named key would mean. |
+| 30 The launcher | 4 | Little logic, spread over all three packages: an entry-point group, a script the core has never installed, discovery, and what a machine that can run neither editor is told. |
+| 29 Finding a member | 5 | Core state and one field, then bringing a widget into view in two toolkits and opening what folding hid. Partly focus sensitive, so partly category 3. |
+| 25 Pull-down for enum and bool | 6 | A second kind of field in both backends, touching every rule written for the first: write on change, focus loss, the rebuild after a pass, and the marks. |
+| 28 More type information | 6 | It answers a design question before it builds anything, and the runtime records nothing for the ordinary `Config` pattern (section 4.1). |
+| 22 Add and remove omitted members | 8 | Discovering a class the runtime does not record, and then the raw-JSON fallback, which is an editing surface the editor does not have at all yet. |
+| 26 The wizard | 10 | Two toolkits' dialogs and file choosers, two bridge libraries to weigh against the menubar alternative, and no headless test worth much. |
+
+Two things the numbers do not say.
+
+- **Effort is not order.** Step 27 shares its mechanism with step 23, and step
+  28 would make steps 22 and 25 cheaper, so cheapest first is not
+  automatically right.
+- **Steps 22, 26 and 28 each begin with a question**, so their numbers are the
+  three least trustworthy of the nine.
+
+## 5. Open questions recorded, not answered
 
 These do not block current development, and each is scheduled to be answered at the
 step that needs it. They are listed here so they are not forgotten.

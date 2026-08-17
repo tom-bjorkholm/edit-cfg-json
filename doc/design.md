@@ -665,8 +665,8 @@ below its own row:
   against the keys its class declares — `Config.check_dict_parse` does it while
   parsing — so a dict that gained or lost one would be refused by the
   configuration class itself. Confirmed against the implementation of
-  `config_as_json`, and it is why "uniform dicts" in section 11 means the
-  declared ones and not every dict.
+  `config_as_json`, and it is why a dict is offered an entry or not according
+  to the key policy its class declares rather than because it is a dict.
 - a member of `_unchecked_dicts`, whose key policy the application defines with
   validators of its own. Out of v1 scope.
 - a `DICT_VALUE_BY_KEY` member, where one named key holds an object and the
@@ -1163,17 +1163,12 @@ nothing above it, and it is `Emphasis.BAD` where the description is
   not about, are both a refused save with a message; `isinstance` is what the
   second asks. An application that supplied no loader is asked nothing.
 
-### 7.1 Draft file (possibly planned, not implemented)
+### 7.1 Draft file (decided against)
 
-"Invalid cannot be saved" means that in the highly unlikely event that a user
-has a long, still-invalid editing session, there is no way out but to discard
-it. The escape hatch that preserves the rule is an editor-owned **draft file**
-holding the raw JSON buffer — explicitly not a `config.write()`, explicitly
-not loadable by the application, reopened by the editor on next start.
-This scenario is extremely unlikely as the user has a possibility to validate
-repeatedly while editing.
-Extremely low priority, but the model must not be designed in a way that
-rules it out.
+This section described an editor-owned **draft file** holding the raw JSON
+buffer, as a way out of a long editing session that is still invalid. It has
+been decided that no draft file is built, and the reason is the last entry of
+section 11.
 
 ### 7.2 Closing with something unsaved
 
@@ -1399,7 +1394,7 @@ grab for a window that is not viewable. A refused grab is a non-modal editor
 rather than an error, so an application that must be held on every platform
 makes its own window, maps it, and passes it as `area`.
 
-The rejected alternatives are in section 12.
+The rejected alternatives are in section 11.
 
 #### 8.2.3 It cannot be `run_editor`, so it is a second entry point
 
@@ -2189,6 +2184,12 @@ version rather than assumed.
   because applications may define arbitrary validator subclasses, so this would
   work for known classes and silently fail for the rest.
 - **Editing a live `Config` object.** Section 4.2.
+- **An element invented for a member that has no pattern to copy one from.**
+  Permanently out of scope rather than not yet built: where a class declares no
+  element for a list member and the member holds none, only the application
+  knows what an element of its own list looks like, and a member it never gave
+  one for has never said. Such a member says so and offers removing and moving
+  instead. Section 4.9.
 - **A `parent` argument on the backend classes.** `TkEditor(parent=...)` reads
   well until `run_editor` has to mean "run to completion" with no parent and
   "mount and return" with one. One method with two meanings makes `edit()`
@@ -2254,6 +2255,6 @@ version rather than assumed.
   the two wins. Section 8.3.5.
 - **Draft file** "Invalid cannot be saved" means that in the highly unlikely
   event that a user has a long, still-invalid editing session, there is no
-  way out but to discard it. The escape hatch that would preserves the rule
-  is an editor-owned **draft file** holding the raw JSON buffer. If has been
+  way out but to discard it. The escape hatch that would preserve the rule
+  is an editor-owned **draft file** holding the raw JSON buffer. It has been
   decided that we will **not implement any draft file** saving.
