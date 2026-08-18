@@ -5,6 +5,7 @@
 # MIT License
 
 import json
+from typing import Optional
 from config_as_json import JsonType
 
 TEXT_KIND = 'Text.'
@@ -38,6 +39,43 @@ agreed with, which is the only type information there is (section 4.2 of
 `doc/design.md`), and a member that held nothing gave none.
 """
 
+BOOL_WORDS: tuple[tuple[str, bool], ...] = (('true', True), ('false', False))
+"""The two words a member holding true or false is written with.
+
+They are the JSON notation of the two values, which is what the file holds and
+what the user therefore types. Nothing else means one of them: `yes` and `1`
+are values of other kinds, and a member that holds one of those is a member of
+another kind.
+"""
+
+BOOL_CHOICES = ', '.join(word for word, _ in BOOL_WORDS)
+"""The two words as they are listed to the user, in the order asked."""
+
+
+def bool_word(text: str) -> Optional[bool]:
+    """Return the value that the beginning of one of those words means.
+
+    The case is ignored and a beginning is enough, which is what
+    `config_as_json` already does for the name of an enum member: its
+    `string_to_enum_best_match` tries the case variants of what was typed and
+    then accepts a beginning that only one member has. A member holding true
+    or false has no such converter, because there is nothing to convert it
+    into, so it is answered here and by the same rules.
+
+    A beginning that both words have is no answer, exactly as an ambiguous
+    beginning of two enum member names is none. The empty text is the only one
+    there is, and it is what a cleared field holds.
+
+    Args:
+        text: Text that the edit field holds.
+
+    Returns:
+        The value that text means, and None when it means neither of them.
+    """
+    typed = text.strip().lower()
+    matched = [value for word, value in BOOL_WORDS if word.startswith(typed)]
+    return matched[0] if len(matched) == 1 else None
+
 
 def value_as_text(value: JsonType) -> str:
     """Return the text that an edit field shows for one value.
@@ -57,13 +95,14 @@ def value_as_text(value: JsonType) -> str:
     return value if isinstance(value, str) else json.dumps(value)
 
 
-def text_as_value(text: str, is_text_member: bool) -> JsonType:
+def text_as_value(text: str, original: JsonType) -> JsonType:
     """Return the value that the text of one edit field stands for.
 
     A member that holds text keeps exactly what the user typed, so that a
-    text member can hold the digits of a number without becoming a number.
-    Every other member has its text read as JSON, which is the inverse of
-    how `value_as_text` writes it.
+    text member can hold the digits of a number without becoming a number. A
+    member that holds true or false takes any beginning of either word, as
+    `bool_word` says. Every other member has its text read as JSON, which is
+    the inverse of how `value_as_text` writes it.
 
     Text that is not JSON at all is kept as a string rather than refused. A
     value being typed passes through states that are not valid, and a field
@@ -73,13 +112,20 @@ def text_as_value(text: str, is_text_member: bool) -> JsonType:
 
     Args:
         text: Text that the edit field holds.
-        is_text_member: Whether this member holds text.
+        original: Value that this member held when the file was last agreed
+            with, which is the whole of the type information there is
+            (section 4.2 of `doc/design.md`). It says how the text is read
+            and never what it becomes.
 
     Returns:
         The JSON space value that the text stands for.
     """
-    if is_text_member:
+    if isinstance(original, str):
         return text
+    if isinstance(original, bool):
+        word = bool_word(text)
+        if word is not None:
+            return word
     try:
         value: JsonType = json.loads(text)
     except json.JSONDecodeError:

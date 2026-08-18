@@ -282,7 +282,8 @@ class EditModel:
         """
         self._buffer.take_subtrees(
             subtree_answers(config=self._source.config,
-                            members=self._buffer.values(), inside=path))
+                            members=self._buffer.values(), inside=path,
+                            bool_nodes=self._buffer.bool_nodes))
 
     @property
     def settings(self) -> Settings:
@@ -692,7 +693,8 @@ class EditModel:
         """
         self._buffer.check_all()
         outcome = validate_buffer(config=self._source.config,
-                                  members=self._buffer.values())
+                                  members=self._buffer.values(),
+                                  bool_nodes=self._buffer.bool_nodes)
         if outcome.verdict.valid:
             assert outcome.candidate is not None
             self._buffer.take_validated(config=outcome.candidate,

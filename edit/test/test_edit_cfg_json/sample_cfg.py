@@ -225,6 +225,28 @@ class TypedCfg(SampleCfg):
                                      validator=ValueTypeValidator(int))]
 
 
+class FlagCfg(SampleCfg):
+    """A configuration with two members that hold true or false.
+
+    The application checks the type of one of them and says nothing about the
+    other, which is what tells its rules from the editor's own answer: a text
+    that means neither of the two words is refused for either member, because
+    that refusal is about the type of the member and not about a rule.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the two members holding true or false, and a number."""
+        self.checked: bool = True
+        self.plain: bool = False
+        self.answer: int = 1
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return the step that checks the type of one of the two."""
+        _ = stderr_file
+        return [MemberValidationStep(member_names=['checked'],
+                                     validator=ValueTypeValidator(bool))]
+
+
 class Colour(Enum):
     """The values that the enum member of `EnumCfg` can hold."""
 

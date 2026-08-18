@@ -9,8 +9,8 @@ import json
 import pytest
 from config_as_json import JsonType
 from edit_cfg_json import Descriptions, EditModel, MemberRow
-from .sample_cfg import PICKED_NAME, DocumentedCfg, ExtraArgCfg, FlatCfg, \
-    IntEnumCfg, ListCfg, NoneCfg, OmitCfg, RangeCfg, RewriteCfg, \
+from .sample_cfg import PICKED_NAME, DocumentedCfg, ExtraArgCfg, FlagCfg, \
+    FlatCfg, IntEnumCfg, ListCfg, NoneCfg, OmitCfg, RangeCfg, RewriteCfg, \
     picking_loader
 
 TEXT_KIND = 'Text.'
@@ -605,6 +605,73 @@ def test_pass_checks_fields() -> None:
     model.set_text(path=('level',), text='MIDDLE')
     model.validate()
     assert 'MIDDLE is not one of' in _row(model, 'level').conversion
+
+
+@pytest.mark.parametrize('name, typed, expected',
+                         [('plain', 'T', True), ('plain', 'tr', True),
+                          ('checked', 'f', False),
+                          ('checked', 'FALSE', False)])
+def test_flag_typed(name: str, typed: str, expected: bool) -> None:
+    """Test a beginning of either word is that value in such a member.
+
+    The value is made on the change and not when the field is left, so a
+    validation pass and a save see the value the user meant, and the field is
+    written back as the whole word by the refresh that follows the pass.
+    """
+    model = EditModel(FlagCfg())
+    model.set_text(path=(name,), text=typed)
+    row = _row(model, name)
+    assert row.value is expected
+    assert row.value_text == ('true' if expected else 'false')
+
+
+def test_flag_word_saved(tmp_path: Path) -> None:
+    """Test what such a member reaches the file as is the whole word."""
+    out_file = tmp_path / 'out.json'
+    model = EditModel(FlagCfg(), out_file=out_file)
+    model.set_text(path=('checked',), text='f')
+    assert model.save().saved
+    assert _written(out_file) == {'checked': False, 'plain': False,
+                                  'answer': 1}
+
+
+@pytest.mark.parametrize('name', ['checked', 'plain'])
+def test_flag_left_field(name: str) -> None:
+    """Test leaving such a field says so when it means neither word.
+
+    The member whose type no validator checks is answered exactly as the one
+    it checks, because what is said is about the type of the member and not
+    about a rule of the application.
+    """
+    model = EditModel(FlagCfg())
+    model.set_text(path=(name,), text='yes')
+    assert _row(model, name).conversion == ''
+    model.check_field((name,))
+    assert 'yes is not one of: true, false' in _row(model, name).conversion
+
+
+@pytest.mark.parametrize('name', ['checked', 'plain'])
+def test_flag_refused(name: str) -> None:
+    """Test a pass refuses such a text and names the member it is about."""
+    model = EditModel(FlagCfg())
+    model.set_text(path=(name,), text='1')
+    verdict = model.validate()
+    assert not verdict.valid
+    assert verdict.refused[(name,)] == '1 is not one of: true, false'
+
+
+def test_flag_refused_save(tmp_path: Path) -> None:
+    """Test nothing is written while such a member means neither word."""
+    out_file = tmp_path / 'out.json'
+    model = EditModel(FlagCfg(), out_file=out_file)
+    model.set_text(path=('plain',), text='yes')
+    assert not model.save().saved
+    assert not out_file.exists()
+
+
+def test_flag_kind_said() -> None:
+    """Test the type of such a member is what says which values it takes."""
+    assert _row(EditModel(FlagCfg()), 'plain').description == 'True or false.'
 
 
 def test_unknown_field() -> None:

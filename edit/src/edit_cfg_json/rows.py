@@ -340,6 +340,17 @@ class MemberRow(NamedTuple):
         return isinstance(self.original, str)
 
     @property
+    def is_bool(self) -> bool:
+        """Return whether this node holds true or false.
+
+        It is what makes the two words the values this node takes, so that
+        any beginning of either of them is one of them and anything else is
+        neither. A node that held nothing when the file was last agreed with
+        is not one of these: nothing was held, so nothing is known.
+        """
+        return isinstance(self.original, bool)
+
+    @property
     def edited(self) -> bool:
         """Return whether this node holds something that is not saved yet.
 

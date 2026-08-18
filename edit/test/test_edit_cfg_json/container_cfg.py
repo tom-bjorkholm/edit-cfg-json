@@ -297,6 +297,34 @@ class EnumInnerCfg(SampleCfg):
         return {'colour': Config.get_converter_dict(Colour)}
 
 
+class FlagInnerCfg(SampleCfg):
+    """A nested object with one member that holds true or false."""
+
+    def declare_members(self) -> None:
+        """Assign the one member holding true or false."""
+        self.enabled: bool = True
+
+
+class FlagTreeCfg(SampleCfg):
+    """A configuration holding true or false inside a list and an object.
+
+    Neither of the two is a member of this class, so both of them answer the
+    question that a member of it does not: whether the two words are what a
+    node takes is known for a node at any depth, and a nested object is asked
+    about the one inside it when it is folded away.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the nested object and the list of flags."""
+        self.inner: FlagInnerCfg = FlagInnerCfg()
+        self.flags: list[bool] = [True, False]
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration of the one nested configuration object."""
+        return {'inner': ConfigNesting(kind=ConfigNestingKind.MEMBER,
+                                       config_type=FlagInnerCfg)}
+
+
 class OwnedEnumCfg(SampleCfg):
     """A configuration whose nested object converts a name that it does not.
 

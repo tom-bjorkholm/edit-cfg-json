@@ -206,12 +206,14 @@
   * [write\_config](#edit_cfg_json.saving.write_config)
 * [edit\_cfg\_json.converting](#edit_cfg_json.converting)
   * [CONVERSION\_ERRORS](#edit_cfg_json.converting.CONVERSION_ERRORS)
+  * [NOT\_A\_BOOL\_FORM](#edit_cfg_json.converting.NOT_A_BOOL_FORM)
   * [Converted](#edit_cfg_json.converting.Converted)
     * [value](#edit_cfg_json.converting.Converted.value)
     * [message](#edit_cfg_json.converting.Converted.message)
   * [member\_converters](#edit_cfg_json.converting.member_converters)
   * [node\_converters](#edit_cfg_json.converting.node_converters)
   * [convert\_member](#edit_cfg_json.converting.convert_member)
+  * [\_converted\_bool](#edit_cfg_json.converting._converted_bool)
   * [refusal\_text](#edit_cfg_json.converting.refusal_text)
 * [edit\_cfg\_json.dump](#edit_cfg_json.dump)
   * [PROGRAM](#edit_cfg_json.dump.PROGRAM)
@@ -236,6 +238,9 @@
   * [BOOL\_KIND](#edit_cfg_json.leaf_value.BOOL_KIND)
   * [VALUE\_KINDS](#edit_cfg_json.leaf_value.VALUE_KINDS)
   * [NO\_KIND](#edit_cfg_json.leaf_value.NO_KIND)
+  * [BOOL\_WORDS](#edit_cfg_json.leaf_value.BOOL_WORDS)
+  * [BOOL\_CHOICES](#edit_cfg_json.leaf_value.BOOL_CHOICES)
+  * [bool\_word](#edit_cfg_json.leaf_value.bool_word)
   * [value\_as\_text](#edit_cfg_json.leaf_value.value_as_text)
   * [text\_as\_value](#edit_cfg_json.leaf_value.text_as_value)
   * [canonical\_text](#edit_cfg_json.leaf_value.canonical_text)
@@ -262,6 +267,7 @@
     * [\_\_init\_\_](#edit_cfg_json.buffer.EditBuffer.__init__)
     * [report](#edit_cfg_json.buffer.EditBuffer.report)
     * [rows](#edit_cfg_json.buffer.EditBuffer.rows)
+    * [bool\_nodes](#edit_cfg_json.buffer.EditBuffer.bool_nodes)
     * [dirty](#edit_cfg_json.buffer.EditBuffer.dirty)
     * [anything\_open](#edit_cfg_json.buffer.EditBuffer.anything_open)
     * [values](#edit_cfg_json.buffer.EditBuffer.values)
@@ -533,6 +539,7 @@
     * [is\_object](#edit_cfg_json.rows.MemberRow.is_object)
     * [editable](#edit_cfg_json.rows.MemberRow.editable)
     * [is\_text](#edit_cfg_json.rows.MemberRow.is_text)
+    * [is\_bool](#edit_cfg_json.rows.MemberRow.is_bool)
     * [edited](#edit_cfg_json.rows.MemberRow.edited)
     * [value\_text](#edit_cfg_json.rows.MemberRow.value_text)
   * [RowContext](#edit_cfg_json.rows.RowContext)
@@ -643,6 +650,7 @@
   * [\_deepest\_first](#edit_cfg_json.validation._deepest_first)
   * [\_refused\_inside](#edit_cfg_json.validation._refused_inside)
   * [\_own\_refusal](#edit_cfg_json.validation._own_refusal)
+  * [\_inside](#edit_cfg_json.validation._inside)
   * [\_record\_subtree](#edit_cfg_json.validation._record_subtree)
   * [subtree\_answers](#edit_cfg_json.validation.subtree_answers)
   * [\_accepted\_subtrees](#edit_cfg_json.validation._accepted_subtrees)
@@ -3846,6 +3854,19 @@ one of the failures a validation pass catches: it says that the configuration
 class is incomplete, which is a defect of the application that no edit of the
 buffer can put right.
 
+<a id="edit_cfg_json.converting.NOT_A_BOOL_FORM"></a>
+
+#### NOT\_A\_BOOL\_FORM
+
+Why the text of a member holding true or false means neither of them.
+
+It is worded as `config_as_json` words the same refusal about the name of an
+enum member, because it is the same refusal: the member holds one of a known
+set of values and the text names none of them. Such a member has no parse
+converter to answer it — there is nothing to convert true into — so this is
+the one refusal of a leaf that the editor makes itself, and it makes it about
+the type of the member and never about a rule of the application.
+
 <a id="edit_cfg_json.converting.Converted"></a>
 
 ## Converted Objects
@@ -3934,7 +3955,8 @@ what is inside it.
 
 ```python
 def convert_member(converter: Optional[ParseConverter],
-                   value: JsonType) -> Converted
+                   value: JsonType,
+                   is_bool_member: bool = False) -> Converted
 ```
 
 Return one leaf value as its member holds it, or why it cannot.
@@ -3945,16 +3967,45 @@ JSON while it is None has nothing to convert, and a `None` that is wrong
 is refused by the validation of the whole configuration, which has a
 message of its own for it.
 
+A member holding true or false is answered without a converter, because
+it has none and needs none: `text_as_value` has already made the value of
+every text that means one of the two words, so a value that is neither
+means neither and is refused here as an enum member name that names no
+member is.
+
 **Arguments**:
 
 - `converter` - How the text of this member becomes a value, or None for a
   member that holds what the file holds.
 - `value` - JSON space value that the buffer holds for that member.
+- `is_bool_member` - Whether this member held true or false when the file
+  was last agreed with, which is what makes those the two values it
+  takes.
   
 
 **Returns**:
 
   The value the configuration would hold, or the reason it would not.
+
+<a id="edit_cfg_json.converting._converted_bool"></a>
+
+#### \_converted\_bool
+
+```python
+def _converted_bool(value: JsonType, is_bool_member: bool) -> Converted
+```
+
+Return one value of a member that no converter answers for.
+
+**Arguments**:
+
+- `value` - JSON space value that the buffer holds for that member.
+- `is_bool_member` - Whether that member holds true or false.
+  
+
+**Returns**:
+
+  The value, and why it is neither of the two words where it is neither.
 
 <a id="edit_cfg_json.converting.refusal_text"></a>
 
@@ -4459,6 +4510,53 @@ The kind of a member is the kind of the value it held when the file was last
 agreed with, which is the only type information there is (section 4.2 of
 `doc/design.md`), and a member that held nothing gave none.
 
+<a id="edit_cfg_json.leaf_value.BOOL_WORDS"></a>
+
+#### BOOL\_WORDS
+
+The two words a member holding true or false is written with.
+
+They are the JSON notation of the two values, which is what the file holds and
+what the user therefore types. Nothing else means one of them: `yes` and `1`
+are values of other kinds, and a member that holds one of those is a member of
+another kind.
+
+<a id="edit_cfg_json.leaf_value.BOOL_CHOICES"></a>
+
+#### BOOL\_CHOICES
+
+The two words as they are listed to the user, in the order asked.
+
+<a id="edit_cfg_json.leaf_value.bool_word"></a>
+
+#### bool\_word
+
+```python
+def bool_word(text: str) -> Optional[bool]
+```
+
+Return the value that the beginning of one of those words means.
+
+The case is ignored and a beginning is enough, which is what
+`config_as_json` already does for the name of an enum member: its
+`string_to_enum_best_match` tries the case variants of what was typed and
+then accepts a beginning that only one member has. A member holding true
+or false has no such converter, because there is nothing to convert it
+into, so it is answered here and by the same rules.
+
+A beginning that both words have is no answer, exactly as an ambiguous
+beginning of two enum member names is none. The empty text is the only one
+there is, and it is what a cleared field holds.
+
+**Arguments**:
+
+- `text` - Text that the edit field holds.
+  
+
+**Returns**:
+
+  The value that text means, and None when it means neither of them.
+
 <a id="edit_cfg_json.leaf_value.value_as_text"></a>
 
 #### value\_as\_text
@@ -4489,15 +4587,16 @@ notation, which is also how the user would type it.
 #### text\_as\_value
 
 ```python
-def text_as_value(text: str, is_text_member: bool) -> JsonType
+def text_as_value(text: str, original: JsonType) -> JsonType
 ```
 
 Return the value that the text of one edit field stands for.
 
 A member that holds text keeps exactly what the user typed, so that a
-text member can hold the digits of a number without becoming a number.
-Every other member has its text read as JSON, which is the inverse of
-how `value_as_text` writes it.
+text member can hold the digits of a number without becoming a number. A
+member that holds true or false takes any beginning of either word, as
+`bool_word` says. Every other member has its text read as JSON, which is
+the inverse of how `value_as_text` writes it.
 
 Text that is not JSON at all is kept as a string rather than refused. A
 value being typed passes through states that are not valid, and a field
@@ -4508,7 +4607,10 @@ reports it as the wrong type.
 **Arguments**:
 
 - `text` - Text that the edit field holds.
-- `is_text_member` - Whether this member holds text.
+- `original` - Value that this member held when the file was last agreed
+  with, which is the whole of the type information there is
+  (section 4.2 of `doc/design.md`). It says how the text is read
+  and never what it becomes.
   
 
 **Returns**:
@@ -5015,6 +5117,21 @@ Return one row per node of the configuration, in the order shown.
 
 Every row is here whether it is folded away or not, because a backend
 creates its widgets once and hides the ones that are not shown.
+
+<a id="edit_cfg_json.buffer.EditBuffer.bool_nodes"></a>
+
+#### bool\_nodes
+
+```python
+@property
+def bool_nodes() -> frozenset[ConfigPath]
+```
+
+Return the path of every node that holds true or false.
+
+It is the type information of those nodes, which the rows own and a
+validation pass needs: the values it is given are JSON space values,
+and nothing in `true` and `1` says which of the two a member takes.
 
 <a id="edit_cfg_json.buffer.EditBuffer.dirty"></a>
 
@@ -9734,6 +9851,22 @@ whose text is a rendering of it. The text of a text value is the
 value itself, while the text of a number is how the number is
 written.
 
+<a id="edit_cfg_json.rows.MemberRow.is_bool"></a>
+
+#### is\_bool
+
+```python
+@property
+def is_bool() -> bool
+```
+
+Return whether this node holds true or false.
+
+It is what makes the two words the values this node takes, so that
+any beginning of either of them is one of them and anything else is
+neither. A node that held nothing when the file was last agreed with
+is not one of these: nothing was held, so nothing is known.
+
 <a id="edit_cfg_json.rows.MemberRow.edited"></a>
 
 #### edited
@@ -11534,8 +11667,8 @@ belongs. The one method left out is the whole of what this borrows.
 #### \_unconverted
 
 ```python
-def _unconverted(config: Config,
-                 members: dict[str, JsonType]) -> dict[ConfigPath, str]
+def _unconverted(config: Config, members: dict[str, JsonType],
+                 bool_nodes: frozenset[ConfigPath]) -> dict[ConfigPath, str]
 ```
 
 Return why each value of the buffer means no value of its node.
@@ -11543,13 +11676,15 @@ Return why each value of the buffer means no value of its node.
 Every node is asked, and the converter that answers for it is the one its
 own owning class declares: a value inside a nested configuration object is
 parsed by that object and not by the one above it. A node that no
-converter reaches is asked with none, which nothing can refuse.
+converter reaches is asked with none, which nothing but a member holding
+true or false can refuse.
 
 **Arguments**:
 
 - `config` - Configuration object of this session, which says which nodes
   are configuration objects of their own. It is not modified.
 - `members` - The edit buffer, as one JSON space value per member.
+- `bool_nodes` - Path of every node that holds true or false.
   
 
 **Returns**:
@@ -11730,8 +11865,8 @@ Return the pass of a buffer that never became a configuration.
 #### \_single\_pass
 
 ```python
-def _single_pass(config: Config, members: dict[str,
-                                               JsonType]) -> ValidationPass
+def _single_pass(config: Config, members: dict[str, JsonType],
+                 bool_nodes: frozenset[ConfigPath]) -> ValidationPass
 ```
 
 Validate one edit buffer by applying it to a candidate configuration.
@@ -11768,6 +11903,8 @@ and belong on the screen and not in the terminal behind it.
 - `config` - Configuration object that the buffer belongs to, which holds
   everything about it that is not a member. It is not modified.
 - `members` - The edit buffer, as one JSON space value per member.
+- `bool_nodes` - Path of every node that holds true or false, which is the
+  type information the buffer holds and these values do not.
   
 
 **Returns**:
@@ -11845,13 +11982,39 @@ user looking for one.
   What to say at that node, and nothing at all when the object said
   nothing that was not already attributed to a member of it.
 
+<a id="edit_cfg_json.validation._inside"></a>
+
+#### \_inside
+
+```python
+def _inside(bool_nodes: frozenset[ConfigPath],
+            path: ConfigPath) -> frozenset[ConfigPath]
+```
+
+Return the nodes inside one object, by the path that object knows.
+
+A nested object is asked about its own part of the buffer, where its own
+members are the outermost nodes, so the path of every node inside it loses
+the steps that reach the object itself.
+
+**Arguments**:
+
+- `bool_nodes` - Path of every node that holds true or false.
+- `path` - Path of the node the object is at.
+  
+
+**Returns**:
+
+  Those of them that are inside it, each without that path in front.
+
 <a id="edit_cfg_json.validation._record_subtree"></a>
 
 #### \_record\_subtree
 
 ```python
 def _record_subtree(path: ConfigPath, node: ConfigNode, value: JsonType,
-                    answers: dict[ConfigPath, SubtreeAnswer]) -> None
+                    answers: dict[ConfigPath, SubtreeAnswer],
+                    bool_nodes: frozenset[ConfigPath]) -> None
 ```
 
 Ask one nested object about its own part of the buffer.
@@ -11862,6 +12025,8 @@ Ask one nested object about its own part of the buffer.
 - `node` - What the class declares there, and what is really there.
 - `value` - What the buffer holds for that node.
 - `answers` - What the objects inside it said, which this adds to.
+- `bool_nodes` - Path of every node of the whole tree that holds true or
+  false.
 
 <a id="edit_cfg_json.validation.subtree_answers"></a>
 
@@ -11869,7 +12034,10 @@ Ask one nested object about its own part of the buffer.
 
 ```python
 def subtree_answers(
-    config: Config, members: dict[str, JsonType], inside: ConfigPath = ()
+    config: Config,
+    members: dict[str, JsonType],
+    inside: ConfigPath = (),
+    bool_nodes: frozenset[ConfigPath] = frozenset()
 ) -> dict[ConfigPath, SubtreeAnswer]
 ```
 
@@ -11892,6 +12060,8 @@ answer nothing at all for exactly the shape a real configuration has.
 - `members` - The edit buffer, as one JSON space value per member.
 - `inside` - Path of the node being asked about, the empty path for the
   whole configuration. Every object at or inside it is asked.
+- `bool_nodes` - Path of every node that holds true or false, empty for a
+  caller that knows of none.
   
 
 **Returns**:
@@ -11969,8 +12139,11 @@ it printed is about something else and is kept.
 #### validate\_buffer
 
 ```python
-def validate_buffer(config: Config, members: dict[str,
-                                                  JsonType]) -> ValidationPass
+def validate_buffer(
+    config: Config,
+    members: dict[str, JsonType],
+    bool_nodes: frozenset[ConfigPath] = frozenset()
+) -> ValidationPass
 ```
 
 Validate one edit buffer, and every nested object of it on its own.
@@ -12002,6 +12175,9 @@ valid and there is nothing left to find out.
   the buffer belongs to and holds everything about it that is not a
   member. It is not modified.
 - `members` - The edit buffer, as one JSON space value per member.
+- `bool_nodes` - Path of every node that holds true or false, empty for a
+  caller that knows of none. The values are in JSON space, where
+  nothing says which member takes those two and only those two.
   
 
 **Returns**:

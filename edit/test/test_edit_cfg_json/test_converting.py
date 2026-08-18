@@ -78,6 +78,42 @@ def test_no_converter() -> None:
     assert convert_member(converter=None, value='anything') == ('anything', '')
 
 
+@pytest.mark.parametrize('value, expected',
+                         [('yes', 'yes is not one of: true, false'),
+                          ('', ' is not one of: true, false'),
+                          (1, '1 is not one of: true, false'),
+                          ('truely', 'truely is not one of: true, false')])
+def test_refused_flag(value: JsonType, expected: str) -> None:
+    """Test a member holding true or false refuses what means neither.
+
+    It is worded as the refusal of an enum member name is worded, because it
+    is the same refusal: the member takes one of a known set of values and
+    this text names none of them. Such a member has no converter to answer
+    it, so this is the editor answering for the type of the member.
+    """
+    converted = convert_member(converter=None, value=value,
+                               is_bool_member=True)
+    assert converted == (value, expected)
+
+
+@pytest.mark.parametrize('value', [True, False, None])
+def test_accepted_flag(value: JsonType) -> None:
+    """Test either of the two values, and no value at all, is accepted.
+
+    None is left alone here exactly as it is for a converter: a member that
+    may hold nothing holds nothing, and a None that is wrong is refused by
+    the validation of the whole configuration.
+    """
+    assert convert_member(converter=None, value=value,
+                          is_bool_member=True) == (value, '')
+
+
+def test_other_member_kept() -> None:
+    """Test a member of another kind is not asked about the two words."""
+    assert convert_member(converter=None, value='yes',
+                          is_bool_member=False) == ('yes', '')
+
+
 def test_own_converter_runs() -> None:
     """Test a converter of the application's own is run like any other."""
     converter = member_converters(HexCfg())['mask']

@@ -90,6 +90,32 @@ def test_dump(capsys: pytest.CaptureFixture[str]) -> None:
         'edit() returned None, so nothing was saved.')
 
 
+@pytest.mark.parametrize('typed, row',
+                         [('f', 'compress = false (edited)'),
+                          ('F', 'compress = false (edited)'),
+                          ('tr', 'compress = true'),
+                          ('TRUE', 'compress = true')])
+def test_flag_typed(typed: str, row: str,
+                    capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the member holding true or false takes a beginning of a word.
+
+    This application says nothing at all about that member, so what accepts
+    the beginning is the editor reading the type of the member from the value
+    it holds. The two beginnings of the value it already holds leave nothing
+    to save, because what would be written is what the file holds.
+    """
+    shown = _dump(capsys, '--set', f'compress={typed}')
+    assert f'\n{row}\n' in shown
+    assert 'validation: valid' in shown
+
+
+def test_flag_refused(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a text that means neither word is refused at that member."""
+    shown = _dump(capsys, '--set', 'compress=yes')
+    assert 'yes is not one of: true, false' in shown
+    assert 'validation: invalid, see compress' in shown
+
+
 def test_previous_kept(tmp_path: Path,
                        capsys: pytest.CaptureFixture[str]) -> None:
     """Test a save over the input file keeps what that file held."""

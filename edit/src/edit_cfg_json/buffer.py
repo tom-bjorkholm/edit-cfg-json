@@ -148,6 +148,17 @@ class EditBuffer:
         return tuple(self._rows.values())
 
     @property
+    def bool_nodes(self) -> frozenset[ConfigPath]:
+        """Return the path of every node that holds true or false.
+
+        It is the type information of those nodes, which the rows own and a
+        validation pass needs: the values it is given are JSON space values,
+        and nothing in `true` and `1` says which of the two a member takes.
+        """
+        return frozenset(path for path, row in self._rows.items()
+                         if row.is_bool)
+
+    @property
     def dirty(self) -> bool:
         """Return whether the buffer holds anything that is worth saving."""
         return any(row.edited for row in self._rows.values())
@@ -201,7 +212,7 @@ class EditBuffer:
             raise ValueError(NOT_EDITABLE_ERROR.format(name=row.name))
         if row.value_text == text:
             return False
-        value = text_as_value(text=text, is_text_member=row.is_text)
+        value = text_as_value(text=text, original=row.original)
         self._rows[path] = row._replace(value=value, conversion='',
                                         changed_by_validator=False)
         self._hold_again(path)
@@ -217,7 +228,8 @@ class EditBuffer:
             KeyError: The path is not a node of this configuration.
         """
         row = self._rows[path]
-        converted = convert_member(converter=row.converter, value=row.value)
+        converted = convert_member(converter=row.converter, value=row.value,
+                                   is_bool_member=row.is_bool)
         self._rows[path] = row._replace(conversion=converted.message)
 
     def check_all(self) -> None:

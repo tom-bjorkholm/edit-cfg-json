@@ -28,6 +28,7 @@ and not by the class above it.
 from collections.abc import Mapping, Sequence
 from typing import NamedTuple, Optional
 from config_as_json import Config, ConfigPath, JsonType, ParseConverter
+from edit_cfg_json.leaf_value import BOOL_CHOICES, value_as_text
 from edit_cfg_json.tree import ConfigNode, owner_path, under_dict
 
 CONVERSION_ERRORS = (AssertionError, AttributeError, KeyError, TypeError,
@@ -44,6 +45,17 @@ assertion that the enum converter begins with.
 one of the failures a validation pass catches: it says that the configuration
 class is incomplete, which is a defect of the application that no edit of the
 buffer can put right.
+"""
+
+NOT_A_BOOL_FORM = '{text} is not one of: {words}'
+"""Why the text of a member holding true or false means neither of them.
+
+It is worded as `config_as_json` words the same refusal about the name of an
+enum member, because it is the same refusal: the member holds one of a known
+set of values and the text names none of them. Such a member has no parse
+converter to answer it — there is nothing to convert true into — so this is
+the one refusal of a leaf that the editor makes itself, and it makes it about
+the type of the member and never about a rule of the application.
 """
 
 
@@ -113,8 +125,8 @@ def node_converters(nodes: Mapping[ConfigPath, ConfigNode],
             if converter is not None}
 
 
-def convert_member(converter: Optional[ParseConverter],
-                   value: JsonType) -> Converted:
+def convert_member(converter: Optional[ParseConverter], value: JsonType,
+                   is_bool_member: bool = False) -> Converted:
     """Return one leaf value as its member holds it, or why it cannot.
 
     A value that already has the type the converter produces is left alone,
@@ -123,22 +135,51 @@ def convert_member(converter: Optional[ParseConverter],
     is refused by the validation of the whole configuration, which has a
     message of its own for it.
 
+    A member holding true or false is answered without a converter, because
+    it has none and needs none: `text_as_value` has already made the value of
+    every text that means one of the two words, so a value that is neither
+    means neither and is refused here as an enum member name that names no
+    member is.
+
     Args:
         converter: How the text of this member becomes a value, or None for a
             member that holds what the file holds.
         value: JSON space value that the buffer holds for that member.
+        is_bool_member: Whether this member held true or false when the file
+            was last agreed with, which is what makes those the two values it
+            takes.
 
     Returns:
         The value the configuration would hold, or the reason it would not.
     """
-    if converter is None or value is None or \
-            isinstance(value, converter.result_type):
+    if value is None:
+        return Converted(value=value, message='')
+    if converter is None:
+        return _converted_bool(value=value, is_bool_member=is_bool_member)
+    if isinstance(value, converter.result_type):
         return Converted(value=value, message='')
     try:
         return Converted(value=converter.func(value, **converter.args),
                          message='')
     except CONVERSION_ERRORS as error:
         return Converted(value=value, message=refusal_text(error))
+
+
+def _converted_bool(value: JsonType, is_bool_member: bool) -> Converted:
+    """Return one value of a member that no converter answers for.
+
+    Args:
+        value: JSON space value that the buffer holds for that member.
+        is_bool_member: Whether that member holds true or false.
+
+    Returns:
+        The value, and why it is neither of the two words where it is neither.
+    """
+    if not is_bool_member or isinstance(value, bool):
+        return Converted(value=value, message='')
+    said = NOT_A_BOOL_FORM.format(text=value_as_text(value),
+                                  words=BOOL_CHOICES)
+    return Converted(value=value, message=said)
 
 
 def refusal_text(error: Exception) -> str:

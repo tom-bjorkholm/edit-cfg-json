@@ -347,6 +347,36 @@ one member. The candidate is not built at all in that case. The load path of
 section 5.2 is deliberately left as it is, because a refusal the user cannot
 act on inside the editor is not a field being edited.
 
+**A member holding true or false is entered like an enum member.** Such a
+member has no parse converter — there is nothing to convert `true` into — so
+it would otherwise be the one member whose value has to be typed exactly and
+in lower case, while `config_as_json` accepts any unambiguous beginning of an
+enum member name in any case at all. The two words are read by those same
+rules: the case is ignored, a beginning of one of them is that value, and a
+beginning of both of them is neither, which only the empty text of a cleared
+field is. It is read where every other text becomes a value, on the change and
+not on the focus loss, so a validation pass and a save are given the value the
+user meant, and the whole word reaches the field with the refresh that follows
+a pass.
+
+**What means neither of the two words is refused at that member**, in the words
+an enum member name that names no member is refused in: `yes is not one of:
+true, false`. It is the one refusal of a leaf that the editor makes itself
+instead of running something the class declared, and what it is made from is the
+type of the member rather than a rule of the application — the same knowledge
+that says *true or false* under it (section 4.3). One consequence is deliberate:
+an application that would have accepted something else in a member whose value
+was true or false cannot be given one from the editor. The type is what the leaf
+held when the file was last agreed with, as everywhere else here, so a member
+that held a string is a text member and takes any text, and a member that held
+nothing at all is a member whose type nothing says, which is the open question
+at the end of this section.
+
+**Which nodes hold one of the two words is therefore part of what a validation
+pass is given.** The values it is handed are JSON space values, in which nothing
+says which member takes those two values and only those two, and the rows are
+where the type of every leaf is kept.
+
 Rewriting the text a field shows is a separate matter, and belongs where
 validation rewrites values (section 6.4).
 

@@ -14,8 +14,9 @@ import pytest
 from edit_cfg_json import EditModel, can_fold, fold_hides, model_as_text
 from edit_cfg_json.tree import OPEN_AT_MOST
 from .model_helpers import row_at, row_paths, shown_paths, written
-from .container_cfg import BigListCfg, EmptyCfg, GROUP_FORM, GrowingCfg, \
-    KeyedEnumCfg, NormalizeCfg, RangedListCfg, SMALL_LIMIT, TreeCfg
+from .container_cfg import BigListCfg, EmptyCfg, FlagTreeCfg, GROUP_FORM, \
+    GrowingCfg, KeyedEnumCfg, NormalizeCfg, RangedListCfg, SMALL_LIMIT, \
+    TreeCfg
 from .sample_cfg import FlatCfg, ListCfg
 
 GROWN_STAGE = 2
@@ -133,6 +134,27 @@ def test_nested_key_converted() -> None:
     model.check_field(('shades', 'colour'))
     said = row_at(model, ('shades', 'colour')).conversion
     assert 'PURPLE is not one of' in said
+
+
+def test_flag_in_list() -> None:
+    """Test an element of a list of flags takes a beginning of a word.
+
+    Which values a node takes is known for a node at any depth, because it is
+    read from the value that node held and every node held one.
+    """
+    model = EditModel(FlagTreeCfg())
+    model.set_text(path=('flags', '0'), text='f')
+    assert row_at(model, ('flags', '0')).value is False
+    assert model.validate().valid
+
+
+def test_flag_in_list_refused() -> None:
+    """Test such an element is refused where its text means neither word."""
+    model = EditModel(FlagTreeCfg())
+    model.set_text(path=('flags', '1'), text='maybe')
+    verdict = model.validate()
+    assert verdict.refused[('flags', '1')] == \
+        'maybe is not one of: true, false'
 
 
 def test_list_unconverted() -> None:

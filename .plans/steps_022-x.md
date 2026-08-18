@@ -2,12 +2,13 @@
 
 ## Where everything is
 
-Steps 1 to 21 are implemented and committed. Steps 1 to 9 are written up in
+Steps 1 to 21 are implemented and committed, and step 22 is implemented and
+awaiting its review. Steps 1 to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md) and steps 10 to 21 in
-[steps_010-021.md](steps_010-021.md). The steps still to build are in
-[steps_022-x.md](steps_022-x.md). Where any of the three files mentions a
-design decision, [`doc/design.md`](../doc/design.md) remains the authority and
-the plan says only *when* that decision gets built.
+[steps_010-021.md](steps_010-021.md). Step 22 and the steps still to build are
+in this file. Where any of the three files mentions a design decision,
+[`doc/design.md`](../doc/design.md) remains the authority and the plan says only
+*when* that decision gets built.
 
 - [The decisions the plan is built on][dec] — the seven settled before the
   first step, from example observability to per-step verification.
@@ -78,6 +79,9 @@ the plan says only *when* that decision gets built.
   every setting can be written in a file.
 - [Step 21][s21] — `--version` on all three programs, as a fourth thing a run
   does instead of editing, answered by one version reporter per distribution.
+- [Step 22][s22] — a member holding true or false entered as an enum member
+  already was: any beginning of either word in any case, and a text that means
+  neither of them refused at that member.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -107,6 +111,7 @@ the plan says only *when* that decision gets built.
 [s19]: steps_010-021.md#step-19---config_as_jsonconfig-for-storing-the-settings
 [s20]: steps_010-021.md#step-20--the-rest-of-the-programs-command-line
 [s21]: steps_010-021.md#step-21---version-command-line-flag
+[s22]: #step-22---better-bool-support
 
 ## 1. How this plan is meant to be used
 
@@ -127,13 +132,13 @@ decision gets built.
 - Every step touches all three packages where the capability is
   user-visible, so `edit_cfg_json`, `edit_cfg_json_tk` and
   `edit_cfg_json_textual` never drift apart by more than one review.
-- Steps 1 to 21 are built, and each is written up in
-  [steps_001-009_done.md](steps_001-009_done.md) or in
-  [steps_010-021.md](steps_010-021.md) as what it decided, what it found
-  while building it and what came of its review. Steps 22 onwards are named
-  steps with their observable outcome and their main risks; they are detailed
-  just before they are started, when the core API is real rather than
-  imagined.
+- Steps 1 to 22 are built, and each is written up in
+  [steps_001-009_done.md](steps_001-009_done.md), in
+  [steps_010-021.md](steps_010-021.md) or in section 3 of this file as what it
+  decided, what it found while building it and what came of its review. Steps
+  23 onwards are named steps with their observable outcome and their main
+  risks; they are detailed just before they are started, when the core API is
+  real rather than imagined.
 
 ### 1.1 Definition of done for one step
 
@@ -177,11 +182,101 @@ the order, the observable outcome and the main risk.
 
 ### Step 22 - Better bool support
 
+Status: **Implemented, committed.**
+
 When the user enters a bool value they should get the same support as
 when entering an enum value. The text in the text field should be
 compared to `true` and `false` in a case insensitive way and if the
 text in the field matches the beginning of `true` or `false` it should
 be expanded to that value.
+
+**Observable outcome.** Two example programs show it and neither of them
+changed. `e12_backup_files.py --ui dump --set compress=f` prints
+`compress = false (edited)` and a valid verdict where it printed
+`compress = f (edited)` and nothing that said what was wrong;
+`--set compress=yes` now prints `yes is not one of: true, false` under that
+member and `validation: invalid, see compress`, where it used to be accepted
+and written to the file as a string. `e17_settings_config.py --ui dump --fold
+editor --set editor.confirm_overwrite=F` prints `confirm_overwrite = false` and
+a valid verdict where it printed `confirm_overwrite = F` and
+`Value for confirm_overwrite is not of type bool`. The same two members are
+what the window and the terminal show: typing `f` into the `compress` field of
+`e12_backup_files.py --ui tk` and pressing Validate leaves `false` in the
+field, and `edit-cfg-json-tk --edit-settings` is three such fields.
+
+**What it decided.** Four things.
+
+- **The two words are read by the rules `config_as_json` already uses for an
+  enum member name.** Its `string_to_enum_best_match` tries the case variants
+  of what was typed and then accepts a beginning that only one member has, so
+  `true` and `false` are read the same way: the case is ignored, a beginning of
+  one of them is that value, and a beginning of both of them is neither. The
+  empty text of a cleared field is the only ambiguous one there is. That is
+  what "the same support as when entering an enum value" means, and it is why
+  the rule is written beside the conversion of an enum rather than as a rule of
+  its own kind.
+- **The reading happens on the change**, where every other text becomes a
+  value, and not when the field loses the focus. The buffer therefore holds
+  `false` as soon as `f` is typed, so a validation pass and a save are given
+  the value the user meant, and the whole word reaches the field with the
+  refresh that follows a pass — the path a value that a validator rewrote
+  already takes. Neither backend changed.
+- **A text that means neither word is refused at that member**, in the words
+  an enum member name that names no member is refused in, and it blocks the
+  candidate configuration exactly as that refusal does. It is the one refusal
+  of a leaf that the editor makes itself rather than running something the
+  class declared, and it is made from the type of the member and not from a
+  rule of the application. The consequence was weighed and taken: an
+  application that would have accepted something else in a member whose value
+  was true or false can no longer be given one from the editor. What made it
+  worth taking is that the editor already says *true or false* under such a
+  member, so the refusal says no more about the member than the line above it
+  does.
+- **The line under the member is left as `True or false.`** Saying that a
+  beginning is enough was the alternative, and it was refused: the type line is
+  the shortest statement of what the member holds, and the shortcut is
+  discovered by typing.
+
+**Core.** `leaf_value` owns `bool_word` and the branch of `text_as_value` that
+uses it, and `text_as_value` now takes the value the leaf kept instead of a
+flag saying whether it is text: the type of a leaf is one thing, it is that
+value, and one argument answers every branch. `converting` owns the refusal,
+`rows` gained `is_bool` beside `is_text`, and `buffer` hands both of them on.
+`validation` takes the paths of the nodes that hold one of the two words,
+because the values it is given are JSON space values in which nothing says
+which member takes those two and only those two.
+
+The public names it settled:
+
+| Name | Kind |
+| --- | --- |
+| `MemberRow.is_bool` | whether this leaf holds one of the two words |
+| `bool_word` | which value a beginning of either word means |
+| `NOT_A_BOOL_FORM` | what a text meaning neither of them is told |
+
+**What building it found.**
+
+- **`config_as_json` was already forgiving about an enum name and nothing was
+  forgiving about a bool.** `string_to_enum_best_match` accepts a unique
+  prefix, in any case, and reports what it refused as
+  `LO is not one of: LOWEST, LOW, HIGH`. So the step was not inventing a
+  convenience: it was giving one kind of member the convenience the other kind
+  already had, in the same words.
+- **A validation pass could not work the type out for itself.** Deriving which
+  nodes hold true or false from the session's own configuration object was the
+  design that would have needed no plumbing, and it is wrong: that object is
+  not updated when an element is added to or removed from a list, so the kept
+  value at `flags.0` would be the value of whatever used to be there. The rows
+  own the type, so the rows are what hand it over.
+- **A member that a beginning does not change is not an edit.** `compress`
+  holds `true`, so typing `tr` into it leaves nothing to save and the row says
+  nothing about being edited, which is the ordinary rule that a value typed
+  back to what it was is no change. It is worth knowing before reading a
+  printout of one of these examples.
+- **`_unconverted` in `validation` and `check_all` in the buffer answer the
+  same question twice**, once by path from the values and once from the rows.
+  Nothing about this step made that worse and nothing about it made it better,
+  and it is one of the things the rewrite the code needs would put right.
 
 ### Step 23 - Finding a member
 
@@ -294,7 +389,8 @@ code, the tests, the example, the documentation, three clean builds on 3.12,
 3.13 and 3.14, and the review. That floor is why nothing is below 1, and why
 the largest step is ten times the smallest rather than thirty times — the steps
 differ less in what they cost than in how hard they are. The rows are in effort
-order and therefore not in step order.
+order and therefore not in step order. The row of step 22 is kept now that it
+is built, so that what it cost can be compared with what it was guessed at.
 
 | Step | Effort | What the number is mostly |
 | --- | --- | --- |

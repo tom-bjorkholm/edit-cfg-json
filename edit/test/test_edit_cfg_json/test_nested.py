@@ -17,8 +17,8 @@ from edit_cfg_json import Descriptions, EditModel, model_as_text, \
     row_validates, row_value_text
 from .model_helpers import row_at, row_paths, shown_paths, written
 from .container_cfg import CROSS_REFUSAL, ConfigDictCfg, ConfigListCfg, \
-    DeepConfigCfg, DeepSubtreeCfg, INNER_LIMIT, InnerCfg, NestedCfg, \
-    NoDocNestedCfg, NullNestedCfg, ORDER_REFUSAL, OmitNestedCfg, \
+    DeepConfigCfg, DeepSubtreeCfg, FlagTreeCfg, INNER_LIMIT, InnerCfg, \
+    NestedCfg, NoDocNestedCfg, NullNestedCfg, ORDER_REFUSAL, OmitNestedCfg, \
     OwnedEnumCfg, OwnedOptionCfg, RangedObjectsCfg, SubtreeCfg
 
 TOO_WIDE = str(INNER_LIMIT + 1)
@@ -413,6 +413,29 @@ def test_open_asks_again() -> None:
     model.set_text(path=('ranged', 'width'), text=TOO_WIDE)
     model.toggle_fold(('ranged',))
     assert row_at(model, ('ranged',)).subtree_valid is False
+
+
+def test_flag_inside_object() -> None:
+    """Test a member of a nested object takes a beginning of a word."""
+    model = EditModel(FlagTreeCfg())
+    model.set_text(path=('inner', 'enabled'), text='f')
+    assert row_at(model, ('inner', 'enabled')).value is False
+    assert model.validate().valid
+
+
+def test_flag_refused_inside() -> None:
+    """Test folding such an object refuses a text that means neither word.
+
+    The object is asked about its own part of the buffer, so what it takes is
+    what the rows inside it hold, and the refusal is kept at the member it is
+    about rather than at the object holding it.
+    """
+    model = EditModel(FlagTreeCfg())
+    model.set_text(path=('inner', 'enabled'), text='maybe')
+    model.toggle_fold(('inner',))
+    assert row_at(model, ('inner',)).subtree_valid is False
+    assert row_at(model, ('inner', 'enabled')).subtree_refusal == \
+        'maybe is not one of: true, false'
 
 
 def test_edit_inside_unasks() -> None:

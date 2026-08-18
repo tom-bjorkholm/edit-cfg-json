@@ -108,6 +108,27 @@ def test_own_rules_refuse(capsys: pytest.CaptureFixture[str]) -> None:
     assert 'both quit and save' in shown
 
 
+def test_flag_setting_typed(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a setting holding true or false takes a beginning of a word.
+
+    These settings are checked for their type by rules of this library's own
+    class, and the beginning is expanded before those rules see the value, so
+    what they are given is one of the two values and never the letter typed.
+    """
+    shown = _dump(capsys, '--fold', 'editor', '--set',
+                  'editor.confirm_overwrite=F')
+    assert 'confirm_overwrite = false (edited)' in shown
+    assert 'validation: valid' in shown
+
+
+def test_flag_setting_refused(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a setting that means neither word is refused at that setting."""
+    shown = _dump(capsys, '--fold', 'editor', '--set',
+                  'editor.confirm_overwrite=maybe')
+    assert 'maybe is not one of: true, false' in shown
+    assert 'validation: invalid, see editor.confirm_overwrite' in shown
+
+
 def test_block_read_whole(capsys: pytest.CaptureFixture[str],
                           tmp_path: Path) -> None:
     """Test a settings block that leaves a member out cannot be opened.
