@@ -28,6 +28,15 @@ the value to `Settings` or `ActionSettings` and reports what the dataclass
 refused, which is principle 1 of section 3 of `doc/design.md` applied to the
 editor's own settings: there is one place that says a key combination cannot
 belong to two actions, and it is the place the editor itself is built on.
+
+**An action added to `ActionSettings` is a change of file format**, because
+the keys of a dict member are matched against the ones this class declares
+before any validator of this class is asked anything, and they are matched
+whatever policy the parse was given. So every settings file written before that
+action existed would be refused, and a whole application would fail to start
+over a key of the editor it embeds. `ADDED_ACTIONS` is what those files are
+read by, and section 9.10 of `doc/design.md` is what says that an action added
+later belongs in it.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -40,7 +49,8 @@ import sys
 from config_as_json import Config, ConfigPath, DictKeyValueTypesValidator, \
     IntFloatValidator, InvalidConfiguration, ListValueTypeValidator, \
     MemberValidationStep, MemberValidator, MemberValidatorSequence, \
-    OptionalMemberValidator, PathOrStr, ValidationPlan, ValueTypeValidator
+    OptionalMemberValidator, PathOrStr, ReadOldConfiguration, \
+    ValidationPlan, ValueTypeValidator
 from edit_cfg_json.descriptions import Descriptions
 from edit_cfg_json.settings import ActionSettings, MIN_BACKUPS, \
     NOT_AN_EXTENSION, NOT_A_SUFFIX, Settings, names_a_file, with_dot
@@ -71,6 +81,43 @@ def declared_actions() -> dict[str, list[str]]:
     declared = ActionSettings()
     return {field.name: list(getattr(declared, field.name))
             for field in fields(declared)}
+
+
+ADDED_ACTIONS = ('find', 'find_next')
+"""Actions that previous released versions did not write into a file.
+
+Supplying these is what makes a settings file of an earlier release readable,
+and only an action added after a release belongs here. An action that has
+always been here is named by every file that any released version wrote, so
+supplying that one would accept a file no version ever produced, and would put
+a key back that somebody had deliberately taken out.
+"""
+
+
+class _OldSettings(ReadOldConfiguration):
+    """How a settings file of an earlier release becomes a current one.
+
+    Only the actions added since need saying. Every other difference between
+    one release of this editor and the next is a difference no settings file
+    ever held: the members of `SettingsConfig` are the attributes of `Settings`
+    and have not changed, and each of them keeps its own declared value when a
+    file leaves it out.
+    """
+
+    def get_missing_path_values(self) -> dict[ConfigPath, object]:
+        """Return the combinations of the actions an old file cannot hold.
+
+        `config_as_json` writes each of these only where the file holds nothing
+        at that path, so a file that names one of these actions keeps what it
+        says about it. The values are read from `ActionSettings` rather than
+        written again here, so that the default of an action is stated once.
+
+        Returns:
+            The declared combinations of each action of `ADDED_ACTIONS`, by the
+            path in a settings file that holds it.
+        """
+        declared = declared_actions()
+        return {('actions', name): declared[name] for name in ADDED_ACTIONS}
 
 
 class _ActionKeys(MemberValidator):  # pylint: disable=too-few-public-methods
@@ -299,6 +346,20 @@ class SettingsConfig(Config):
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
                         stderr_file=stderr_file)
+
+    def _get_read_old_config(self) -> ReadOldConfiguration:
+        """Return how a settings file of an earlier release is read.
+
+        `config_as_json` asks for this once the file has been parsed and before
+        it checks that every declared key is there, which is the only point at
+        which an action that a file cannot hold can be supplied: that check is
+        what refuses such a file, and it runs whatever policy the load was
+        given, because a nested configuration object is read whole.
+
+        Returns:
+            The rules that make a settings file of an earlier release readable.
+        """
+        return _OldSettings()
 
     def as_settings(self) -> Settings:
         """Return these values as the editor is given them.

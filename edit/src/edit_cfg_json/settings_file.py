@@ -22,16 +22,30 @@ not name is what the editor would have chosen anyway.
 that and is what a program has instead of an option for ignoring the lookup:
 naming one is how a run asks for the values the editor would have chosen
 anyway, past a file of the home folder that says something else.
+
+**A file of an earlier release is read, and the run says so.** What such a file
+does not hold is supplied by the rules of `SettingsConfig` rather than refused,
+and a run that needed those rules tells the user which file it was and how to
+write it again, because a compatibility path is something a future version may
+take away. It says that the rules were needed rather than that an earlier
+version wrote the file, because a file trimmed by hand needs them as well. The
+words are printed here and not by a
+`config_as_json.MigrateCfgWarnHook`: a hook prints while the file is parsed,
+and `load_config` collects what a parse says into diagnostics that it shows
+only when the load failed, so a hook's warning about a load that succeeded
+would never reach anybody.
 """
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TextIO
 import os
+import sys
 from config_as_json import PathOrStr
-from edit_cfg_json.loading import ConfigLoadError, LoadPolicy, load_config
+from edit_cfg_json.loading import ConfigLoadError, LoadPolicy, LoadedConfig, \
+    load_config
 from edit_cfg_json.settings import Settings
 from edit_cfg_json.settings_config import SettingsConfig
 
@@ -56,6 +70,28 @@ NO_SETTINGS_FILE = 'The settings file {name} cannot be read.'
 
 SETTINGS_REFUSED = 'The settings file {name} cannot be used.'
 """Message of the refusal of a settings file that cannot be read as one."""
+
+OLDER_SETTINGS = (
+    'Reading the settings file {name} needed the compatibility rules for a '
+    'file of an earlier version of this editor, so what it holds is not all '
+    'that was used. It was accepted, and a future version may stop accepting '
+    'it.\nWrite it in the current format by opening it in one of the editors '
+    'and saving it:\n'
+    '    edit-cfg-json-tk --edit-settings -i {name}\n'
+    '    edit-cfg-json-textual --edit-settings -i {name}')
+"""What a run says about a settings file that those rules were needed for.
+
+It says that the rules were needed and not that an earlier version wrote the
+file, because those are not the same statement: a file somebody trimmed by hand
+needs them too, and telling such a user where their file came from would be
+telling them something untrue. What follows is the same either way, which is
+that saving the file writes every value this version has.
+
+It names the file because the lookup has five steps and the user who sees this
+did not necessarily choose the one that answered. It asks for the file to be
+opened and saved rather than for a migration command of its own, because saving
+is what writes those values and the editor is what the two programs are.
+"""
 
 
 def _named_file(name: PathOrStr) -> Path:
@@ -118,14 +154,33 @@ def settings_file(named: Optional[PathOrStr] = None,
     return _home_file(home_settings) or _home_file(SHARED_SETTINGS)
 
 
+def _warn_if_older(loaded: LoadedConfig, found: Path,
+                   stderr_file: TextIO) -> None:
+    """Say that the rules for an older file were needed, where they were.
+
+    The hook of the configuration object is what those rules recorded into, and
+    it holds nothing at all for a file they had no work to do on. So it is
+    asked, rather than a version compared that a settings file does not carry.
+
+    Args:
+        loaded: The settings object, and what its load did beyond reading it.
+        found: File that the lookup read the settings from.
+        stderr_file: Stream used for user-facing diagnostics.
+    """
+    if loaded.config.auto_change_hook().has_changes():
+        print(OLDER_SETTINGS.format(name=found), file=stderr_file)
+
+
 def load_settings(named: Optional[PathOrStr] = None,
-                  home_settings: Optional[str] = None) -> Settings:
+                  home_settings: Optional[str] = None,
+                  stderr_file: TextIO = sys.stderr) -> Settings:
     """Return the settings that one program runs with.
 
     Args:
         named: File that `-c/--cfg` named, or None when it named none.
         home_settings: Name of this program's own file in the home folder, or
             None for a program that has none.
+        stderr_file: Stream that a file of an earlier release is reported on.
 
     Returns:
         What the settings file says, or the defaults of the editor where the
@@ -144,5 +199,6 @@ def load_settings(named: Optional[PathOrStr] = None,
     except ConfigLoadError as error:
         raise ConfigLoadError(SETTINGS_REFUSED.format(name=found),
                               str(error)) from error
+    _warn_if_older(loaded=loaded, found=found, stderr_file=stderr_file)
     assert isinstance(loaded.config, SettingsConfig)
     return loaded.config.as_settings()

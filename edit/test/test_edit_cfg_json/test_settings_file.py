@@ -9,10 +9,13 @@ there, and a file that was *looked for* need not be.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from io import StringIO
 from pathlib import Path
+import json
 import pytest
 from edit_cfg_json import ConfigLoadError, SETTINGS_VARIABLE, \
-    SHARED_SETTINGS, Settings, load_settings, settings_file
+    SHARED_SETTINGS, Settings, SettingsConfig, load_settings, settings_file
+from edit_cfg_json.settings_config import ADDED_ACTIONS
 
 OWN_SETTINGS = '.edit-cfg-json-test.cfg'
 """Name a program of these tests has for its own file in the home folder."""
@@ -184,3 +187,91 @@ def test_partial_file(home: Path) -> None:
     """
     _written(home, SHARED_SETTINGS, '.old')
     assert load_settings() == Settings(backup_suffix='.old')
+
+
+def _current_shape(folder: Path, name: str) -> Path:
+    """Write a settings file as this version of the editor writes one.
+
+    Which is the only way one is really written: `--edit-settings` saves the
+    whole configuration, so every member and every action is in it.
+
+    Args:
+        folder: Folder to write it in.
+        name: Name of the file.
+
+    Returns:
+        The file that was written.
+    """
+    path = folder / name
+    SettingsConfig().write(to_json_filename=path)
+    return path
+
+
+def _old_shape(folder: Path, name: str) -> Path:
+    """Write the same file as a release before the added actions wrote it.
+
+    Args:
+        folder: Folder to write it in.
+        name: Name of the file.
+
+    Returns:
+        The file that was written.
+    """
+    path = _current_shape(folder, name)
+    data = json.loads(path.read_text(encoding='UTF-8'))
+    for action in ADDED_ACTIONS:
+        del data['actions'][action]
+    path.write_text(json.dumps(data), encoding='UTF-8')
+    return path
+
+
+def test_older_file_read(home: Path) -> None:
+    """Test a settings file of an earlier release is read and not refused.
+
+    An application that embeds these settings would otherwise fail to start
+    over two keys of the editor it embeds, and a program would refuse to run
+    over a file it wrote itself before those keys existed.
+    """
+    _old_shape(home, SHARED_SETTINGS)
+    assert load_settings(stderr_file=StringIO()) == Settings()
+
+
+def test_older_file_reported(home: Path) -> None:
+    """Test the run says which file was an older one, and how to write it.
+
+    A compatibility path is something a future version may take away, and the
+    lookup has five steps, so the user who is asked to write the file again
+    has to be told which of them answered.
+    """
+    old = _old_shape(home, SHARED_SETTINGS)
+    said = StringIO()
+    load_settings(stderr_file=said)
+    assert str(old) in said.getvalue()
+    assert '--edit-settings' in said.getvalue()
+
+
+def test_current_file_quiet(home: Path) -> None:
+    """Test a file this version wrote is said nothing at all about.
+
+    Nothing was supplied for it, so there is nothing to migrate and nothing to
+    say. It is the file every run of a program that has saved its settings
+    reads, so a word about it would be a word at every start.
+    """
+    _current_shape(home, SHARED_SETTINGS)
+    said = StringIO()
+    assert load_settings(stderr_file=said) == Settings()
+    assert said.getvalue() == ''
+
+
+def test_trimmed_file_said(home: Path) -> None:
+    """Test a file trimmed by hand is reported the same way, and why.
+
+    The rules cannot tell a file of an earlier version from one somebody wrote
+    part of, because both are a file that does not name every action. So both
+    are told the same thing, and what it says is that the rules were needed
+    rather than where the file came from. Saving it is the answer either way.
+    """
+    _written(home, SHARED_SETTINGS, '.old')
+    said = StringIO()
+    assert load_settings(stderr_file=said).backup_suffix == '.old'
+    assert str(home / SHARED_SETTINGS) in said.getvalue()

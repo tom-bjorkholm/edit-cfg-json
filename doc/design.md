@@ -2218,6 +2218,49 @@ the command line names, because it is what the whole run behaves according to.
 defaults of the editor, so `-c` naming one is how a run asks for them past a
 file of the home folder that says something else (section 8.3.5).
 
+### 9.10 Changing the settings file format costs a compatibility rule
+
+**An action added to `ActionSettings` is a change of this library's own file
+format**, and so is any other change to what `SettingsConfig` declares.
+`config_as_json` matches the keys of a dict member against the ones the class
+declares while the file is parsed, before any validator of that class is asked
+anything, and it does so whatever policy the load was given. So every settings
+file written before that action existed is refused — and an application that
+declares `SettingsConfig` as one member of its own configuration is refused
+whatever policy *it* chose, because a nested configuration object is read whole
+(section 9.8). Such an application fails to start over a key of the editor it
+embeds, and the refusal names the wrong fault, because a missing declared key
+and an undeclared key of the file are told apart by retrying the load and the
+retry fails as well (section 5.2).
+
+**So each such change is accompanied by a rule for reading the older file**,
+which is `config_as_json`'s Read Old Configuration File support and is what
+section 5.3 already makes visible for an application's own classes. Three things
+hold for those rules.
+
+- **Only a difference a released version really wrote belongs in them.**
+  `ADDED_ACTIONS` names the actions no released version ever put in a file.
+  Supplying an action that has always existed would accept a file no version
+  ever produced, and would hide a key that somebody removed by hand.
+- **What is supplied is read from `ActionSettings` and not written again**, for
+  the same reason the declared values of the class are (section 9.8): the
+  default of a setting is stated once.
+- **They are the declarative rules and nothing else.** A missing-value path
+  creates the members above it, so a file with no `actions` at all is given one
+  holding those two entries. That is harmless, and deliberately not guarded
+  against: a settings file is written by `--edit-settings` saving one, which
+  writes every member and every action, so a file without that member is not a
+  file any version wrote. Such a file is still refused, because the key check
+  then asks for the seven actions the two rules say nothing about.
+
+**A run that needed such a rule says so.** `load_settings` names the file the
+lookup used and asks for it to be opened with `--edit-settings` and saved, which
+is what writes every value the current version has. The words are printed there
+and not by a `config_as_json.MigrateCfgWarnHook`, because a hook prints while
+the file is parsed and `load_config` collects what a parse says into diagnostics
+that it shows only when the load *failed*; it also builds its own configuration
+object, so a hook handed to it is never the one that records anything.
+
 ## 10. Testing strategy
 
 ### 10.1 Core

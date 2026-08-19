@@ -19,7 +19,8 @@ from config_as_json import InvalidConfiguration
 from edit_cfg_json import ActionSettings, EditModel, SETTINGS_DESCRIPTIONS, \
     Settings, SettingsConfig, declared_actions, described_below, \
     model_as_text, row_description
-from edit_cfg_json.settings_config import ACTION_DESCRIPTIONS, EVERY_ACTION
+from edit_cfg_json.settings_config import ACTION_DESCRIPTIONS, \
+    ADDED_ACTIONS, EVERY_ACTION
 from edit_cfg_json.tree import EVERY_ELEMENT
 from .model_helpers import row_at, written
 
@@ -254,3 +255,89 @@ def test_saved_read_back(tmp_path: Path) -> None:
     assert model.save().saved
     assert _parsed(json.dumps(written(out_file))).as_settings() == \
         Settings(backup_suffix='.old')
+
+
+def _old_shape_text() -> str:
+    """Return a settings file as a release before the added actions wrote one.
+
+    It is what this version writes with the actions of `ADDED_ACTIONS` taken
+    out of it again, rather than a file written out here: a settings file is
+    written by the editor saving one, so a file of an earlier release is that
+    file without what the release did not have.
+
+    Returns:
+        The whole text of such a file.
+    """
+    data = json.loads(SettingsConfig().as_json_string(stderr_file=sys.stderr))
+    assert isinstance(data, dict)
+    actions = data['actions']
+    for name in ADDED_ACTIONS:
+        del actions[name]
+    return json.dumps(data)
+
+
+def test_added_are_actions() -> None:
+    """Test every action said to be added is an action this editor has.
+
+    An action named there and nowhere else would be supplied into a file as a
+    key that `SettingsConfig` does not declare, and the file would then be
+    refused for holding it.
+    """
+    assert set(ADDED_ACTIONS) <= set(declared_actions())
+
+
+def test_reads_old_shape() -> None:
+    """Test a file of a release before the added actions is read.
+
+    The keys of a dict member are matched against the ones the class declares
+    before any validator of the class is asked anything, and that happens
+    whatever policy the parse was given. So without rules for an older file
+    every settings file written before an action existed would be refused.
+    """
+    config = SettingsConfig()
+    config.parse_json(_old_shape_text(), ok_to_use_defaults=False,
+                      stderr_file=sys.stderr)
+    assert set(config.actions) == set(declared_actions())
+    for name in ADDED_ACTIONS:
+        assert config.actions[name] == declared_actions()[name]
+    assert config.as_settings() == Settings()
+
+
+def test_old_shape_recorded() -> None:
+    """Test reading such a file is recorded as the automatic change it is.
+
+    What the file holds and what the editor shows are not the same values, and
+    the hook of the configuration object is where that is found out.
+    """
+    config = SettingsConfig()
+    config.parse_json(_old_shape_text(), ok_to_use_defaults=False,
+                      stderr_file=sys.stderr)
+    assert config.auto_change_hook().has_changes()
+    assert not SettingsConfig().auto_change_hook().has_changes()
+
+
+def test_named_action_kept() -> None:
+    """Test a file that names an added action keeps what it says about it.
+
+    The values are supplied only where the file holds nothing at that path,
+    which is what makes these rules safe to keep for good.
+    """
+    config = _parsed('{"actions": {"find": ["ctrl+l"]}}')
+    assert config.actions['find'] == ['ctrl+l']
+    assert config.actions['find_next'] == list(ActionSettings().find_next)
+
+
+def test_other_gaps_refused() -> None:
+    """Test the rules rescue an older file and no other incomplete one.
+
+    They supply two entries of one member, so a file that leaves a member out
+    is refused as it was before they existed. That is what keeps a settings
+    block inside an application's own configuration read whole.
+    """
+    data = json.loads(_old_shape_text())
+    assert isinstance(data, dict)
+    del data['file_extension']
+    text = json.dumps(data)
+    with pytest.raises(KeyError):
+        SettingsConfig().parse_json(text, ok_to_use_defaults=False,
+                                    stderr_file=sys.stderr)

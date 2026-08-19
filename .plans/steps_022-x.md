@@ -362,6 +362,39 @@ The public names it settled:
   a mapped window only, so this is one of the few places with a stubbed test and
   no companion in category 2 of section 10.2.
 
+**What the second review round found.** The two actions this step added to
+`ActionSettings` were a change of the settings file format, and nothing had been
+done about the files of the release before them.
+
+- **A settings file of the earlier release was refused.** The keys of the
+  `actions` member are matched against the ones `SettingsConfig` declares while
+  the file is parsed, before any validator of that class is asked anything, and
+  that happens whatever policy the load was given. So a file holding the seven
+  actions there were was refused with *No value for find in JSON data* — and an
+  application that declares `SettingsConfig` as one member of its own
+  configuration was refused whatever policy *it* chose, because a nested
+  configuration object is read whole. Such an application would have failed to
+  start over two keys of the editor it embeds, and the refusal it printed named
+  the wrong fault: *This file holds a key that this configuration does not
+  have*.
+- **`SettingsConfig` now declares rules for reading such a file**, which is
+  `config_as_json`'s Read Old Configuration File support. `ADDED_ACTIONS` names
+  the actions no released version ever wrote, and the combinations supplied for
+  them are read from `ActionSettings` rather than written again. Only actions
+  *added since a release* belong there: supplying one that has always existed
+  would accept a file no version ever produced.
+- **The rules are declarative and nothing else.** 
+- **The run says which file was an older one.** `load_settings` names the file
+  and asks for it to be opened with `--edit-settings` and saved, because saving
+  is what writes every value the current version has. It is printed there and
+  not by a `config_as_json.MigrateCfgWarnHook`: a hook prints while the file is
+  parsed, and `load_config` collects what a parse says into diagnostics it shows
+  only when the load failed, so a hook's warning about a load that succeeded
+  would never reach anybody. Measured, not assumed — and `load_config` builds
+  its own configuration object, so a hook handed to it is never used at all.
+- **Section 9.10 of the design is the general rule**, so that the next action
+  added is not the next release broken.
+
 ### Step 24 - More type information, and whether the user may change it
 
 Two things the design records and no step claims, both in section 4.2. It is an
@@ -430,7 +463,7 @@ what is still missing and whether the class could be loaded is state, and by
 the lesson of step 6 about the explanation toggle it belongs in the core so
 that the two backends cannot drift about it. Each backend then contributes a
 dialog or a screen, and a file chooser, which is where the two toolkits
-differ most and where neither has a headless test that is worth much. 
+differ most and where neither has a headless test that is worth much.
 
 When we get here investigate if using
 [https://pypi.org/project/wizard-ui-bridge/](https://pypi.org/project/wizard-ui-bridge/)

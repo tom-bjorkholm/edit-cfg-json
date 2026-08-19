@@ -265,6 +265,7 @@
   * [SHARED\_SETTINGS](#edit_cfg_json.settings_file.SHARED_SETTINGS)
   * [NO\_SETTINGS\_FILE](#edit_cfg_json.settings_file.NO_SETTINGS_FILE)
   * [SETTINGS\_REFUSED](#edit_cfg_json.settings_file.SETTINGS_REFUSED)
+  * [OLDER\_SETTINGS](#edit_cfg_json.settings_file.OLDER_SETTINGS)
   * [settings\_file](#edit_cfg_json.settings_file.settings_file)
   * [load\_settings](#edit_cfg_json.settings_file.load_settings)
 * [edit\_cfg\_json.settings](#edit_cfg_json.settings)
@@ -329,6 +330,7 @@
   * [UNKNOWN\_ACTION](#edit_cfg_json.settings_config.UNKNOWN_ACTION)
   * [REFUSED\_KEYS](#edit_cfg_json.settings_config.REFUSED_KEYS)
   * [declared\_actions](#edit_cfg_json.settings_config.declared_actions)
+  * [ADDED\_ACTIONS](#edit_cfg_json.settings_config.ADDED_ACTIONS)
   * [SettingsConfig](#edit_cfg_json.settings_config.SettingsConfig)
     * [\_\_init\_\_](#edit_cfg_json.settings_config.SettingsConfig.__init__)
     * [as\_settings](#edit_cfg_json.settings_config.SettingsConfig.as_settings)
@@ -4654,6 +4656,18 @@ that and is what a program has instead of an option for ignoring the lookup:
 naming one is how a run asks for the values the editor would have chosen
 anyway, past a file of the home folder that says something else.
 
+**A file of an earlier release is read, and the run says so.** What such a file
+does not hold is supplied by the rules of `SettingsConfig` rather than refused,
+and a run that needed those rules tells the user which file it was and how to
+write it again, because a compatibility path is something a future version may
+take away. It says that the rules were needed rather than that an earlier
+version wrote the file, because a file trimmed by hand needs them as well. The
+words are printed here and not by a
+`config_as_json.MigrateCfgWarnHook`: a hook prints while the file is parsed,
+and `load_config` collects what a parse says into diagnostics that it shows
+only when the load failed, so a hook's warning about a load that succeeded
+would never reach anybody.
+
 <a id="edit_cfg_json.settings_file.SETTINGS_VARIABLE"></a>
 
 #### SETTINGS\_VARIABLE
@@ -4685,6 +4699,23 @@ Message of the refusal of a named settings file that is not there.
 #### SETTINGS\_REFUSED
 
 Message of the refusal of a settings file that cannot be read as one.
+
+<a id="edit_cfg_json.settings_file.OLDER_SETTINGS"></a>
+
+#### OLDER\_SETTINGS
+
+What a run says about a settings file that those rules were needed for.
+
+It says that the rules were needed and not that an earlier version wrote the
+file, because those are not the same statement: a file somebody trimmed by hand
+needs them too, and telling such a user where their file came from would be
+telling them something untrue. What follows is the same either way, which is
+that saving the file writes every value this version has.
+
+It names the file because the lookup has five steps and the user who sees this
+did not necessarily choose the one that answered. It asks for the file to be
+opened and saved rather than for a migration command of its own, because saving
+is what writes those values and the editor is what the two programs are.
 
 <a id="edit_cfg_json.settings_file.settings_file"></a>
 
@@ -4722,7 +4753,8 @@ Return the file that one program reads its settings from.
 
 ```python
 def load_settings(named: Optional[PathOrStr] = None,
-                  home_settings: Optional[str] = None) -> Settings
+                  home_settings: Optional[str] = None,
+                  stderr_file: TextIO = sys.stderr) -> Settings
 ```
 
 Return the settings that one program runs with.
@@ -4732,6 +4764,7 @@ Return the settings that one program runs with.
 - `named` - File that `-c/--cfg` named, or None when it named none.
 - `home_settings` - Name of this program's own file in the home folder, or
   None for a program that has none.
+- `stderr_file` - Stream that a file of an earlier release is reported on.
   
 
 **Returns**:
@@ -5539,6 +5572,15 @@ refused, which is principle 1 of section 3 of `doc/design.md` applied to the
 editor's own settings: there is one place that says a key combination cannot
 belong to two actions, and it is the place the editor itself is built on.
 
+**An action added to `ActionSettings` is a change of file format**, because
+the keys of a dict member are matched against the ones this class declares
+before any validator of this class is asked anything, and they are matched
+whatever policy the parse was given. So every settings file written before that
+action existed would be refused, and a whole application would fail to start
+over a key of the editor it embeds. `ADDED_ACTIONS` is what those files are
+read by, and section 9.10 of `doc/design.md` is what says that an action added
+later belongs in it.
+
 <a id="edit_cfg_json.settings_config.UNKNOWN_ACTION"></a>
 
 #### UNKNOWN\_ACTION
@@ -5573,6 +5615,18 @@ default.
 **Returns**:
 
   The combinations of each action, by the name of that action.
+
+<a id="edit_cfg_json.settings_config.ADDED_ACTIONS"></a>
+
+#### ADDED\_ACTIONS
+
+Actions that previous released versions did not write into a file.
+
+Supplying these is what makes a settings file of an earlier release readable,
+and only an action added after a release belongs here. An action that has
+always been here is named by every file that any released version wrote, so
+supplying that one would accept a file no version ever produced, and would put
+a key back that somebody had deliberately taken out.
 
 <a id="edit_cfg_json.settings_config.SettingsConfig"></a>
 

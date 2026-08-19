@@ -154,6 +154,7 @@ holding a whole `edit_cfg_json.SettingsConfig`.
 | File | What happens |
 | --- | --- |
 | [e17_tool.json](e17_tool.json) | Opens with every value from the file, including a whole settings block: another backup suffix, three of them kept, an extension for this tool's files and `ctrl+w` for Save. It holds every member of `SettingsConfig` because a nested configuration object is read whole whatever policy the parse around it was given, which is the one thing about this example that a shorter file would have hidden. |
+| [e17_tool_old.json](e17_tool_old.json) | Opens. It is the same file as a release before the editor had the `find` and `find_next` actions wrote it, so its `actions` block names seven actions where the class now declares nine. `SettingsConfig` declares rules for reading such a file, so the two are supplied with the combinations the editor declares, the `editor` row is marked as holding what the load put there, and the printout says that reading the file changed it. Without those rules this whole application would refuse to start over two keys of the editor it embeds. |
 
 ## Why a file with a bad value cannot be opened
 

@@ -65,14 +65,49 @@ the editor still shows every setting there is. A settings **block inside
 another configuration** may not: `config_as_json` reads a nested configuration
 object whole, whatever policy the parse around it was given, so the `editor`
 block of `e17_tool.json` holds every member of `SettingsConfig` and a file
-that left one of them out would be refused with *No value for actions in JSON
-data*. That is why the data file of this example is as long as it is, and it
-is a fact about nested configuration objects rather than about this class —
+that left one of them out would be refused with *No value for* that member *in
+JSON data*. That is why the data file of this example is as long as it is, and
+it is a fact about nested configuration objects rather than about this class —
 example 9 is where that is taught.
 
 An application that wants its user to name one setting and no more therefore
 keeps the settings in a file of their own and reads them with
 `edit_cfg_json.load_settings`, which is what the two editor programs do.
+
+## A block that an older version of the editor wrote
+
+Read the two paragraphs above together and something follows that this example
+is the place to show: **an action added to the editor is a change of this file
+format**. The keys of `actions` are matched against the ones `SettingsConfig`
+declares, that happens whatever policy the parse was given, and `find` and
+`find_next` did not exist in the first release. So an `editor` block written
+before them holds seven actions where the class now declares nine, and without
+something being done about it this whole application would refuse to start over
+two keys of the editor it embeds.
+
+`SettingsConfig` declares rules for reading such a file, which is
+`config_as_json`'s Read Old Configuration File support and is what example 5
+teaches. `../../data/e17_tool_old.json` is that file — `e17_tool.json` with the
+two actions taken out — and it opens:
+
+````sh
+cd examples/src/example
+python3 e17_settings_config.py --ui dump -i ../../data/e17_tool_old.json \
+    --fold editor --fold editor.actions
+````
+
+`find` and `find_next` are there with the combinations the editor declares, the
+`editor` row is marked as holding what the load supplied rather than what the
+file held, and the printout says so above the values as well, because a save
+would write what is shown. Nothing in *this* file says any of that: an
+application that embeds `SettingsConfig` inherits its compatibility rules along
+with its settings, and the one thing this example does for it is to hand the
+editor `config.editor.as_settings()` afterwards.
+
+A settings file of its own is looked after the same way, and there the run says
+it in words: `load_settings` prints which file was an older one and asks for it
+to be opened and saved, which is what writes every value the current version
+has.
 
 ## The keys of this session are not the keys in the file
 
