@@ -94,6 +94,8 @@ change worth saving.
 | `ctrl+shift+s` or `f12` | Save as |
 | `f1`, or `ctrl+g` | Explain, or Hide explanation |
 | `f2`, or `ctrl+t` | Fold all, or Unfold all |
+| `ctrl+f` | Find |
+| `f3` | Find next |
 | `ctrl+q` | Quit |
 
 Those are the defaults of `edit_cfg_json.ActionSettings`, and an application
@@ -113,6 +115,18 @@ would be. A control at the left of the row folds it away, and the fold action
 does the same to all of them at once, named for what the next press will do. A
 configuration with nothing to fold is offered neither the action nor the column
 that the controls sit in, so the values keep that width.
+
+**A member of a configuration too big for the screen is looked for** in
+the `Find:` field below the rows, which searches as it is typed. The
+four tick-boxes beside it say where it looks — in the path of a member,
+in its value, matching the case, and matching the whole of one of them
+instead of any part — and each of them says what it means when the
+pointer rests on it. The defaults are the path and the value, the case
+ignored, and a part enough. What is found is opened if folding hid it,
+scrolled into view and marked *(found)*; `f3` and the `next` control go
+on to the next one, and pressing Enter in the field puts the cursor in
+what was found, so it can be typed into at once. Both actions are in the
+command palette as well.
 
 **At the end of the line of a node are its element controls**: `Add`, `Del`,
 `Up` and `Down`, and only the ones that node really offers. Adding an entry to

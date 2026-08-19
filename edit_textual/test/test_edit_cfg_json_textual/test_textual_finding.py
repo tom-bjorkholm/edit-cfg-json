@@ -312,6 +312,29 @@ def test_nowhere_said() -> None:
     assert ticked == [False, False, False, False]
 
 
+async def _find_field_height() -> tuple[int, int]:
+    """Give the search field the cursor and report how tall it stays."""
+    app = _flat_app()
+    async with app.run_test(size=ROOMY_SIZE) as pilot:
+        field = app.query_one(f'#{FIND_ID}', Input)
+        before = field.outer_size.height
+        await pilot.press(FIND_KEY)
+        await pilot.pause()
+        return before, field.outer_size.height
+
+
+def test_find_field_one_high() -> None:
+    """Test the search field is one cell high with the cursor in it too.
+
+    It is the field of a member all over again, so it is compact for the same
+    reason: a field that grew a border when it was given the focus would lay
+    the text being looked for out under the line that says what it reached.
+    """
+    before, after = asyncio.run(_find_field_height())
+    assert before == 1
+    assert after == 1
+
+
 async def _palette_names() -> list[str]:
     """Return what the command palette of the editor offers."""
     app = _flat_app()

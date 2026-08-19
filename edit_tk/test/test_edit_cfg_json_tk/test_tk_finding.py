@@ -20,6 +20,7 @@ from edit_cfg_json import EditModel, FIND_OPTION_HELP, FindOptions
 from edit_cfg_json_tk.tk_editor import EditorWidgets
 from edit_cfg_json_tk.tk_find import FIND_FIELD_NAME, FIND_LABEL_TEXT, \
     FIND_NEXT_TEXT, FIND_TICK_LABELS
+from edit_cfg_json_tk.tk_tooltip import TOOLTIP_WIDTH
 from example.e01_flat_config import FlatConfig
 from example.e08_lists_and_dicts import ContainerConfig
 from .helpers import FakeCanvas, FakeWidget, WHOLE_VIEW, find_field, \
@@ -54,6 +55,14 @@ FIND_KEY = '<Control-f>'
 
 NEXT_KEY = '<F3>'
 """Sequence that Tk binds for the key that goes to the next member found."""
+
+POINTER_PLACE = (400, 300)
+"""Where the pointer is when it arrives on a control, in screen pixels.
+
+It is far enough to the right and down that a tooltip put beside it would hang
+outside the window that the stub stands in for, which is what the test about
+keeping the whole of one inside the window reads.
+"""
 
 
 def _flat_stub() -> EditorWidgets:
@@ -135,17 +144,92 @@ def test_real_ticks_default(root_or_skip: tkinter.Tk) -> None:
 
 
 def test_stub_tooltips(stub_tk: None) -> None:
-    """Test each control answers the pointer that rests on it.
+    """Test each control too small for a word answers the pointer on it.
 
     Tk has no tooltip, so what says that a control explains itself is the two
-    bindings the editor put on it.
+    bindings the editor put on it. The button is one of these controls now that
+    it carries the arrow instead of the two words the arrow stands for.
     """
     _ = stub_tk
     _flat_stub()
+    labels = {*FIND_TICK_LABELS, FIND_NEXT_TEXT}
     boxes = [widget for widget in FakeWidget.created
-             if widget.options.get('text') in set(FIND_TICK_LABELS)]
-    assert len(boxes) == len(FIND_TICK_LABELS)
+             if widget.options.get('text') in labels]
+    assert len(boxes) == len(labels)
     assert all({'<Enter>', '<Leave>'} <= set(box.bindings) for box in boxes)
+
+
+def _pointer(place: tuple[int, int]) -> 'tkinter.Event[tkinter.Misc]':
+    """Return the event that says where the pointer has just arrived."""
+    event: 'tkinter.Event[tkinter.Misc]' = tkinter.Event()
+    event.x_root, event.y_root = place
+    return event
+
+
+def _stub_control(label: str) -> FakeWidget:
+    """Return the stub control of the search that carries one label."""
+    boxes = [widget for widget in FakeWidget.created
+             if widget.options.get('text') == label]
+    assert len(boxes) == 1
+    return boxes[0]
+
+
+def _stub_tips() -> list[FakeWidget]:
+    """Return the stub widgets that show an explanation of the search."""
+    said = {' '.join(text.split()) for text in FIND_OPTION_HELP}
+    return [widget for widget in FakeWidget.created
+            if ' '.join(str(widget.options.get('text', '')).split()) in said]
+
+
+def _hovered(label: str) -> FakeWidget:
+    """Build the editor, rest the pointer on one control, return the tooltip.
+
+    Args:
+        label: Label of the control the pointer rests on.
+
+    Returns:
+        The one widget that the tooltip amounts to.
+    """
+    _flat_stub()
+    _stub_control(label).bindings['<Enter>'](_pointer(POINTER_PLACE))
+    tips = _stub_tips()
+    assert len(tips) == 1
+    return tips[0]
+
+
+def test_stub_tip_shown(stub_tk: None) -> None:
+    """Test the pointer resting on a control puts its explanation up.
+
+    What it says is the core's sentence and not a shorter one of this
+    backend's, and it is laid out in lines that fit beside the control rather
+    than in the one line that a sentence would otherwise be.
+    """
+    _ = stub_tk
+    shown = str(_hovered(CASE_TICK).options['text'])
+    assert ' '.join(shown.split()) == FIND_OPTION_HELP[2]
+    assert max(len(line) for line in shown.splitlines()) <= TOOLTIP_WIDTH
+
+
+def test_stub_tip_inside(stub_tk: None) -> None:
+    """Test a tooltip that would hang outside the window is moved into it.
+
+    It is put over the window the control is in and not in a window of its own,
+    which is what gives it sharp corners on every platform and every version of
+    Tk, so a tooltip reaching past an edge would be cut off there. The stub
+    answers that the window is exactly as big as the tooltip needs, so the only
+    place the whole of it fits is the corner.
+    """
+    _ = stub_tk
+    assert _hovered(WHOLE_TICK).packing == {'x': 0, 'y': 0}
+
+
+def test_stub_tip_taken_away(stub_tk: None) -> None:
+    """Test the pointer leaving a control takes its explanation away again."""
+    _ = stub_tk
+    tip = _hovered(PATH_TICK)
+    _stub_control(PATH_TICK).bindings['<Leave>']()
+    assert tip not in FakeWidget.created
+    assert not _stub_tips()
 
 
 def test_stub_typing_finds(stub_tk: None) -> None:

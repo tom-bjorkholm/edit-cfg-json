@@ -50,6 +50,7 @@
   * [TOOLTIP\_BORDER](#edit_cfg_json_tk.tk_tooltip.TOOLTIP_BORDER)
   * [TOOLTIP\_OFFSET](#edit_cfg_json_tk.tk_tooltip.TOOLTIP_OFFSET)
   * [TOOLTIP\_PADDING](#edit_cfg_json_tk.tk_tooltip.TOOLTIP_PADDING)
+  * [TOOLTIP\_WIDTH](#edit_cfg_json_tk.tk_tooltip.TOOLTIP_WIDTH)
   * [Tooltip](#edit_cfg_json_tk.tk_tooltip.Tooltip)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_tooltip.Tooltip.__init__)
     * [text](#edit_cfg_json_tk.tk_tooltip.Tooltip.text)
@@ -57,6 +58,7 @@
   * [FIND\_FIELD\_NAME](#edit_cfg_json_tk.tk_find.FIND_FIELD_NAME)
   * [FIND\_LABEL\_TEXT](#edit_cfg_json_tk.tk_find.FIND_LABEL_TEXT)
   * [FIND\_NEXT\_TEXT](#edit_cfg_json_tk.tk_find.FIND_NEXT_TEXT)
+  * [FIND\_NEXT\_TIP](#edit_cfg_json_tk.tk_find.FIND_NEXT_TIP)
   * [FIND\_TICK\_LABELS](#edit_cfg_json_tk.tk_find.FIND_TICK_LABELS)
   * [FindWidgets](#edit_cfg_json_tk.tk_find.FindWidgets)
     * [text](#edit_cfg_json_tk.tk_find.FindWidgets.text)
@@ -624,18 +626,29 @@ Return the text that the label of the configuration class shows.
 
 The tooltip that Tk does not have, for a control too small to label.
 
-Every control of this editor says what it does in the word on it, with one
-exception: the four that say where a search looks are ticked and unticked
+Every control of this editor says what it does in the word on it, with two
+exceptions: the four that say where a search looks are ticked and unticked
 often enough to be worth a line of their own, and a line of their own is width
-that the values would lose. So they carry a label of one or two characters and
-say the rest here.
+that the values would lose, and the one that goes to the next member found
+carries the arrow that every editor draws for that. Those five carry a label of
+one or two characters and say the rest here.
 
 Tk has no tooltip. There is no widget for one and no option on a widget that
-asks for one, so this is what it amounts to: a borderless window with a label
-on it, put beside the pointer while the pointer rests on the control and taken
-away again when it leaves. It is a module of its own for the same reason as the
-scrolling beside it — none of it is about an edit model, and it is what Tk
-needs in order to have a tooltip at all.
+asks for one, so this is what it amounts to: a label with a line round it, put
+beside the pointer while the pointer rests on the control and taken away again
+when it leaves. It is a module of its own for the same reason as the scrolling
+beside it — none of it is about an edit model, and it is what Tk needs in order
+to have a tooltip at all.
+
+The label goes *inside the window the control is in*, and not in a borderless
+window of its own. A window of its own is what a toolkit with a tooltip does,
+and it is what this had first: macOS then gives it rounded corners and a
+shadow, and a corner whose radius is about half the height of a line of text
+eats the first character and the last. A label inside the window is drawn by Tk
+and by nothing else, so it is a rectangle with sharp corners on every platform
+and every version of Tk, and it cannot outlive the window it is in. What that
+costs is that a tooltip cannot reach outside the window, which is why it is
+kept inside it and why its text is wrapped.
 
 <a id="edit_cfg_json_tk.tk_tooltip.TOOLTIP_BACKGROUND"></a>
 
@@ -656,7 +669,7 @@ Colour of the line around a tooltip, as around an edit field.
 How far from the pointer, in pixels across and down, a tooltip is put.
 
 Down rather than up, and to the right rather than the left, so that the
-tooltip does not land under the pointer itself: a window that appeared where
+tooltip does not land under the pointer itself: a label that appeared where
 the pointer is would take the leave event that closes it again.
 
 <a id="edit_cfg_json_tk.tk_tooltip.TOOLTIP_PADDING"></a>
@@ -664,6 +677,18 @@ the pointer is would take the leave event that closes it again.
 #### TOOLTIP\_PADDING
 
 Padding in pixels between the text of a tooltip and its border.
+
+<a id="edit_cfg_json_tk.tk_tooltip.TOOLTIP_WIDTH"></a>
+
+#### TOOLTIP\_WIDTH
+
+How many characters of a tooltip go on one line.
+
+Characters and not pixels, because that is what the standard library measures
+in and a width in pixels would have to be measured in whatever font the label
+ended up with. Sixty of them is narrow enough that a whole tooltip fits beside
+a control anywhere in a window that a configuration is edited in, which is what
+a tooltip drawn inside that window has to do.
 
 <a id="edit_cfg_json_tk.tk_tooltip.Tooltip"></a>
 
@@ -675,10 +700,10 @@ class Tooltip()
 
 One text that appears while the pointer rests on one widget.
 
-The window is made when the pointer arrives and destroyed when it leaves,
+The label is made when the pointer arrives and destroyed when it leaves,
 rather than made once and hidden, because a tooltip is seen for a second or
-two in a session and a window that is never shown is a window that can
-still be left behind by an editor that was closed.
+two in a session and a label that is never shown is a label that is in the
+way of everything the window lays out.
 
 <a id="edit_cfg_json_tk.tk_tooltip.Tooltip.__init__"></a>
 
@@ -749,11 +774,29 @@ Text of the label beside the field that a search is typed into.
 
 #### FIND\_NEXT\_TEXT
 
-Text of the button that goes to the next member the search reaches.
+Label of the button that goes to the next member the search reaches.
 
 A button as well as a key, because a function key is the one thing a keyboard
 is most likely not to deliver and because a user who has just typed into the
 field is looking at this row.
+
+The arrow that every editor draws for this rather than the two words it stands
+for, because the row it shares is the row the field needs the width of. It is
+U+25BA and not the U+25B6 that reads the same, because that one is an emoji
+code point and a font fallback is then free to answer it with a coloured
+picture instead of a character. What it means in words is `FIND_NEXT_TIP`, said
+in a tooltip for the same reason the four controls beside it say theirs there.
+
+<a id="edit_cfg_json_tk.tk_find.FIND_NEXT_TIP"></a>
+
+#### FIND\_NEXT\_TIP
+
+What the button that goes to the next member says about itself.
+
+It is a word of this backend and not one of the core, unlike the four
+explanations of `edit_cfg_json.FIND_OPTION_HELP`: the terminal editor has the
+room to write `next` on its own control, so nothing but this window needs this
+sentence.
 
 <a id="edit_cfg_json_tk.tk_find.FIND_TICK_LABELS"></a>
 

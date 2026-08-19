@@ -218,6 +218,18 @@ The two are what a tree has always used for this, and they are one cell wide
 in every terminal, which the arrows that a modern tree draws are not.
 """
 
+FOCUS_TINT = '$foreground 25%'
+"""How the field that has the cursor in it is told from the others.
+
+A compact field has no border in any state, which is what `PANEL_CSS` explains,
+so what is left to say that the cursor is in this one is its background.
+Textual tints a focused field by five per cent of the foreground colour, which
+is plain enough on a row of its own and easy to miss in a column of fields, so
+this says the same thing louder. It is a colour of the theme and not one of
+this backend, so it follows the terminal into a light or a dark mode like
+everything else here.
+"""
+
 EMPHASIS_CLASSES = {core.Emphasis.MUTED: 'muted',
                     core.Emphasis.ATTENTION: 'attention',
                     core.Emphasis.WARNING: 'warning',
@@ -258,28 +270,33 @@ PANEL_CSS = '\n'.join(COLOUR_RULES + (
     f'.{VALUE_CLASS} {{ width: 1fr; min-width: {LEAST_VALUE_WIDTH}; }}',
     f'.{MARK_CLASS}, .{SUBTREE_CLASS} {{ width: auto; }}',
     f'.{ELEMENT_CLASS}, .{FIND_NEXT_CLASS} {{ width: auto; min-width: 0;'
-    ' height: 1; border: none; padding: 0 1; margin: 0; }',
+    ' height: 1; padding: 0 1; margin: 0; }',
     f'.{FOLD_CLASS} {{ width: {FOLD_WIDTH}; min-width: {FOLD_WIDTH};'
-    ' height: 1; border: none; padding: 0; margin: 0;'
-    ' text-align: center; }',
+    ' height: 1; padding: 0; margin: 0; text-align: center; }',
     f'.{DESCRIPTION_CLASS}, .{DIAGNOSTIC_CLASS} {{ width: 1fr; height: auto;'
     f' padding-left: {DESCRIPTION_INDENT}; }}',
     f'#{DOCSTRING_ID}, #{TITLE_ID} {{ width: 1fr; height: auto; }}',
-    f'.{ROW_CLASS} Input {{ height: 1; border: none; padding: 0; }}',
     f'.{FIND_AREA_CLASS} {{ height: auto; }}',
     f'.{FIND_ROW_CLASS} {{ height: 1; }}',
-    f'.{FIND_ROW_CLASS} Label {{ width: auto; }}',
-    f'.{FIND_ROW_CLASS} Input {{ height: 1; border: none; padding: 0;'
-    f' width: 1fr; min-width: {LEAST_VALUE_WIDTH}; }}',
-    f'.{FIND_TICK_CLASS} {{ width: auto; height: 1; border: none;'
-    ' padding: 0 1; margin: 0; }',
+    f'.{FIND_ROW_CLASS} Label {{ width: auto; padding-right: 1; }}',
+    f'.{FIND_ROW_CLASS} Input {{ width: 1fr;'
+    f' min-width: {LEAST_VALUE_WIDTH}; }}',
+    f'.{FIND_TICK_CLASS} {{ width: auto; height: 1; padding: 0 1;'
+    ' margin: 0; }',
     f'.{FIND_LINE_CLASS} {{ width: 1fr; height: auto;'
-    f' padding-left: {DESCRIPTION_INDENT}; }}'))
+    f' padding-left: {DESCRIPTION_INDENT}; }}',
+    f'.{VALUE_CLASS}:focus, #{FIND_ID}:focus'
+    f' {{ background-tint: {FOCUS_TINT}; }}'))
 """The width and the height of every part of one member row.
 
-Rows are one cell high, so that the footer stays visible below them. A field
-is one cell high as well, which needs its border and its padding taken away,
-because both of them are part of how tall a field is.
+Rows are one cell high, so that the footer stays visible below them. Every
+field and every control on such a row is therefore the compact one that Textual
+offers for exactly this: a field of its own accord is three cells high and
+grows a border when it is given the focus, and on a row of one cell the text of
+the field is then laid out under the row below it, where the user cannot see
+what they are typing. Compactness is what takes that border away, in the
+focused state as well as in the unfocused one, which is why nothing here says
+anything about a border at all.
 
 A member is as high as it needs to be rather than one cell, because it is the
 row and the description below it, and the explanatory text is as high as the

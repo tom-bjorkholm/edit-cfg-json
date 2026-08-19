@@ -355,7 +355,8 @@ class ModelPanel(Widget):
             return Label('', classes=FOLD_CLASS)
         widget_id = fold_id(index)
         self._fold_rows[widget_id] = row
-        return Button(fold_glyph(row), id=widget_id, classes=FOLD_CLASS)
+        return Button(fold_glyph(row), id=widget_id, classes=FOLD_CLASS,
+                      compact=True)
 
     def command_entries(self) -> tuple[EditorCommand, ...]:
         """Return the actions of the editor, for a command palette.
@@ -455,7 +456,7 @@ class ModelPanel(Widget):
         # keeps what is there, which is what an editor of existing values
         # should do.
         return Input(value=core.row_value_text(row), id=value_id(index),
-                     select_on_focus=False, classes=VALUE_CLASS)
+                     select_on_focus=False, classes=VALUE_CLASS, compact=True)
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Write one field into the model and show what the model says.

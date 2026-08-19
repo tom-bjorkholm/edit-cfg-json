@@ -14,7 +14,8 @@ from textual.widgets import Static
 from edit_cfg_json import EditModel, LoadReport
 from edit_cfg_json_textual.textual_editor import EditorApp
 from edit_cfg_json_textual.textual_look import BODY_ID, \
-    LEAST_VALUE_WIDTH, LOAD_ID, SAVE_ID, mark_id, plain_widget, value_id
+    LEAST_VALUE_WIDTH, LOAD_ID, ROW_CLASS, SAVE_ID, mark_id, plain_widget, \
+    value_id
 from example.e01_flat_config import FlatConfig
 from .helpers import ANSWER_INDEX, DESCRIPTIONS, EXPECTED_VALUES, \
     FILLED_MARK, FILLED_REPORT, LOAD_MESSAGE, NAME_INDEX, NARROW_SIZE, \
@@ -356,6 +357,44 @@ def test_narrow_keepsfield_of() -> None:
     """
     placed, _ = asyncio.run(_laid_out(NARROW_SIZE))
     assert placed[value_id(ANSWER_INDEX)].width == LEAST_VALUE_WIDTH
+
+
+async def _focused_row(member_name: str) -> tuple[int, int, int]:
+    """Give the field of one member the cursor and measure the rows.
+
+    Args:
+        member_name: Name of the member whose field is given the cursor.
+
+    Returns:
+        How many cells the field takes before and after it is given the
+        cursor, and the most that any widget of any row takes with it there.
+    """
+    app = EditorApp(EditModel(FlatConfig(), FILLED_REPORT,
+                              descriptions=DESCRIPTIONS))
+    async with app.run_test(size=ROOMY_SIZE) as pilot:
+        field = field_of(app, member_name)
+        before = field.outer_size.height
+        field.focus()
+        await pilot.pause()
+        return (before, field.outer_size.height,
+                max(widget.outer_size.height
+                    for row in app.query(f'.{ROW_CLASS}')
+                    for widget in row.children))
+
+
+def test_focus_keeps_row() -> None:
+    """Test the field the cursor is in is one cell high like all the others.
+
+    A field of Textual's own accord is three cells high and grows a border
+    again when it is given the focus, so the text of a focused field on a row
+    of one cell was laid out under the row below it and the user could not see
+    what they were typing. Every field and every control of a row is therefore
+    a compact one, which has no border in any state.
+    """
+    before, after, tallest = asyncio.run(_focused_row('answer'))
+    assert before == 1
+    assert after == 1
+    assert tallest == 1
 
 
 async def _shown_markup() -> str:

@@ -2,8 +2,8 @@
 
 ## Where everything is
 
-Steps 1 to 22 are implemented and committed, and step 23 is implemented and
-awaiting its review. Steps 1 to 9 are written up in
+Steps 1 to 23 are implemented and committed, step 23 with the corrections its
+review asked for. Steps 1 to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md) and steps 10 to 21 in
 [steps_010-021.md](steps_010-021.md). Step 22 and the steps still to build are
 in this file. Where any of the three files mentions a design decision,
@@ -284,16 +284,83 @@ The public names it settled:
 
 ### Step 23 - Finding a member
 
-Status: **Implemented, committed.**
+Status: **Implemented, reviewed, committed.**
 
-Section 9.7 keeps `ctrl+f` and `f3` free from the start, because finding a
-member of a configuration that does not fit a window (section 4.6) is something
-this editor is likely to be asked for, and a test says the defaults take
-neither key. Nothing implements the search they are reserved for. What is found
-has to be reachable, so a match inside a folded container opens it, and both
-backends have to bring it into view — the canvas in Tk and `scroll_visible` in
-Textual. Which member is being looked for is state, and belongs in the core by
-the lesson of step 6 about the explanation toggle.
+Section 9.7 had kept `ctrl+f` and `f3` free since the first version, for the
+search that a configuration too big for a window (section 4.6) asks for, and
+this step took them: a field that stays below the rows, four tick-boxes beside
+it that say where it looks, a control and a key that go to the next member
+found, and a line under them saying what the search has reached.
+
+**How it was decided to work.** Six answers, each of which could have gone the
+other way. Section 4.10 of the design is the authority on all of them.
+
+- **What is being looked for is state of the model**, by the lesson of step 6
+  about the explanation toggle: two backends looking for different things, or
+  looking in different places, would each be right about a different search. So
+  the core owns the text, the four answers, which nodes they reach, which of
+  them the search is at, the words of the line, the `(found)` mark and the
+  explanation of each control; each backend owns its widgets, the label on each
+  control, and where an explanation is put.
+- **A field that stays, and not a question that is asked and gone.** A search is
+  a text that is changed a character at a time, so it searches on every change
+  of the field.
+- **Case insensitive, and any part of the path or of the value**, with four
+  independent tick-boxes that change one answer each.
+- **What is found is reachable**: every folded container hiding it opens, and
+  each backend brings the row into view. Opening one asks the configuration
+  objects in it about themselves, exactly as folding does (section 4.7), and a
+  search that opened nothing asks nothing.
+- **Typing moves nothing else; Enter and the find next key move the cursor**
+  into the field of what was found.
+- **`RESERVED_KEYS` is gone.** It existed to keep these two keys free, and the
+  test that read it now says the search holds exactly them.
+
+The public names it settled:
+
+| Name | Kind |
+| --- | --- |
+| `FindOptions` | the four answers about where a search looks |
+| `FindReport` | what the editor says about the search |
+| `FIND_OPTION_HELP` | what each of those four answers means |
+| `EditModel.search` | what the editor says about the search |
+| `EditModel.find`, `.set_find_options`, `.find_next` | the three ways of searching, each saying whether a container was opened |
+| `MemberRow.found` | whether the search has got to this node |
+| `find_text`, `find_emphasis` | the line about the search, and how loudly it is shown |
+| `ActionSettings.find`, `.find_next` | the two keys, which no longer need reserving |
+
+**What building it found.**
+
+- **Adding an action makes an existing settings *block* incomplete.** A nested
+  `SettingsConfig` is read whole (section 9.8), so `examples/data/e17_tool.json`
+  had to name both new actions to stay loadable. Worth knowing before step 28.
+- **Both backends were at the 1000-line limit**, and each was split where it
+  should have been split anyway: `tk_panel` took `TkEditor` and `edit()` so that
+  `tk_editor` is the widgets alone, which is how the Textual side was already
+  arranged, and `textual_words` took what that backend calls its actions.
+- **`pytest examples/test` on its own segfaulted Tk** inside example e13's own
+  `update_idletasks`, before any editor was built. It does not reproduce in the
+  whole-suite order that the build uses.
+
+**What the review corrected.**
+
+- **The Tk tooltip was a borderless window of its own**, and macOS rounds the
+  corners of one: at that size the corners ate the first character and the last.
+  It is now a label put over the window the control is in, which no window
+  manager decorates (section 4.10).
+- **A focused field in Textual hid its own text.** A field of Textual's own
+  accord is three cells high and grows its border back when it is given the
+  focus, and a row is one cell, so what the user was typing was laid out under
+  the row below. Every field and control of a row is now Textual's compact one,
+  which has no border in any state, and a tint of the theme's own foreground
+  colour says which field has the cursor (section 4.6). The same change fixed
+  the fold and the element controls, which had been two cells high in a one-cell
+  row since step 10.
+- **The Tk Find next button carries `►`** and says its words in a tooltip, so
+  the row keeps that width for the field.
+- **A withdrawn Tk root cannot answer for a tooltip**: Tk delivers `<Enter>` to
+  a mapped window only, so this is one of the few places with a stubbed test and
+  no companion in category 2 of section 10.2.
 
 ### Step 24 - More type information, and whether the user may change it
 
@@ -337,7 +404,7 @@ declared by `DICT_VALUE_BY_KEY`.
 ### Step 27 - Adding an entry to an `_unchecked_dicts` member
 
 Section 4.9 of the design names three kinds of dict that cannot be given an
-entry. One of them is permanently impossible, one of them is step 23, and this
+entry. One of them is permanently impossible, one of them is step 26, and this
 is the third: a member of `_unchecked_dicts`, whose key policy the application
 defines with validators of its own, which the design marks out of v1 scope and
 no step has claimed. Such a member stops saying why it cannot be given an entry

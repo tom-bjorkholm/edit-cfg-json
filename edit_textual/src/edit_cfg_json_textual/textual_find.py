@@ -99,10 +99,11 @@ class FindRow(Widget):
         report = self._model.search
         with Horizontal(classes=FIND_ROW_CLASS):
             yield Label(FIND_LABEL_TEXT)
-            yield Input(value=report.text, id=FIND_ID, select_on_focus=False)
+            yield Input(value=report.text, id=FIND_ID, select_on_focus=False,
+                        compact=True)
             yield from self._tick_widgets(report.options)
             yield Button(FIND_NEXT_TEXT, id=FIND_NEXT_ID,
-                         classes=FIND_NEXT_CLASS)
+                         classes=FIND_NEXT_CLASS, compact=True)
         yield plain_widget('', FIND_LINE_ID, FIND_LINE_CLASS)
 
     @staticmethod

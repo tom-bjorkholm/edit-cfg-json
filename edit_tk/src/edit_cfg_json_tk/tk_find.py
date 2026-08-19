@@ -41,12 +41,28 @@ See `edit_cfg_json_tk.tk_look.MEMBER_FIELD_NAME`.
 FIND_LABEL_TEXT = 'Find:'
 """Text of the label beside the field that a search is typed into."""
 
-FIND_NEXT_TEXT = 'Find next'
-"""Text of the button that goes to the next member the search reaches.
+FIND_NEXT_TEXT = '►'
+"""Label of the button that goes to the next member the search reaches.
 
 A button as well as a key, because a function key is the one thing a keyboard
 is most likely not to deliver and because a user who has just typed into the
 field is looking at this row.
+
+The arrow that every editor draws for this rather than the two words it stands
+for, because the row it shares is the row the field needs the width of. It is
+U+25BA and not the U+25B6 that reads the same, because that one is an emoji
+code point and a font fallback is then free to answer it with a coloured
+picture instead of a character. What it means in words is `FIND_NEXT_TIP`, said
+in a tooltip for the same reason the four controls beside it say theirs there.
+"""
+
+FIND_NEXT_TIP = 'Go to the next member that the search reaches.'
+"""What the button that goes to the next member says about itself.
+
+It is a word of this backend and not one of the core, unlike the four
+explanations of `edit_cfg_json.FIND_OPTION_HELP`: the terminal editor has the
+room to write `next` on its own control, so nothing but this window needs this
+sentence.
 """
 
 FIND_TICK_LABELS = ('path', 'value', 'Aa', '==')
@@ -130,8 +146,7 @@ class FindPanel:
         text = tkinter.StringVar(master=row, value=report.text)
         entry = self._add_entry(parent=row, text=text)
         ticks = self._add_ticks(parent=row, options=report.options)
-        tkinter.Button(row, text=FIND_NEXT_TEXT,
-                       command=self.find_next).pack(side='left', padx=PADDING)
+        self._add_next(parent=row)
         # The line is created last, so that the widgets are created in the
         # order they are read in: the row above it is finished first.
         self._widgets = FindWidgets(text=text, entry=entry, ticks=ticks,
@@ -226,6 +241,17 @@ class FindPanel:
         box.pack(side='left')
         Tooltip(box, tip)
         return flag
+
+    def _add_next(self, parent: tkinter.Misc) -> None:
+        """Create the button that goes to the next member the search reaches.
+
+        Args:
+            parent: Row of the search.
+        """
+        button = tkinter.Button(parent, text=FIND_NEXT_TEXT,
+                                command=self.find_next)
+        button.pack(side='left', padx=PADDING)
+        Tooltip(button, FIND_NEXT_TIP)
 
     def _typed(self, text: tkinter.StringVar) -> Callable[..., None]:
         """Return the callback that writes the field into the model.

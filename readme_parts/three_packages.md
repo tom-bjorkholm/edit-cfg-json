@@ -17,9 +17,9 @@ configuration:
   itself is a very limited non-interactive one that prints the model once
   and returns, for a script, a test or a continuous integration job.
 
-The application supplies its own `Config` object and gets a folding
-editor for it, without writing any user interface code and without
-describing its configuration schema a second time.
+The application supplies its own `Config` object and gets a folding,
+searchable editor for it, without writing any user interface code and
+without describing its configuration schema a second time.
 
 The three packages share a version number and are released together. The
 first two are the editors: pick the one that matches how your application

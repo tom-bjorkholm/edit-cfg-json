@@ -297,7 +297,10 @@ class FakeCanvas(FakeWindow):
         _ = fractions
 
 
-class FakeWidget(FakeCanvas):
+# A Tk widget has hundreds of methods, and this stands in for one, so the
+# count here says how much of Tk the editor uses and not how much this class
+# does.
+class FakeWidget(FakeCanvas):  # pylint: disable=too-many-public-methods
     """Recording stand-in for a Tkinter widget in the stubbed tests."""
 
     created: ClassVar[list['FakeWidget']] = []
@@ -398,6 +401,18 @@ class FakeWidget(FakeCanvas):
         """Record that this widget is out of the layout."""
         self.packed = False
 
+    def place(self, **options: object) -> None:
+        """Record that this widget was put over the window, and where.
+
+        It is how a tooltip is put on the window, which is the one thing this
+        editor lays out over another widget rather than beside it.
+        """
+        self.packed = True
+        self.packing = dict(options)
+
+    def lift(self) -> None:
+        """Record nothing: a stub has nothing that could be drawn over."""
+
     def config(self, **options: object) -> None:
         """Change options of this widget, as a real Tk widget does."""
         self.options.update(options)
@@ -419,9 +434,17 @@ class FakeWidget(FakeCanvas):
         return [widget for widget in FakeWidget.created
                 if widget.parent is self]
 
+    def winfo_rootx(self) -> int:
+        """Return where this widget is on the screen, standing in for Tk."""
+        return 0
+
     def winfo_rooty(self) -> int:
         """Return where this widget is on the screen, standing in for Tk."""
         return 0
+
+    def winfo_width(self) -> int:
+        """Return a width, standing in for one that Tk would lay out."""
+        return STUB_BODY_WIDTH
 
     def winfo_height(self) -> int:
         """Return a height, standing in for one that Tk would lay out."""

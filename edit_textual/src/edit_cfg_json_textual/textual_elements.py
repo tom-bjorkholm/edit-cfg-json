@@ -113,4 +113,5 @@ def element_button(widget_id: str, action: str) -> Button:
     Returns:
         A control that says what it does.
     """
-    return Button(ELEMENT_LABELS[action], id=widget_id, classes=ELEMENT_CLASS)
+    return Button(ELEMENT_LABELS[action], id=widget_id, classes=ELEMENT_CLASS,
+                  compact=True)

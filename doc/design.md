@@ -592,7 +592,12 @@ that this amounts to. Three constraints of the Tk side, none of them obvious:
   line, and a narrow window squeezes the field rather than the mark.
 
 Textual needs none of those three: it wraps, it shrinks, and its footer is
-docked.
+docked. What it needs instead is that **everything on a row is a compact
+widget**: a field of Textual's own accord is three cells high and grows its
+border back when it is given the focus, so on a row of one cell the text of the
+field the user is typing in would be laid out under the row below it. Compact is
+what takes that border away in every state, and what is left to say that the
+cursor is in this field and not another is its background.
 
 **Testing this needs a window that is on the screen.** Tk lays out the widgets
 *inside* a frame only once the window has been mapped, so a withdrawn window
@@ -807,6 +812,18 @@ two different controls. What each backend owns is the label on that control —
 one or two characters, since the width of that row belongs to the field — and
 where the explanation is put, which is a tooltip in both toolkits and the only
 place a label that short has to say what it is.
+
+**Tk has no tooltip**, so the Tk editor draws one: a label with a line round it,
+put over the window the control is in and not in a borderless window of its own.
+A window of its own is what a toolkit with a tooltip does, and macOS rounds its
+corners and gives it a shadow — with a radius about half the height of a line of
+text, those corners eat the first character and the last. A label inside the
+window is drawn by Tk and by nothing else, so it is a rectangle with sharp
+corners on every platform and every version of Tk, and it cannot outlive the
+window it is in. What that costs is that a tooltip cannot reach outside the
+window, so it is kept inside it and its text is wrapped. The control that goes
+to the next member found explains itself the same way, because it carries the
+arrow every editor draws for that rather than the two words it stands for.
 
 Turning both places off is the one combination that can never reach a node, and
 it is said as what it is rather than as *no member matches*: nothing was
@@ -1729,7 +1746,9 @@ own `_bindings`, so a per-instance binding works on a widget too;
 matches the widget it belongs to by its type name and not by a style class the
 widget carries, which `ModalScreen.DEFAULT_CSS` relies on as well;
 `tkinter.Variable.__init__` calls `_get_default_root('create variable')` when
-it is given no master; and `Misc.bindtags`, `Misc.bind_class` and
+it is given no master; `Input`, `Button` and `Checkbox` each take a `compact`
+keyword, whose rule takes the border away with `!important` and therefore in the
+focused state as well; and `Misc.bindtags`, `Misc.bind_class` and
 `Misc.unbind_class` are what section 8.2.7 is built on.
 
 ### 8.3 A ready-to-run program in each editor package
@@ -2251,6 +2270,11 @@ opposite directions: stubs drift from real Tk behaviour and quietly stop being
 evidence of anything, and real Tk masks logic errors behind widget defaults and
 silent coercions, so a wrong value can still produce a passing assertion. A
 discrepancy between the two runs is itself a finding.
+
+One thing a withdrawn root cannot answer is where the pointer is: Tk delivers
+`<Enter>` and `<Leave>` to a mapped window only, and `event_generate` does not
+change that, so the tooltip of section 4.10 has a stubbed test and no companion
+in category 2.
 
 ### 10.4 Textual
 

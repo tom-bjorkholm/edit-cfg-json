@@ -19,9 +19,9 @@ configuration:
   itself is a very limited non-interactive one that prints the model once
   and returns, for a script, a test or a continuous integration job.
 
-The application supplies its own `Config` object and gets a folding
-editor for it, without writing any user interface code and without
-describing its configuration schema a second time.
+The application supplies its own `Config` object and gets a folding,
+searchable editor for it, without writing any user interface code and
+without describing its configuration schema a second time.
 
 The three packages share a version number and are released together. The
 first two are the editors: pick the one that matches how your application
@@ -231,9 +231,9 @@ eval "$(register-python-argcomplete edit-cfg-json-tk)"
 The window holds the label of the configuration, what the class says about
 itself, what reading the input file did, and then one row per node of the
 configuration. Below those, in a part of the window that does not scroll, are
-the validation verdict, the saving line, and the buttons: Validate, Save,
-Save as..., a tick-box for Explain, a button that folds or opens every
-container, and Close. Every one of them has a key as well:
+the search, the validation verdict, the saving line, and the buttons:
+Validate, Save, Save as..., a tick-box for Explain, a button that folds or
+opens every container, and Close. Every one of them has a key as well:
 
 | Key | What it does |
 | --- | --- |
@@ -242,6 +242,8 @@ container, and Close. Every one of them has a key as well:
 | `ctrl+shift+s` or `f12` | Save as |
 | `f1`, or `ctrl+g` | Explain |
 | `f2`, or `ctrl+t` | Fold all, or unfold all |
+| `ctrl+f` | Find |
+| `f3` | Find next |
 | `ctrl+q` | Close |
 
 Those are the defaults of `edit_cfg_json.ActionSettings`, and an application
@@ -262,6 +264,17 @@ would be. A control at the left of the row folds it away, `Fold all` below the
 rows does the same to all of them at once, and its text says what the next
 press will do. A configuration with nothing to fold gets neither the button nor
 the column that the controls sit in, so the values keep that width.
+
+**A member of a configuration too big for the window is looked for** in
+the `Find:` field below the rows, which searches as it is typed. The
+four tick-boxes beside it say where it looks — in the path of a member,
+in its value, matching the case, and matching the whole of one of them
+instead of any part — and each of them says what it means when the
+pointer rests on it. The defaults are the path and the value, the case
+ignored, and a part enough. What is found is opened if folding hid it,
+brought into view and marked *(found)*; `f3` and the `►` button go on to
+the next one, and pressing Enter in the field puts the cursor in what
+was found, so it can be typed into at once.
 
 **At the end of the line of a node are its element controls**: `Add`, `Del`,
 `Up` and `Down`, and only the ones that node really offers. Adding an entry to
@@ -354,7 +367,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 1763 passed, 3 deselected in 53s
+- Test result: 1768 passed, 3 deselected in 55s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

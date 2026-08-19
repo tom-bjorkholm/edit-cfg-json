@@ -100,6 +100,7 @@
   * [LEAST\_VALUE\_WIDTH](#edit_cfg_json_textual.textual_look.LEAST_VALUE_WIDTH)
   * [FOLD\_SHUT\_TEXT](#edit_cfg_json_textual.textual_look.FOLD_SHUT_TEXT)
   * [FOLD\_OPEN\_TEXT](#edit_cfg_json_textual.textual_look.FOLD_OPEN_TEXT)
+  * [FOCUS\_TINT](#edit_cfg_json_textual.textual_look.FOCUS_TINT)
   * [EMPHASIS\_CLASSES](#edit_cfg_json_textual.textual_look.EMPHASIS_CLASSES)
   * [COLOUR\_RULES](#edit_cfg_json_textual.textual_look.COLOUR_RULES)
   * [PANEL\_CSS](#edit_cfg_json_textual.textual_look.PANEL_CSS)
@@ -1273,6 +1274,20 @@ Label of the control of a container that is open.
 The two are what a tree has always used for this, and they are one cell wide
 in every terminal, which the arrows that a modern tree draws are not.
 
+<a id="edit_cfg_json_textual.textual_look.FOCUS_TINT"></a>
+
+#### FOCUS\_TINT
+
+How the field that has the cursor in it is told from the others.
+
+A compact field has no border in any state, which is what `PANEL_CSS` explains,
+so what is left to say that the cursor is in this one is its background.
+Textual tints a focused field by five per cent of the foreground colour, which
+is plain enough on a row of its own and easy to miss in a column of fields, so
+this says the same thing louder. It is a colour of the theme and not one of
+this backend, so it follows the terminal into a light or a dark mode like
+everything else here.
+
 <a id="edit_cfg_json_textual.textual_look.EMPHASIS_CLASSES"></a>
 
 #### EMPHASIS\_CLASSES
@@ -1305,9 +1320,14 @@ text or a state to act on, which is what `edit_cfg_json.Emphasis` names.
 
 The width and the height of every part of one member row.
 
-Rows are one cell high, so that the footer stays visible below them. A field
-is one cell high as well, which needs its border and its padding taken away,
-because both of them are part of how tall a field is.
+Rows are one cell high, so that the footer stays visible below them. Every
+field and every control on such a row is therefore the compact one that Textual
+offers for exactly this: a field of its own accord is three cells high and
+grows a border when it is given the focus, and on a row of one cell the text of
+the field is then laid out under the row below it, where the user cannot see
+what they are typing. Compactness is what takes that border away, in the
+focused state as well as in the unfocused one, which is why nothing here says
+anything about a border at all.
 
 A member is as high as it needs to be rather than one cell, because it is the
 row and the description below it, and the explanatory text is as high as the

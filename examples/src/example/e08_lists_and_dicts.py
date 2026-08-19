@@ -83,8 +83,10 @@ is a toggle and it does whatever the container is not.
 A configuration that does not fit a window is one where folding is only half
 the answer: the other half is being able to *look* for the member you want. The
 editor has a search field in the part that does not scroll, with four
-tick-boxes beside it and a Find next control, and `ctrl+f` puts the cursor in
-that field while `f3` goes to the next member the search reaches.
+tick-boxes beside it and a control that goes to the next member found — the
+arrow `►` in the window, the word `next` in the terminal — and `ctrl+f` puts
+the cursor in that field while `f3` goes to the next member the search
+reaches.
 
 It searches as it is typed, and the member it has got to is marked. **What is
 found is always reachable**: a match inside a folded container opens that
