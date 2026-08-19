@@ -355,7 +355,9 @@ ACTION_DESCRIPTIONS: Mapping[str, str] = {
     'save_as': 'Chooses an output file and then writes it.',
     'cancel': 'Leaves a question of the editor unanswered.',
     'explain': 'Shows or hides what the application says about the values.',
-    'fold': 'Folds every list and dict away, or opens every one of them.'}
+    'fold': 'Folds every list and dict away, or opens every one of them.',
+    'find': 'Puts the cursor in the field that a search is typed into.',
+    'find_next': 'Goes to the next member that the search reaches.'}
 """What each action of the editor is, by the name it is set under.
 
 Every action of `ActionSettings` has an entry, and one that is added later

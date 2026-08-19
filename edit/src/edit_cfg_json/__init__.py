@@ -18,8 +18,9 @@ from edit_cfg_json.loader import ConfigLoader, derived_loader
 from edit_cfg_json.loading import ConfigLoadError, DEFAULT_POLICY, \
     LoadPolicy, LoadReport, LoadedConfig, default_config, load_config
 from edit_cfg_json.emphasis import EXPLANATION, Emphasis, LOAD_REMARK, \
-    MEMBER_DIAGNOSTIC, MEMBER_MARK, save_emphasis, subtree_emphasis, \
-    verdict_emphasis
+    MEMBER_DIAGNOSTIC, MEMBER_MARK, find_emphasis, save_emphasis, \
+    subtree_emphasis, verdict_emphasis
+from edit_cfg_json.finding import FIND_OPTION_HELP, FindOptions, FindReport
 from edit_cfg_json.saving import SaveOutcome
 from edit_cfg_json.settings import ActionSettings, Settings, SettingsSource
 from edit_cfg_json.settings_config import SETTINGS_DESCRIPTIONS, \
@@ -28,10 +29,10 @@ from edit_cfg_json.settings_file import SETTINGS_VARIABLE, SHARED_SETTINGS, \
     load_settings, settings_file
 from edit_cfg_json.validation import ValidationVerdict
 from edit_cfg_json.model_text import can_fold, close_question, \
-    docstring_text, fold_hides, load_text, model_as_text, model_title, \
-    overwrite_question, row_describes, row_description, row_diagnostic, \
-    row_fold_text, row_marks, row_subtree_text, row_validates, \
-    row_value_text, save_text, verdict_text
+    docstring_text, find_text, fold_hides, load_text, model_as_text, \
+    model_title, overwrite_question, row_describes, row_description, \
+    row_diagnostic, row_fold_text, row_marks, row_subtree_text, \
+    row_validates, row_value_text, save_text, verdict_text
 from edit_cfg_json.tree import path_text, text_path
 from edit_cfg_json.exit_code import ExitCode
 from edit_cfg_json.version_report import EcajVersionReporter
@@ -46,7 +47,8 @@ __all__ = ['EditModel', 'MemberRow', 'EditorBackend', 'Descriptions', 'edit',
            'SettingsSource', 'ValidationVerdict', 'Emphasis', 'EXPLANATION',
            'LOAD_REMARK', 'MEMBER_DIAGNOSTIC', 'MEMBER_MARK', 'save_emphasis',
            'subtree_emphasis', 'verdict_emphasis', 'can_fold',
-           'close_question', 'overwrite_question',
+           'close_question', 'overwrite_question', 'FindOptions',
+           'FindReport', 'FIND_OPTION_HELP', 'find_emphasis', 'find_text',
            'docstring_text', 'fold_hides', 'load_text', 'model_as_text',
            'model_title', 'row_describes', 'row_description', 'row_diagnostic',
            'row_fold_text', 'row_marks', 'row_subtree_text', 'row_validates',

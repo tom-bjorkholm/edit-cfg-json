@@ -17,8 +17,8 @@ from example.e01_flat_config import FlatConfig
 from .helpers import EXPECTED_FIELDS, EXPECTED_LABELS, EXPECTED_LOADED, \
     FakeVar, FakeWidget, FILLED_REPORT, LOAD_MESSAGE, model_value, \
     real_fields, real_press, real_texts, REFUSED_VERDICT, retype, \
-    REWRITTEN_MARK, stub_editor, stub_press, stub_texts, UNKNOWN_VERDICT, \
-    VALID_VERDICT
+    REWRITTEN_MARK, stub_editor, stub_field_widgets, stub_fields, \
+    stub_press, stub_texts, UNKNOWN_VERDICT, VALID_VERDICT
 
 LOAD_REASON = 'read from the older key count'
 """What the model of the test below says the load did to one member.
@@ -47,7 +47,7 @@ def test_stub_field_values(stub_tk: None) -> None:
     """Test the stubbed fields start with the values of the model."""
     _ = stub_tk
     stub_editor(EditModel(FlatConfig()))
-    assert [field.get() for field in FakeVar.created] == EXPECTED_FIELDS
+    assert [field.get() for field in stub_fields()] == EXPECTED_FIELDS
 
 
 def test_real_field_values(root_or_skip: tkinter.Tk) -> None:
@@ -87,8 +87,7 @@ def test_stub_row_frames(stub_tk: None) -> None:
     root = FakeWidget()
     model = EditModel(FlatConfig())
     EditorWidgets(parent=cast(tkinter.Misc, root), model=model)
-    fields = [widget for widget in FakeWidget.created
-              if 'textvariable' in widget.options]
+    fields = stub_field_widgets()
     assert len(fields) == len(model.rows)
     assert all(below_root(field.parent, root) for field in fields)
 

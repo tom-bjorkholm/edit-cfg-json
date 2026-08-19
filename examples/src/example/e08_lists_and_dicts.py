@@ -78,6 +78,59 @@ python3 e08_lists_and_dicts.py --ui dump --fold many_labels
 The last of those *opens* `many_labels`, because it starts folded: the control
 is a toggle and it does whatever the container is not.
 
+## Finding a member
+
+A configuration that does not fit a window is one where folding is only half
+the answer: the other half is being able to *look* for the member you want. The
+editor has a search field in the part that does not scroll, with four
+tick-boxes beside it and a Find next control, and `ctrl+f` puts the cursor in
+that field while `f3` goes to the next member the search reaches.
+
+It searches as it is typed, and the member it has got to is marked. **What is
+found is always reachable**: a match inside a folded container opens that
+container, the row is brought into view, and pressing Enter or `f3` puts the
+cursor in its field so it can be typed into straight away. `many_labels` is
+what shows that, because it starts folded:
+
+````sh
+cd examples/src/example
+python3 e08_lists_and_dicts.py --ui dump --find label-7
+python3 e08_lists_and_dicts.py --ui dump --find port --find-next
+````
+
+The four tick-boxes are where the search looks. Two of them say which text is
+compared — the path of the member, the value of it, or both, which is what the
+editor opens with — and two say how hard the comparison is: whether the case
+has to match, and whether the whole of the text has to rather than a part of
+it. Their labels are short and each of them says the rest in a tooltip.
+
+Looking in the *path* is why `--find ports` reaches `ports` and both values
+inside it: a part of a path is enough, and the path of every value inside a
+member begins with the name of that member. It is also the notation the verdict
+line names a refused member in, so what you have just read is what you can
+type. Looking in the *value* is what finds `html` without knowing where it is.
+
+````sh
+cd examples/src/example
+python3 e08_lists_and_dicts.py --ui dump --find ports.http --find-whole
+python3 e08_lists_and_dicts.py --ui dump --find HTML --find-in value
+python3 e08_lists_and_dicts.py --ui dump --find HTML --find-in value \
+    --find-case
+````
+
+Turning both places off is the one combination that can never reach anything,
+and the editor says that rather than saying that no member matched, because
+nothing was compared with anything:
+
+````sh
+cd examples/src/example
+python3 e08_lists_and_dicts.py --ui dump --find ports --find-in neither
+````
+
+What is being looked for and where it looks belong to the model and not to
+either user interface, exactly as folding does, so the two backends cannot end
+up searching for different things.
+
 ## What a validator does to a container
 
 `report_formats` has a `ListOrderingValidator` that sorts its elements and
@@ -121,8 +174,9 @@ nested `Config` object is not here either: it serializes as a dict and it is
 not one, so [e09_nested_config.py](e09_nested_config.py) is where it becomes a
 first-class node of its own.
 
-Run this example in one of the two editors, and press the fold controls,
-which is the part of this example that a printout can only report:
+Run this example in one of the two editors, and press the fold controls and
+type into the search field, which is the part of this example that a printout
+can only report:
 
 ````sh
 python3 examples/src/example/e08_lists_and_dicts.py --ui tk

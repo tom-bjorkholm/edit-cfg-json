@@ -1,12 +1,18 @@
 #! /usr/bin/env python3
-"""The editor in a window, or in an area, of an application that runs Tk.
+"""The three ways of running this editor, all of them below `tk_editor`.
 
-An application with no Tk of its own calls `edit_cfg_json_tk.edit`, which
-owns a `tkinter.Tk` and runs until the user is done. An application that
-already runs Tk cannot use that: a second `tkinter.Tk` is a second Tcl
-interpreter, and no widget, variable, font or image crosses between two of
-them. It uses `TkEditorPanel` instead, which builds the editor where it is
-told and returns at once.
+`tk_editor` holds the whole editor as widgets, which is what all three of
+these build. What is here is the one thing only an application may do, which
+is to own a window and an event loop.
+
+An application with no Tk of its own calls `edit_cfg_json_tk.edit`, or hands
+`TkEditor` to `edit_cfg_json.edit`: both own a `tkinter.Tk` and run until the
+user is done. An application that already runs Tk cannot use either, because
+a second `tkinter.Tk` is a second Tcl interpreter and no widget, variable,
+font or image crosses between two of them. It uses `TkEditorPanel` instead,
+which builds the editor where it is told — in a window of its own over the
+application, or in an area of a window the application already has — and
+returns at once.
 
 Everything this backend takes from the core is reached through `core`, which
 is `edit_cfg_json` itself, in the same way as the rest of this package.
@@ -207,3 +213,85 @@ def _grabbed(widget: tkinter.Misc) -> bool:
     except tkinter.TclError:
         return False
     return True
+
+
+class TkEditor:  # pylint: disable=too-few-public-methods
+    """Tkinter user interface backend for an edit model.
+
+    The class has the single method that `EditorBackend` asks for, and
+    deliberately nothing else: everything worth testing without a display
+    lives in the core.
+    """
+
+    def __init__(self) -> None:
+        """Create a backend that has not shown a model yet."""
+        self._widgets: Optional[EditorWidgets] = None
+
+    def run_editor(self, model: core.EditModel) -> None:
+        """Show the model in a Tk window until the user closes it.
+
+        The widgets are held for as long as the window lives, because they
+        own the fields that the Tcl variables belong to. The window is this
+        backend's own, which is why closing the editor destroys it.
+
+        The close button of the window is made to do what the Close button of
+        the editor does, so that the one way out that is not a widget of the
+        editor cannot be the one way out that drops the changes without
+        asking. It is set on this window and on no other: the editor never
+        touches a window it did not create.
+
+        This is for an application that has no Tk of its own yet, because a
+        second `tkinter.Tk` is a second Tcl interpreter and nothing can be
+        shared between the two. An application that already runs Tk gets the
+        entry point of section 8.2 of `doc/design.md` instead, which mounts
+        the editor in a widget that application owns.
+
+        Args:
+            model: Model to show and to edit.
+        """
+        window = tkinter.Tk()
+        window.title(model.config_type_name)
+        self._widgets = EditorWidgets(parent=window, model=model)
+        window.protocol('WM_DELETE_WINDOW', self._widgets.close_editor)
+        window.mainloop()
+
+
+# See the same disable in the core: every argument after the first is an
+# optional keyword saying one independent thing about the session.
+# pylint: disable-next=too-many-arguments
+def edit(config: Config, *, descriptions: Optional[core.Descriptions] = None,
+         in_file: Optional[PathOrStr] = None,
+         loader: Optional[core.ConfigLoader] = None,
+         out_file: Optional[PathOrStr] = None,
+         policy: core.LoadPolicy = core.DEFAULT_POLICY,
+         settings: core.SettingsSource = core.Settings(),
+         stderr_file: TextIO = sys.stderr) -> Optional[Config]:
+    """Edit one configuration in a Tk window, and return what was saved.
+
+    This is `edit_cfg_json.edit` with this package's backend filled in, for
+    an application that has already chosen Tkinter. Everything it does is
+    documented there.
+
+    Args:
+        config: Configuration object to edit. It is never modified.
+        descriptions: What the application says about the members it
+            declares, or None when it says nothing.
+        in_file: File to read, or None to start from the declared defaults.
+        loader: How this application constructs its configuration, or None for
+            a class the editor can construct on its own.
+        out_file: File to write, or None to write the input file.
+        policy: What to do about declared keys the input file does not hold.
+        settings: What this application has already decided about key
+            combinations and file names, or a callable that answers with it.
+        stderr_file: Stream used for user-facing diagnostics.
+
+    Returns:
+        The configuration object that was written, or None when nothing was.
+
+    Raises:
+        ConfigLoadError: The input file cannot be opened for editing.
+    """
+    return core.edit(config=config, backend=TkEditor(),
+                     descriptions=descriptions, in_file=in_file, loader=loader,
+                     out_file=out_file, policy=policy, settings=settings,
+                     stderr_file=stderr_file)

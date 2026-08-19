@@ -26,6 +26,8 @@ import pytest
 from edit_cfg_json import Descriptions, EditModel, LoadReport
 from edit_cfg_json_tk.tk_editor import CLOSE_TEXT, EditorWidgets, \
     EXPLAIN_TEXT, FOLD_OPEN_TEXT, SAVE_AS_TEXT, SAVE_TEXT, VALIDATE_TEXT
+from edit_cfg_json_tk.tk_find import FIND_FIELD_NAME, FIND_LABEL_TEXT, \
+    FIND_NEXT_TEXT, FIND_TICK_LABELS
 from example.e01_flat_config import FlatConfig
 
 UNKNOWN_VERDICT = 'validation: not validated'
@@ -88,9 +90,18 @@ BUTTON_TEXTS = [VALIDATE_TEXT, SAVE_TEXT, SAVE_AS_TEXT, EXPLAIN_TEXT,
                 CLOSE_TEXT]
 """Texts of the buttons of the editor, in the order they are created."""
 
+FIND_TEXTS = [FIND_LABEL_TEXT, *FIND_TICK_LABELS, FIND_NEXT_TEXT]
+"""Texts of the search row, in the order they are created.
+
+The field itself shows no text of the editor's, and the line that says what the
+search has reached is out of the layout while nothing is being looked for, so
+what is left is the label, the four controls and the button. They come before
+the verdict, because the search is about the rows above them.
+"""
+
 EXPECTED_LABELS = ['FlatConfig', FLAT_DOCSTRING, 'name', '', TEXT_KIND,
-                   'answer', '', WHOLE_KIND, UNKNOWN_VERDICT, NO_FILE_TEXT,
-                   *BUTTON_TEXTS]
+                   'answer', '', WHOLE_KIND, *FIND_TEXTS, UNKNOWN_VERDICT,
+                   NO_FILE_TEXT, *BUTTON_TEXTS]
 """Widget texts that both the stubbed and the real Tk test expect.
 
 The docstring of the configuration class is below its name, because what the
@@ -101,7 +112,7 @@ each member is what the type of that member says about it.
 """
 
 EXPECTED_LOADED = ['FlatConfig', FLAT_DOCSTRING, LOAD_MESSAGE, 'name', '',
-                   TEXT_KIND, 'answer', FILLED_MARK, WHOLE_KIND,
+                   TEXT_KIND, 'answer', FILLED_MARK, WHOLE_KIND, *FIND_TEXTS,
                    UNKNOWN_VERDICT, NO_FILE_TEXT, *BUTTON_TEXTS]
 """Widget texts of a model whose load filled the number member in.
 
@@ -112,7 +123,8 @@ did hold, which has nothing to say.
 
 DESCRIBED_LABELS = ['FlatConfig', FLAT_DOCSTRING, 'name', '',
                     f'{ABOUT_NAME}\n{TEXT_KIND}', 'answer', '', WHOLE_KIND,
-                    UNKNOWN_VERDICT, NO_FILE_TEXT, *BUTTON_TEXTS]
+                    *FIND_TEXTS, UNKNOWN_VERDICT, NO_FILE_TEXT,
+                    *BUTTON_TEXTS]
 """Widget texts of a model whose text member the application describes.
 
 The description is below the member it belongs to, with what the type of that
@@ -122,7 +134,7 @@ holds, because that is the editor's own to say.
 """
 
 HIDDEN_LABELS = ['FlatConfig', FLAT_SUMMARY, 'name', '', 'answer', '',
-                 UNKNOWN_VERDICT, NO_FILE_TEXT, *BUTTON_TEXTS]
+                 *FIND_TEXTS, UNKNOWN_VERDICT, NO_FILE_TEXT, *BUTTON_TEXTS]
 """Widget texts of that same model with the explanations hidden.
 
 What is left of the docstring is its summary, which is one line for the whole
@@ -158,6 +170,14 @@ STUB_BODY_WIDTH = 500
 It is narrower than the width the editor opens at, which is what makes a
 stubbed test able to see whether the width is being followed: an editor that
 took this answer would be narrower than the one width it is supposed to have.
+"""
+
+WHOLE_VIEW = (0.0, 1.0)
+"""The fractions a canvas reports while all of its contents are in view.
+
+It is what the stub answers unless a test says otherwise, so that a search
+finds what it was looking for already on the window and scrolls nothing. A test
+that is about the scrolling says that only a part is in view instead.
 """
 
 STUB_CANVAS_ITEM = 7
@@ -224,6 +244,8 @@ class FakeCanvas(FakeWindow):
         """Start with a canvas that has not been scrolled."""
         super().__init__()
         self.scrolled = 0
+        self.moved: list[float] = []
+        self.view = WHOLE_VIEW
 
     def create_window(self, *place: int, **options: object) -> int:
         """Put a widget on this canvas, as a real Tk canvas does.
@@ -248,9 +270,22 @@ class FakeCanvas(FakeWindow):
         _ = what
         return (0, 0, 0, STUB_BODY_HEIGHT)
 
-    def yview(self, *arguments: str) -> None:
-        """Scroll this canvas, as its scrollbar asks it to."""
+    def yview(self, *arguments: str) -> tuple[float, float]:
+        """Scroll this canvas, or say how much of it is in view.
+
+        Real Tk answers with the two fractions when it is asked without
+        arguments, which is what a search reads before it decides whether it
+        has to scroll at all.
+        """
         _ = arguments
+        return self.view
+
+    def yview_moveto(self, fraction: float) -> None:
+        """Record where a search asked this canvas to look."""
+        self.moved.append(fraction)
+
+    def update_idletasks(self) -> None:
+        """Lay out what is waiting to be laid out, as real Tk does."""
 
     def yview_scroll(self, number: int, what: str) -> None:
         """Record how far the wheel scrolled this canvas."""
@@ -383,6 +418,14 @@ class FakeWidget(FakeCanvas):
         """Return the stub widgets that were created below this one."""
         return [widget for widget in FakeWidget.created
                 if widget.parent is self]
+
+    def winfo_rooty(self) -> int:
+        """Return where this widget is on the screen, standing in for Tk."""
+        return 0
+
+    def winfo_height(self) -> int:
+        """Return a height, standing in for one that Tk would lay out."""
+        return STUB_BODY_HEIGHT
 
     def winfo_reqheight(self) -> int:
         """Return a height, standing in for one that Tk would have laid out."""
@@ -561,13 +604,107 @@ def real_texts(widget: tkinter.Misc, packed_only: bool = False) -> list[str]:
 
 
 def real_fields(widget: tkinter.Misc) -> list[tkinter.Entry]:
-    """Return every real Tk edit field below one widget, in row order."""
+    """Return every real Tk field of a member below one widget, in row order.
+
+    The field that a search is typed into is left out, because it holds no
+    member of the configuration: it is told from the others by its Tk name,
+    which is what that name is for.
+    """
+    return [field for field in _all_fields(widget)
+            if field.winfo_name() != FIND_FIELD_NAME]
+
+
+def _all_fields(widget: tkinter.Misc) -> list[tkinter.Entry]:
+    """Return every real Tk edit field below one widget, in creation order."""
     fields: list[tkinter.Entry] = []
     for child in widget.winfo_children():
         if isinstance(child, tkinter.Entry):
             fields.append(child)
-        fields.extend(real_fields(child))
+        fields.extend(_all_fields(child))
     return fields
+
+
+def find_field(widget: tkinter.Misc) -> tkinter.Entry:
+    """Return the one real Tk field that a search is typed into."""
+    fields = [field for field in _all_fields(widget)
+              if field.winfo_name() == FIND_FIELD_NAME]
+    assert len(fields) == 1
+    return fields[0]
+
+
+def stub_fields() -> list[FakeVar]:
+    """Return the variable of every stub field of a member, in row order.
+
+    `FakeVar.created` holds one more than these: the field that a search is
+    typed into, created after the rows. It is left out here for the same reason
+    as in `real_fields`, and it is reached by `stub_find_var`.
+    """
+    return [variable for widget, variable in _stub_fields()
+            if widget.options.get('name') != FIND_FIELD_NAME]
+
+
+def stub_field_widgets() -> list[FakeWidget]:
+    """Return every stub field of a member, in row order.
+
+    It is the widgets where `stub_fields` is the variables, and the field that
+    a search is typed into is left out of both.
+    """
+    return [widget for widget, _ in _stub_fields()
+            if widget.options.get('name') != FIND_FIELD_NAME]
+
+
+def stub_find_var() -> FakeVar:
+    """Return the variable of the stub field that a search is typed into."""
+    found = [variable for widget, variable in _stub_fields()
+             if widget.options.get('name') == FIND_FIELD_NAME]
+    assert len(found) == 1
+    return found[0]
+
+
+def _stub_fields() -> list[tuple[FakeWidget, FakeVar]]:
+    """Return every stub field and its variable, in creation order."""
+    return [(widget, variable) for widget in FakeWidget.created
+            if isinstance(variable := widget.options.get('textvariable'),
+                          FakeVar)]
+
+
+def stub_flag(label: str) -> FakeFlag:
+    """Return the variable of the one stub tick-box showing one label.
+
+    The editor has five tick-boxes now — the four that say where a search
+    looks and the one that shows or hides the explanations — so a test says
+    which of them it means by the label on it.
+
+    Args:
+        label: Text on the tick-box.
+
+    Returns:
+        The variable that holds whether it is ticked.
+    """
+    boxes = [widget for widget in FakeWidget.created
+             if widget.options.get('text') == label
+             and 'variable' in widget.options]
+    assert len(boxes) == 1
+    flag = boxes[0].options['variable']
+    assert isinstance(flag, FakeFlag)
+    return flag
+
+
+def real_tick(widget: tkinter.Misc, label: str) -> bool:
+    """Return whether the one real tick-box showing one label is ticked.
+
+    Args:
+        widget: Widget whose descendants are read.
+        label: Text on the tick-box.
+
+    Returns:
+        Whether it is ticked.
+    """
+    boxes = [box for box in real_buttons(widget)
+             if isinstance(box, tkinter.Checkbutton)
+             and str(box.cget('text')) == label]
+    assert len(boxes) == 1
+    return _is_ticked(boxes[0])
 
 
 def real_buttons(widget: tkinter.Misc

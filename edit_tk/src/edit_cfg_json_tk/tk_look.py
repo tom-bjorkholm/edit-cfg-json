@@ -69,6 +69,15 @@ makes four of them affordable where the one control that folds a container has
 to keep a column clear on every row.
 """
 
+FIND_WIDTH = 16
+"""Width in characters that the field of the search asks for.
+
+It is what that field gives way to when the window is too narrow for the row,
+in the same way as the field of a member: what shares the row with it is four
+controls whose labels are one or two characters and a button, and a control
+that cannot be read is worse than a field with fewer characters in view.
+"""
+
 LEAST_WRAP_WIDTH = 200
 """Narrowest line in pixels that a paragraph of the editor is wrapped to.
 
@@ -114,6 +123,53 @@ put white text on a light field.
 
 FIELD_BORDER = '#9aa5b1'
 """Colour of the line around a field the user can edit."""
+
+
+MEMBER_FIELD_NAME = 'field'
+"""Tk name of a field that holds the value of one member.
+
+A Tk widget has no identifier of its own beyond its place in the window, so a
+name is what says which kind of field this is — the same thing the Textual
+backend says with a widget identifier. It is what lets an application, and a
+test, tell the fields that are members of the configuration from the one that
+is not, which is the field a search is typed into.
+
+A name has to be unique among the children of one widget, and each of these is
+the one field of the line of its own member, so one name serves them all.
+"""
+
+
+def edit_field(parent: tkinter.Misc, text: tkinter.StringVar, width: int,
+               name: str = MEMBER_FIELD_NAME) -> tkinter.Entry:
+    """Return a field of the editor, coloured so that it reads as one.
+
+    The window is white, so a field that kept the background it is given could
+    not be told from a label: the values were there to be edited and nothing
+    said so. The tint, the border and the caret colour are what say that this
+    one is edited and the labels are not.
+
+    It is not packed here, because where a field goes is different for a member
+    and for the search: one shares its row with the marks of that member and
+    the other with the controls that say where a search looks.
+
+    Args:
+        parent: Widget that becomes the parent of the created field.
+        text: Variable that holds what the field shows. It has to be created
+            with the same parent, so that it lives in the same Tcl interpreter.
+        width: Width in characters that the field asks for, which is how far it
+            gives way when its row is too narrow for everything on it.
+        name: Tk name of the field, which says what kind of field it is. The
+            default is a field holding the value of one member.
+
+    Returns:
+        A field showing that variable.
+    """
+    return tkinter.Entry(parent, name=name, textvariable=text, relief='flat',
+                         width=width, background=FIELD_BACKGROUND,
+                         foreground=FIELD_FOREGROUND,
+                         insertbackground=FIELD_FOREGROUND,
+                         highlightbackground=FIELD_BORDER,
+                         highlightthickness=1)
 
 
 def shown_text(parent: tkinter.Misc, text: str,

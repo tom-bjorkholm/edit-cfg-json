@@ -1,5 +1,29 @@
 # Table of Contents
 
+* [edit\_cfg\_json.finding](#edit_cfg_json.finding)
+  * [FindOptions](#edit_cfg_json.finding.FindOptions)
+    * [in\_path](#edit_cfg_json.finding.FindOptions.in_path)
+    * [in\_value](#edit_cfg_json.finding.FindOptions.in_value)
+    * [cased](#edit_cfg_json.finding.FindOptions.cased)
+    * [whole](#edit_cfg_json.finding.FindOptions.whole)
+  * [FindState](#edit_cfg_json.finding.FindState)
+    * [text](#edit_cfg_json.finding.FindState.text)
+    * [reached](#edit_cfg_json.finding.FindState.reached)
+    * [options](#edit_cfg_json.finding.FindState.options)
+  * [FindReport](#edit_cfg_json.finding.FindReport)
+    * [text](#edit_cfg_json.finding.FindReport.text)
+    * [options](#edit_cfg_json.finding.FindReport.options)
+    * [total](#edit_cfg_json.finding.FindReport.total)
+    * [place](#edit_cfg_json.finding.FindReport.place)
+  * [LOOKS\_IN\_PATH](#edit_cfg_json.finding.LOOKS_IN_PATH)
+  * [LOOKS\_IN\_VALUE](#edit_cfg_json.finding.LOOKS_IN_VALUE)
+  * [MATCHES\_CASE](#edit_cfg_json.finding.MATCHES_CASE)
+  * [MATCHES\_WHOLE](#edit_cfg_json.finding.MATCHES_WHOLE)
+  * [FIND\_OPTION\_HELP](#edit_cfg_json.finding.FIND_OPTION_HELP)
+  * [looks\_nowhere](#edit_cfg_json.finding.looks_nowhere)
+  * [matched](#edit_cfg_json.finding.matched)
+  * [next\_match](#edit_cfg_json.finding.next_match)
+  * [find\_report](#edit_cfg_json.finding.find_report)
 * [edit\_cfg\_json.tree](#edit_cfg_json.tree)
   * [EVERY\_ELEMENT](#edit_cfg_json.tree.EVERY_ELEMENT)
   * [PATH\_SEPARATOR](#edit_cfg_json.tree.PATH_SEPARATOR)
@@ -226,6 +250,10 @@
     * [toggle\_fold](#edit_cfg_json.buffer.EditBuffer.toggle_fold)
     * [toggle\_fold\_all](#edit_cfg_json.buffer.EditBuffer.toggle_fold_all)
     * [open\_all](#edit_cfg_json.buffer.EditBuffer.open_all)
+    * [search](#edit_cfg_json.buffer.EditBuffer.search)
+    * [find](#edit_cfg_json.buffer.EditBuffer.find)
+    * [set\_find\_options](#edit_cfg_json.buffer.EditBuffer.set_find_options)
+    * [find\_next](#edit_cfg_json.buffer.EditBuffer.find_next)
     * [add\_element](#edit_cfg_json.buffer.EditBuffer.add_element)
     * [remove\_element](#edit_cfg_json.buffer.EditBuffer.remove_element)
     * [move\_element](#edit_cfg_json.buffer.EditBuffer.move_element)
@@ -249,7 +277,6 @@
   * [with\_dot](#edit_cfg_json.settings.with_dot)
   * [BACKUP\_SUFFIX](#edit_cfg_json.settings.BACKUP_SUFFIX)
   * [WRONG\_EXTENSION](#edit_cfg_json.settings.WRONG_EXTENSION)
-  * [RESERVED\_KEYS](#edit_cfg_json.settings.RESERVED_KEYS)
   * [ActionSettings](#edit_cfg_json.settings.ActionSettings)
     * [quit](#edit_cfg_json.settings.ActionSettings.quit)
     * [validate](#edit_cfg_json.settings.ActionSettings.validate)
@@ -258,6 +285,8 @@
     * [cancel](#edit_cfg_json.settings.ActionSettings.cancel)
     * [explain](#edit_cfg_json.settings.ActionSettings.explain)
     * [fold](#edit_cfg_json.settings.ActionSettings.fold)
+    * [find](#edit_cfg_json.settings.ActionSettings.find)
+    * [find\_next](#edit_cfg_json.settings.ActionSettings.find_next)
   * [Settings](#edit_cfg_json.settings.Settings)
     * [actions](#edit_cfg_json.settings.Settings.actions)
     * [file\_extension](#edit_cfg_json.settings.Settings.file_extension)
@@ -314,12 +343,17 @@
   * [VALIDATOR\_MARK](#edit_cfg_json.model_text.VALIDATOR_MARK)
   * [FILLED\_MARK](#edit_cfg_json.model_text.FILLED_MARK)
   * [LOAD\_FORM](#edit_cfg_json.model_text.LOAD_FORM)
+  * [FOUND\_MARK](#edit_cfg_json.model_text.FOUND_MARK)
   * [DIRTY\_MARK](#edit_cfg_json.model_text.DIRTY_MARK)
   * [VERDICT\_FORM](#edit_cfg_json.model_text.VERDICT_FORM)
   * [VALID\_STATE](#edit_cfg_json.model_text.VALID_STATE)
   * [INVALID\_STATE](#edit_cfg_json.model_text.INVALID_STATE)
   * [UNKNOWN\_STATE](#edit_cfg_json.model_text.UNKNOWN_STATE)
   * [REFUSED\_FORM](#edit_cfg_json.model_text.REFUSED_FORM)
+  * [FIND\_FORM](#edit_cfg_json.model_text.FIND_FORM)
+  * [FIND\_COUNT\_FORM](#edit_cfg_json.model_text.FIND_COUNT_FORM)
+  * [NOT\_FOUND\_FORM](#edit_cfg_json.model_text.NOT_FOUND_FORM)
+  * [FIND\_NOWHERE\_FORM](#edit_cfg_json.model_text.FIND_NOWHERE_FORM)
   * [SAVE\_TO\_FORM](#edit_cfg_json.model_text.SAVE_TO_FORM)
   * [NO\_DESTINATION\_TEXT](#edit_cfg_json.model_text.NO_DESTINATION_TEXT)
   * [SUMMARY\_SEPARATOR](#edit_cfg_json.model_text.SUMMARY_SEPARATOR)
@@ -346,6 +380,7 @@
   * [fold\_hides](#edit_cfg_json.model_text.fold_hides)
   * [row\_diagnostic](#edit_cfg_json.model_text.row_diagnostic)
   * [verdict\_text](#edit_cfg_json.model_text.verdict_text)
+  * [find\_text](#edit_cfg_json.model_text.find_text)
   * [load\_text](#edit_cfg_json.model_text.load_text)
   * [save\_text](#edit_cfg_json.model_text.save_text)
   * [close\_question](#edit_cfg_json.model_text.close_question)
@@ -372,6 +407,7 @@
   * [LOAD\_REMARK](#edit_cfg_json.emphasis.LOAD_REMARK)
   * [verdict\_emphasis](#edit_cfg_json.emphasis.verdict_emphasis)
   * [subtree\_emphasis](#edit_cfg_json.emphasis.subtree_emphasis)
+  * [find\_emphasis](#edit_cfg_json.emphasis.find_emphasis)
   * [save\_emphasis](#edit_cfg_json.emphasis.save_emphasis)
 * [edit\_cfg\_json.edit\_model](#edit_cfg_json.edit_model)
   * [EditModel](#edit_cfg_json.edit_model.EditModel)
@@ -384,6 +420,10 @@
     * [toggle\_fold](#edit_cfg_json.edit_model.EditModel.toggle_fold)
     * [toggle\_fold\_all](#edit_cfg_json.edit_model.EditModel.toggle_fold_all)
     * [open\_all](#edit_cfg_json.edit_model.EditModel.open_all)
+    * [search](#edit_cfg_json.edit_model.EditModel.search)
+    * [find](#edit_cfg_json.edit_model.EditModel.find)
+    * [set\_find\_options](#edit_cfg_json.edit_model.EditModel.set_find_options)
+    * [find\_next](#edit_cfg_json.edit_model.EditModel.find_next)
     * [settings](#edit_cfg_json.edit_model.EditModel.settings)
     * [load\_message](#edit_cfg_json.edit_model.EditModel.load_message)
     * [rows](#edit_cfg_json.edit_model.EditModel.rows)
@@ -421,6 +461,7 @@
     * [subtree\_valid](#edit_cfg_json.rows.MemberRow.subtree_valid)
     * [subtree\_refusal](#edit_cfg_json.rows.MemberRow.subtree_refusal)
     * [has\_objects](#edit_cfg_json.rows.MemberRow.has_objects)
+    * [found](#edit_cfg_json.rows.MemberRow.found)
     * [offer](#edit_cfg_json.rows.MemberRow.offer)
     * [name](#edit_cfg_json.rows.MemberRow.name)
     * [depth](#edit_cfg_json.rows.MemberRow.depth)
@@ -440,6 +481,10 @@
     * [offers](#edit_cfg_json.rows.RowContext.offers)
     * [refreshing](#edit_cfg_json.rows.RowContext.refreshing)
   * [built\_rows](#edit_cfg_json.rows.built_rows)
+  * [BufferState](#edit_cfg_json.rows.BufferState)
+    * [folded](#edit_cfg_json.rows.BufferState.folded)
+    * [answers](#edit_cfg_json.rows.BufferState.answers)
+    * [found](#edit_cfg_json.rows.BufferState.found)
   * [stamped](#edit_cfg_json.rows.stamped)
 * [edit\_cfg\_json.constructing](#edit_cfg_json.constructing)
   * [STREAM\_NAME](#edit_cfg_json.constructing.STREAM_NAME)
@@ -502,6 +547,290 @@
   * [PLAN\_METHOD](#edit_cfg_json.validation.PLAN_METHOD)
   * [subtree\_answers](#edit_cfg_json.validation.subtree_answers)
   * [validate\_buffer](#edit_cfg_json.validation.validate_buffer)
+
+<a id="edit_cfg_json.finding"></a>
+
+# edit\_cfg\_json.finding
+
+Looking for one node of a configuration that does not fit a window.
+
+A configuration of any interesting size does not fit a window (section 4.6 of
+`doc/design.md`), so the node a user wants is often one they cannot see. This
+module is the whole of what looking for it means: what is being looked for, how
+a piece of text is compared with one node, which nodes that reaches and which
+of them the search has got to.
+
+Nothing here opens a folded container, gives a field the focus or scrolls
+anything. What is being looked for is state of the model, by the same rule as
+the explain toggle of section 4.4, and reaching what was found is the buffer's
+and each backend's: this module answers only which nodes the text is about.
+
+<a id="edit_cfg_json.finding.FindOptions"></a>
+
+## FindOptions Objects
+
+```python
+class FindOptions(NamedTuple)
+```
+
+How the text being looked for is compared with one node.
+
+Four independent answers, each of which the user changes with a control of
+its own, and the defaults are what a person looking for a member wants
+without being asked anything: both of the texts a node has, the case
+ignored, and a part of one of them enough.
+
+They belong to the model rather than to a backend for the same reason the
+fold state does: two user interfaces of one application that looked in
+different places would each be right about a different search.
+
+<a id="edit_cfg_json.finding.FindOptions.in_path"></a>
+
+#### in\_path
+
+Whether the path of the node is looked in.
+
+The whole path and not the name alone, so that `ports.http` finds that one
+value and `ports` finds the member and everything in it. It is also the
+notation the verdict names a refused node in and the one an example
+program's command line writes, so what a user has just read can be typed
+straight in.
+
+<a id="edit_cfg_json.finding.FindOptions.in_value"></a>
+
+#### in\_value
+
+Whether the value of the node is looked in.
+
+It is the text a field shows, which is what the user is looking at, and it
+is only a node that *has* one: a list, a dict and a nested configuration
+object each have their value on the rows below them, so there is nothing
+of their own to look in.
+
+<a id="edit_cfg_json.finding.FindOptions.cased"></a>
+
+#### cased
+
+Whether the case of the text has to match.
+
+Ignoring it is the default because a member name is written in one case
+and remembered in another, and it is the comparison `config_as_json` makes
+for the name of an enum member.
+
+<a id="edit_cfg_json.finding.FindOptions.whole"></a>
+
+#### whole
+
+Whether the text has to be the whole of what it is compared with.
+
+A part of it is the default, because a user who knows the whole name of
+what they are looking for is the user who least needs a search.
+
+<a id="edit_cfg_json.finding.FindState"></a>
+
+## FindState Objects
+
+```python
+class FindState(NamedTuple)
+```
+
+What is being looked for, and which node the search has got to.
+
+<a id="edit_cfg_json.finding.FindState.text"></a>
+
+#### text
+
+What is being looked for, empty while nothing is.
+
+Empty is not a text that matches everything but a search that has not been
+made: nothing is reached and nothing is said about it, which is what a
+cleared field means.
+
+<a id="edit_cfg_json.finding.FindState.reached"></a>
+
+#### reached
+
+Path of the node the search has got to, None when it is at none.
+
+It is a path and not a place among the matches, because a validation pass
+can leave the model with other rows than it had (section 4.8): a place
+would then be a different node, and a path that is gone is simply gone.
+
+<a id="edit_cfg_json.finding.FindState.options"></a>
+
+#### options
+
+How the text is compared with one node.
+
+<a id="edit_cfg_json.finding.FindReport"></a>
+
+## FindReport Objects
+
+```python
+class FindReport(NamedTuple)
+```
+
+What the editor says about the search, for a user to read.
+
+<a id="edit_cfg_json.finding.FindReport.text"></a>
+
+#### text
+
+What is being looked for, empty while nothing is.
+
+<a id="edit_cfg_json.finding.FindReport.options"></a>
+
+#### options
+
+How the text is being compared, which is what the controls show.
+
+<a id="edit_cfg_json.finding.FindReport.total"></a>
+
+#### total
+
+How many nodes the text reaches.
+
+It is not called a count, because a `NamedTuple` is a tuple and `count` is
+a method of every one of them.
+
+<a id="edit_cfg_json.finding.FindReport.place"></a>
+
+#### place
+
+Which of them the search has got to, counting from one.
+
+It is zero where the search is at no node at all, which is a search that
+reaches nothing and a search whose node a validation pass has taken away.
+
+<a id="edit_cfg_json.finding.LOOKS_IN_PATH"></a>
+
+#### LOOKS\_IN\_PATH
+
+What looking in the path of a node means, for a user to read.
+
+<a id="edit_cfg_json.finding.LOOKS_IN_VALUE"></a>
+
+#### LOOKS\_IN\_VALUE
+
+What looking in the value of a node means.
+
+<a id="edit_cfg_json.finding.MATCHES_CASE"></a>
+
+#### MATCHES\_CASE
+
+What matching the case means.
+
+<a id="edit_cfg_json.finding.MATCHES_WHOLE"></a>
+
+#### MATCHES\_WHOLE
+
+What matching the whole of one of them means.
+
+<a id="edit_cfg_json.finding.FIND_OPTION_HELP"></a>
+
+#### FIND\_OPTION\_HELP
+
+What each answer of `FindOptions` means, in the order of its members.
+
+It is here rather than in each backend for the reason the type of a member is:
+what a piece of the model *means* is the model's to say, and two backends
+explaining one control two ways would be explaining two different controls.
+What each backend owns is the label on it — one or two characters, since the
+width of that row belongs to the field — and where the explanation is put,
+which is a tooltip in both toolkits and the only place a label that short has
+to say what it is.
+
+<a id="edit_cfg_json.finding.looks_nowhere"></a>
+
+#### looks\_nowhere
+
+```python
+def looks_nowhere(options: FindOptions) -> bool
+```
+
+Return whether these options leave nothing at all to look in.
+
+A user who unticks both of the places a search looks has asked for
+something that can never reach a node, and telling them that no member
+matches would be untrue: nothing was compared with anything.
+
+**Arguments**:
+
+- `options` - How the comparison would be made.
+  
+
+**Returns**:
+
+  Whether neither the path nor the value is being looked in.
+
+<a id="edit_cfg_json.finding.matched"></a>
+
+#### matched
+
+```python
+def matched(rows: Mapping[ConfigPath, MemberRow],
+            state: FindState) -> tuple[ConfigPath, ...]
+```
+
+Return the path of every node that the search is about, in row order.
+
+**Arguments**:
+
+- `rows` - The rows of the configuration, by path.
+- `state` - What is being looked for and how.
+  
+
+**Returns**:
+
+  The nodes the text reaches, in the order they are shown, and none at
+  all for a search that has not been made or has nowhere to look.
+
+<a id="edit_cfg_json.finding.next_match"></a>
+
+#### next\_match
+
+```python
+def next_match(matches: Sequence[ConfigPath],
+               reached: Optional[ConfigPath]) -> Optional[ConfigPath]
+```
+
+Return the match after one node, wrapping round to the first.
+
+A search that is at no node at all, and one whose node is not a match any
+more, both go to the first: that is a search starting from the top, which
+is what a new text and a changed option ask for and what is left of a
+search whose node a validation pass took away.
+
+**Arguments**:
+
+- `matches` - The nodes the text reaches, in the order they are shown.
+- `reached` - Node the search has got to, or None when it is at none.
+  
+
+**Returns**:
+
+  The node to go to, and None when the text reaches none.
+
+<a id="edit_cfg_json.finding.find_report"></a>
+
+#### find\_report
+
+```python
+def find_report(state: FindState, matches: Sequence[ConfigPath]) -> FindReport
+```
+
+Return what the editor says about one search.
+
+**Arguments**:
+
+- `state` - What is being looked for and where the search has got to.
+- `matches` - The nodes that text reaches, in the order they are shown.
+  
+
+**Returns**:
+
+  What is being looked for, how, how many nodes it reaches and which of
+  them the search is at.
 
 <a id="edit_cfg_json.tree"></a>
 
@@ -4099,6 +4428,70 @@ Open every container of the buffer, whatever is folded now.
   decides the fold of a new one would fold a big one away again
   after the only moment at which anything is shown.
 
+<a id="edit_cfg_json.buffer.EditBuffer.search"></a>
+
+#### search
+
+```python
+@property
+def search() -> FindReport
+```
+
+Return what is being looked for and what it has reached.
+
+<a id="edit_cfg_json.buffer.EditBuffer.find"></a>
+
+#### find
+
+```python
+def find(text: str) -> bool
+```
+
+Look for one text, starting again from the top.
+
+**Arguments**:
+
+- `text` - What to look for, empty to look for nothing at all.
+  
+
+**Returns**:
+
+  Whether a container was opened to make what was found reachable,
+  which is what says that the objects there are worth asking about.
+
+<a id="edit_cfg_json.buffer.EditBuffer.set_find_options"></a>
+
+#### set\_find\_options
+
+```python
+def set_find_options(options: FindOptions) -> bool
+```
+
+Change how the text is compared, and look again from the top.
+
+**Arguments**:
+
+- `options` - How the text being looked for is compared with one node.
+  
+
+**Returns**:
+
+  Whether a container was opened, as above.
+
+<a id="edit_cfg_json.buffer.EditBuffer.find_next"></a>
+
+#### find\_next
+
+```python
+def find_next() -> bool
+```
+
+Go to the next node the text reaches, wrapping round to the first.
+
+**Returns**:
+
+  Whether a container was opened, as above.
+
 <a id="edit_cfg_json.buffer.EditBuffer.add_element"></a>
 
 #### add\_element
@@ -4467,25 +4860,6 @@ every shape an application may want, `.old` and `~` among them.
 
 Message of the refusal of a file name an enforced extension forbids.
 
-<a id="edit_cfg_json.settings.RESERVED_KEYS"></a>
-
-#### RESERVED\_KEYS
-
-Key combinations that no default of this editor takes, for later use.
-
-Finding a member of a configuration that does not fit a window is something
-this editor is likely to be asked for, and `ctrl+f` opens a search everywhere
-while `f3` finds the next one. An action added later is an added attribute of
-`ActionSettings` and breaks no application, but a *key* that moved would break
-every user who had learnt it, so the two are kept free from the start rather
-than taken back afterwards.
-
-Nothing here refuses these keys to an application: which combinations its own
-user interface has already taken is the application's to say, and section 9 of
-`doc/design.md` is about the editor not overruling that. What this refuses is
-the editor's own defaults taking them, which is what the test of this module
-checks.
-
 <a id="edit_cfg_json.settings.ActionSettings"></a>
 
 ## ActionSettings Objects
@@ -4619,11 +4993,41 @@ the configuration is on the screen.
 `ctrl+t` for the same reason `explain` has a control letter as well, which
 is a terminal or a keyboard that does not deliver a function key, and `t`
 because the tree is what this action is about. It is deliberately not
-`ctrl+f`: that is find everywhere, and this editor is likely to want one.
-See `RESERVED_KEYS`.
+`ctrl+f`, which is the `find` action below.
 
 An application whose configuration has no list and no dict in it is never
 offered this action at all, because there would be nothing for it to do.
+
+<a id="edit_cfg_json.settings.ActionSettings.find"></a>
+
+#### find
+
+Keys that put the cursor in the field a search is typed into.
+
+`ctrl+f` because it is what opens a search everywhere else, and it was kept
+free from the first version of this editor for exactly this action: an
+action added later is an added attribute here and breaks no application,
+but a *key* that moved would break every user who had learnt it, and no
+version number protects a habit.
+
+It puts the cursor in the field rather than asking a question, because the
+field is part of the editor and stays: a user who has found one member and
+wants another comes back to text that is already there.
+
+<a id="edit_cfg_json.settings.ActionSettings.find_next"></a>
+
+#### find\_next
+
+Keys that go to the next node the search reaches.
+
+`f3` because it is what finds the next one everywhere else, and it was kept
+free for this action beside `ctrl+f` and for the same reason.
+
+A function key is the one a keyboard or a terminal is most likely not to
+deliver, and this action is reached without it in both backends: this one
+is the whole tuple rather than the second of two because the control
+letters a field does not claim are spoken for, and because the button and
+the command palette entry are what an action without its key still has.
 
 <a id="edit_cfg_json.settings.Settings"></a>
 
@@ -5354,6 +5758,17 @@ value that parsing or validating normalized is marked with this too. What is
 in it is what the model says the load did to that member, which is the words
 of the record where the load recorded one.
 
+<a id="edit_cfg_json.model_text.FOUND_MARK"></a>
+
+#### FOUND\_MARK
+
+Mark that follows the value of the node a search has got to.
+
+A search reaches one node at a time, so exactly one row can carry it. The two
+backends bring that row into view and put the focus in its field as well, which
+is what a printout has no way of doing and is why this mark is what a printout
+has instead.
+
 <a id="edit_cfg_json.model_text.DIRTY_MARK"></a>
 
 #### DIRTY\_MARK
@@ -5395,6 +5810,44 @@ size does not fit a window: a user who has just asked what the application
 makes of these values should be told where to look rather than have to go
 looking. A value inside a list or a dict is named by its whole path, because
 its own name says nothing about where it is.
+
+<a id="edit_cfg_json.model_text.FIND_FORM"></a>
+
+#### FIND\_FORM
+
+Form of the line that says where a search has got to.
+
+How many nodes the text reaches and which of them is being shown, because a
+search of a configuration too big for a window is a search whose other answers
+are off the screen: a user who is told only that something was found has no way
+of knowing that there is more to look at.
+
+<a id="edit_cfg_json.model_text.FIND_COUNT_FORM"></a>
+
+#### FIND\_COUNT\_FORM
+
+The same for a search that reaches nodes and is at none of them.
+
+A validation pass can leave the model with other rows than it had, and can
+rewrite a value into something the text no longer reaches, so the node a search
+had got to is not always still there. What the text reaches is still true, and
+the next press of the find key starts again from the top.
+
+<a id="edit_cfg_json.model_text.NOT_FOUND_FORM"></a>
+
+#### NOT\_FOUND\_FORM
+
+Form of the line that says a search reaches nothing at all.
+
+<a id="edit_cfg_json.model_text.FIND_NOWHERE_FORM"></a>
+
+#### FIND\_NOWHERE\_FORM
+
+Form of the line about a search that has nowhere to look.
+
+Both of the places a search looks can be turned off, and nothing is then
+compared with anything. Saying that no member matches would be untrue, which is
+why it is said as what it is.
 
 <a id="edit_cfg_json.model_text.SAVE_TO_FORM"></a>
 
@@ -5573,12 +6026,19 @@ Return the marks that follow the value of one member.
 
 They say different things that can all be true at once: the input file did
 not hold this member, reading the file changed what it holds, the user
-changed it, and a validator then changed what the user had written. They
-are in the order in which they can happen. The two that a load sets are
-never both there, because the more precise of the two is the one it sets.
+changed it, a validator then changed what the user had written, and a
+search has got to it. They are in the order in which they can happen. The
+two that a load sets are never both there, because the more precise of the
+two is the one it sets.
+
+The last of them is about the search rather than about the member, and it
+is here because it belongs where the others are: it says that something
+has happened to this member which the user should see, which is what every
+mark of a member says.
 
 Both backends read the marks from here, so that neither of them decides on
-its own what a member the load, the user or a validator touched looks like.
+its own what a member the load, the user, a validator or a search touched
+looks like.
 
 **Arguments**:
 
@@ -5880,6 +6340,40 @@ remark on a value without refusing it.
 
   The state of the buffer, followed by any diagnostics.
 
+<a id="edit_cfg_json.model_text.find_text"></a>
+
+#### find\_text
+
+```python
+def find_text(model: EditModel) -> str
+```
+
+Return what the search has reached, and nothing when there is none.
+
+A search that has not been made says nothing at all, which is what an empty
+field means: it is a third state and not a search that found nothing, and a
+line under every session that nobody searched in would be a line spent on
+nothing.
+
+The three ways a search says something are three different things, and each
+is said as what it is: it has got to one of several nodes, it reaches nodes
+and is at none of them, or it reaches nothing. A search that has nowhere to
+look is the fourth, and it is not the same as reaching nothing, because
+nothing was compared with anything.
+
+Both backends read it from here, so that neither of them decides on its own
+what a user who is looking for something is told.
+
+**Arguments**:
+
+- `model` - Model whose search is reported.
+  
+
+**Returns**:
+
+  What is being looked for and what it has reached, and nothing at all
+  while nothing is being looked for.
+
 <a id="edit_cfg_json.model_text.load_text"></a>
 
 #### load\_text
@@ -6007,12 +6501,12 @@ Return the whole model as text, one line per node of it.
 The configuration object labels itself first, because what the whole
 configuration is for is what the members below it are read in the light
 of. What reading the input file did comes next, because it is what
-explains the marks on those members. The validation state of the buffer
-follows them, and the saving after that, in the order in which a session
-reaches them, so that a rendering never leaves it unsaid what the
-application would make of what is shown or where it would be written.
-It belongs to the core rather than to a backend because it is user
-interface agnostic.
+explains the marks on those members. What a search has reached follows
+them, then the validation state of the buffer, and the saving after that,
+in the order in which a session reaches them, so that a rendering never
+leaves it unsaid what the application would make of what is shown or where
+it would be written. It belongs to the core rather than to a backend
+because it is user interface agnostic.
 
 What it renders is what the model holds, and that is the whole of what it
 can testify to. The two interactive backends draw the same model and add
@@ -6034,8 +6528,8 @@ for looking at an editor.
 
   The label of the configuration and what its class says about itself,
   what the load did, one line per shown node with its description and
-  anything wrong with it below it, and then the validation state and
-  the saving, without a trailing line break.
+  anything wrong with it below it, and then what a search has reached,
+  the validation state and the saving, without a trailing line break.
 
 <a id="edit_cfg_json.model_text.model_title"></a>
 
@@ -6327,6 +6821,32 @@ the same three things about the objects it holds rather than about itself.
 **Returns**:
 
   The emphasis of what that node is on its own, or of what it holds.
+
+<a id="edit_cfg_json.emphasis.find_emphasis"></a>
+
+#### find\_emphasis
+
+```python
+def find_emphasis(model: EditModel) -> Emphasis
+```
+
+Return how what a search has reached is shown.
+
+A search that has not been made says nothing at all, so the emphasis is
+what has not happened yet, exactly as it is for a validation nobody has
+asked for. A search that reaches at least one node has reached something
+the user should see, and one that reaches nothing — because the text is
+about no node, or because there is nowhere left to look — is the one thing
+on that line to act on.
+
+**Arguments**:
+
+- `model` - Model whose search is shown.
+  
+
+**Returns**:
+
+  The emphasis of the line that says what the search has reached.
 
 <a id="edit_cfg_json.emphasis.save_emphasis"></a>
 
@@ -6631,6 +7151,92 @@ reason folding one of them asks that one.
   container is folded away when it is large, so a program that
   shows the buffer once and then ends asks for this and a
   session that a user is looking at does not.
+
+<a id="edit_cfg_json.edit_model.EditModel.search"></a>
+
+#### search
+
+```python
+@property
+def search() -> FindReport
+```
+
+Return what is being looked for and what it has reached.
+
+What is being looked for is state of this model, by the same rule as
+the explain toggle and the fold state: two user interfaces of one
+application that were looking for different things, or looking in
+different places, would each be right about a different search. Every
+row says whether it is the node the search has got to, which is where
+a backend reads that.
+
+<a id="edit_cfg_json.edit_model.EditModel.find"></a>
+
+#### find
+
+```python
+def find(text: str) -> bool
+```
+
+Look for one text, starting again from the top.
+
+A configuration of any interesting size does not fit a window, so the
+node a user wants is often one they cannot see. What is found has to be
+reachable, so every folded container hiding it is opened; bringing the
+row into view and giving its field the focus are each backend's, since
+that is where the two toolkits differ.
+
+**Arguments**:
+
+- `text` - What to look for, empty to look for nothing at all, which is
+  what a cleared field means.
+  
+
+**Returns**:
+
+  Whether a container was opened, which is what says that the rows a
+  backend shows are not the rows it was showing.
+
+<a id="edit_cfg_json.edit_model.EditModel.set_find_options"></a>
+
+#### set\_find\_options
+
+```python
+def set_find_options(options: FindOptions) -> bool
+```
+
+Change how the text is compared, and look again from the top.
+
+Whether the path is looked in, whether the value is, whether the case
+has to match and whether the whole of one of them has to are four
+independent answers, and they belong to this model for the same reason
+the text does.
+
+**Arguments**:
+
+- `options` - How the text being looked for is compared with one node.
+  
+
+**Returns**:
+
+  Whether a container was opened, as above.
+
+<a id="edit_cfg_json.edit_model.EditModel.find_next"></a>
+
+#### find\_next
+
+```python
+def find_next() -> bool
+```
+
+Go to the next node the text reaches, wrapping round to the first.
+
+A text that reaches nothing leaves the search where it was, which is
+at no node at all, and the line about the search says so.
+
+**Returns**:
+
+  Whether a container was opened, as above.
 
 <a id="edit_cfg_json.edit_model.EditModel.settings"></a>
 
@@ -7351,6 +7957,18 @@ anything is a piece of the window spent on nothing.
 A member declared to hold an object and holding none has it false, because
 there is no object there to ask about.
 
+<a id="edit_cfg_json.rows.MemberRow.found"></a>
+
+#### found
+
+Whether this is the node that the search has got to.
+
+A search is what a configuration too big for a window needs, and what it
+reaches is one node at a time: this is that node, and every other node of
+a search that reaches several of them says nothing. It is written onto the
+rows rather than carried by them, exactly as the fold state is, because a
+search outlives the rows that a validation pass replaces.
+
 <a id="edit_cfg_json.rows.MemberRow.offer"></a>
 
 #### offer
@@ -7629,41 +8247,72 @@ configuration objects of that one are the objects that own its values.
 
   The rows of that configuration, by path.
 
+<a id="edit_cfg_json.rows.BufferState"></a>
+
+## BufferState Objects
+
+```python
+class BufferState(NamedTuple)
+```
+
+What the buffer knows about the rows rather than about one row.
+
+Each of these outlives the rows it is about, because the rows are built
+again after every validation pass and after every change of how many
+elements a container holds: what the user folded, what each object said
+about itself and what a search has got to are all older than the rows they
+are written onto.
+
+<a id="edit_cfg_json.rows.BufferState.folded"></a>
+
+#### folded
+
+Paths of the containers that are folded away.
+
+<a id="edit_cfg_json.rows.BufferState.answers"></a>
+
+#### answers
+
+What each object that has been asked said about itself, by path.
+
+<a id="edit_cfg_json.rows.BufferState.found"></a>
+
+#### found
+
+Path of the node the search has got to, None when it is at none.
+
 <a id="edit_cfg_json.rows.stamped"></a>
 
 #### stamped
 
 ```python
-def stamped(
-    rows: Mapping[ConfigPath, MemberRow], folded: Container[ConfigPath],
-    answers: Mapping[ConfigPath,
-                     SubtreeAnswer]) -> dict[ConfigPath, MemberRow]
+def stamped(rows: Mapping[ConfigPath, MemberRow],
+            state: BufferState) -> dict[ConfigPath, MemberRow]
 ```
 
 Return the rows with the state of the buffer written onto them.
 
-A backend reads what is folded, what is shown and what the configuration
-objects amount to from the row each of those is about, exactly as it reads
-the marks and the description from there, so that the two backends cannot
-fold, hide or judge different things.
+A backend reads what is folded, what is shown, what the configuration
+objects amount to and what a search has got to from the row each of those
+is about, exactly as it reads the marks and the description from there, so
+that the two backends cannot fold, hide, judge or find different things.
 
-Both are written here rather than carried by the rows they are about,
-because both belong to the buffer: the rows are built again after every
-validation pass, and a fold the user asked for and an answer an object
-gave outlive the rows that were there when they were given.
+They are written here rather than carried by the rows they are about,
+because they belong to the buffer: the rows are built again after every
+validation pass, and a fold the user asked for, an answer an object gave
+and a node a search reached all outlive the rows that were there then.
 
 **Arguments**:
 
 - `rows` - The rows of the configuration, by path.
-- `folded` - Paths of the containers that are folded away.
-- `answers` - What each nested object that has been asked said about
-  itself, by the path of its node.
+- `state` - What the buffer knows that is written onto them.
   
 
 **Returns**:
 
-  The same rows, each saying whether it is folded, whether it shows, and
-  what the configuration objects at or inside it are on their own.
+  The same rows, each saying whether it is folded, whether it shows,
+  what the configuration objects at or inside it are on their own, and
+  whether it is the node the search has got to.
 
 <a id="edit_cfg_json.constructing"></a>
 

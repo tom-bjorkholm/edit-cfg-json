@@ -267,6 +267,16 @@ class MemberRow(NamedTuple):
     there is no object there to ask about.
     """
 
+    found: bool = False
+    """Whether this is the node that the search has got to.
+
+    A search is what a configuration too big for a window needs, and what it
+    reaches is one node at a time: this is that node, and every other node of
+    a search that reaches several of them says nothing. It is written onto the
+    rows rather than carried by them, exactly as the fold state is, because a
+    search outlives the rows that a validation pass replaces.
+    """
+
     offer: ElementOffer = ElementOffer()
     """What can be done here about how many things this node holds.
 
@@ -638,46 +648,63 @@ def _state_of(row: MemberRow, held: Sequence[ConfigPath],
     return None
 
 
+class BufferState(NamedTuple):
+    """What the buffer knows about the rows rather than about one row.
+
+    Each of these outlives the rows it is about, because the rows are built
+    again after every validation pass and after every change of how many
+    elements a container holds: what the user folded, what each object said
+    about itself and what a search has got to are all older than the rows they
+    are written onto.
+    """
+
+    folded: Container[ConfigPath]
+    """Paths of the containers that are folded away."""
+
+    answers: Mapping[ConfigPath, SubtreeAnswer]
+    """What each object that has been asked said about itself, by path."""
+
+    found: Optional[ConfigPath]
+    """Path of the node the search has got to, None when it is at none."""
+
+
 def stamped(rows: Mapping[ConfigPath, MemberRow],
-            folded: Container[ConfigPath],
-            answers: Mapping[ConfigPath, SubtreeAnswer]
-            ) -> dict[ConfigPath, MemberRow]:
+            state: BufferState) -> dict[ConfigPath, MemberRow]:
     """Return the rows with the state of the buffer written onto them.
 
-    A backend reads what is folded, what is shown and what the configuration
-    objects amount to from the row each of those is about, exactly as it reads
-    the marks and the description from there, so that the two backends cannot
-    fold, hide or judge different things.
+    A backend reads what is folded, what is shown, what the configuration
+    objects amount to and what a search has got to from the row each of those
+    is about, exactly as it reads the marks and the description from there, so
+    that the two backends cannot fold, hide, judge or find different things.
 
-    Both are written here rather than carried by the rows they are about,
-    because both belong to the buffer: the rows are built again after every
-    validation pass, and a fold the user asked for and an answer an object
-    gave outlive the rows that were there when they were given.
+    They are written here rather than carried by the rows they are about,
+    because they belong to the buffer: the rows are built again after every
+    validation pass, and a fold the user asked for, an answer an object gave
+    and a node a search reached all outlive the rows that were there then.
 
     Args:
         rows: The rows of the configuration, by path.
-        folded: Paths of the containers that are folded away.
-        answers: What each nested object that has been asked said about
-            itself, by the path of its node.
+        state: What the buffer knows that is written onto them.
 
     Returns:
-        The same rows, each saying whether it is folded, whether it shows, and
-        what the configuration objects at or inside it are on their own.
+        The same rows, each saying whether it is folded, whether it shows,
+        what the configuration objects at or inside it are on their own, and
+        whether it is the node the search has got to.
     """
     below = _objects_below(rows)
-    refused = {path: message for answer in answers.values()
+    refused = {path: message for answer in state.answers.values()
                for path, message in answer.refused.items()}
-    return {path: _stamped_row(row=row, folded=folded, answers=answers,
-                               held=below.get(path, ()),
+    return {path: _stamped_row(row=row, state=state, held=below.get(path, ()),
                                refusal=refused.get(path, ''))
             for path, row in rows.items()}
 
 
-def _stamped_row(row: MemberRow, folded: Container[ConfigPath],
-                 answers: Mapping[ConfigPath, SubtreeAnswer],
+def _stamped_row(row: MemberRow, state: BufferState,
                  held: Sequence[ConfigPath], refusal: str) -> MemberRow:
     """Return one row with the state of the buffer written onto it."""
     return row._replace(
-        folded=row.path in folded, shown=_shown(path=row.path, folded=folded),
-        subtree_valid=_state_of(row=row, held=held, answers=answers),
-        subtree_refusal=refusal, has_objects=row.is_object or bool(held))
+        folded=row.path in state.folded,
+        shown=_shown(path=row.path, folded=state.folded),
+        subtree_valid=_state_of(row=row, held=held, answers=state.answers),
+        subtree_refusal=refusal, has_objects=row.is_object or bool(held),
+        found=row.path == state.found)

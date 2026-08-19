@@ -13,8 +13,8 @@ from dataclasses import FrozenInstanceError, fields
 from typing import Optional
 import pytest
 from edit_cfg_json import ActionSettings, Settings
-from edit_cfg_json.settings import RESERVED_KEYS, checked_file, \
-    chosen_file, current_settings
+from edit_cfg_json.settings import checked_file, chosen_file, \
+    current_settings
 
 CFG = Settings(file_extension='.cfg')
 """Settings of an application whose extension is a default."""
@@ -32,6 +32,8 @@ def test_default_keys() -> None:
     assert actions.save_as == ('ctrl+shift+s', 'f12')
     assert actions.cancel == ('escape',)
     assert actions.explain == ('f1', 'ctrl+g')
+    assert actions.find == ('ctrl+f',)
+    assert actions.find_next == ('f3',)
 
 
 def test_no_opinion() -> None:
@@ -57,7 +59,7 @@ def test_every_action_named() -> None:
     """Test every action of the editor is an attribute of its own."""
     names = {field.name for field in fields(ActionSettings)}
     assert names == {'quit', 'validate', 'save', 'save_as', 'cancel',
-                     'explain', 'fold'}
+                     'explain', 'fold', 'find', 'find_next'}
 
 
 def test_priority_keys_said() -> None:
@@ -72,19 +74,22 @@ def test_priority_keys_said() -> None:
     assert Settings(priority_keys=False).actions == ActionSettings()
 
 
-def test_reserved_keys_free() -> None:
-    """Test no default of the editor takes a key that is reserved.
+def test_search_keys_kept() -> None:
+    """Test the search took the two keys that were kept free for it.
 
-    An action added later is an added attribute and breaks no application,
-    but a key that moved would break every user who had learnt it. So the
-    keys that a search will want are kept free from the start rather than
-    taken back afterwards.
+    An action added later is an added attribute and breaks no application, but
+    a key that moved would break every user who had learnt it. So the two
+    combinations a search wants were kept free from the first version of this
+    editor, and the search is what has them: no other action of the editor
+    holds either of them, and neither key had to be taken back from one.
     """
     actions = ActionSettings()
-    taken = {key.lower() for field in fields(actions)
-             for key in getattr(actions, field.name)}
-    assert taken.isdisjoint(RESERVED_KEYS)
-    assert 'ctrl+f' in RESERVED_KEYS
+    searching = set(actions.find) | set(actions.find_next)
+    assert searching == {'ctrl+f', 'f3'}
+    others = {key.lower() for field in fields(actions)
+              for key in getattr(actions, field.name)
+              if field.name not in ('find', 'find_next')}
+    assert others.isdisjoint(searching)
 
 
 @pytest.mark.parametrize('keys', [('ctrl+w',), (), ('ctrl+w', 'f9')])

@@ -567,8 +567,10 @@ left until an application asks for it. What is not left is the legibility of a
 A configuration of any interesting size does not fit a window, and with the
 explanations shown it fits one even less. So the editor scrolls, and what
 scrolls is **the label, the docstring, the load message and the members**. The
-validation verdict, the saving line and the buttons or the footer stay where
-they are, because they are what a user reaches for after editing.
+search of section 4.10, the validation verdict, the saving line and the buttons
+or the footer stay where they are, because they are what a user reaches for
+after editing — and a search whose field scrolled off the window would be no
+use at all to a configuration this section is about.
 
 The size of a window is the one thing neither backend can leave to the model:
 Textual gives the body the height that is left over, and Tk has no scrolling
@@ -744,6 +746,77 @@ never asked, because an element of a list is addressed by where it is.
 **The controls sit at the end of the line of the node**, unlike the fold
 control, which keeps a column clear on every row. There is no alignment to
 keep, so a node that offers none of them costs the values no width at all.
+
+### 4.10 Looking for a member
+
+A configuration that does not fit a window (section 4.6) is one where folding is
+only half the answer: the other half is looking for the member you want. So the
+editor has a search, and **what is being looked for is state of the model**, by
+the same rule as the explain toggle of section 4.4 and the fold state of section
+4.7 — two user interfaces of one application that were looking for different
+things, or looking in different places, would each be right about a different
+search.
+
+**It is a field that stays, and not a question that is asked and gone.** A
+search is a text that is changed a character at a time with the answer moving
+under it, and four controls beside it that change what it reaches; a dialog
+would have to be reopened for each of those. It searches on every change of the
+text, which is what makes the field worth its place.
+
+**What is found is reachable, or it was not found.** A match inside a folded
+container opens every container that hides it — the node itself is left as it
+is, because a folded container is a row of its own and the row the user presses
+— and each backend brings the row into view, which is the canvas in Tk and
+`scroll_visible` in Textual. Opening a container is the moment at which the user
+is looking at it, so a search that opens one asks every configuration object
+there about itself, exactly as folding does (section 4.7); a search that opened
+nothing asks nothing.
+
+**Typing brings the answer into view and moves nothing else.** The cursor stays
+in the search field while the user is typing in it. Pressing Enter there, and
+pressing the find next key, are what say *I have found it*: those put the cursor
+in the field of what was found, so it can be typed into at once. A node that is
+not edited in a field — a list, a dict, a nested configuration object — is only
+brought into view, because there is nothing there to type into.
+
+**Which node the search has got to is held as a path and not as a place among
+the matches.** A validation pass can leave the model with other rows than it had
+(section 4.8), so a place would be a different node afterwards; a path that is
+gone is simply gone, and the next press starts again from the top. An element
+that changed places takes the search with it, exactly as it takes its fold state
+(section 4.9).
+
+**Four independent answers say where a search looks**, and the defaults are what
+a person looking for a member wants without being asked: the path *and* the
+value, the case ignored, and a part of one of them enough.
+
+- The **path** is the whole path and not the name alone, so `ports.http` finds
+  that one value and `ports` finds the member and everything in it. It is also
+  the notation the verdict names a refused node in (section 6.5), so what a user
+  has just read is what they can type.
+- The **value** is the text the field shows. Only a node that has a value of its
+  own is looked in for one: a list, a dict and a nested configuration object
+  each have their value on the rows below them.
+- The **case** is ignored unless matching it is asked for, which is the
+  comparison `config_as_json` makes for the name of an enum member.
+- The **whole** of the text has to match once that is asked for.
+
+**What each of the four means is the core's words**, for the reason the type of
+a member is: two backends explaining one control two ways would be explaining
+two different controls. What each backend owns is the label on that control —
+one or two characters, since the width of that row belongs to the field — and
+where the explanation is put, which is a tooltip in both toolkits and the only
+place a label that short has to say what it is.
+
+Turning both places off is the one combination that can never reach a node, and
+it is said as what it is rather than as *no member matches*: nothing was
+compared with anything. That is a fourth thing the line about the search says,
+beside where the search has got to, how many nodes it reaches and that it
+reaches none.
+
+**The four are session state and not `Settings`.** They are what the user is
+doing now, not what the application knows and the editor cannot find out, which
+is the line section 9.6 draws.
 
 ## 5. Loading
 
@@ -2057,22 +2130,9 @@ whether overwriting is confirmed are application decisions of exactly this
 kind, and they are the attributes section 7.3 is about. Whether there is
 anything *unsaved* is not, which is the line between them.
 
-### 9.7 Keys that are kept free
+### 9.7 The two keys used by find
 
-`RESERVED_KEYS` is `('ctrl+f', 'f3')`, and no default of this editor takes
-either of them. Finding a member of a configuration that does not fit a window
-(section 4.6) is something this editor is likely to be asked for, `ctrl+f`
-opens a search everywhere and `f3` finds the next one.
-
-The promise of section 9.1 — that an action added later breaks no application —
-is about the *attribute*. A **key** that moved would break every user who had
-learnt it, and no version number protects a habit. So the two combinations a
-search will want are kept free from the start, and a test says so about the
-defaults.
-
-Nothing here refuses these keys to an application. Which combinations its own
-user interface has already taken is the application's to say; what is reserved
-is what the editor itself may take.
+`ctrl+f` and `f3` are what `find` and `find_next` use as default.
 
 ### 9.8 The same answers, written in a file
 

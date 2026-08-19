@@ -2,7 +2,7 @@
 
 ## Where everything is
 
-Steps 1 to 21 are implemented and committed, and step 22 is implemented and
+Steps 1 to 22 are implemented and committed, and step 23 is implemented and
 awaiting its review. Steps 1 to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md) and steps 10 to 21 in
 [steps_010-021.md](steps_010-021.md). Step 22 and the steps still to build are
@@ -82,6 +82,9 @@ in this file. Where any of the three files mentions a design decision,
 - [Step 22][s22] — a member holding true or false entered as an enum member
   already was: any beginning of either word in any case, and a text that means
   neither of them refused at that member.
+- [Step 23][s23] — looking for a member of a configuration that does not fit a
+  window: a field that stays, four controls that say where it looks, and a match
+  inside a folded container opened, brought into view and typed into.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -112,6 +115,7 @@ in this file. Where any of the three files mentions a design decision,
 [s20]: steps_010-021.md#step-20--the-rest-of-the-programs-command-line
 [s21]: steps_010-021.md#step-21---version-command-line-flag
 [s22]: #step-22---better-bool-support
+[s23]: #step-23---finding-a-member
 
 ## 1. How this plan is meant to be used
 
@@ -132,11 +136,11 @@ decision gets built.
 - Every step touches all three packages where the capability is
   user-visible, so `edit_cfg_json`, `edit_cfg_json_tk` and
   `edit_cfg_json_textual` never drift apart by more than one review.
-- Steps 1 to 22 are built, and each is written up in
+- Steps 1 to 23 are built, and each is written up in
   [steps_001-009_done.md](steps_001-009_done.md), in
   [steps_010-021.md](steps_010-021.md) or in section 3 of this file as what it
   decided, what it found while building it and what came of its review. Steps
-  23 onwards are named steps with their observable outcome and their main
+  24 onwards are named steps with their observable outcome and their main
   risks; they are detailed just before they are started, when the core API is
   real rather than imagined.
 
@@ -280,6 +284,8 @@ The public names it settled:
 
 ### Step 23 - Finding a member
 
+Status: **Implemented, committed.**
+
 Section 9.7 keeps `ctrl+f` and `f3` free from the start, because finding a
 member of a configuration that does not fit a window (section 4.6) is something
 this editor is likely to be asked for, and a test says the defaults take
@@ -382,23 +388,11 @@ run, with a refusal and an exit code of its own where it can run none.
 
 ## 4. Relative effort of the steps still to build
 
-Best guesses, for judging the order the rest is built in. Step 24 is the
-smallest and is 1; every other step is a multiple of it. **The number is the
-whole cost of a step** as section 1.1 defines done: the design summary, the
-code, the tests, the example, the documentation, three clean builds on 3.12,
-3.13 and 3.14, and the review. That floor is why nothing is below 1, and why
-the largest step is ten times the smallest rather than thirty times — the steps
-differ less in what they cost than in how hard they are. The rows are in effort
-order and therefore not in step order. The row of step 22 is kept now that it
-is built, so that what it cost can be compared with what it was guessed at.
-
 | Step | Effort | What the number is mostly |
 | --- | --- | --- |
-| 22 Better bool support | 1 | One rule in the core's conversion path, beside the enum rule that is already there. No backend change. |
 | 27 An entry in an `_unchecked_dicts` member | 2 | Step 14's machinery reused: the row stops saying why it cannot, and both backends show controls they already have. |
 | 26 Full `DICT_VALUE_BY_KEY` | 3 | The same work, complicated by a member whose values are of two kinds, and by what deleting the named key would mean. |
 | 30 The launcher | 4 | Little logic, spread over all three packages: an entry-point group, a script the core has never installed, discovery, and what a machine that can run neither editor is told. |
-| 23 Finding a member | 5 | Core state and one field, then bringing a widget into view in two toolkits and opening what folding hid. Partly focus sensitive, so partly category 3. |
 | 28 Pull-down for enum and bool | 6 | A second kind of field in both backends, touching every rule written for the first: write on change, focus loss, the rebuild after a pass, and the marks. |
 | 24 More type information | 6 | It answers a design question before it builds anything, and the runtime records nothing for the ordinary `Config` pattern (section 4.1). |
 | 25 Add and remove omitted members | 8 | Discovering a class the runtime does not record, and then the raw-JSON fallback, which is an editing surface the editor does not have at all yet. |
@@ -406,9 +400,7 @@ is built, so that what it cost can be compared with what it was guessed at.
 
 Two things the numbers do not say.
 
-- **Effort is not order.** Step 27 shares its mechanism with step 26, and step
-  24 would make steps 25 and 28 cheaper, so cheapest first is not
-  automatically right.
+- **Effort is not order.**
 - **Steps 24, 25, 29 each begin with a question**, so their numbers are the
   three least trustworthy of the nine.
 

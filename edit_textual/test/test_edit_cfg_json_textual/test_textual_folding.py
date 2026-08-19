@@ -14,8 +14,8 @@ from textual.containers import Vertical
 from textual.widgets import Button, Input, Label
 from edit_cfg_json import EditModel
 from edit_cfg_json_textual.textual_editor import EditorApp
-from edit_cfg_json_textual.textual_panel import FOLD_COMMAND, OPEN_COMMAND
-from edit_cfg_json_textual.textual_look import FOLD_OPEN_TEXT, \
+from edit_cfg_json_textual.textual_words import FOLD_COMMAND, OPEN_COMMAND
+from edit_cfg_json_textual.textual_look import FOLD_CLASS, FOLD_OPEN_TEXT, \
     FOLD_SHUT_TEXT, NAME_CLASS, TREE_INDENT, fold_id, member_id, value_id
 from example.e01_flat_config import FlatConfig
 from example.e08_lists_and_dicts import ContainerConfig
@@ -49,8 +49,15 @@ def _shown_names(app: EditorApp) -> list[str]:
 
 
 def _fold_labels(app: EditorApp) -> list[str]:
-    """Return what every fold control of the application shows."""
-    return [str(button.label) for button in app.query(Button)]
+    """Return what every fold control of the application shows.
+
+    The controls are asked for by their style class and not by their type,
+    because the editor has controls of three kinds now: the one that folds a
+    container, the ones that change how many elements a node holds, and the one
+    that goes to the next member a search reaches.
+    """
+    return [str(button.label) for button in app.query(Button)
+            if button.has_class(FOLD_CLASS)]
 
 
 async def _opened() -> tuple[list[str], list[str], list[str]]:

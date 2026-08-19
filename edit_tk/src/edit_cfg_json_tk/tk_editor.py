@@ -13,18 +13,18 @@ neither backend may import the other.
 # MIT License
 
 from collections.abc import Callable
-from typing import NamedTuple, Optional, TextIO
-import sys
+from typing import NamedTuple, Optional
 import tkinter
-from config_as_json import Config, ConfigPath, PathOrStr
+from config_as_json import ConfigPath
 import edit_cfg_json as core
-from edit_cfg_json_tk.scrolling import scrolling_body
+from edit_cfg_json_tk.scrolling import bring_into_view, scrolling_body
 from edit_cfg_json_tk.tk_ask import asked_file, may_close, may_overwrite
+from edit_cfg_json_tk.tk_find import FindPanel
 from edit_cfg_json_tk.tk_scope import KeyScope
 from edit_cfg_json_tk.tk_elements import element_controls
-from edit_cfg_json_tk.tk_look import FIELD_BACKGROUND, FIELD_BORDER, \
-    FIELD_FOREGROUND, FOLD_WIDTH, LEAST_FIELD_WIDTH, NAME_COLUMN_WIDTH, \
-    PADDING, TREE_INDENT, label_text, place_text, shown_text, told
+from edit_cfg_json_tk.tk_look import FOLD_WIDTH, LEAST_FIELD_WIDTH, \
+    NAME_COLUMN_WIDTH, PADDING, TREE_INDENT, edit_field, label_text, \
+    place_text, shown_text, told
 
 VALIDATE_TEXT = 'Validate'
 """Text of the button that runs the validation of the application."""
@@ -120,6 +120,24 @@ class StateWidgets(NamedTuple):
     not there.
     """
 
+    finding: FindPanel
+    """The search: its field, its four controls and its line."""
+
+
+class ValueField(NamedTuple):
+    """The field of one editable node, and the variable it shows.
+
+    Both are kept because both are used: the variable is what the text is
+    written into and read from, and the widget is what a search gives the
+    keyboard focus to.
+    """
+
+    text: tkinter.StringVar
+    """The variable that holds what the field shows."""
+
+    entry: tkinter.Entry
+    """The widget that the user types into."""
+
 
 class RowWidgets(NamedTuple):
     """The widgets that one node of the configuration owns."""
@@ -135,7 +153,7 @@ class RowWidgets(NamedTuple):
     fold: Optional[tkinter.Button]
     """The control that folds this container, None for a node with none."""
 
-    field: Optional[tkinter.StringVar]
+    field: Optional[ValueField]
     """The field of an editable node, and None for every other node."""
 
     mark: tkinter.Label
@@ -198,6 +216,11 @@ def _show_below(widgets: RowWidgets, description: str,
     place_text(widgets.diagnostic, diagnostic)
 
 
+# Each attribute is one independent thing these widgets have to keep: the
+# model, what closing does, the part of the window the keys reach, the part
+# that scrolls, the frame the rows are in, the rows themselves, the paths they
+# were built for and the widgets that say what is true of the whole model.
+# pylint: disable-next=too-many-instance-attributes
 class EditorWidgets:  # pylint: disable=too-few-public-methods
     """The widgets that show one edit model below one parent widget.
 
@@ -237,7 +260,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._model = model
         self._close = on_close or parent.winfo_toplevel().destroy
         self._scope = KeyScope(parent, model.settings.priority_keys)
-        scrolling = scrolling_body(parent, self._scope)
+        self._scrolling = scrolling_body(parent, self._scope)
         # The part that does not scroll is packed first, because Tk gives each
         # child the space it asks for in the order they were packed: a window
         # too short for everything would otherwise leave nothing at all for
@@ -246,8 +269,8 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         # of the editor are still created in the order they are read in.
         fixed = tkinter.Frame(parent)
         fixed.pack(side='bottom', fill='x')
-        scrolling.area.pack(side='top', fill='both', expand=True)
-        body = scrolling.body
+        self._scrolling.area.pack(side='top', fill='both', expand=True)
+        body = self._scrolling.body
         title = tkinter.Label(body, text=core.model_title(model))
         title.pack(pady=PADDING)
         docstring = self._add_docstring(body)
@@ -257,6 +280,8 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._rows: list[RowWidgets] = []
         self._paths: tuple[ConfigPath, ...] = ()
         self._create_rows()
+        finding = FindPanel(fixed, model, searched=self._searched,
+                            reached=self._reach_found)
         verdict = self._add_verdict(fixed)
         saving = self._add_saving(fixed)
         explained = tkinter.BooleanVar(master=parent,
@@ -264,7 +289,8 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._state = StateWidgets(title=title, docstring=docstring,
                                    verdict=verdict, saving=saving,
                                    explained=explained,
-                                   folding=self._add_buttons(fixed, explained))
+                                   folding=self._add_buttons(fixed, explained),
+                                   finding=finding)
         self._show_rows()
         self._bind_keys()
         self._scope.reach()
@@ -445,6 +471,47 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         button.pack(side='left', padx=PADDING)
         return button
 
+    def _searched(self, opened: bool) -> None:
+        """Show what a search reached, once the model has been asked.
+
+        What was found is brought into view here as well as when the user goes
+        to it, because a search that is being typed is a search whose answer
+        moves: an answer off the window would be one the user cannot see. The
+        cursor is left where it is, which is in the field being typed into.
+
+        Args:
+            opened: Whether the search opened a container to reach what it
+                found, which is the one thing that changes which rows are
+                shown and therefore the only reason to lay them out again.
+        """
+        if opened:
+            self._show_rows()
+        self._show_state()
+        self._show_found(take_focus=False)
+
+    def _reach_found(self) -> None:
+        """Go into what the search reached, which is what a press asks for."""
+        self._show_found(take_focus=True)
+
+    def _show_found(self, take_focus: bool) -> None:
+        """Bring what the search reached into view, and maybe type in it.
+
+        A node that is not edited in a field is only brought into view, since
+        there is nothing there to type into: a list, a dict and a nested
+        configuration object are each edited through the rows below them.
+
+        Args:
+            take_focus: Whether the field of that node is given the keyboard
+                focus, which typing in the search field does not ask for.
+        """
+        for row, widgets in zip(self._model.rows, self._rows, strict=True):
+            if not row.found:
+                continue
+            bring_into_view(self._scrolling, widgets.frame)
+            if take_focus and widgets.field is not None:
+                widgets.field.entry.focus_set()
+            return
+
     def _bind_keys(self) -> None:
         """Bind the key combinations that the application chose.
 
@@ -468,7 +535,10 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
                               (actions.save, self._save),
                               (actions.save_as, self._save_as),
                               (actions.explain, self._explain),
-                              (folding, self._fold_all)):
+                              (folding, self._fold_all),
+                              (actions.find, self._state.finding.focus),
+                              (actions.find_next,
+                               self._state.finding.find_next)):
             for key in keys:
                 self._scope.bind_key(key=key, command=command)
 
@@ -696,7 +766,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         return shown_text(parent, '', core.EXPLANATION)
 
     def _add_value(self, parent: tkinter.Misc,
-                   row: core.MemberRow) -> Optional[tkinter.StringVar]:
+                   row: core.MemberRow) -> Optional[ValueField]:
         """Create the value widget of one member and wire it to the model.
 
         A node that the model cannot edit gets a widget that only shows text,
@@ -717,20 +787,11 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
             return None
         field = tkinter.StringVar(master=parent,
                                   value=core.row_value_text(row))
-        # The window is white, so a field that kept the background it is given
-        # could not be told from a label. The tint, the border and the caret
-        # colour are what say that this one is edited and the labels are not.
-        entry = tkinter.Entry(parent, textvariable=field, relief='flat',
-                              width=LEAST_FIELD_WIDTH,
-                              background=FIELD_BACKGROUND,
-                              foreground=FIELD_FOREGROUND,
-                              insertbackground=FIELD_FOREGROUND,
-                              highlightbackground=FIELD_BORDER,
-                              highlightthickness=1)
+        entry = edit_field(parent=parent, text=field, width=LEAST_FIELD_WIDTH)
         entry.pack(side='left', fill='x', expand=True)
         entry.bind('<FocusOut>', self._leaver(row))
         field.trace_add('write', self._writer(row=row, field=field))
-        return field
+        return ValueField(text=field, entry=entry)
 
     def _writer(self, row: core.MemberRow,
                 field: tkinter.StringVar) -> Callable[..., None]:
@@ -849,7 +910,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
             self._build_rows()
         for row, widgets in zip(self._model.rows, self._rows, strict=True):
             if widgets.field is not None:
-                widgets.field.set(core.row_value_text(row))
+                widgets.field.text.set(core.row_value_text(row))
         self._show_state()
 
     def _show_state(self) -> None:
@@ -870,89 +931,8 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
              emphasis=core.verdict_emphasis(self._model))
         told(self._state.saving, text=core.save_text(self._model),
              emphasis=core.save_emphasis(self._model))
+        self._state.finding.show()
         for row, widgets in zip(self._model.rows, self._rows, strict=True):
             widgets.mark.config(text=core.row_marks(row))
         self._show_subtrees()
         self._show_member_texts()
-
-
-class TkEditor:  # pylint: disable=too-few-public-methods
-    """Tkinter user interface backend for an edit model.
-
-    The class has the single method that `EditorBackend` asks for, and
-    deliberately nothing else: everything worth testing without a display
-    lives in the core.
-    """
-
-    def __init__(self) -> None:
-        """Create a backend that has not shown a model yet."""
-        self._widgets: Optional[EditorWidgets] = None
-
-    def run_editor(self, model: core.EditModel) -> None:
-        """Show the model in a Tk window until the user closes it.
-
-        The widgets are held for as long as the window lives, because they
-        own the fields that the Tcl variables belong to. The window is this
-        backend's own, which is why closing the editor destroys it.
-
-        The close button of the window is made to do what the Close button of
-        the editor does, so that the one way out that is not a widget of the
-        editor cannot be the one way out that drops the changes without
-        asking. It is set on this window and on no other: the editor never
-        touches a window it did not create.
-
-        This is for an application that has no Tk of its own yet, because a
-        second `tkinter.Tk` is a second Tcl interpreter and nothing can be
-        shared between the two. An application that already runs Tk gets the
-        entry point of section 8.2 of `doc/design.md` instead, which mounts
-        the editor in a widget that application owns.
-
-        Args:
-            model: Model to show and to edit.
-        """
-        window = tkinter.Tk()
-        window.title(model.config_type_name)
-        self._widgets = EditorWidgets(parent=window, model=model)
-        window.protocol('WM_DELETE_WINDOW', self._widgets.close_editor)
-        window.mainloop()
-
-
-# See the same disable in the core: every argument after the first is an
-# optional keyword saying one independent thing about the session.
-# pylint: disable-next=too-many-arguments
-def edit(config: Config, *, descriptions: Optional[core.Descriptions] = None,
-         in_file: Optional[PathOrStr] = None,
-         loader: Optional[core.ConfigLoader] = None,
-         out_file: Optional[PathOrStr] = None,
-         policy: core.LoadPolicy = core.DEFAULT_POLICY,
-         settings: core.SettingsSource = core.Settings(),
-         stderr_file: TextIO = sys.stderr) -> Optional[Config]:
-    """Edit one configuration in a Tk window, and return what was saved.
-
-    This is `edit_cfg_json.edit` with this package's backend filled in, for
-    an application that has already chosen Tkinter. Everything it does is
-    documented there.
-
-    Args:
-        config: Configuration object to edit. It is never modified.
-        descriptions: What the application says about the members it
-            declares, or None when it says nothing.
-        in_file: File to read, or None to start from the declared defaults.
-        loader: How this application constructs its configuration, or None for
-            a class the editor can construct on its own.
-        out_file: File to write, or None to write the input file.
-        policy: What to do about declared keys the input file does not hold.
-        settings: What this application has already decided about key
-            combinations and file names, or a callable that answers with it.
-        stderr_file: Stream used for user-facing diagnostics.
-
-    Returns:
-        The configuration object that was written, or None when nothing was.
-
-    Raises:
-        ConfigLoadError: The input file cannot be opened for editing.
-    """
-    return core.edit(config=config, backend=TkEditor(),
-                     descriptions=descriptions, in_file=in_file, loader=loader,
-                     out_file=out_file, policy=policy, settings=settings,
-                     stderr_file=stderr_file)

@@ -10,7 +10,8 @@ import pytest
 from textual.widgets import Static
 from edit_cfg_json import EditModel, Emphasis
 from edit_cfg_json_textual.textual_editor import EditorApp
-from edit_cfg_json_textual.textual_panel import EXPLAIN_COMMAND, HIDE_COMMAND
+from edit_cfg_json_textual.textual_words import EXPLAIN_COMMAND, \
+    HIDE_COMMAND
 from edit_cfg_json_textual.textual_look import DOCSTRING_ID, \
     EMPHASIS_CLASSES, LOAD_ID, SAVE_ID, VERDICT_ID, description_id, \
     mark_id, value_id

@@ -22,8 +22,8 @@ from edit_cfg_json_tk.tk_editor import EditorWidgets, FOLD_SHUT_TEXT
 from example.e09_nested_config import CourseExportConfig, TableOutputConfig
 from example.e10_config_containers import CourseReportsConfig, \
     ReportOutputConfig
-from .helpers import FakeVar, real_fields, real_fold, real_texts, \
-    stub_editor, stub_fold, stub_texts
+from .helpers import real_fields, real_fold, real_texts, stub_editor, \
+    stub_fields, stub_fold, stub_texts
 
 OUTPUT_CLASS = TableOutputConfig.__name__
 """What the row of a nested object of the example says instead of a value."""
@@ -140,7 +140,7 @@ def test_stub_object_no_field(stub_tk: None) -> None:
     """
     _ = stub_tk
     _nested_stub()
-    assert len(FakeVar.created) == 4
+    assert len(stub_fields()) == 4
     assert stub_texts(packed_only=True).count(OUTPUT_CLASS) == 1
 
 
@@ -278,7 +278,7 @@ def test_stub_fields_count(stub_tk: None) -> None:
     """Test a field is created for every value and for nothing else."""
     _ = stub_tk
     stub_editor(EditModel(CourseReportsConfig()))
-    assert len(FakeVar.created) == REPORT_FIELDS
+    assert len(stub_fields()) == REPORT_FIELDS
 
 
 def test_real_fields_count(root_or_skip: tkinter.Tk) -> None:

@@ -222,6 +222,70 @@ def test_undescribed_member(capsys: pytest.CaptureFixture[str]) -> None:
     assert f'project_name = Example project\n{TEXT_LINE}' in printed
 
 
+def test_find_marks_a_member(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test looking for a text marks the member the search has got to."""
+    printed = _dump(capsys, '--find', 'https')
+    assert '    https = 443 (found)' in printed
+    assert 'find https: 1 of 1' in printed
+
+
+def test_find_opens_a_fold(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a match inside the folded list of this example opens that list.
+
+    What is found has to be reachable, and `many_labels` opens folded, so a
+    search that left it folded would have found something the user cannot see.
+    """
+    printed = _dump(capsys, '--find', 'label-7')
+    assert 'many_labels: 12 elements' in printed
+    assert '(folded)' not in printed
+    assert '    7 = label-7 (found)' in printed
+
+
+def test_find_next_goes_on(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test each press of the find next key goes to the next member reached."""
+    assert 'find port: 1 of 6' in _dump(capsys, '--find', 'port')
+    assert 'find port: 3 of 6' in _dump(capsys, '--find', 'port',
+                                        '--find-next', '--find-next')
+
+
+def test_find_in_the_value(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test where the search looks is what the four controls of it say.
+
+    The value is the text a field shows, so a text that is in no path at all is
+    reached through the value alone. The case is ignored unless that is asked
+    for, and a part of the text is enough unless the whole of it is asked for.
+    """
+    in_value = ('--find-in', 'value')
+    assert 'find HTML: 1 of 1' in _dump(capsys, '--find', 'HTML', *in_value)
+    assert 'find HTML: no member matches' in _dump(capsys, '--find', 'HTML',
+                                                   *in_value, '--find-case')
+    assert 'find ports: no member matches' in _dump(capsys, '--find', 'ports',
+                                                    *in_value)
+
+
+def test_find_the_whole_path(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the whole path can be asked for, which is what the verdict names.
+
+    A part of a path is enough by default, so the name of a member reaches the
+    member and every value inside it. The whole path singles one of them out.
+    """
+    assert 'find ports.http: 1 of 1' in _dump(capsys, '--find', 'ports.http',
+                                              '--find-whole')
+    assert 'find ports: 1 of 1' in _dump(capsys, '--find', 'ports',
+                                         '--find-whole')
+
+
+def test_find_nowhere_to_look(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a search with nowhere to look says so, and not that it failed.
+
+    Nothing was compared with anything, so saying that no member matches would
+    be untrue.
+    """
+    printed = _dump(capsys, '--find', 'ports', '--find-in', 'neither')
+    assert 'find ports: looking in neither the path nor the value' in printed
+    assert '(found)' not in printed
+
+
 def test_tk_ui_opens(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test --ui tk builds the window and returns when it is closed."""
     open_tk_ui(e08_lists_and_dicts.main, monkeypatch)

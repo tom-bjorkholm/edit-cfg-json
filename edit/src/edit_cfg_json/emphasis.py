@@ -126,6 +126,28 @@ def subtree_emphasis(row: MemberRow) -> Emphasis:
     return Emphasis.GOOD if row.subtree_valid else Emphasis.BAD
 
 
+def find_emphasis(model: EditModel) -> Emphasis:
+    """Return how what a search has reached is shown.
+
+    A search that has not been made says nothing at all, so the emphasis is
+    what has not happened yet, exactly as it is for a validation nobody has
+    asked for. A search that reaches at least one node has reached something
+    the user should see, and one that reaches nothing — because the text is
+    about no node, or because there is nowhere left to look — is the one thing
+    on that line to act on.
+
+    Args:
+        model: Model whose search is shown.
+
+    Returns:
+        The emphasis of the line that says what the search has reached.
+    """
+    report = model.search
+    if not report.text:
+        return Emphasis.MUTED
+    return Emphasis.ATTENTION if report.total else Emphasis.BAD
+
+
 def save_emphasis(model: EditModel) -> Emphasis:
     """Return how what saving did, or would do, is shown.
 

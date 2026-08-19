@@ -6,6 +6,7 @@
 
 from edit_cfg_json.descriptions import class_docstring, class_summary
 from edit_cfg_json.edit_model import EditModel
+from edit_cfg_json.finding import looks_nowhere
 from edit_cfg_json.rows import MemberRow
 from edit_cfg_json.saving import kept_file
 from edit_cfg_json.tree import path_text
@@ -39,6 +40,15 @@ in it is what the model says the load did to that member, which is the words
 of the record where the load recorded one.
 """
 
+FOUND_MARK = ' (found)'
+"""Mark that follows the value of the node a search has got to.
+
+A search reaches one node at a time, so exactly one row can carry it. The two
+backends bring that row into view and put the focus in its field as well, which
+is what a printout has no way of doing and is why this mark is what a printout
+has instead.
+"""
+
 DIRTY_MARK = ' *'
 """Mark that follows the model label while the buffer has changes."""
 
@@ -62,6 +72,36 @@ size does not fit a window: a user who has just asked what the application
 makes of these values should be told where to look rather than have to go
 looking. A value inside a list or a dict is named by its whole path, because
 its own name says nothing about where it is.
+"""
+
+FIND_FORM = 'find {text}: {place} of {count}'
+"""Form of the line that says where a search has got to.
+
+How many nodes the text reaches and which of them is being shown, because a
+search of a configuration too big for a window is a search whose other answers
+are off the screen: a user who is told only that something was found has no way
+of knowing that there is more to look at.
+"""
+
+FIND_COUNT_FORM = 'find {text}: {count} matches'
+"""The same for a search that reaches nodes and is at none of them.
+
+A validation pass can leave the model with other rows than it had, and can
+rewrite a value into something the text no longer reaches, so the node a search
+had got to is not always still there. What the text reaches is still true, and
+the next press of the find key starts again from the top.
+"""
+
+NOT_FOUND_FORM = 'find {text}: no member matches'
+"""Form of the line that says a search reaches nothing at all."""
+
+FIND_NOWHERE_FORM = ('find {text}: looking in neither the path nor the '
+                     'value')
+"""Form of the line about a search that has nowhere to look.
+
+Both of the places a search looks can be turned off, and nothing is then
+compared with anything. Saying that no member matches would be untrue, which is
+why it is said as what it is.
 """
 
 SAVE_TO_FORM = 'save to: {name}'
@@ -198,12 +238,19 @@ def row_marks(row: MemberRow) -> str:
 
     They say different things that can all be true at once: the input file did
     not hold this member, reading the file changed what it holds, the user
-    changed it, and a validator then changed what the user had written. They
-    are in the order in which they can happen. The two that a load sets are
-    never both there, because the more precise of the two is the one it sets.
+    changed it, a validator then changed what the user had written, and a
+    search has got to it. They are in the order in which they can happen. The
+    two that a load sets are never both there, because the more precise of the
+    two is the one it sets.
+
+    The last of them is about the search rather than about the member, and it
+    is here because it belongs where the others are: it says that something
+    has happened to this member which the user should see, which is what every
+    mark of a member says.
 
     Both backends read the marks from here, so that neither of them decides on
-    its own what a member the load, the user or a validator touched looks like.
+    its own what a member the load, the user, a validator or a search touched
+    looks like.
 
     Args:
         row: Member to mark.
@@ -216,7 +263,8 @@ def row_marks(row: MemberRow) -> str:
         if row.load_reason else ''
     edited = EDITED_MARK if row.edited else ''
     rewritten = VALIDATOR_MARK if row.changed_by_validator else ''
-    return filled + loaded + edited + rewritten
+    found = FOUND_MARK if row.found else ''
+    return filled + loaded + edited + rewritten + found
 
 
 def docstring_text(model: EditModel) -> str:
@@ -539,6 +587,43 @@ def verdict_text(model: EditModel) -> str:
     return '\n'.join(line for line in lines if line)
 
 
+def find_text(model: EditModel) -> str:
+    """Return what the search has reached, and nothing when there is none.
+
+    A search that has not been made says nothing at all, which is what an empty
+    field means: it is a third state and not a search that found nothing, and a
+    line under every session that nobody searched in would be a line spent on
+    nothing.
+
+    The three ways a search says something are three different things, and each
+    is said as what it is: it has got to one of several nodes, it reaches nodes
+    and is at none of them, or it reaches nothing. A search that has nowhere to
+    look is the fourth, and it is not the same as reaching nothing, because
+    nothing was compared with anything.
+
+    Both backends read it from here, so that neither of them decides on its own
+    what a user who is looking for something is told.
+
+    Args:
+        model: Model whose search is reported.
+
+    Returns:
+        What is being looked for and what it has reached, and nothing at all
+        while nothing is being looked for.
+    """
+    report = model.search
+    if not report.text:
+        return ''
+    if looks_nowhere(report.options):
+        return FIND_NOWHERE_FORM.format(text=report.text)
+    if not report.total:
+        return NOT_FOUND_FORM.format(text=report.text)
+    if not report.place:
+        return FIND_COUNT_FORM.format(text=report.text, count=report.total)
+    return FIND_FORM.format(text=report.text, place=report.place,
+                            count=report.total)
+
+
 def load_text(model: EditModel) -> str:
     """Return what reading the input file did, or an empty text.
 
@@ -670,12 +755,12 @@ def model_as_text(model: EditModel) -> str:
     The configuration object labels itself first, because what the whole
     configuration is for is what the members below it are read in the light
     of. What reading the input file did comes next, because it is what
-    explains the marks on those members. The validation state of the buffer
-    follows them, and the saving after that, in the order in which a session
-    reaches them, so that a rendering never leaves it unsaid what the
-    application would make of what is shown or where it would be written.
-    It belongs to the core rather than to a backend because it is user
-    interface agnostic.
+    explains the marks on those members. What a search has reached follows
+    them, then the validation state of the buffer, and the saving after that,
+    in the order in which a session reaches them, so that a rendering never
+    leaves it unsaid what the application would make of what is shown or where
+    it would be written. It belongs to the core rather than to a backend
+    because it is user interface agnostic.
 
     What it renders is what the model holds, and that is the whole of what it
     can testify to. The two interactive backends draw the same model and add
@@ -694,13 +779,13 @@ def model_as_text(model: EditModel) -> str:
     Returns:
         The label of the configuration and what its class says about itself,
         what the load did, one line per shown node with its description and
-        anything wrong with it below it, and then the validation state and
-        the saving, without a trailing line break.
+        anything wrong with it below it, and then what a search has reached,
+        the validation state and the saving, without a trailing line break.
     """
     rows = [_row_as_text(model=model, row=row) for row in model.rows
             if row.shown]
     lines = [_head_text(model), load_text(model)] + rows + \
-        [verdict_text(model), save_text(model)]
+        [find_text(model), verdict_text(model), save_text(model)]
     return '\n'.join(line for line in lines if line)
 
 

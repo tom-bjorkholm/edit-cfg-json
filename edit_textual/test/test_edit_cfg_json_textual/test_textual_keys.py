@@ -10,7 +10,7 @@ from textual.widgets import Label
 from edit_cfg_json import ActionSettings, EditModel, Settings
 from edit_cfg_json_textual.textual_editor import EditorApp
 from edit_cfg_json_textual.textual_look import ASK_BOX_ID
-from edit_cfg_json_textual.textual_panel import HIDE_COMMAND, \
+from edit_cfg_json_textual.textual_words import HIDE_COMMAND, \
     SAVE_AS_COMMAND, SAVE_COMMAND, VALIDATE_COMMAND
 from example.e01_flat_config import FlatConfig
 from .helpers import NO_FILE_TEXT, SAVE_AS_KEY, \

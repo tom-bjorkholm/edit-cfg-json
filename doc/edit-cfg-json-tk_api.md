@@ -22,6 +22,10 @@
     * [saving](#edit_cfg_json_tk.tk_editor.StateWidgets.saving)
     * [explained](#edit_cfg_json_tk.tk_editor.StateWidgets.explained)
     * [folding](#edit_cfg_json_tk.tk_editor.StateWidgets.folding)
+    * [finding](#edit_cfg_json_tk.tk_editor.StateWidgets.finding)
+  * [ValueField](#edit_cfg_json_tk.tk_editor.ValueField)
+    * [text](#edit_cfg_json_tk.tk_editor.ValueField.text)
+    * [entry](#edit_cfg_json_tk.tk_editor.ValueField.entry)
   * [RowWidgets](#edit_cfg_json_tk.tk_editor.RowWidgets)
     * [frame](#edit_cfg_json_tk.tk_editor.RowWidgets.frame)
     * [fold](#edit_cfg_json_tk.tk_editor.RowWidgets.fold)
@@ -41,10 +45,29 @@
     * [wrong\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.wrong_shown)
     * [element\_texts](#edit_cfg_json_tk.tk_editor.EditorWidgets.element_texts)
     * [docstring\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.docstring_shown)
-  * [TkEditor](#edit_cfg_json_tk.tk_editor.TkEditor)
-    * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.TkEditor.__init__)
-    * [run\_editor](#edit_cfg_json_tk.tk_editor.TkEditor.run_editor)
-  * [edit](#edit_cfg_json_tk.tk_editor.edit)
+* [edit\_cfg\_json\_tk.tk\_tooltip](#edit_cfg_json_tk.tk_tooltip)
+  * [TOOLTIP\_BACKGROUND](#edit_cfg_json_tk.tk_tooltip.TOOLTIP_BACKGROUND)
+  * [TOOLTIP\_BORDER](#edit_cfg_json_tk.tk_tooltip.TOOLTIP_BORDER)
+  * [TOOLTIP\_OFFSET](#edit_cfg_json_tk.tk_tooltip.TOOLTIP_OFFSET)
+  * [TOOLTIP\_PADDING](#edit_cfg_json_tk.tk_tooltip.TOOLTIP_PADDING)
+  * [Tooltip](#edit_cfg_json_tk.tk_tooltip.Tooltip)
+    * [\_\_init\_\_](#edit_cfg_json_tk.tk_tooltip.Tooltip.__init__)
+    * [text](#edit_cfg_json_tk.tk_tooltip.Tooltip.text)
+* [edit\_cfg\_json\_tk.tk\_find](#edit_cfg_json_tk.tk_find)
+  * [FIND\_FIELD\_NAME](#edit_cfg_json_tk.tk_find.FIND_FIELD_NAME)
+  * [FIND\_LABEL\_TEXT](#edit_cfg_json_tk.tk_find.FIND_LABEL_TEXT)
+  * [FIND\_NEXT\_TEXT](#edit_cfg_json_tk.tk_find.FIND_NEXT_TEXT)
+  * [FIND\_TICK\_LABELS](#edit_cfg_json_tk.tk_find.FIND_TICK_LABELS)
+  * [FindWidgets](#edit_cfg_json_tk.tk_find.FindWidgets)
+    * [text](#edit_cfg_json_tk.tk_find.FindWidgets.text)
+    * [entry](#edit_cfg_json_tk.tk_find.FindWidgets.entry)
+    * [ticks](#edit_cfg_json_tk.tk_find.FindWidgets.ticks)
+    * [line](#edit_cfg_json_tk.tk_find.FindWidgets.line)
+  * [FindPanel](#edit_cfg_json_tk.tk_find.FindPanel)
+    * [\_\_init\_\_](#edit_cfg_json_tk.tk_find.FindPanel.__init__)
+    * [focus](#edit_cfg_json_tk.tk_find.FindPanel.focus)
+    * [find\_next](#edit_cfg_json_tk.tk_find.FindPanel.find_next)
+    * [show](#edit_cfg_json_tk.tk_find.FindPanel.show)
 * [edit\_cfg\_json\_tk.key\_names](#edit_cfg_json_tk.key_names)
   * [MODIFIERS](#edit_cfg_json_tk.key_names.MODIFIERS)
   * [KEY\_NAMES](#edit_cfg_json_tk.key_names.KEY_NAMES)
@@ -57,11 +80,14 @@
   * [TREE\_INDENT](#edit_cfg_json_tk.tk_look.TREE_INDENT)
   * [FOLD\_WIDTH](#edit_cfg_json_tk.tk_look.FOLD_WIDTH)
   * [ELEMENT\_WIDTH](#edit_cfg_json_tk.tk_look.ELEMENT_WIDTH)
+  * [FIND\_WIDTH](#edit_cfg_json_tk.tk_look.FIND_WIDTH)
   * [LEAST\_WRAP\_WIDTH](#edit_cfg_json_tk.tk_look.LEAST_WRAP_WIDTH)
   * [EMPHASIS\_COLOURS](#edit_cfg_json_tk.tk_look.EMPHASIS_COLOURS)
   * [FIELD\_BACKGROUND](#edit_cfg_json_tk.tk_look.FIELD_BACKGROUND)
   * [FIELD\_FOREGROUND](#edit_cfg_json_tk.tk_look.FIELD_FOREGROUND)
   * [FIELD\_BORDER](#edit_cfg_json_tk.tk_look.FIELD_BORDER)
+  * [MEMBER\_FIELD\_NAME](#edit_cfg_json_tk.tk_look.MEMBER_FIELD_NAME)
+  * [edit\_field](#edit_cfg_json_tk.tk_look.edit_field)
   * [shown\_text](#edit_cfg_json_tk.tk_look.shown_text)
   * [told](#edit_cfg_json_tk.tk_look.told)
   * [show\_emphasis](#edit_cfg_json_tk.tk_look.show_emphasis)
@@ -80,6 +106,8 @@
   * [ScrollingArea](#edit_cfg_json_tk.scrolling.ScrollingArea)
     * [area](#edit_cfg_json_tk.scrolling.ScrollingArea.area)
     * [body](#edit_cfg_json_tk.scrolling.ScrollingArea.body)
+    * [canvas](#edit_cfg_json_tk.scrolling.ScrollingArea.canvas)
+  * [bring\_into\_view](#edit_cfg_json_tk.scrolling.bring_into_view)
   * [scrolling\_body](#edit_cfg_json_tk.scrolling.scrolling_body)
 * [edit\_cfg\_json\_tk.tk\_panel](#edit_cfg_json_tk.tk_panel)
   * [TkEditorPanel](#edit_cfg_json_tk.tk_panel.TkEditorPanel)
@@ -87,6 +115,10 @@
     * [model](#edit_cfg_json_tk.tk_panel.TkEditorPanel.model)
     * [saved\_config](#edit_cfg_json_tk.tk_panel.TkEditorPanel.saved_config)
     * [close](#edit_cfg_json_tk.tk_panel.TkEditorPanel.close)
+  * [TkEditor](#edit_cfg_json_tk.tk_panel.TkEditor)
+    * [\_\_init\_\_](#edit_cfg_json_tk.tk_panel.TkEditor.__init__)
+    * [run\_editor](#edit_cfg_json_tk.tk_panel.TkEditor.run_editor)
+  * [edit](#edit_cfg_json_tk.tk_panel.edit)
 * [edit\_cfg\_json\_tk.tk\_scope](#edit_cfg_json_tk.tk_scope)
   * [TAG\_PREFIX](#edit_cfg_json_tk.tk_scope.TAG_PREFIX)
   * [KeyScope](#edit_cfg_json_tk.tk_scope.KeyScope)
@@ -315,6 +347,38 @@ The button that folds every container away, or opens every one.
 It is None for a configuration with no list and no dict in it, because a
 button that could never do anything would be offering something that is
 not there.
+
+<a id="edit_cfg_json_tk.tk_editor.StateWidgets.finding"></a>
+
+#### finding
+
+The search: its field, its four controls and its line.
+
+<a id="edit_cfg_json_tk.tk_editor.ValueField"></a>
+
+## ValueField Objects
+
+```python
+class ValueField(NamedTuple)
+```
+
+The field of one editable node, and the variable it shows.
+
+Both are kept because both are used: the variable is what the text is
+written into and read from, and the widget is what a search gives the
+keyboard focus to.
+
+<a id="edit_cfg_json_tk.tk_editor.ValueField.text"></a>
+
+#### text
+
+The variable that holds what the field shows.
+
+<a id="edit_cfg_json_tk.tk_editor.ValueField.entry"></a>
+
+#### entry
+
+The widget that the user types into.
 
 <a id="edit_cfg_json_tk.tk_editor.RowWidgets"></a>
 
@@ -554,105 +618,279 @@ def docstring_shown() -> str
 
 Return the text that the label of the configuration class shows.
 
-<a id="edit_cfg_json_tk.tk_editor.TkEditor"></a>
+<a id="edit_cfg_json_tk.tk_tooltip"></a>
 
-## TkEditor Objects
+# edit\_cfg\_json\_tk.tk\_tooltip
+
+The tooltip that Tk does not have, for a control too small to label.
+
+Every control of this editor says what it does in the word on it, with one
+exception: the four that say where a search looks are ticked and unticked
+often enough to be worth a line of their own, and a line of their own is width
+that the values would lose. So they carry a label of one or two characters and
+say the rest here.
+
+Tk has no tooltip. There is no widget for one and no option on a widget that
+asks for one, so this is what it amounts to: a borderless window with a label
+on it, put beside the pointer while the pointer rests on the control and taken
+away again when it leaves. It is a module of its own for the same reason as the
+scrolling beside it — none of it is about an edit model, and it is what Tk
+needs in order to have a tooltip at all.
+
+<a id="edit_cfg_json_tk.tk_tooltip.TOOLTIP_BACKGROUND"></a>
+
+#### TOOLTIP\_BACKGROUND
+
+Background of a tooltip, which is the pale yellow every toolkit uses.
+
+<a id="edit_cfg_json_tk.tk_tooltip.TOOLTIP_BORDER"></a>
+
+#### TOOLTIP\_BORDER
+
+Colour of the line around a tooltip, as around an edit field.
+
+<a id="edit_cfg_json_tk.tk_tooltip.TOOLTIP_OFFSET"></a>
+
+#### TOOLTIP\_OFFSET
+
+How far from the pointer, in pixels across and down, a tooltip is put.
+
+Down rather than up, and to the right rather than the left, so that the
+tooltip does not land under the pointer itself: a window that appeared where
+the pointer is would take the leave event that closes it again.
+
+<a id="edit_cfg_json_tk.tk_tooltip.TOOLTIP_PADDING"></a>
+
+#### TOOLTIP\_PADDING
+
+Padding in pixels between the text of a tooltip and its border.
+
+<a id="edit_cfg_json_tk.tk_tooltip.Tooltip"></a>
+
+## Tooltip Objects
 
 ```python
-class TkEditor()
+class Tooltip()
 ```
 
-Tkinter user interface backend for an edit model.
+One text that appears while the pointer rests on one widget.
 
-The class has the single method that `EditorBackend` asks for, and
-deliberately nothing else: everything worth testing without a display
-lives in the core.
+The window is made when the pointer arrives and destroyed when it leaves,
+rather than made once and hidden, because a tooltip is seen for a second or
+two in a session and a window that is never shown is a window that can
+still be left behind by an editor that was closed.
 
-<a id="edit_cfg_json_tk.tk_editor.TkEditor.__init__"></a>
+<a id="edit_cfg_json_tk.tk_tooltip.Tooltip.__init__"></a>
 
 #### \_\_init\_\_
 
 ```python
-def __init__() -> None
+def __init__(widget: tkinter.Misc, text: str) -> None
 ```
 
-Create a backend that has not shown a model yet.
-
-<a id="edit_cfg_json_tk.tk_editor.TkEditor.run_editor"></a>
-
-#### run\_editor
-
-```python
-def run_editor(model: core.EditModel) -> None
-```
-
-Show the model in a Tk window until the user closes it.
-
-The widgets are held for as long as the window lives, because they
-own the fields that the Tcl variables belong to. The window is this
-backend's own, which is why closing the editor destroys it.
-
-The close button of the window is made to do what the Close button of
-the editor does, so that the one way out that is not a widget of the
-editor cannot be the one way out that drops the changes without
-asking. It is set on this window and on no other: the editor never
-touches a window it did not create.
-
-This is for an application that has no Tk of its own yet, because a
-second `tkinter.Tk` is a second Tcl interpreter and nothing can be
-shared between the two. An application that already runs Tk gets the
-entry point of section 8.2 of `doc/design.md` instead, which mounts
-the editor in a widget that application owns.
+Say what one widget tells the pointer that rests on it.
 
 **Arguments**:
 
-- `model` - Model to show and to edit.
+- `widget` - Widget that the pointer rests on.
+- `text` - What that widget says about itself.
 
-<a id="edit_cfg_json_tk.tk_editor.edit"></a>
+<a id="edit_cfg_json_tk.tk_tooltip.Tooltip.text"></a>
 
-#### edit
+#### text
 
 ```python
-def edit(config: Config,
-         *,
-         descriptions: Optional[core.Descriptions] = None,
-         in_file: Optional[PathOrStr] = None,
-         loader: Optional[core.ConfigLoader] = None,
-         out_file: Optional[PathOrStr] = None,
-         policy: core.LoadPolicy = core.DEFAULT_POLICY,
-         settings: core.SettingsSource = core.Settings(),
-         stderr_file: TextIO = sys.stderr) -> Optional[Config]
+@property
+def text() -> str
 ```
 
-Edit one configuration in a Tk window, and return what was saved.
+Return what this widget says about itself.
 
-This is `edit_cfg_json.edit` with this package's backend filled in, for
-an application that has already chosen Tkinter. Everything it does is
-documented there.
+<a id="edit_cfg_json_tk.tk_find"></a>
+
+# edit\_cfg\_json\_tk.tk\_find
+
+The search of a Tkinter editor: a field, four controls and a line.
+
+A configuration of any interesting size does not fit a window, so the member a
+user wants is often one they cannot see. This is what they look for it with,
+and it is a part of the window rather than a dialog that is asked and gone: a
+search is a text that is changed a character at a time, with the answer moving
+under it as it is typed, and four controls beside it that change what it
+reaches.
+
+What is being looked for, how it is compared and which node the search has got
+to are all state of the model, so nothing here decides any of it. What is here
+is the widgets, the words on them and the wiring: this backend's half of a
+question the core answers.
+
+Everything this backend takes from the core is reached through `core`, which is
+`edit_cfg_json` itself. A backend may use the public API of the core and
+nothing else, and naming it at every call site is what makes that visible.
+
+<a id="edit_cfg_json_tk.tk_find.FIND_FIELD_NAME"></a>
+
+#### FIND\_FIELD\_NAME
+
+Tk name of the field that a search is typed into.
+
+It is what tells this one field from the fields that hold the values of the
+members: it is no member of the configuration, and an application that reaches
+into the widgets of the editor has to be able to say which of them it means.
+See `edit_cfg_json_tk.tk_look.MEMBER_FIELD_NAME`.
+
+<a id="edit_cfg_json_tk.tk_find.FIND_LABEL_TEXT"></a>
+
+#### FIND\_LABEL\_TEXT
+
+Text of the label beside the field that a search is typed into.
+
+<a id="edit_cfg_json_tk.tk_find.FIND_NEXT_TEXT"></a>
+
+#### FIND\_NEXT\_TEXT
+
+Text of the button that goes to the next member the search reaches.
+
+A button as well as a key, because a function key is the one thing a keyboard
+is most likely not to deliver and because a user who has just typed into the
+field is looking at this row.
+
+<a id="edit_cfg_json_tk.tk_find.FIND_TICK_LABELS"></a>
+
+#### FIND\_TICK\_LABELS
+
+The label of each control that says where a search looks.
+
+They are in the order of the members of `edit_cfg_json.FindOptions`, which is
+what pairs each control with the answer it shows, and a member added there
+without a label here is refused where the controls are created rather than
+being silently left out.
+
+Two of them are one or two characters, which is what keeps the whole row one
+line: the width of that row is what the field is for. What each of them means
+is `edit_cfg_json.FIND_OPTION_HELP`, said in a tooltip, because Tk has nowhere
+else to put it and because what a control of the model means is the core's.
+
+<a id="edit_cfg_json_tk.tk_find.FindWidgets"></a>
+
+## FindWidgets Objects
+
+```python
+class FindWidgets(NamedTuple)
+```
+
+The widgets of one search, once they have been created.
+
+<a id="edit_cfg_json_tk.tk_find.FindWidgets.text"></a>
+
+#### text
+
+The variable that holds what is being looked for.
+
+It has to be kept for as long as the field lives: a `tkinter.Variable`
+unsets its Tcl variable when it is collected, and the field would then lose
+both its text and the callback that searches with it.
+
+<a id="edit_cfg_json_tk.tk_find.FindWidgets.entry"></a>
+
+#### entry
+
+The field that a search is typed into, which one key focuses.
+
+<a id="edit_cfg_json_tk.tk_find.FindWidgets.ticks"></a>
+
+#### ticks
+
+Whether each control that says where a search looks is ticked.
+
+One per member of `edit_cfg_json.FindOptions`, in that order, and each of
+them kept for the same reason as the variable above.
+
+<a id="edit_cfg_json_tk.tk_find.FindWidgets.line"></a>
+
+#### line
+
+The label that says what the search has reached.
+
+<a id="edit_cfg_json_tk.tk_find.FindPanel"></a>
+
+## FindPanel Objects
+
+```python
+class FindPanel()
+```
+
+The search of one Tk editor, as the widgets and what they do.
+
+It holds the model and asks it, rather than reporting keystrokes to the
+editor, because what a search is belongs to the model and this is the one
+place in this backend that is about a search at all. What it hands back to
+the editor is the two things only the editor can do: lay the rows out again
+when a container was opened, and bring what was found into view.
+
+<a id="edit_cfg_json_tk.tk_find.FindPanel.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(parent: tkinter.Misc, model: core.EditModel, *,
+             searched: Callable[[bool],
+                                None], reached: Callable[[], None]) -> None
+```
+
+Create the field, the four controls and the line below them.
+
+They go in a frame of their own, holding the row and the line under it,
+so that taking the line out of the layout and putting it back cannot
+move it away from the row it belongs to. That is the same arrangement
+as a member and what is said below it.
 
 **Arguments**:
 
-- `config` - Configuration object to edit. It is never modified.
-- `descriptions` - What the application says about the members it
-  declares, or None when it says nothing.
-- `in_file` - File to read, or None to start from the declared defaults.
-- `loader` - How this application constructs its configuration, or None for
-  a class the editor can construct on its own.
-- `out_file` - File to write, or None to write the input file.
-- `policy` - What to do about declared keys the input file does not hold.
-- `settings` - What this application has already decided about key
-  combinations and file names, or a callable that answers with it.
-- `stderr_file` - Stream used for user-facing diagnostics.
-  
+- `parent` - Widget that becomes the parent of the created widgets.
+- `model` - Model that the search is of.
+- `searched` - What the editor does once a search has run, told whether
+  a container was opened to reach what was found.
+- `reached` - What the editor does to go into what was found, which is
+  bringing it into view and typing in it.
 
-**Returns**:
+<a id="edit_cfg_json_tk.tk_find.FindPanel.focus"></a>
 
-  The configuration object that was written, or None when nothing was.
-  
+#### focus
 
-**Raises**:
+```python
+def focus() -> None
+```
 
-- `ConfigLoadError` - The input file cannot be opened for editing.
+Put the cursor in the field that a search is typed into.
+
+What is in the field is left exactly as it is, because a user who has
+found one member and wants another comes back to text that is worth
+changing rather than text that is worth typing again.
+
+<a id="edit_cfg_json_tk.tk_find.FindPanel.find_next"></a>
+
+#### find\_next
+
+```python
+def find_next() -> None
+```
+
+Go to the next node the search reaches, and type in it.
+
+<a id="edit_cfg_json_tk.tk_find.FindPanel.show"></a>
+
+#### show
+
+```python
+def show() -> None
+```
+
+Say what the search has reached, and nothing when nothing is.
+
+The line is taken out of the layout while there is nothing to say,
+because a blank line under the search row would otherwise be there in
+every session that nobody searched in.
 
 <a id="edit_cfg_json_tk.key_names"></a>
 
@@ -795,6 +1033,17 @@ offers none of them needs no width held for it and gets none. That is what
 makes four of them affordable where the one control that folds a container has
 to keep a column clear on every row.
 
+<a id="edit_cfg_json_tk.tk_look.FIND_WIDTH"></a>
+
+#### FIND\_WIDTH
+
+Width in characters that the field of the search asks for.
+
+It is what that field gives way to when the window is too narrow for the row,
+in the same way as the field of a member: what shares the row with it is four
+controls whose labels are one or two characters and a button, and a control
+that cannot be read is worse than a field with fewer characters in view.
+
 <a id="edit_cfg_json_tk.tk_look.LEAST_WRAP_WIDTH"></a>
 
 #### LEAST\_WRAP\_WIDTH
@@ -847,6 +1096,58 @@ put white text on a light field.
 #### FIELD\_BORDER
 
 Colour of the line around a field the user can edit.
+
+<a id="edit_cfg_json_tk.tk_look.MEMBER_FIELD_NAME"></a>
+
+#### MEMBER\_FIELD\_NAME
+
+Tk name of a field that holds the value of one member.
+
+A Tk widget has no identifier of its own beyond its place in the window, so a
+name is what says which kind of field this is — the same thing the Textual
+backend says with a widget identifier. It is what lets an application, and a
+test, tell the fields that are members of the configuration from the one that
+is not, which is the field a search is typed into.
+
+A name has to be unique among the children of one widget, and each of these is
+the one field of the line of its own member, so one name serves them all.
+
+<a id="edit_cfg_json_tk.tk_look.edit_field"></a>
+
+#### edit\_field
+
+```python
+def edit_field(parent: tkinter.Misc,
+               text: tkinter.StringVar,
+               width: int,
+               name: str = MEMBER_FIELD_NAME) -> tkinter.Entry
+```
+
+Return a field of the editor, coloured so that it reads as one.
+
+The window is white, so a field that kept the background it is given could
+not be told from a label: the values were there to be edited and nothing
+said so. The tint, the border and the caret colour are what say that this
+one is edited and the labels are not.
+
+It is not packed here, because where a field goes is different for a member
+and for the search: one shares its row with the marks of that member and
+the other with the controls that say where a search looks.
+
+**Arguments**:
+
+- `parent` - Widget that becomes the parent of the created field.
+- `text` - Variable that holds what the field shows. It has to be created
+  with the same parent, so that it lives in the same Tcl interpreter.
+- `width` - Width in characters that the field asks for, which is how far it
+  gives way when its row is too narrow for everything on it.
+- `name` - Tk name of the field, which says what kind of field it is. The
+  default is a field holding the value of one member.
+  
+
+**Returns**:
+
+  A field showing that variable.
 
 <a id="edit_cfg_json_tk.tk_look.shown_text"></a>
 
@@ -1127,6 +1428,40 @@ The frame to pack where the scrolling part of the editor belongs.
 
 The frame to build the scrolling part of the editor in.
 
+<a id="edit_cfg_json_tk.scrolling.ScrollingArea.canvas"></a>
+
+#### canvas
+
+The canvas that the body is on, which is what really scrolls.
+
+It is kept because a search has to bring what it found into view, and a
+canvas is the only thing here that can be told where to look: the body is
+an item on it, and the scrollbar beside it only reports.
+
+<a id="edit_cfg_json_tk.scrolling.bring_into_view"></a>
+
+#### bring\_into\_view
+
+```python
+def bring_into_view(area: ScrollingArea, widget: tkinter.Misc) -> None
+```
+
+Scroll the body until one widget inside it is in view.
+
+Nothing is scrolled while the widget is already in view, which is what
+keeps a search that is being typed from moving the window on every key:
+the answer usually stays where it is, and a view that jumped to put it at
+the top each time would be harder to read than one that stands still.
+
+Tk lays the widgets out inside a frame only when it next has nothing else
+to do, so the layout is asked for before anything is measured: a container
+that has just been opened has no place on the window until then.
+
+**Arguments**:
+
+- `area` - The scrolling part of the editor.
+- `widget` - Widget inside its body to bring into view.
+
 <a id="edit_cfg_json_tk.scrolling.scrolling_body"></a>
 
 #### scrolling\_body
@@ -1152,20 +1487,27 @@ read in.
 
 **Returns**:
 
-  The frame to pack, and the frame to build in.
+  The frame to pack, the frame to build in, and the canvas that a search
+  tells where to look.
 
 <a id="edit_cfg_json_tk.tk_panel"></a>
 
 # edit\_cfg\_json\_tk.tk\_panel
 
-The editor in a window, or in an area, of an application that runs Tk.
+The three ways of running this editor, all of them below `tk_editor`.
 
-An application with no Tk of its own calls `edit_cfg_json_tk.edit`, which
-owns a `tkinter.Tk` and runs until the user is done. An application that
-already runs Tk cannot use that: a second `tkinter.Tk` is a second Tcl
-interpreter, and no widget, variable, font or image crosses between two of
-them. It uses `TkEditorPanel` instead, which builds the editor where it is
-told and returns at once.
+`tk_editor` holds the whole editor as widgets, which is what all three of
+these build. What is here is the one thing only an application may do, which
+is to own a window and an event loop.
+
+An application with no Tk of its own calls `edit_cfg_json_tk.edit`, or hands
+`TkEditor` to `edit_cfg_json.edit`: both own a `tkinter.Tk` and run until the
+user is done. An application that already runs Tk cannot use either, because
+a second `tkinter.Tk` is a second Tcl interpreter and no widget, variable,
+font or image crosses between two of them. It uses `TkEditorPanel` instead,
+which builds the editor where it is told — in a window of its own over the
+application, or in an area of a window the application already has — and
+returns at once.
 
 Everything this backend takes from the core is reached through `core`, which
 is `edit_cfg_json` itself, in the same way as the rest of this package.
@@ -1287,6 +1629,106 @@ default. Calling it again once the session has ended does nothing.
 
 - `ask_about_unsaved` - Whether the user is asked before a buffer that
   holds something unsaved is dropped.
+
+<a id="edit_cfg_json_tk.tk_panel.TkEditor"></a>
+
+## TkEditor Objects
+
+```python
+class TkEditor()
+```
+
+Tkinter user interface backend for an edit model.
+
+The class has the single method that `EditorBackend` asks for, and
+deliberately nothing else: everything worth testing without a display
+lives in the core.
+
+<a id="edit_cfg_json_tk.tk_panel.TkEditor.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__() -> None
+```
+
+Create a backend that has not shown a model yet.
+
+<a id="edit_cfg_json_tk.tk_panel.TkEditor.run_editor"></a>
+
+#### run\_editor
+
+```python
+def run_editor(model: core.EditModel) -> None
+```
+
+Show the model in a Tk window until the user closes it.
+
+The widgets are held for as long as the window lives, because they
+own the fields that the Tcl variables belong to. The window is this
+backend's own, which is why closing the editor destroys it.
+
+The close button of the window is made to do what the Close button of
+the editor does, so that the one way out that is not a widget of the
+editor cannot be the one way out that drops the changes without
+asking. It is set on this window and on no other: the editor never
+touches a window it did not create.
+
+This is for an application that has no Tk of its own yet, because a
+second `tkinter.Tk` is a second Tcl interpreter and nothing can be
+shared between the two. An application that already runs Tk gets the
+entry point of section 8.2 of `doc/design.md` instead, which mounts
+the editor in a widget that application owns.
+
+**Arguments**:
+
+- `model` - Model to show and to edit.
+
+<a id="edit_cfg_json_tk.tk_panel.edit"></a>
+
+#### edit
+
+```python
+def edit(config: Config,
+         *,
+         descriptions: Optional[core.Descriptions] = None,
+         in_file: Optional[PathOrStr] = None,
+         loader: Optional[core.ConfigLoader] = None,
+         out_file: Optional[PathOrStr] = None,
+         policy: core.LoadPolicy = core.DEFAULT_POLICY,
+         settings: core.SettingsSource = core.Settings(),
+         stderr_file: TextIO = sys.stderr) -> Optional[Config]
+```
+
+Edit one configuration in a Tk window, and return what was saved.
+
+This is `edit_cfg_json.edit` with this package's backend filled in, for
+an application that has already chosen Tkinter. Everything it does is
+documented there.
+
+**Arguments**:
+
+- `config` - Configuration object to edit. It is never modified.
+- `descriptions` - What the application says about the members it
+  declares, or None when it says nothing.
+- `in_file` - File to read, or None to start from the declared defaults.
+- `loader` - How this application constructs its configuration, or None for
+  a class the editor can construct on its own.
+- `out_file` - File to write, or None to write the input file.
+- `policy` - What to do about declared keys the input file does not hold.
+- `settings` - What this application has already decided about key
+  combinations and file names, or a callable that answers with it.
+- `stderr_file` - Stream used for user-facing diagnostics.
+  
+
+**Returns**:
+
+  The configuration object that was written, or None when nothing was.
+  
+
+**Raises**:
+
+- `ConfigLoadError` - The input file cannot be opened for editing.
 
 <a id="edit_cfg_json_tk.tk_scope"></a>
 

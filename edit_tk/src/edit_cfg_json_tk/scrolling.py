@@ -171,6 +171,41 @@ class ScrollingArea(NamedTuple):
     body: tkinter.Frame
     """The frame to build the scrolling part of the editor in."""
 
+    canvas: tkinter.Canvas
+    """The canvas that the body is on, which is what really scrolls.
+
+    It is kept because a search has to bring what it found into view, and a
+    canvas is the only thing here that can be told where to look: the body is
+    an item on it, and the scrollbar beside it only reports.
+    """
+
+
+def bring_into_view(area: ScrollingArea, widget: tkinter.Misc) -> None:
+    """Scroll the body until one widget inside it is in view.
+
+    Nothing is scrolled while the widget is already in view, which is what
+    keeps a search that is being typed from moving the window on every key:
+    the answer usually stays where it is, and a view that jumped to put it at
+    the top each time would be harder to read than one that stands still.
+
+    Tk lays the widgets out inside a frame only when it next has nothing else
+    to do, so the layout is asked for before anything is measured: a container
+    that has just been opened has no place on the window until then.
+
+    Args:
+        area: The scrolling part of the editor.
+        widget: Widget inside its body to bring into view.
+    """
+    area.canvas.update_idletasks()
+    height = area.body.winfo_reqheight()
+    if height <= 0:
+        return
+    place = (widget.winfo_rooty() - area.body.winfo_rooty()) / height
+    first, last = area.canvas.yview()
+    if first <= place <= last:
+        return
+    area.canvas.yview_moveto(min(max(place, 0.0), 1.0))
+
 
 def scrolling_body(parent: tkinter.Misc, scope: KeyScope) -> ScrollingArea:
     """Return the frame that the scrolling part of the editor is built in.
@@ -187,7 +222,8 @@ def scrolling_body(parent: tkinter.Misc, scope: KeyScope) -> ScrollingArea:
             the mouse wheel is bound.
 
     Returns:
-        The frame to pack, and the frame to build in.
+        The frame to pack, the frame to build in, and the canvas that a search
+        tells where to look.
     """
     area = tkinter.Frame(parent)
     canvas = tkinter.Canvas(area, highlightthickness=0)
@@ -201,4 +237,4 @@ def scrolling_body(parent: tkinter.Misc, scope: KeyScope) -> ScrollingArea:
     body.bind('<Configure>', _fit_body(canvas=canvas, body=body))
     canvas.bind('<Configure>', _fit_width(canvas=canvas, item=item))
     _bind_wheel(scope=scope, canvas=canvas)
-    return ScrollingArea(area=area, body=body)
+    return ScrollingArea(area=area, body=body, canvas=canvas)

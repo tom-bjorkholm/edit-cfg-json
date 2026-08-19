@@ -14,9 +14,9 @@ import pytest
 from edit_cfg_json import EditModel
 from edit_cfg_json_tk.tk_editor import EditorWidgets, EXPLAIN_TEXT
 from example.e01_flat_config import FlatConfig
-from .helpers import DESCRIBED_LABELS, DESCRIPTIONS, FakeFlag, \
-    FLAT_DOCSTRING, FLAT_SUMMARY, HIDDEN_LABELS, NoDocConfig, real_press, \
-    real_texts, real_ticks, stub_editor, stub_keys, stub_press, stub_texts
+from .helpers import DESCRIBED_LABELS, DESCRIPTIONS, FLAT_DOCSTRING, \
+    FLAT_SUMMARY, HIDDEN_LABELS, NoDocConfig, real_press, real_texts, \
+    real_tick, stub_editor, stub_flag, stub_keys, stub_press, stub_texts
 
 
 def _described_stub() -> EditorWidgets:
@@ -123,8 +123,7 @@ def test_stub_tick_follows(stub_tk: None) -> None:
     """
     _ = stub_tk
     _described_stub()
-    assert len(FakeFlag.created) == 1
-    tick = FakeFlag.created[0]
+    tick = stub_flag(EXPLAIN_TEXT)
     assert tick.get()
     stub_press(EXPLAIN_TEXT)
     assert not tick.get()
@@ -142,15 +141,15 @@ def test_stub_tick_after_key(stub_tk: None) -> None:
     _ = stub_tk
     _described_stub()
     stub_keys()['<F1>']()
-    assert not FakeFlag.created[0].get()
+    assert not stub_flag(EXPLAIN_TEXT).get()
     assert stub_texts(packed_only=True) == HIDDEN_LABELS
 
 
 def test_real_tick_follows(root_or_skip: tkinter.Tk) -> None:
     """Test the real tick-box is ticked while the explanations are shown."""
     _described_real(root_or_skip)
-    assert real_ticks(root_or_skip) == [True]
+    assert real_tick(root_or_skip, EXPLAIN_TEXT)
     real_press(root_or_skip, EXPLAIN_TEXT)
-    assert real_ticks(root_or_skip) == [False]
+    assert not real_tick(root_or_skip, EXPLAIN_TEXT)
     real_press(root_or_skip, EXPLAIN_TEXT)
-    assert real_ticks(root_or_skip) == [True]
+    assert real_tick(root_or_skip, EXPLAIN_TEXT)

@@ -60,7 +60,8 @@ def test_stub_default_keys(stub_tk: None) -> None:
     stub_editor(EditModel(FlatConfig()))
     assert set(stub_keys()) == {'<Control-q>', '<Control-r>', '<F5>',
                                 '<Control-s>', '<Control-Shift-S>', '<F12>',
-                                '<F1>', '<Control-g>', *WHEEL_SEQUENCES}
+                                '<F1>', '<Control-g>', '<Control-f>', '<F3>',
+                                *WHEEL_SEQUENCES}
 
 
 def test_real_default_keys(root_or_skip: tkinter.Tk) -> None:
@@ -70,6 +71,7 @@ def test_real_default_keys(root_or_skip: tkinter.Tk) -> None:
                                        '<Key-F5>', '<Control-Key-s>',
                                        '<Control-Shift-Key-S>', '<Key-F12>',
                                        '<Key-F1>', '<Control-Key-g>',
+                                       '<Control-Key-f>', '<Key-F3>',
                                        *REAL_WHEEL_SEQUENCES}
 
 

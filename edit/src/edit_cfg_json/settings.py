@@ -89,23 +89,6 @@ WRONG_EXTENSION = ('File {name} does not have the {extension} extension '
                    'that this application uses for its configuration.')
 """Message of the refusal of a file name an enforced extension forbids."""
 
-RESERVED_KEYS = ('ctrl+f', 'f3')
-"""Key combinations that no default of this editor takes, for later use.
-
-Finding a member of a configuration that does not fit a window is something
-this editor is likely to be asked for, and `ctrl+f` opens a search everywhere
-while `f3` finds the next one. An action added later is an added attribute of
-`ActionSettings` and breaks no application, but a *key* that moved would break
-every user who had learnt it, so the two are kept free from the start rather
-than taken back afterwards.
-
-Nothing here refuses these keys to an application: which combinations its own
-user interface has already taken is the application's to say, and section 9 of
-`doc/design.md` is about the editor not overruling that. What this refuses is
-the editor's own defaults taking them, which is what the test of this module
-checks.
-"""
-
 
 def _duplicate(key: str, first: str, second: str) -> ValueError:
     """Return the refusal of one key combination given to two actions.
@@ -122,8 +105,13 @@ def _duplicate(key: str, first: str, second: str) -> ValueError:
                                            second=second))
 
 
+# One attribute per action of the editor, which is what section 9.1 of
+# doc/design.md asks for: an action the application says nothing about keeps
+# the default of its own attribute, so there is no merge rule to explain, and
+# a misspelled action name is refused where the mistake was made. That is what
+# makes the count of these more than pylint's default.
 @dataclass(frozen=True)
-class ActionSettings:
+class ActionSettings:  # pylint: disable=too-many-instance-attributes
     """The key combinations of every action of the editor.
 
     One attribute per action, so that an action the application says nothing
@@ -234,11 +222,37 @@ class ActionSettings:
     `ctrl+t` for the same reason `explain` has a control letter as well, which
     is a terminal or a keyboard that does not deliver a function key, and `t`
     because the tree is what this action is about. It is deliberately not
-    `ctrl+f`: that is find everywhere, and this editor is likely to want one.
-    See `RESERVED_KEYS`.
+    `ctrl+f`, which is the `find` action below.
 
     An application whose configuration has no list and no dict in it is never
     offered this action at all, because there would be nothing for it to do.
+    """
+
+    find: tuple[str, ...] = ('ctrl+f',)
+    """Keys that put the cursor in the field a search is typed into.
+
+    `ctrl+f` because it is what opens a search everywhere else, and it was kept
+    free from the first version of this editor for exactly this action: an
+    action added later is an added attribute here and breaks no application,
+    but a *key* that moved would break every user who had learnt it, and no
+    version number protects a habit.
+
+    It puts the cursor in the field rather than asking a question, because the
+    field is part of the editor and stays: a user who has found one member and
+    wants another comes back to text that is already there.
+    """
+
+    find_next: tuple[str, ...] = ('f3',)
+    """Keys that go to the next node the search reaches.
+
+    `f3` because it is what finds the next one everywhere else, and it was kept
+    free for this action beside `ctrl+f` and for the same reason.
+
+    A function key is the one a keyboard or a terminal is most likely not to
+    deliver, and this action is reached without it in both backends: this one
+    is the whole tuple rather than the second of two because the control
+    letters a field does not claim are spoken for, and because the button and
+    the command palette entry are what an action without its key still has.
     """
 
     def __post_init__(self) -> None:

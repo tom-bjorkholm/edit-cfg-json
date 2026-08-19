@@ -24,7 +24,8 @@ from textual.command import DiscoveryHit, Hit, Hits, Provider
 from textual.screen import Screen
 from textual.widgets import Footer, Header
 import edit_cfg_json as core
-from edit_cfg_json_textual.textual_panel import EditorCommand, ModelPanel
+from edit_cfg_json_textual.textual_panel import ModelPanel
+from edit_cfg_json_textual.textual_words import EditorCommand
 
 
 class EditorCommands(Provider):

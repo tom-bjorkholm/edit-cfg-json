@@ -15,6 +15,7 @@ from edit_cfg_json.buffer import EditBuffer
 from edit_cfg_json.descriptions import Descriptions, class_docstring, \
     class_summary
 from edit_cfg_json.elements import declared_values
+from edit_cfg_json.finding import FindOptions, FindReport
 from edit_cfg_json.loader import ConfigLoader, ConfigSource
 from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.rows import MemberRow
@@ -270,6 +271,85 @@ class EditModel:
         """
         self._buffer.open_all(no_more_folding=no_more_folding)
         self._ask_subtrees()
+
+    @property
+    def search(self) -> FindReport:
+        """Return what is being looked for and what it has reached.
+
+        What is being looked for is state of this model, by the same rule as
+        the explain toggle and the fold state: two user interfaces of one
+        application that were looking for different things, or looking in
+        different places, would each be right about a different search. Every
+        row says whether it is the node the search has got to, which is where
+        a backend reads that.
+        """
+        return self._buffer.search
+
+    def find(self, text: str) -> bool:
+        """Look for one text, starting again from the top.
+
+        A configuration of any interesting size does not fit a window, so the
+        node a user wants is often one they cannot see. What is found has to be
+        reachable, so every folded container hiding it is opened; bringing the
+        row into view and giving its field the focus are each backend's, since
+        that is where the two toolkits differ.
+
+        Args:
+            text: What to look for, empty to look for nothing at all, which is
+                what a cleared field means.
+
+        Returns:
+            Whether a container was opened, which is what says that the rows a
+            backend shows are not the rows it was showing.
+        """
+        return self._reached(self._buffer.find(text))
+
+    def set_find_options(self, options: FindOptions) -> bool:
+        """Change how the text is compared, and look again from the top.
+
+        Whether the path is looked in, whether the value is, whether the case
+        has to match and whether the whole of one of them has to are four
+        independent answers, and they belong to this model for the same reason
+        the text does.
+
+        Args:
+            options: How the text being looked for is compared with one node.
+
+        Returns:
+            Whether a container was opened, as above.
+        """
+        return self._reached(self._buffer.set_find_options(options))
+
+    def find_next(self) -> bool:
+        """Go to the next node the text reaches, wrapping round to the first.
+
+        A text that reaches nothing leaves the search where it was, which is
+        at no node at all, and the line about the search says so.
+
+        Returns:
+            Whether a container was opened, as above.
+        """
+        return self._reached(self._buffer.find_next())
+
+    def _reached(self, opened: bool) -> bool:
+        """Ask the objects about themselves where a search opened something.
+
+        Opening a container is the moment at which the user is looking at it,
+        which is why folding one asks the objects there about themselves
+        (section 4.7), and a search that opens one is that same moment. A
+        search that opened nothing has changed how much of nothing is shown
+        and asks nothing.
+
+        Args:
+            opened: Whether a container was opened to reach what was found.
+
+        Returns:
+            That same answer, which is what a backend lays out its rows again
+            for.
+        """
+        if opened:
+            self._ask_subtrees()
+        return opened
 
     def _ask_subtrees(self, path: ConfigPath = ()) -> None:
         """Say what the objects at or inside one node are on their own.

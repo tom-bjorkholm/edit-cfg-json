@@ -25,9 +25,11 @@ from edit_cfg_json.descriptions import Descriptions
 from edit_cfg_json.elements import NOT_EXTENDABLE, NOT_MOVABLE, \
     NOT_REMOVABLE, checked_key, grown, kept_order, moved_paths, object_added, \
     object_moved, object_removed, refused, shrunk, swapped
+from edit_cfg_json.finding import FindOptions, FindReport, FindState, \
+    find_report, matched, next_match
 from edit_cfg_json.leaf_value import text_as_value
 from edit_cfg_json.loading import LoadReport
-from edit_cfg_json.rows import MemberRow, built_rows, stamped
+from edit_cfg_json.rows import BufferState, MemberRow, built_rows, stamped
 from edit_cfg_json.tree import assembled, member_values, starts_folded
 from edit_cfg_json.validation import SubtreeAnswer
 
@@ -84,6 +86,11 @@ def _renamed(rows: Mapping[ConfigPath, MemberRow],
     return kept
 
 
+# Each attribute is one independent thing the buffer holds: the rows, what is
+# folded, what each object said about itself and what is being looked for. The
+# methods are what a backend does to it, and every one of them is one action of
+# the editor. See the same two disables on the model, which passes them on.
+# pylint: disable-next=too-many-instance-attributes,too-many-public-methods
 class EditBuffer:
     """The values of one configuration as the user is editing them.
 
@@ -127,6 +134,7 @@ class EditBuffer:
         self._defaults = defaults
         self._folded: set[ConfigPath] = set()
         self._folds_new = True
+        self._search = FindState()
         self._answers: dict[ConfigPath, SubtreeAnswer] = {}
         self._rows: dict[ConfigPath, MemberRow] = {}
         self._rebuild(config=config, previous={},
@@ -282,6 +290,110 @@ class EditBuffer:
         self._folds_new = self._folds_new and not no_more_folding
         self._stamp()
 
+    @property
+    def search(self) -> FindReport:
+        """Return what is being looked for and what it has reached."""
+        return find_report(state=self._search, matches=self._matches())
+
+    def find(self, text: str) -> bool:
+        """Look for one text, starting again from the top.
+
+        Args:
+            text: What to look for, empty to look for nothing at all.
+
+        Returns:
+            Whether a container was opened to make what was found reachable,
+            which is what says that the objects there are worth asking about.
+        """
+        return self._restarted(self._search._replace(text=text))
+
+    def set_find_options(self, options: FindOptions) -> bool:
+        """Change how the text is compared, and look again from the top.
+
+        Args:
+            options: How the text being looked for is compared with one node.
+
+        Returns:
+            Whether a container was opened, as above.
+        """
+        return self._restarted(self._search._replace(options=options))
+
+    def find_next(self) -> bool:
+        """Go to the next node the text reaches, wrapping round to the first.
+
+        Returns:
+            Whether a container was opened, as above.
+        """
+        return self._reached(next_match(matches=self._matches(),
+                                        reached=self._search.reached))
+
+    def _matches(self) -> tuple[ConfigPath, ...]:
+        """Return the path of every node the search is about, in row order."""
+        return matched(rows=self._rows, state=self._search)
+
+    def _restarted(self, state: FindState) -> bool:
+        """Look from the top with what is being looked for now.
+
+        A new text and a changed comparison both start again rather than going
+        on from where the last search got to: what the earlier search reached
+        was reached by asking a different question.
+
+        Args:
+            state: What is being looked for and how.
+
+        Returns:
+            Whether a container was opened.
+        """
+        self._search = state._replace(reached=None)
+        return self._reached(next_match(self._matches(), reached=None))
+
+    def _reached(self, path: Optional[ConfigPath]) -> bool:
+        """Make one node the one the search is at, and open what hides it.
+
+        Args:
+            path: Node the search has got to, or None when it is at none.
+
+        Returns:
+            Whether a container was opened to make that node reachable.
+        """
+        self._search = self._search._replace(reached=path)
+        opened = self._opened(path)
+        self._stamp()
+        return opened
+
+    def _opened(self, path: Optional[ConfigPath]) -> bool:
+        """Open every folded container that hides one node.
+
+        What is found has to be reachable, so a match inside a folded
+        container opens it. The node itself is left as it is: a container that
+        was folded and is what the search reached is shown as the row the user
+        presses to open it, exactly as it is shown to anyone else.
+
+        Args:
+            path: Node to make reachable, or None when there is none.
+
+        Returns:
+            Whether anything was opened.
+        """
+        if path is None:
+            return False
+        hiding = self._folded & {path[:depth]
+                                 for depth in range(1, len(path))}
+        self._folded -= hiding
+        return bool(hiding)
+
+    def _refind(self) -> None:
+        """Keep the node the search reached, unless a rebuild took it away.
+
+        A validation pass can leave the model with other rows than it had, and
+        one that is still there may hold a value a validator rewrote into
+        something the text no longer reaches. Either way the search is at no
+        node, and the next one it is asked for is the first from the top.
+        """
+        if self._search.reached is not None and \
+                self._search.reached not in self._matches():
+            self._search = self._search._replace(reached=None)
+
     def add_element(self, config: Config, path: ConfigPath,
                     key: str = '') -> None:
         """Put one more element into a node that holds them.
@@ -427,8 +539,23 @@ class EditBuffer:
         self._folded = {moved.get(other, other) for other in self._folded}
         self._answers = {moved.get(other, other): answer
                          for other, answer in self._answers.items()}
+        self._follow(moved)
         self._rebuild(config=config, members=self.values(),
                       previous=_renamed(rows=self._rows, moved=moved))
+
+    def _follow(self, moved: Mapping[ConfigPath, ConfigPath]) -> None:
+        """Take the node the search is at along when its path changes.
+
+        An element of a list is addressed by where it is, so an element that
+        changed places is the same node under another path. A search that had
+        got to it stays at it, exactly as the fold of a container does.
+
+        Args:
+            moved: The new path of every node whose path has changed.
+        """
+        reached = self._search.reached
+        if reached is not None and reached in moved:
+            self._search = self._search._replace(reached=moved[reached])
 
     def take_subtrees(self,
                       answers: Mapping[ConfigPath, SubtreeAnswer]) -> None:
@@ -496,6 +623,7 @@ class EditBuffer:
                                 refreshing=refreshing)
         self._fold_new(previous)
         self._forget_gone()
+        self._refind()
         self._stamp()
 
     def _forget_gone(self) -> None:
@@ -532,8 +660,10 @@ class EditBuffer:
 
     def _stamp(self) -> None:
         """Write the state of the buffer onto the rows it is about."""
-        self._rows = stamped(rows=self._rows, folded=self._folded,
-                             answers=self._answers)
+        self._rows = stamped(rows=self._rows,
+                             state=BufferState(folded=self._folded,
+                                               answers=self._answers,
+                                               found=self._search.reached))
 
     def _hold_again(self, path: ConfigPath) -> None:
         """Bring every container that one node is inside up to date with it.

@@ -18,7 +18,7 @@ from collections.abc import Sequence
 from typing import Optional
 import sys
 from edit_cfg_json import run_cli
-from edit_cfg_json_tk.tk_editor import TkEditor
+from edit_cfg_json_tk.tk_panel import TkEditor
 from edit_cfg_json_tk.tk_version import TkVersionReporter
 
 PROGRAM = 'edit-cfg-json-tk'

@@ -71,6 +71,10 @@
   * [BODY\_ID](#edit_cfg_json_textual.textual_look.BODY_ID)
   * [MEMBERS\_ID](#edit_cfg_json_textual.textual_look.MEMBERS_ID)
   * [SAVE\_AS\_ID](#edit_cfg_json_textual.textual_look.SAVE_AS_ID)
+  * [FIND\_ID](#edit_cfg_json_textual.textual_look.FIND_ID)
+  * [FIND\_LINE\_ID](#edit_cfg_json_textual.textual_look.FIND_LINE_ID)
+  * [FIND\_NEXT\_ID](#edit_cfg_json_textual.textual_look.FIND_NEXT_ID)
+  * [FIND\_TICK\_IDS](#edit_cfg_json_textual.textual_look.FIND_TICK_IDS)
   * [ASK\_BOX\_ID](#edit_cfg_json_textual.textual_look.ASK_BOX_ID)
   * [NAME\_CLASS](#edit_cfg_json_textual.textual_look.NAME_CLASS)
   * [VALUE\_CLASS](#edit_cfg_json_textual.textual_look.VALUE_CLASS)
@@ -84,6 +88,11 @@
   * [ELEMENT\_CLASS](#edit_cfg_json_textual.textual_look.ELEMENT_CLASS)
   * [TYPE\_MARK](#edit_cfg_json_textual.textual_look.TYPE_MARK)
   * [ANSWER\_CLASS](#edit_cfg_json_textual.textual_look.ANSWER_CLASS)
+  * [FIND\_AREA\_CLASS](#edit_cfg_json_textual.textual_look.FIND_AREA_CLASS)
+  * [FIND\_ROW\_CLASS](#edit_cfg_json_textual.textual_look.FIND_ROW_CLASS)
+  * [FIND\_TICK\_CLASS](#edit_cfg_json_textual.textual_look.FIND_TICK_CLASS)
+  * [FIND\_NEXT\_CLASS](#edit_cfg_json_textual.textual_look.FIND_NEXT_CLASS)
+  * [FIND\_LINE\_CLASS](#edit_cfg_json_textual.textual_look.FIND_LINE_CLASS)
   * [NAME\_WIDTH](#edit_cfg_json_textual.textual_look.NAME_WIDTH)
   * [FOLD\_WIDTH](#edit_cfg_json_textual.textual_look.FOLD_WIDTH)
   * [TREE\_INDENT](#edit_cfg_json_textual.textual_look.TREE_INDENT)
@@ -124,26 +133,7 @@
     * [close](#edit_cfg_json_textual.textual_screen.ModelScreen.close)
     * [compose](#edit_cfg_json_textual.textual_screen.ModelScreen.compose)
 * [edit\_cfg\_json\_textual.textual\_panel](#edit_cfg_json_textual.textual_panel)
-  * [CLOSE\_COMMAND](#edit_cfg_json_textual.textual_panel.CLOSE_COMMAND)
-  * [VALIDATE\_COMMAND](#edit_cfg_json_textual.textual_panel.VALIDATE_COMMAND)
-  * [SAVE\_COMMAND](#edit_cfg_json_textual.textual_panel.SAVE_COMMAND)
-  * [SAVE\_AS\_COMMAND](#edit_cfg_json_textual.textual_panel.SAVE_AS_COMMAND)
-  * [EXPLAIN\_COMMAND](#edit_cfg_json_textual.textual_panel.EXPLAIN_COMMAND)
-  * [HIDE\_COMMAND](#edit_cfg_json_textual.textual_panel.HIDE_COMMAND)
-  * [VALIDATE\_HELP](#edit_cfg_json_textual.textual_panel.VALIDATE_HELP)
-  * [SAVE\_HELP](#edit_cfg_json_textual.textual_panel.SAVE_HELP)
-  * [SAVE\_AS\_HELP](#edit_cfg_json_textual.textual_panel.SAVE_AS_HELP)
-  * [EXPLAIN\_HELP](#edit_cfg_json_textual.textual_panel.EXPLAIN_HELP)
-  * [FOLD\_COMMAND](#edit_cfg_json_textual.textual_panel.FOLD_COMMAND)
-  * [OPEN\_COMMAND](#edit_cfg_json_textual.textual_panel.OPEN_COMMAND)
-  * [FOLD\_HELP](#edit_cfg_json_textual.textual_panel.FOLD_HELP)
-  * [SAVE\_AS\_PROMPT](#edit_cfg_json_textual.textual_panel.SAVE_AS_PROMPT)
-  * [SAVE\_AS\_LEAVE](#edit_cfg_json_textual.textual_panel.SAVE_AS_LEAVE)
   * [EDITOR\_ACTIONS](#edit_cfg_json_textual.textual_panel.EDITOR_ACTIONS)
-  * [EditorCommand](#edit_cfg_json_textual.textual_panel.EditorCommand)
-    * [name](#edit_cfg_json_textual.textual_panel.EditorCommand.name)
-    * [help\_text](#edit_cfg_json_textual.textual_panel.EditorCommand.help_text)
-    * [run](#edit_cfg_json_textual.textual_panel.EditorCommand.run)
   * [ModelPanel](#edit_cfg_json_textual.textual_panel.ModelPanel)
     * [DEFAULT\_CSS](#edit_cfg_json_textual.textual_panel.ModelPanel.DEFAULT_CSS)
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_panel.ModelPanel.__init__)
@@ -159,9 +149,50 @@
     * [action\_save](#edit_cfg_json_textual.textual_panel.ModelPanel.action_save)
     * [action\_explain](#edit_cfg_json_textual.textual_panel.ModelPanel.action_explain)
     * [action\_fold](#edit_cfg_json_textual.textual_panel.ModelPanel.action_fold)
+    * [action\_find](#edit_cfg_json_textual.textual_panel.ModelPanel.action_find)
+    * [action\_find\_next](#edit_cfg_json_textual.textual_panel.ModelPanel.action_find_next)
     * [on\_button\_pressed](#edit_cfg_json_textual.textual_panel.ModelPanel.on_button_pressed)
     * [action\_save\_as](#edit_cfg_json_textual.textual_panel.ModelPanel.action_save_as)
     * [check\_action](#edit_cfg_json_textual.textual_panel.ModelPanel.check_action)
+* [edit\_cfg\_json\_textual.textual\_find](#edit_cfg_json_textual.textual_find)
+  * [FIND\_LABEL\_TEXT](#edit_cfg_json_textual.textual_find.FIND_LABEL_TEXT)
+  * [FIND\_NEXT\_TEXT](#edit_cfg_json_textual.textual_find.FIND_NEXT_TEXT)
+  * [FIND\_TICK\_LABELS](#edit_cfg_json_textual.textual_find.FIND_TICK_LABELS)
+  * [FindRow](#edit_cfg_json_textual.textual_find.FindRow)
+    * [\_\_init\_\_](#edit_cfg_json_textual.textual_find.FindRow.__init__)
+    * [compose](#edit_cfg_json_textual.textual_find.FindRow.compose)
+    * [focus\_field](#edit_cfg_json_textual.textual_find.FindRow.focus_field)
+    * [find\_next](#edit_cfg_json_textual.textual_find.FindRow.find_next)
+    * [show](#edit_cfg_json_textual.textual_find.FindRow.show)
+    * [on\_input\_changed](#edit_cfg_json_textual.textual_find.FindRow.on_input_changed)
+    * [on\_input\_submitted](#edit_cfg_json_textual.textual_find.FindRow.on_input_submitted)
+    * [on\_input\_blurred](#edit_cfg_json_textual.textual_find.FindRow.on_input_blurred)
+    * [on\_checkbox\_changed](#edit_cfg_json_textual.textual_find.FindRow.on_checkbox_changed)
+    * [on\_button\_pressed](#edit_cfg_json_textual.textual_find.FindRow.on_button_pressed)
+* [edit\_cfg\_json\_textual.textual\_words](#edit_cfg_json_textual.textual_words)
+  * [CLOSE\_COMMAND](#edit_cfg_json_textual.textual_words.CLOSE_COMMAND)
+  * [VALIDATE\_COMMAND](#edit_cfg_json_textual.textual_words.VALIDATE_COMMAND)
+  * [SAVE\_COMMAND](#edit_cfg_json_textual.textual_words.SAVE_COMMAND)
+  * [SAVE\_AS\_COMMAND](#edit_cfg_json_textual.textual_words.SAVE_AS_COMMAND)
+  * [EXPLAIN\_COMMAND](#edit_cfg_json_textual.textual_words.EXPLAIN_COMMAND)
+  * [HIDE\_COMMAND](#edit_cfg_json_textual.textual_words.HIDE_COMMAND)
+  * [VALIDATE\_HELP](#edit_cfg_json_textual.textual_words.VALIDATE_HELP)
+  * [SAVE\_HELP](#edit_cfg_json_textual.textual_words.SAVE_HELP)
+  * [SAVE\_AS\_HELP](#edit_cfg_json_textual.textual_words.SAVE_AS_HELP)
+  * [EXPLAIN\_HELP](#edit_cfg_json_textual.textual_words.EXPLAIN_HELP)
+  * [FOLD\_COMMAND](#edit_cfg_json_textual.textual_words.FOLD_COMMAND)
+  * [OPEN\_COMMAND](#edit_cfg_json_textual.textual_words.OPEN_COMMAND)
+  * [FOLD\_HELP](#edit_cfg_json_textual.textual_words.FOLD_HELP)
+  * [FIND\_COMMAND](#edit_cfg_json_textual.textual_words.FIND_COMMAND)
+  * [FIND\_NEXT\_COMMAND](#edit_cfg_json_textual.textual_words.FIND_NEXT_COMMAND)
+  * [FIND\_HELP](#edit_cfg_json_textual.textual_words.FIND_HELP)
+  * [FIND\_NEXT\_HELP](#edit_cfg_json_textual.textual_words.FIND_NEXT_HELP)
+  * [SAVE\_AS\_PROMPT](#edit_cfg_json_textual.textual_words.SAVE_AS_PROMPT)
+  * [SAVE\_AS\_LEAVE](#edit_cfg_json_textual.textual_words.SAVE_AS_LEAVE)
+  * [EditorCommand](#edit_cfg_json_textual.textual_words.EditorCommand)
+    * [name](#edit_cfg_json_textual.textual_words.EditorCommand.name)
+    * [help\_text](#edit_cfg_json_textual.textual_words.EditorCommand.help_text)
+    * [run](#edit_cfg_json_textual.textual_words.EditorCommand.run)
 
 <a id="edit_cfg_json_textual.textual_elements"></a>
 
@@ -984,6 +1015,37 @@ then mounted afresh. What is above them is not, so it is not in here.
 
 Identifier of the field that the file to write is typed into.
 
+<a id="edit_cfg_json_textual.textual_look.FIND_ID"></a>
+
+#### FIND\_ID
+
+Identifier of the field that a search is typed into.
+
+The field stays on the screen rather than being a question that is asked and
+gone, because a search is a text that is changed a character at a time with the
+answer moving under it.
+
+<a id="edit_cfg_json_textual.textual_look.FIND_LINE_ID"></a>
+
+#### FIND\_LINE\_ID
+
+Identifier of the widget that says what the search has reached.
+
+<a id="edit_cfg_json_textual.textual_look.FIND_NEXT_ID"></a>
+
+#### FIND\_NEXT\_ID
+
+Identifier of the control that goes to the next member found.
+
+<a id="edit_cfg_json_textual.textual_look.FIND_TICK_IDS"></a>
+
+#### FIND\_TICK\_IDS
+
+Identifiers of the four controls that say where a search looks.
+
+They are in the order of the members of `edit_cfg_json.FindOptions`, which is
+what pairs each control with the answer it shows.
+
 <a id="edit_cfg_json_textual.textual_look.ASK_BOX_ID"></a>
 
 #### ASK\_BOX\_ID
@@ -1068,6 +1130,40 @@ question screens does with its own name too.
 #### ANSWER\_CLASS
 
 Style class of the row of controls that answers a question.
+
+<a id="edit_cfg_json_textual.textual_look.FIND_AREA_CLASS"></a>
+
+#### FIND\_AREA\_CLASS
+
+Style class of the whole search, which is its row and its line.
+
+<a id="edit_cfg_json_textual.textual_look.FIND_ROW_CLASS"></a>
+
+#### FIND\_ROW\_CLASS
+
+Style class of the row that holds the field and the four controls.
+
+<a id="edit_cfg_json_textual.textual_look.FIND_TICK_CLASS"></a>
+
+#### FIND\_TICK\_CLASS
+
+Style class of one control that says where a search looks.
+
+<a id="edit_cfg_json_textual.textual_look.FIND_NEXT_CLASS"></a>
+
+#### FIND\_NEXT\_CLASS
+
+Style class of the control that goes to the next member found.
+
+It is measured with the controls that change how many elements a node holds,
+because it is the same kind of thing — a control on a row that has other things
+on it — and it is a class of its own because it is not one of those.
+
+<a id="edit_cfg_json_textual.textual_look.FIND_LINE_CLASS"></a>
+
+#### FIND\_LINE\_CLASS
+
+Style class of the line that says what the search has reached.
 
 <a id="edit_cfg_json_textual.textual_look.NAME_WIDTH"></a>
 
@@ -1698,113 +1794,6 @@ also keeps the two backends from each holding the same block of twenty
 imported names, which is a duplication with nothing to factor out, since
 neither backend may import the other.
 
-<a id="edit_cfg_json_textual.textual_panel.CLOSE_COMMAND"></a>
-
-#### CLOSE\_COMMAND
-
-Name of the action that ends the editing session.
-
-It is Close and not Quit because this editor may be one panel of an
-application that goes on running, and because closing writes nothing of its
-own: it is the "cancel" of the design, exactly as the button of the Tk
-backend that carries the same word.
-
-<a id="edit_cfg_json_textual.textual_panel.VALIDATE_COMMAND"></a>
-
-#### VALIDATE\_COMMAND
-
-Name of the command palette entry that validates the buffer.
-
-<a id="edit_cfg_json_textual.textual_panel.SAVE_COMMAND"></a>
-
-#### SAVE\_COMMAND
-
-Name of the command palette entry that writes the output file.
-
-<a id="edit_cfg_json_textual.textual_panel.SAVE_AS_COMMAND"></a>
-
-#### SAVE\_AS\_COMMAND
-
-Name of the command palette entry that chooses a file and writes it.
-
-<a id="edit_cfg_json_textual.textual_panel.EXPLAIN_COMMAND"></a>
-
-#### EXPLAIN\_COMMAND
-
-What the explain action is called while the explanations are hidden.
-
-<a id="edit_cfg_json_textual.textual_panel.HIDE_COMMAND"></a>
-
-#### HIDE\_COMMAND
-
-What it is called while they are shown.
-
-The name says what the next press does rather than what the action is about,
-because "Explain" beside explanations that are already there reads as an offer
-to do something that has been done. The Tk backend answers the same question
-with a tick-box, which is what a button row can do and a footer cannot.
-
-<a id="edit_cfg_json_textual.textual_panel.VALIDATE_HELP"></a>
-
-#### VALIDATE\_HELP
-
-What the command palette says the validate entry does.
-
-<a id="edit_cfg_json_textual.textual_panel.SAVE_HELP"></a>
-
-#### SAVE\_HELP
-
-What the command palette says the save entry does.
-
-<a id="edit_cfg_json_textual.textual_panel.SAVE_AS_HELP"></a>
-
-#### SAVE\_AS\_HELP
-
-What the command palette says the save as entry does.
-
-<a id="edit_cfg_json_textual.textual_panel.EXPLAIN_HELP"></a>
-
-#### EXPLAIN\_HELP
-
-What the command palette says the explain entry does.
-
-<a id="edit_cfg_json_textual.textual_panel.FOLD_COMMAND"></a>
-
-#### FOLD\_COMMAND
-
-What the fold action is called while at least one container is open.
-
-<a id="edit_cfg_json_textual.textual_panel.OPEN_COMMAND"></a>
-
-#### OPEN\_COMMAND
-
-What it is called once every container is folded.
-
-The name says what the next press does, exactly as the explain action above
-is named. The Tk backend answers the same question by renaming its button.
-
-<a id="edit_cfg_json_textual.textual_panel.FOLD_HELP"></a>
-
-#### FOLD\_HELP
-
-What the command palette says the fold entry does.
-
-<a id="edit_cfg_json_textual.textual_panel.SAVE_AS_PROMPT"></a>
-
-#### SAVE\_AS\_PROMPT
-
-What the screen that asks for the output file says.
-
-<a id="edit_cfg_json_textual.textual_panel.SAVE_AS_LEAVE"></a>
-
-#### SAVE\_AS\_LEAVE
-
-What that screen says while there is a key that leaves it.
-
-The key is named from the settings and not written into the sentence,
-because an application that took `escape` for itself would otherwise be
-telling its users to press a key that does nothing.
-
 <a id="edit_cfg_json_textual.textual_panel.EDITOR_ACTIONS"></a>
 
 #### EDITOR\_ACTIONS
@@ -1816,34 +1805,6 @@ gets it, and it goes on doing that while a modal screen is up: the dispatch of
 a priority binding walks the whole chain and not the part of it above the last
 modal screen. So a modal screen is only really modal if the editor says that
 its own actions do not apply while it is there.
-
-<a id="edit_cfg_json_textual.textual_panel.EditorCommand"></a>
-
-## EditorCommand Objects
-
-```python
-class EditorCommand(NamedTuple)
-```
-
-One action of the editor, as a command palette offers it.
-
-<a id="edit_cfg_json_textual.textual_panel.EditorCommand.name"></a>
-
-#### name
-
-What the palette calls it, which says what the next press will do.
-
-<a id="edit_cfg_json_textual.textual_panel.EditorCommand.help_text"></a>
-
-#### help\_text
-
-What the palette says it does.
-
-<a id="edit_cfg_json_textual.textual_panel.EditorCommand.run"></a>
-
-#### run
-
-What choosing it in the palette runs.
 
 <a id="edit_cfg_json_textual.textual_panel.ModelPanel"></a>
 
@@ -2106,6 +2067,26 @@ def action_fold() -> None
 
 Fold every container away, or open every one of them.
 
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.action_find"></a>
+
+#### action\_find
+
+```python
+def action_find() -> None
+```
+
+Put the cursor in the field that a search is typed into.
+
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.action_find_next"></a>
+
+#### action\_find\_next
+
+```python
+def action_find_next() -> None
+```
+
+Go to the next node the search reaches, and type in it.
+
 <a id="edit_cfg_json_textual.textual_panel.ModelPanel.on_button_pressed"></a>
 
 #### on\_button\_pressed
@@ -2157,4 +2138,395 @@ be able to see that the rest of the editor is waiting for them.
 
   None while the question is open and the action is the editor's
   own, and True for every other action at every other time.
+
+<a id="edit_cfg_json_textual.textual_find"></a>
+
+# edit\_cfg\_json\_textual.textual\_find
+
+The search of a Textual editor: a field, four controls and a line.
+
+A configuration of any interesting size does not fit a terminal, so the member
+a user wants is often one they cannot see. This is what they look for it with,
+and it is a part of the editor rather than a screen that is asked and gone: a
+search is a text that is changed a character at a time, with the answer moving
+under it as it is typed, and four controls beside it that change what it
+reaches.
+
+What is being looked for, how it is compared and which node the search has got
+to are all state of the model, so nothing here decides any of it. What is here
+is the widgets, the words on them and the wiring: this backend's half of a
+question the core answers.
+
+It is a widget of its own rather than a part of the panel, so that the messages
+of its field stop here: the panel writes every field change into the model as
+the value of a member, and this field is no member of the configuration.
+
+Everything this backend takes from the core is reached through `core`, which is
+`edit_cfg_json` itself. A backend may use the public API of the core and
+nothing else, and naming it at every call site is what makes that visible.
+
+<a id="edit_cfg_json_textual.textual_find.FIND_LABEL_TEXT"></a>
+
+#### FIND\_LABEL\_TEXT
+
+Text of the label beside the field that a search is typed into.
+
+<a id="edit_cfg_json_textual.textual_find.FIND_NEXT_TEXT"></a>
+
+#### FIND\_NEXT\_TEXT
+
+Label of the control that goes to the next member the search reaches.
+
+A control as well as a key, because a function key is the one thing a terminal
+is most likely not to deliver, and one word because the row it shares is the
+row that the field needs the width of.
+
+<a id="edit_cfg_json_textual.textual_find.FIND_TICK_LABELS"></a>
+
+#### FIND\_TICK\_LABELS
+
+The label of each control that says where a search looks.
+
+They are in the order of the members of `edit_cfg_json.FindOptions`, and so are
+the identifiers they are created with, because that is what pairs each control
+with the answer it shows. A member added there without a label here is refused
+where the controls are created rather than being left out in silence.
+
+Two of them are one or two characters, which is what keeps the whole row one
+line: the width of that row is what the field is for. What each of them means
+is `edit_cfg_json.FIND_OPTION_HELP`, given to the tooltip that the toolkit
+offers for exactly this, because what a control means is the core's to say.
+
+<a id="edit_cfg_json_textual.textual_find.FindRow"></a>
+
+## FindRow Objects
+
+```python
+class FindRow(Widget)
+```
+
+The search of one Textual editor, as the widgets and what they do.
+
+It holds the model and asks it, rather than reporting keystrokes to the
+panel, because what a search is belongs to the model and this is the one
+widget of this backend that is about a search at all. What it hands back to
+the panel is the two things only the panel can do: show the rows again when
+a container was opened, and bring what was found into view.
+
+<a id="edit_cfg_json_textual.textual_find.FindRow.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(model: core.EditModel, *, searched: Callable[[bool], None],
+             reached: Callable[[], None]) -> None
+```
+
+Remember the model and what the panel does about a search.
+
+**Arguments**:
+
+- `model` - Model that the search is of.
+- `searched` - What the panel does once a search has run, told whether a
+  container was opened to reach what was found.
+- `reached` - What the panel does to go into what was found, which is
+  bringing it into view and typing in it.
+
+<a id="edit_cfg_json_textual.textual_find.FindRow.compose"></a>
+
+#### compose
+
+```python
+def compose() -> ComposeResult
+```
+
+Create the field, the four controls and the line below them.
+
+The line is under the row rather than beside it, because what it says
+about a search that has nowhere left to look is a sentence, and the row
+it would share is the row whose width the field wants.
+
+<a id="edit_cfg_json_textual.textual_find.FindRow.focus_field"></a>
+
+#### focus\_field
+
+```python
+def focus_field() -> None
+```
+
+Put the cursor in the field that a search is typed into.
+
+What is in the field is left exactly as it is, because a user who has
+found one member and wants another comes back to text that is worth
+changing rather than text that is worth typing again.
+
+<a id="edit_cfg_json_textual.textual_find.FindRow.find_next"></a>
+
+#### find\_next
+
+```python
+def find_next() -> None
+```
+
+Go to the next node the search reaches, and type in it.
+
+<a id="edit_cfg_json_textual.textual_find.FindRow.show"></a>
+
+#### show
+
+```python
+def show() -> None
+```
+
+Say what the search has reached, and nothing when nothing is.
+
+The line is hidden while there is nothing to say, because a blank line
+under the search row would otherwise be there in every session that
+nobody searched in.
+
+<a id="edit_cfg_json_textual.textual_find.FindRow.on_input_changed"></a>
+
+#### on\_input\_changed
+
+```python
+def on_input_changed(event: Input.Changed) -> None
+```
+
+Look for what the field holds, and show what that reached.
+
+Every change of the text is a search, because that is what a field
+which stays on the screen is for: the answer moves under it as it is
+typed, and nothing has to be pressed to ask. The cursor stays here,
+unlike the one that a press of Enter or of the control moves.
+
+The message is stopped because the editor underneath writes every field
+change into the model as the value of a member, and this field is no
+member of the configuration.
+
+<a id="edit_cfg_json_textual.textual_find.FindRow.on_input_submitted"></a>
+
+#### on\_input\_submitted
+
+```python
+def on_input_submitted(event: Input.Submitted) -> None
+```
+
+Go into the node that the search has already reached.
+
+This is the press that says the user has found what they were looking
+for and wants to edit it, which is why it moves the cursor and typing
+does not.
+
+<a id="edit_cfg_json_textual.textual_find.FindRow.on_input_blurred"></a>
+
+#### on\_input\_blurred
+
+```python
+def on_input_blurred(event: Input.Blurred) -> None
+```
+
+Keep leaving this field to this widget.
+
+The editor underneath asks the model about the member whose field was
+left, and this field is no member of the configuration.
+
+<a id="edit_cfg_json_textual.textual_find.FindRow.on_checkbox_changed"></a>
+
+#### on\_checkbox\_changed
+
+```python
+def on_checkbox_changed(event: Checkbox.Changed) -> None
+```
+
+Look again with the places and the comparison as they are now.
+
+<a id="edit_cfg_json_textual.textual_find.FindRow.on_button_pressed"></a>
+
+#### on\_button\_pressed
+
+```python
+def on_button_pressed(event: Button.Pressed) -> None
+```
+
+Go to the next node the search reaches.
+
+The message is stopped for the same reason the others are: the editor
+underneath reads every press for a control of a row, and this is none.
+
+<a id="edit_cfg_json_textual.textual_words"></a>
+
+# edit\_cfg\_json\_textual.textual\_words
+
+What this backend calls the actions of the editor, and what it asks.
+
+The names a footer and a command palette give each action, what the palette
+says each of them does, and the words of the one question this backend puts in
+a field of its own. They are here rather than in the modules that build the
+widgets, for the same reason the identifiers and the sizes are in
+`textual_look`: they are what one has to read to know what the editor says, and
+two of them are read by two modules — the panel binds the keys and names them,
+and the screen offers the same names in the palette.
+
+Section 9.6 of `doc/design.md` is why wording is a backend's own and not a
+setting of the core: an application that wants its own words is asking for
+translation, which is a larger thing and should be designed as one.
+
+<a id="edit_cfg_json_textual.textual_words.CLOSE_COMMAND"></a>
+
+#### CLOSE\_COMMAND
+
+Name of the action that ends the editing session.
+
+It is Close and not Quit because this editor may be one panel of an
+application that goes on running, and because closing writes nothing of its
+own: it is the "cancel" of the design, exactly as the button of the Tk
+backend that carries the same word.
+
+<a id="edit_cfg_json_textual.textual_words.VALIDATE_COMMAND"></a>
+
+#### VALIDATE\_COMMAND
+
+Name of the command palette entry that validates the buffer.
+
+<a id="edit_cfg_json_textual.textual_words.SAVE_COMMAND"></a>
+
+#### SAVE\_COMMAND
+
+Name of the command palette entry that writes the output file.
+
+<a id="edit_cfg_json_textual.textual_words.SAVE_AS_COMMAND"></a>
+
+#### SAVE\_AS\_COMMAND
+
+Name of the command palette entry that chooses a file and writes it.
+
+<a id="edit_cfg_json_textual.textual_words.EXPLAIN_COMMAND"></a>
+
+#### EXPLAIN\_COMMAND
+
+What the explain action is called while the explanations are hidden.
+
+<a id="edit_cfg_json_textual.textual_words.HIDE_COMMAND"></a>
+
+#### HIDE\_COMMAND
+
+What it is called while they are shown.
+
+The name says what the next press does rather than what the action is about,
+because "Explain" beside explanations that are already there reads as an offer
+to do something that has been done. The Tk backend answers the same question
+with a tick-box, which is what a button row can do and a footer cannot.
+
+<a id="edit_cfg_json_textual.textual_words.VALIDATE_HELP"></a>
+
+#### VALIDATE\_HELP
+
+What the command palette says the validate entry does.
+
+<a id="edit_cfg_json_textual.textual_words.SAVE_HELP"></a>
+
+#### SAVE\_HELP
+
+What the command palette says the save entry does.
+
+<a id="edit_cfg_json_textual.textual_words.SAVE_AS_HELP"></a>
+
+#### SAVE\_AS\_HELP
+
+What the command palette says the save as entry does.
+
+<a id="edit_cfg_json_textual.textual_words.EXPLAIN_HELP"></a>
+
+#### EXPLAIN\_HELP
+
+What the command palette says the explain entry does.
+
+<a id="edit_cfg_json_textual.textual_words.FOLD_COMMAND"></a>
+
+#### FOLD\_COMMAND
+
+What the fold action is called while at least one container is open.
+
+<a id="edit_cfg_json_textual.textual_words.OPEN_COMMAND"></a>
+
+#### OPEN\_COMMAND
+
+What it is called once every container is folded.
+
+The name says what the next press does, exactly as the explain action above
+is named. The Tk backend answers the same question by renaming its button.
+
+<a id="edit_cfg_json_textual.textual_words.FOLD_HELP"></a>
+
+#### FOLD\_HELP
+
+What the command palette says the fold entry does.
+
+<a id="edit_cfg_json_textual.textual_words.FIND_COMMAND"></a>
+
+#### FIND\_COMMAND
+
+Name of the entry that puts the cursor in the field of the search.
+
+<a id="edit_cfg_json_textual.textual_words.FIND_NEXT_COMMAND"></a>
+
+#### FIND\_NEXT\_COMMAND
+
+Name of the entry that goes to the next member the search reaches.
+
+<a id="edit_cfg_json_textual.textual_words.FIND_HELP"></a>
+
+#### FIND\_HELP
+
+What the command palette says the find entry does.
+
+<a id="edit_cfg_json_textual.textual_words.FIND_NEXT_HELP"></a>
+
+#### FIND\_NEXT\_HELP
+
+What the command palette says the find next entry does.
+
+<a id="edit_cfg_json_textual.textual_words.SAVE_AS_PROMPT"></a>
+
+#### SAVE\_AS\_PROMPT
+
+What the screen that asks for the output file says.
+
+<a id="edit_cfg_json_textual.textual_words.SAVE_AS_LEAVE"></a>
+
+#### SAVE\_AS\_LEAVE
+
+What that screen says while there is a key that leaves it.
+
+The key is named from the settings and not written into the sentence,
+because an application that took `escape` for itself would otherwise be
+telling its users to press a key that does nothing.
+
+<a id="edit_cfg_json_textual.textual_words.EditorCommand"></a>
+
+## EditorCommand Objects
+
+```python
+class EditorCommand(NamedTuple)
+```
+
+One action of the editor, as a command palette offers it.
+
+<a id="edit_cfg_json_textual.textual_words.EditorCommand.name"></a>
+
+#### name
+
+What the palette calls it, which says what the next press will do.
+
+<a id="edit_cfg_json_textual.textual_words.EditorCommand.help_text"></a>
+
+#### help\_text
+
+What the palette says it does.
+
+<a id="edit_cfg_json_textual.textual_words.EditorCommand.run"></a>
+
+#### run
+
+What choosing it in the palette runs.
 

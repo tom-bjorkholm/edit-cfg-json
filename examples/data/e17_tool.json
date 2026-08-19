@@ -8,6 +8,12 @@
                 "f1",
                 "ctrl+g"
             ],
+            "find": [
+                "ctrl+f"
+            ],
+            "find_next": [
+                "f3"
+            ],
             "fold": [
                 "f2",
                 "ctrl+t"

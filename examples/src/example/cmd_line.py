@@ -92,6 +92,21 @@ needs besides the JSON is the application's to know. There is no command line
 option for that either — the two examples that have one build it in Python,
 where the argument that has to be bound is.
 
+`--find TEXT` stands in for typing that text into the search field of the
+editor, and `--find-next` for pressing the key that goes to the next member the
+search reaches. It is repeatable, because a key is. A search opens every folded
+container that hides what it found, so it is applied after `--fold`, which is
+also the order a user would work in: fold what is in the way, then look for
+something.
+
+Where a search looks is four independent answers, and the editor puts a
+tick-box on each of them. `--find-in path`, `--find-in value`, `--find-in both`
+and `--find-in neither` stand in for the first two boxes together,
+`--find-case` for the third and `--find-whole` for the fourth. The defaults
+are what the editor opens with: both places, the case ignored, and a part of
+one of them enough. `--find-in neither` is the one combination that can never
+reach a member, and the editor says so rather than saying nothing matched.
+
 `--toggle-explain` stands in for the key that shows or hides the explanatory
 text, in the same way that `--set` stands in for a user typing into a field. It
 is a key, so it can be pressed more than once: the editor starts with the
@@ -166,8 +181,8 @@ from dataclasses import fields, replace
 from typing import Optional
 from config_as_json import Config
 from edit_cfg_json import ActionSettings, ConfigLoadError, ConfigLoader, \
-    Descriptions, DumpEditor, EditModel, EditorBackend, Settings, \
-    add_file_options, edit, named_policy, text_path
+    Descriptions, DumpEditor, EditModel, EditorBackend, FindOptions, \
+    Settings, add_file_options, edit, named_policy, text_path
 
 UI_DUMP = 'dump'
 """Value of `--ui` that prints the model instead of opening a window."""
@@ -222,6 +237,26 @@ KEY_FORM_MESSAGE = ('--key needs one of {names} followed by =combinations, '
                     'and got {value}.')
 """Message used to refuse a `--key` that names no action of the editor."""
 
+FIND_IN_PATH = 'path'
+"""Value of `--find-in` that looks in the path of a member alone."""
+
+FIND_IN_VALUE = 'value'
+"""Value of `--find-in` that looks in the value of a member alone."""
+
+FIND_IN_BOTH = 'both'
+"""Value of `--find-in` that looks in either of them, which is the default."""
+
+FIND_IN_NEITHER = 'neither'
+"""Value of `--find-in` that looks in nothing at all.
+
+It is the one combination of the two tick-boxes that can never reach a member,
+and it is offered here because the editor says what it is rather than saying
+that no member matched.
+"""
+
+FIND_IN_CHOICES = (FIND_IN_PATH, FIND_IN_VALUE, FIND_IN_BOTH, FIND_IN_NEITHER)
+"""Every accepted value of `--find-in`."""
+
 
 def _create_parser(example_name: str) -> argparse.ArgumentParser:
     """Return the argument parser that all example programs share.
@@ -231,9 +266,10 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
 
     Returns:
         A parser for `--ui`, `--set`, `--add`, `--remove`, `--move`,
-        `--toggle-explain`, `--toggle-fold`, `--fold`, `--policy`, `--save`,
-        `--extension`, `--enforce-extension`, `--key`, `-i/--input` and
-        `-o/--output`.
+        `--toggle-explain`, `--toggle-fold`, `--fold`, `--find`,
+        `--find-next`, `--find-in`, `--find-case`, `--find-whole`,
+        `--policy`, `--save`, `--extension`, `--enforce-extension`, `--key`,
+        `-i/--input` and `-o/--output`.
     """
     # The last three of those are added by the core, in `add_file_options`,
     # because the programs the core installs have the very same three options
@@ -261,6 +297,19 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
     parser.add_argument('--move', action='append', dest='moves',
                         metavar='PATH=up|down',
                         help='Move one element of a list. Repeatable.')
+    parser.add_argument('--find', default='', metavar='TEXT',
+                        help='Look for one text, as typing in the search '
+                             'field does.')
+    parser.add_argument('--find-next', action='count', default=0,
+                        help='Press the find next key. Repeatable, as a key '
+                             'is.')
+    parser.add_argument('--find-in', choices=FIND_IN_CHOICES,
+                        default=FIND_IN_BOTH,
+                        help='Where a search looks. Both by default.')
+    parser.add_argument('--find-case', action='store_true',
+                        help='Match the case of the text looked for.')
+    parser.add_argument('--find-whole', action='store_true',
+                        help='Match the whole path or value, not a part.')
     parser.add_argument('--extension', default=None,
                         help='File name extension this application uses.')
     parser.add_argument('--enforce-extension', action='store_true',
@@ -419,6 +468,43 @@ def _apply_folds(parser: argparse.ArgumentParser, model: EditModel,
             parser.error(NOT_A_CONTAINER_MESSAGE.format(name=name))
 
 
+def _find_options(parsed: argparse.Namespace) -> FindOptions:
+    """Return where one command line says a search looks.
+
+    The four tick-boxes of the editor are three options here, because the two
+    that say which text is looked in are the two halves of one answer and are
+    read together: `both` is the default the editor opens with, and `neither`
+    is the combination that can never reach a member.
+
+    Args:
+        parsed: Parsed command line of one example run.
+
+    Returns:
+        How the text being looked for is compared with one member.
+    """
+    looked = parsed.find_in
+    return FindOptions(in_path=looked in (FIND_IN_PATH, FIND_IN_BOTH),
+                       in_value=looked in (FIND_IN_VALUE, FIND_IN_BOTH),
+                       cased=parsed.find_case, whole=parsed.find_whole)
+
+
+def _apply_search(model: EditModel, parsed: argparse.Namespace) -> None:
+    """Look for what one command line asks for, and press find next.
+
+    Where the search looks is set before the text is typed, because changing
+    one of those answers starts the search again from the top: setting them
+    afterwards would throw the find next presses away.
+
+    Args:
+        model: Model to look in.
+        parsed: Parsed command line of one example run.
+    """
+    model.set_find_options(_find_options(parsed))
+    model.find(parsed.find)
+    for _ in range(parsed.find_next):
+        model.find_next()
+
+
 def _action_keys(parser: argparse.ArgumentParser, values: Optional[list[str]],
                  given: ActionSettings) -> ActionSettings:
     """Return the key combinations that every `--key` of one run asks for.
@@ -494,12 +580,14 @@ class StandInUser:  # pylint: disable=too-few-public-methods
     itself, which is what gives a load its policy and its change reporting.
     `--set` stands in for a user typing, `--add`, `--remove` and `--move` for a
     user pressing the controls of a row, `--toggle-explain` for a user pressing
-    the explain key, and `--save` for a user pressing Save, and every one of
-    those happens in an editor that is already open.
+    the explain key, `--find` for a user typing into the search field, and
+    `--save` for a user pressing Save, and every one of those happens in an
+    editor that is already open.
 
     How many elements there are is changed before anything is typed, so that a
-    value inside a new element can be set in the same run. That is also the
-    order a user would work in.
+    value inside a new element can be set in the same run, and the search comes
+    after the folding, because a search opens what hides what it found. That is
+    also the order a user would work in.
 
     Saving is here rather than in `DumpEditor` for the same reason as the other
     two: the dump prints the model it is given, and pressing Save is not
@@ -543,6 +631,7 @@ class StandInUser:  # pylint: disable=too-few-public-methods
             model.toggle_fold_all()
         _apply_folds(parser=self._parser, model=model,
                      folds=self._parsed.folds)
+        _apply_search(model=model, parsed=self._parsed)
         for _ in range(self._parsed.save):
             model.save()
         self._inner.run_editor(model)

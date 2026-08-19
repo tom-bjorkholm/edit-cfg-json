@@ -16,7 +16,7 @@ from textual.widgets import Input, Label, Static
 from edit_cfg_json import EditModel
 from edit_cfg_json_textual.textual_editor import EditorApp
 from edit_cfg_json_textual.textual_look import NAME_CLASS, SUBTREE_CLASS, \
-    fold_id, member_id, subtree_id, value_id
+    VALUE_CLASS, fold_id, member_id, subtree_id, value_id
 from example.e09_nested_config import CourseExportConfig, TableOutputConfig
 from example.e10_config_containers import CourseReportsConfig
 from .helpers import ROOMY_SIZE, description_of, index_of, wrong_of
@@ -141,10 +141,16 @@ def test_object_is_a_node() -> None:
 
 
 async def _fields() -> int:
-    """Return how many editable fields the application created."""
+    """Return how many editable fields of members the application created.
+
+    The fields are asked for by their style class and not by their type,
+    because the editor has a second kind of field now: the one that a search is
+    typed into, which is no member of the configuration.
+    """
     app = _nested_app()
     async with app.run_test(size=ROOMY_SIZE):
-        return len(app.query(Input))
+        return len([field for field in app.query(Input)
+                    if field.has_class(VALUE_CLASS)])
 
 
 def test_object_has_no_field() -> None:

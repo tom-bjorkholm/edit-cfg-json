@@ -86,6 +86,27 @@ then mounted afresh. What is above them is not, so it is not in here.
 SAVE_AS_ID = 'save_as'
 """Identifier of the field that the file to write is typed into."""
 
+FIND_ID = 'find'
+"""Identifier of the field that a search is typed into.
+
+The field stays on the screen rather than being a question that is asked and
+gone, because a search is a text that is changed a character at a time with the
+answer moving under it.
+"""
+
+FIND_LINE_ID = 'find_line'
+"""Identifier of the widget that says what the search has reached."""
+
+FIND_NEXT_ID = 'find_next'
+"""Identifier of the control that goes to the next member found."""
+
+FIND_TICK_IDS = ('find_path', 'find_value', 'find_case', 'find_whole')
+"""Identifiers of the four controls that say where a search looks.
+
+They are in the order of the members of `edit_cfg_json.FindOptions`, which is
+what pairs each control with the answer it shows.
+"""
+
 ASK_BOX_ID = 'ask_box'
 """Identifier of the box that holds one question and its answer."""
 
@@ -132,6 +153,26 @@ question screens does with its own name too.
 
 ANSWER_CLASS = 'ask_answer'
 """Style class of the row of controls that answers a question."""
+
+FIND_AREA_CLASS = 'find_area'
+"""Style class of the whole search, which is its row and its line."""
+
+FIND_ROW_CLASS = 'find_row'
+"""Style class of the row that holds the field and the four controls."""
+
+FIND_TICK_CLASS = 'find_tick'
+"""Style class of one control that says where a search looks."""
+
+FIND_NEXT_CLASS = 'find_next_control'
+"""Style class of the control that goes to the next member found.
+
+It is measured with the controls that change how many elements a node holds,
+because it is the same kind of thing — a control on a row that has other things
+on it — and it is a class of its own because it is not one of those.
+"""
+
+FIND_LINE_CLASS = 'find_line_text'
+"""Style class of the line that says what the search has reached."""
 
 NAME_WIDTH = 24
 """Width in cells of the column that holds the member names."""
@@ -216,15 +257,24 @@ PANEL_CSS = '\n'.join(COLOUR_RULES + (
     f'.{NAME_CLASS} {{ width: {NAME_WIDTH}; }}',
     f'.{VALUE_CLASS} {{ width: 1fr; min-width: {LEAST_VALUE_WIDTH}; }}',
     f'.{MARK_CLASS}, .{SUBTREE_CLASS} {{ width: auto; }}',
-    f'.{ELEMENT_CLASS} {{ width: auto; min-width: 0; height: 1;'
-    ' border: none; padding: 0 1; margin: 0; }',
+    f'.{ELEMENT_CLASS}, .{FIND_NEXT_CLASS} {{ width: auto; min-width: 0;'
+    ' height: 1; border: none; padding: 0 1; margin: 0; }',
     f'.{FOLD_CLASS} {{ width: {FOLD_WIDTH}; min-width: {FOLD_WIDTH};'
     ' height: 1; border: none; padding: 0; margin: 0;'
     ' text-align: center; }',
     f'.{DESCRIPTION_CLASS}, .{DIAGNOSTIC_CLASS} {{ width: 1fr; height: auto;'
     f' padding-left: {DESCRIPTION_INDENT}; }}',
     f'#{DOCSTRING_ID}, #{TITLE_ID} {{ width: 1fr; height: auto; }}',
-    f'.{ROW_CLASS} Input {{ height: 1; border: none; padding: 0; }}'))
+    f'.{ROW_CLASS} Input {{ height: 1; border: none; padding: 0; }}',
+    f'.{FIND_AREA_CLASS} {{ height: auto; }}',
+    f'.{FIND_ROW_CLASS} {{ height: 1; }}',
+    f'.{FIND_ROW_CLASS} Label {{ width: auto; }}',
+    f'.{FIND_ROW_CLASS} Input {{ height: 1; border: none; padding: 0;'
+    f' width: 1fr; min-width: {LEAST_VALUE_WIDTH}; }}',
+    f'.{FIND_TICK_CLASS} {{ width: auto; height: 1; border: none;'
+    ' padding: 0 1; margin: 0; }',
+    f'.{FIND_LINE_CLASS} {{ width: 1fr; height: auto;'
+    f' padding-left: {DESCRIPTION_INDENT}; }}'))
 """The width and the height of every part of one member row.
 
 Rows are one cell high, so that the footer stays visible below them. A field

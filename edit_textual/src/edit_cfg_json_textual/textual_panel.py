@@ -21,7 +21,7 @@ neither backend may import the other.
 # MIT License
 
 from collections.abc import Callable, Sequence
-from typing import ClassVar, NamedTuple, Optional
+from typing import ClassVar, Optional
 from config_as_json import Config, ConfigPath
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
@@ -34,6 +34,12 @@ from edit_cfg_json_textual.textual_ask import AskScreen, ConfirmScreen, \
 from edit_cfg_json_textual.textual_elements import ADD_ACTION, ASK_KEY_ID, \
     ASK_KEY_LEAVE, ASK_KEY_PROMPT, EARLIER_ACTION, REMOVE_ACTION, \
     element_button, element_id, offered_actions
+from edit_cfg_json_textual.textual_find import FindRow
+from edit_cfg_json_textual.textual_words import CLOSE_COMMAND, \
+    EXPLAIN_COMMAND, EXPLAIN_HELP, EditorCommand, FIND_COMMAND, FIND_HELP, \
+    FIND_NEXT_COMMAND, FIND_NEXT_HELP, FOLD_COMMAND, FOLD_HELP, HIDE_COMMAND, \
+    OPEN_COMMAND, SAVE_AS_COMMAND, SAVE_AS_HELP, SAVE_AS_LEAVE, \
+    SAVE_AS_PROMPT, SAVE_COMMAND, SAVE_HELP, VALIDATE_COMMAND, VALIDATE_HELP
 from edit_cfg_json_textual.textual_look import BODY_ID, DESCRIPTION_CLASS, \
     DIAGNOSTIC_CLASS, DOCSTRING_ID, FOLD_CLASS, LOAD_ID, MARK_CLASS, \
     MEMBERS_ID, MEMBER_CLASS, NAME_CLASS, PANEL_CSS, ROW_CLASS, SAVE_AS_ID, \
@@ -42,73 +48,8 @@ from edit_cfg_json_textual.textual_look import BODY_ID, DESCRIPTION_CLASS, \
     fold_id, mark_id, member_id, plain_widget, show_emphasis, subtree_id, \
     value_id
 
-CLOSE_COMMAND = 'Close'
-"""Name of the action that ends the editing session.
-
-It is Close and not Quit because this editor may be one panel of an
-application that goes on running, and because closing writes nothing of its
-own: it is the "cancel" of the design, exactly as the button of the Tk
-backend that carries the same word.
-"""
-
-VALIDATE_COMMAND = 'Validate'
-"""Name of the command palette entry that validates the buffer."""
-
-SAVE_COMMAND = 'Save'
-"""Name of the command palette entry that writes the output file."""
-
-SAVE_AS_COMMAND = 'Save as'
-"""Name of the command palette entry that chooses a file and writes it."""
-
-EXPLAIN_COMMAND = 'Explain'
-"""What the explain action is called while the explanations are hidden."""
-
-HIDE_COMMAND = 'Hide explanation'
-"""What it is called while they are shown.
-
-The name says what the next press does rather than what the action is about,
-because "Explain" beside explanations that are already there reads as an offer
-to do something that has been done. The Tk backend answers the same question
-with a tick-box, which is what a button row can do and a footer cannot.
-"""
-
-VALIDATE_HELP = 'Ask the application what it makes of these values'
-"""What the command palette says the validate entry does."""
-
-SAVE_HELP = 'Write these values to the output file'
-"""What the command palette says the save entry does."""
-
-SAVE_AS_HELP = 'Choose the file to write, and write it'
-"""What the command palette says the save as entry does."""
-
-EXPLAIN_HELP = 'Show or hide what the application says about these values'
-"""What the command palette says the explain entry does."""
-
-FOLD_COMMAND = 'Fold all'
-"""What the fold action is called while at least one container is open."""
-
-OPEN_COMMAND = 'Unfold all'
-"""What it is called once every container is folded.
-
-The name says what the next press does, exactly as the explain action above
-is named. The Tk backend answers the same question by renaming its button.
-"""
-
-FOLD_HELP = 'Fold every list and dict away, or open every one of them'
-"""What the command palette says the fold entry does."""
-
-SAVE_AS_PROMPT = 'Save as (Enter writes the file):'
-"""What the screen that asks for the output file says."""
-
-SAVE_AS_LEAVE = 'Save as (Enter writes the file, {key} leaves it):'
-"""What that screen says while there is a key that leaves it.
-
-The key is named from the settings and not written into the sentence,
-because an application that took `escape` for itself would otherwise be
-telling its users to press a key that does nothing.
-"""
-
-EDITOR_ACTIONS = ('close', 'validate', 'save', 'save_as', 'explain', 'fold')
+EDITOR_ACTIONS = ('close', 'validate', 'save', 'save_as', 'explain', 'fold',
+                  'find', 'find_next')
 """The actions of the editor, which a question of its own turns off.
 
 Textual offers a priority binding the key before the widget that has the focus
@@ -119,23 +60,13 @@ its own actions do not apply while it is there.
 """
 
 
-class EditorCommand(NamedTuple):
-    """One action of the editor, as a command palette offers it."""
-
-    name: str
-    """What the palette calls it, which says what the next press will do."""
-
-    help_text: str
-    """What the palette says it does."""
-
-    run: Callable[[], None]
-    """What choosing it in the palette runs."""
-
-
 # The panel is where every widget of the editor and every message about one
 # arrives, which is what having one body for both ways of running the editor
-# means. See the same disable on the model in the core.
-# pylint: disable-next=too-many-public-methods
+# means, and each attribute is one independent thing it has to keep: the model,
+# what the application does when the session ends, whether it has ended, the
+# rows each kind of widget belongs to, the paths they were built for and the
+# search. See the same disables on the model in the core.
+# pylint: disable-next=too-many-public-methods,too-many-instance-attributes
 class ModelPanel(Widget):
     """The whole editor of one edit model, as one widget.
 
@@ -181,6 +112,8 @@ class ModelPanel(Widget):
         self._fold_rows: dict[str, core.MemberRow] = {}
         self._element_rows: dict[str, tuple[core.MemberRow, str]] = {}
         self._built: tuple[ConfigPath, ...] = ()
+        self._find = FindRow(model, searched=self._searched,
+                             reached=self._reach_found)
         self._bind_editor_keys()
 
     @property
@@ -212,7 +145,9 @@ class ModelPanel(Widget):
                 (actions.quit, 'close', CLOSE_COMMAND),
                 (actions.validate, 'validate', VALIDATE_COMMAND),
                 (actions.save, 'save', SAVE_COMMAND),
-                (actions.save_as, 'save_as', SAVE_AS_COMMAND)):
+                (actions.save_as, 'save_as', SAVE_AS_COMMAND),
+                (actions.find, 'find', FIND_COMMAND),
+                (actions.find_next, 'find_next', FIND_NEXT_COMMAND)):
             self._bind(keys=keys, action=action, name=name)
         self._bind_explain()
         self._bind_fold()
@@ -303,6 +238,7 @@ class ModelPanel(Widget):
             yield from self._docstring_widgets()
             yield from self._load_widgets()
             yield Vertical(*self._row_widgets(), id=MEMBERS_ID)
+        yield self._find
         yield plain_widget(core.verdict_text(self._model), VERDICT_ID,
                            emphasis=core.verdict_emphasis(self._model))
         yield plain_widget(core.save_text(self._model), SAVE_ID,
@@ -444,7 +380,10 @@ class ModelPanel(Widget):
                    EditorCommand(SAVE_AS_COMMAND, SAVE_AS_HELP,
                                  self.action_save_as),
                    EditorCommand(self._explain_name(), EXPLAIN_HELP,
-                                 self.action_explain)]
+                                 self.action_explain),
+                   EditorCommand(FIND_COMMAND, FIND_HELP, self.action_find),
+                   EditorCommand(FIND_NEXT_COMMAND, FIND_NEXT_HELP,
+                                 self.action_find_next)]
         if core.can_fold(self._model):
             offered.append(EditorCommand(self._fold_name(), FOLD_HELP,
                                          self.action_fold))
@@ -685,6 +624,56 @@ class ModelPanel(Widget):
         """Fold every container away, or open every one of them."""
         self._model.toggle_fold_all()
         self._show_folding()
+
+    def action_find(self) -> None:
+        """Put the cursor in the field that a search is typed into."""
+        self._find.focus_field()
+
+    def action_find_next(self) -> None:
+        """Go to the next node the search reaches, and type in it."""
+        self._find.find_next()
+
+    def _searched(self, opened: bool) -> None:
+        """Show what a search reached, once the model has been asked.
+
+        What was found is brought into view here as well as when the user goes
+        to it, because a search that is being typed is a search whose answer
+        moves: an answer off the screen would be one the user cannot see. The
+        cursor is left where it is, which is in the field being typed into.
+
+        Args:
+            opened: Whether the search opened a container to reach what it
+                found, which is the one thing that changes which rows are shown
+                and therefore the only reason to show them again.
+        """
+        if opened:
+            self._show_folding()
+        self._show_state()
+        self._show_found(take_focus=False)
+
+    def _reach_found(self) -> None:
+        """Go into what the search reached, which is what a press asks for."""
+        self._show_found(take_focus=True)
+
+    def _show_found(self, take_focus: bool) -> None:
+        """Bring what the search reached into view, and maybe type in it.
+
+        A node that is not edited in a field is only brought into view, since
+        there is nothing there to type into: a list, a dict and a nested
+        configuration object are each edited through the rows below them.
+
+        Args:
+            take_focus: Whether the field of that node is given the keyboard
+                focus, which typing in the search field does not ask for.
+        """
+        for index, row in enumerate(self._model.rows):
+            if not row.found:
+                continue
+            self.query_one(f'#{member_id(index)}',
+                           Vertical).scroll_visible(animate=False)
+            if take_focus and value_id(index) in self._member_rows:
+                self._field(index).focus()
+            return
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Do what the control the user pressed is for.
@@ -937,6 +926,7 @@ class ModelPanel(Widget):
                    emphasis=core.verdict_emphasis(self._model))
         self._told(SAVE_ID, text=core.save_text(self._model),
                    emphasis=core.save_emphasis(self._model))
+        self._find.show()
         for index, row in enumerate(self._model.rows):
             self.query_one(f'#{mark_id(index)}',
                            Static).update(core.row_marks(row))
