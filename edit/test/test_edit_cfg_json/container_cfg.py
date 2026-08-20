@@ -246,8 +246,9 @@ class NestedCfg(SampleCfg):
 class OmitNestedCfg(SampleCfg):
     """A configuration whose optional nested object is left out of JSON.
 
-    Nothing is written for a member that is not there, so it has no row at
-    all, which is what any member the class omits already does.
+    Nothing at all is written for such a member while it holds no object, so
+    the object holding it is what says that the member is there: it has a row
+    like the one written as `null`, and the same pair of controls.
     """
 
     def declare_members(self) -> None:
@@ -268,10 +269,10 @@ class OmitNestedCfg(SampleCfg):
 class NullNestedCfg(SampleCfg):
     """A configuration whose optional nested object is written as null.
 
-    This is the one shape in which a declared nested member has a row and no
-    object: the class does not omit it, so `null` reaches the file. The row
-    says which class is missing and cannot be edited, because no text typed
-    into a field becomes a configuration object.
+    It is the other of the two ways a class writes such a member, beside the
+    one above, and what they have in common is what matters: the row says
+    which class is missing and cannot be edited, because no text typed into a
+    field becomes a configuration object.
     """
 
     def declare_members(self) -> None:
@@ -357,8 +358,9 @@ class OmitInnerCfg(SampleCfg):
     def declare_members(self) -> None:
         """Assign one optional member and one ordinary member.
 
-        The optional one holds a value, so that it is written and has a row:
-        a member that is left out has no row to say anything about it on.
+        The optional one holds a value, so that what is tested about it is
+        what a class says about the members it owns rather than what a member
+        holding nothing says.
         """
         self.note: Optional[str] = 'inner note'
         self.width: int = 4

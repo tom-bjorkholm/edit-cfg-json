@@ -13,12 +13,11 @@ two different files.
 # MIT License
 
 from pathlib import Path
-import json
 import pytest
 from example import e18_declared_types
 from example.e18_declared_types import ReportConfig
 from .helpers import DUMP_TAIL, data_file, dump, head, open_tk_ui, \
-    refused, saved_tail, textual_titles
+    refused, saved_members, textual_titles
 
 HEAD = head(ReportConfig())
 """The lines that every dump of this example begins with."""
@@ -56,11 +55,8 @@ def _dump(capsys: pytest.CaptureFixture[str], *settings: str) -> str:
 def _saved(capsys: pytest.CaptureFixture[str], out_file: Path,
            *settings: str) -> dict[str, object]:
     """Run this example, save it, and return what reached the file."""
-    printed = _dump(capsys, *settings, '-o', str(out_file), '--save')
-    assert printed.endswith(saved_tail(out_file, 'ReportConfig'))
-    written = json.loads(out_file.read_text(encoding='UTF-8'))
-    assert isinstance(written, dict)
-    return written
+    return saved_members(e18_declared_types.main, capsys, out_file,
+                         'ReportConfig', *settings)
 
 
 def test_starts_as_declared(capsys: pytest.CaptureFixture[str]) -> None:
@@ -123,17 +119,28 @@ def test_two_states_two_files(capsys: pytest.CaptureFixture[str],
     assert holding_empty['subtitle'] == ''
 
 
-def test_omitted_not_cleared(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test the member the file leaves out is offered no way to clear it.
+def test_omitted_is_cleared(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the member the file leaves out has the same two states.
 
-    Clearing it would leave it out of the file, and a member that is not in
-    the file has no row, so there would be no control anywhere to give it a
-    value again.
+    Which of the two kinds of optional a member is decides what a save writes
+    and what the line under the member says, and it decides nothing about the
+    controls: the row stays where it is either way.
     """
     assert 'note = Draft, do not circulate' in _dump(capsys)
-    refusal = refused(e18_declared_types.main, capsys, '--ui', 'dump',
-                      '--remove', 'note')
-    assert 'not something that can be removed' in refusal
+    assert 'note: no value (edited)' in _dump(capsys, '--remove', 'note')
+
+
+def test_omitted_leaves_file(capsys: pytest.CaptureFixture[str],
+                             tmp_path: Path) -> None:
+    """Test clearing such a member writes a file with no key for it.
+
+    That is the difference between the two kinds of optional, and it is the
+    only difference: `subtitle` cleared is `null` in the file and `note`
+    cleared is no key at all.
+    """
+    written = _saved(capsys, tmp_path / 'no_note.json', '--remove', 'note')
+    assert 'note' not in written
+    assert written['subtitle'] is None
 
 
 def test_typed_element_added(capsys: pytest.CaptureFixture[str]) -> None:
@@ -173,14 +180,13 @@ def test_file_holds_states(capsys: pytest.CaptureFixture[str]) -> None:
 
     The file holds the mirror of what the class declares, so the empty text
     and the nothing at all have changed places. The member the file does not
-    hold has no row, because the class leaves it out while it holds nothing.
-    The docstring of the class names that member, so what is looked for is a
-    line beginning with its name and not the name anywhere at all.
+    hold at all comes back holding nothing, which is the state that a file
+    with no key for it means, and it has a row to say so on.
     """
     printed = _dump(capsys, '-i', data_file(DATA_NAME))
     assert 'subtitle = \n' in printed
     assert 'footer: no value' in printed
-    assert '\nnote' not in printed
+    assert '\nnote: no value' in printed
 
 
 def test_tk_shows_it(monkeypatch: pytest.MonkeyPatch) -> None:

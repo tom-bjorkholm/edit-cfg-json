@@ -32,9 +32,9 @@ from collections.abc import Mapping
 from enum import Enum
 from typing import NamedTuple, Optional
 import inspect
-from config_as_json import Config, ConfigPath, JsonType, ParseConverter
+from config_as_json import ConfigPath, JsonType, ParseConverter
 from edit_cfg_json.leaf_value import LeafType, kind_text
-from edit_cfg_json.tree import ConfigNode, EVERY_ELEMENT, selects
+from edit_cfg_json.tree import EVERY_ELEMENT, selects
 
 CHOICES_FORM = 'One of: {names}.'
 """What the editor says about the names one enum member accepts."""
@@ -42,11 +42,11 @@ CHOICES_FORM = 'One of: {names}.'
 OPTIONAL_TEXT = 'It may be left out of the file.'
 """What the editor says about a member that the class treats as optional.
 
-`_omit_none_from_json()` is what says which members those are, and section 4.1
-of `doc/design.md` names it as one of the sources of the structure. It is a
-protected name of `config_as_json` and it is read anyway, because nothing else
-answers the question and the answer is worth having: a member that may be left
-out is a member a user may leave empty.
+`_omit_none_from_json()` is what says which members those are, and
+`tree.optional_members` is what reads it: it is a source of the structure by
+section 4.1 of `doc/design.md`, so it is read where the rest of the structure
+is. What is worth saying here is that a member which may be left out is a
+member a user may leave empty.
 """
 
 NOTHING_TEXT = 'It may hold nothing at all.'
@@ -209,45 +209,6 @@ def enum_text(converter: Optional[ParseConverter]) -> str:
     names = CHOICES_FORM.format(names=', '.join(enum_type.__members__))
     return '\n'.join(line for line in [class_summary(enum_type), names]
                      if line)
-
-
-def optional_members(config: Config) -> frozenset[str]:
-    """Return the members that this configuration may leave out of a file.
-
-    The class is asked, because only the class knows: a member that holds
-    nothing right now may be one that has to hold something, and one that holds
-    something may still be allowed to hold nothing. What it is asked is a
-    protected method, for the reason `OPTIONAL_TEXT` gives, and the answer
-    needs no checking here, because constructing the object checked it.
-
-    Args:
-        config: Configuration object being edited. It is not modified.
-
-    Returns:
-        The names of the members that are genuinely optional.
-    """
-    # pylint: disable-next=protected-access
-    return frozenset(config._omit_none_from_json())
-
-
-def optional_paths(nodes: Mapping[ConfigPath, ConfigNode]) \
-        -> frozenset[ConfigPath]:
-    """Return every member of one tree that its own class may leave out.
-
-    A nested configuration object writes its own JSON, so which of its members
-    it may leave out of that JSON is its class's to say and not the class's
-    above it. The paths are absolute, so a member is looked up here by the same
-    path that addresses it everywhere else.
-
-    Args:
-        nodes: Every configuration object of the tree, by its path.
-
-    Returns:
-        The path of every member that the object holding it may omit.
-    """
-    return frozenset(path + (name,) for path, node in nodes.items()
-                     if node.config is not None
-                     for name in optional_members(node.config))
 
 
 class MemberFacts(NamedTuple):

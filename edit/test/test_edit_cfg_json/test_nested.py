@@ -219,13 +219,18 @@ def test_missing_not_edited() -> None:
         model.set_text(path=('inner',), text='{}')
 
 
-def test_omitted_has_no_row() -> None:
-    """Test a member the class leaves out of JSON has no row at all.
+def test_omitted_has_a_row() -> None:
+    """Test a member the class leaves out of JSON has a row all the same.
 
-    Nothing is written for it, so there is nothing for a row to show, which
-    is what any member a class omits already does.
+    Nothing is written for it, so nothing about it reaches the values the rows
+    are built from, and the object it belongs to is asked for it instead: the
+    row says which class is missing, exactly as the row of a member written as
+    `null` does.
     """
-    assert row_paths(EditModel(OmitNestedCfg())) == [('answer',)]
+    model = EditModel(OmitNestedCfg())
+    assert row_paths(model) == [('inner',), ('answer',)]
+    assert row_at(model, ('inner',)).config_type is InnerCfg
+    assert not row_at(model, ('inner',)).foldable
 
 
 def test_missing_object_saved(tmp_path: Path) -> None:

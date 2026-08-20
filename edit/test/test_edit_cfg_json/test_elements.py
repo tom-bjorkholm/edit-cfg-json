@@ -13,14 +13,14 @@ object of the session comes after it.
 from pathlib import Path
 from typing import Optional
 import pytest
-from config_as_json import ConfigPath
+from config_as_json import ConfigPath, JsonType
 from edit_cfg_json import EditModel, model_as_text, row_description
-from edit_cfg_json.elements import BY_KEY_SCOPE, FIXED_KEYS, NO_PATTERN, \
-    UNCHECKED_SCOPE
+from edit_cfg_json.elements import BY_KEY_SCOPE, FIXED_KEYS, NO_DICT_YET, \
+    NO_PATTERN, UNCHECKED_SCOPE
 from .container_cfg import ByKeyCfg, ConfigDictCfg, ConfigListCfg, \
     ElementCfg, EmptyObjectsCfg, NullNestedCfg, OmitNestedCfg, TreeCfg
 from .model_helpers import row_at, row_paths, written
-from .sample_cfg import FlatCfg
+from .sample_cfg import FlatCfg, OmitKindsCfg
 
 TAGS: ConfigPath = ('tags',)
 """Path of the list of `ElementCfg` that a new element can be copied for."""
@@ -37,9 +37,8 @@ OUTPUTS: ConfigPath = ('outputs',)
 OMITTED_JSON = '{"inner": {"width": 4, "height": 6}, "answer": 3}'
 """A file that gives the omitted optional member of a sample an object.
 
-The declared defaults leave it holding none, and a member that holds none and
-is left out of JSON has no row, so this is the only way to reach the one shape
-in which it has one.
+The declared defaults leave it holding none, so this is how the state in which
+it holds one is reached without pressing anything first.
 """
 
 
@@ -264,29 +263,124 @@ def test_optional_cleared() -> None:
     assert not model.dirty
 
 
-def test_omitted_no_row() -> None:
-    """Test a member the class leaves out of the file offers nothing.
+def test_omitted_gets_object() -> None:
+    """Test a member the class leaves out of the file is given an object.
 
-    Such a member has no row at all while it holds no object, which is what
-    any omitted member already does, so there is nothing to press to give it
-    one. A class that writes `null` for it is what makes the member editable
-    that way, and that is the class's decision rather than the editor's.
+    Such a member has a row while it holds no object, because the object it
+    belongs to is asked for the members it left out of the file, and the row
+    offers what any declared member holding no object offers. How the class
+    writes the member is not part of the question.
     """
     model = EditModel(OmitNestedCfg())
-    assert row_paths(model) == [('answer',)]
+    assert row_paths(model) == [('inner',), ('answer',)]
+    assert row_at(model=model, path=('inner',)).offer.extend
+    model.add_element(path=('inner',))
+    assert row_at(model=model, path=('inner',)).is_object
+    assert model.validate().valid
 
 
-def test_omitted_not_cleared() -> None:
-    """Test an omitted member holding an object is not offered a clearing.
+def test_omitted_is_cleared() -> None:
+    """Test an omitted member holding an object is put back to holding none.
 
-    It has a row while it holds one, and clearing it would take that row off
-    the screen for good: the member would then be left out of the file, and
-    the test above says that such a member cannot be given an object again.
+    Clearing it leaves the member out of the file and leaves the row where it
+    was, saying that the member holds no object and offering to give it one
+    again, so nothing is lost by clearing it.
     """
     held = OmitNestedCfg(from_json_data_text=OMITTED_JSON)
     model = EditModel(held)
-    assert row_at(model=model, path=('inner',)).config_type is not None
-    assert not row_at(model=model, path=('inner',)).offer.remove
+    assert row_at(model=model, path=('inner',)).offer.remove
+    model.remove_element(path=('inner',))
+    assert not row_at(model=model, path=('inner',)).is_object
+    assert row_at(model=model, path=('inner',)).offer.extend
+    assert model.validate().valid
+
+
+def test_omitted_gone_saved(tmp_path: Path) -> None:
+    """Test the file of a cleared omitted member holds nothing about it.
+
+    That is the whole difference between the two states of such a member: one
+    of them is a key of the file and the other is no key at all. It is also
+    what the row that stays is for, because the file that holds no key is one
+    the editor has to be able to give the key back.
+    """
+    out_file = tmp_path / 'out.json'
+    model = EditModel(OmitNestedCfg(from_json_data_text=OMITTED_JSON),
+                      out_file=out_file)
+    model.remove_element(path=('inner',))
+    assert model.save().saved
+    assert written(out_file) == {'answer': 3}
+
+
+@pytest.mark.parametrize('name, value', [('note', ''), ('hosts', [])])
+def test_omitted_leaf_grows(name: str, value: JsonType) -> None:
+    """Test a member left out of the file is given the value of its kind.
+
+    How the class writes such a member decides nothing about the two states:
+    it holds nothing, and adding gives it the value of its kind that says no
+    more than which kind it is.
+    """
+    model = EditModel(OmitKindsCfg())
+    assert row_at(model=model, path=(name,)).holds_nothing
+    model.add_element(path=(name,))
+    assert row_at(model=model, path=(name,)).value == value
+    assert model.validate().valid
+
+
+def test_omitted_leaf_cleared(tmp_path: Path) -> None:
+    """Test such a member is put back to holding nothing, and to no key.
+
+    The row stays where it was, which is what makes clearing it safe, and the
+    file it writes then holds nothing at all about the member.
+    """
+    out_file = tmp_path / 'out.json'
+    model = EditModel(OmitKindsCfg(), out_file=out_file)
+    model.add_element(path=('note',))
+    model.remove_element(path=('note',))
+    assert row_at(model=model, path=('note',)).holds_nothing
+    assert model.save().saved
+    assert written(out_file) == {'answer': 3}
+
+
+def test_omitted_dict_refused() -> None:
+    """Test a member holding no dict says why it cannot be given one.
+
+    `Config.check_dict_parse` refuses a dict written for a member whose value
+    is not one, whatever keys it has and even where it has none, so the
+    control would produce a refusal and there is none.
+    """
+    row = row_at(model=EditModel(OmitKindsCfg()), path=('limits',))
+    assert not row.offer.extend
+    assert row.offer.refusal == NO_DICT_YET
+
+
+def test_omitted_dict_fails() -> None:
+    """Test the refusal above is the class's and not this library's rule.
+
+    The empty dict is put into the buffer the only way that is left, which is
+    the buffer of the model itself, and the pass then refuses it. Without the
+    rule above, that is what pressing the control would have produced.
+    """
+    model = EditModel(OmitKindsCfg())
+    model.set_text(path=('legacy',), text='{}')
+    assert not model.validate().valid
+
+
+def test_omitted_no_kind() -> None:
+    """Test a member with no annotation is an ordinary field showing null.
+
+    Nothing says what it would hold, so it has one state rather than two, and
+    it is reachable all the same: the field takes a value and takes the text
+    of `null` back as the JSON it is.
+    """
+    model = EditModel(OmitKindsCfg())
+    row = row_at(model=model, path=('legacy',))
+    assert row.editable
+    assert not row.holds_nothing
+    assert not row.offer.extend and not row.offer.remove
+    model.set_text(path=('legacy',), text='kept')
+    assert row_at(model=model, path=('legacy',)).value == 'kept'
+    model.set_text(path=('legacy',), text='null')
+    assert row_at(model=model, path=('legacy',)).value is None
 
 
 def test_moved_changes_place() -> None:

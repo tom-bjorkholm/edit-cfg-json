@@ -9,6 +9,16 @@ configuration apart into one entry per node, and putting the edit buffer back
 together into the values of one configuration. Where those values come from in
 the first place is `member_values`, which is what the object would write.
 
+**A member that its class leaves out of the file has a row all the same.**
+`_omit_none_from_json()` names the members a class writes nothing at all for
+while they hold nothing, so what one object writes is fewer members than it
+has. Both directions therefore differ from the file by exactly those members:
+`shown_values` adds them back on the way in, each of them holding nothing, so
+that a member with no value has a row to be given one at, and `file_values`
+takes them out again on the way to the class, so that what a validation pass
+is given is the document a save would write. Giving such a member a value is
+what design section 4.9 of `doc/design.md` calls adding.
+
 Every node is addressed by a `config_as_json.ConfigPath`, which is what
 section 4.2 of `doc/design.md` asks for: a member inside a list or a dict needs
 no second way of naming it, and the description mapping already names one that
@@ -83,12 +93,12 @@ ENTRY_FORM = '{count} entry'
 NO_OBJECT_FORM = 'no {name}'
 """What a declared nested member that holds no object says instead.
 
-An `OPTIONAL_MEMBER` is what holds none, and a class that writes it as `null`
-rather than leaving it out gives it a row. The row says which class would be
-there and that there is nothing there, because both of those are worth knowing
-and neither is a value: no text typed into a field becomes a configuration
-object, so the row cannot be edited. Making one is adding, and belongs with
-adding an element of a list.
+An `OPTIONAL_MEMBER` is what holds none, and it has a row whether its class
+writes `null` for it or leaves it out of the file altogether. The row says
+which class would be there and that there is nothing there, because both of
+those are worth knowing and neither is a value: no text typed into a field
+becomes a configuration object, so the row cannot be edited. Making one is
+adding, and belongs with adding an element of a list.
 """
 
 OPEN_AT_MOST = 8
@@ -157,6 +167,88 @@ def member_values(config: Config, stderr_file: TextIO) -> dict[str, JsonType]:
     members = json.loads(config.as_json_string(stderr_file=stderr_file))
     assert isinstance(members, dict)
     return members
+
+
+def shown_values(config: Config,
+                 members: Mapping[str, JsonType]) -> dict[str, JsonType]:
+    """Return the members of one object, the ones it left out included.
+
+    A class writes nothing at all for a member that `_omit_none_from_json()`
+    names while that member holds nothing, so the values one object writes are
+    fewer than the members it has. The ones it left out are added back here,
+    each of them holding nothing, because a member with no row could never be
+    given a value and giving one a value is what design section 4.9 of
+    `doc/design.md` calls adding.
+
+    Which members those are is asked of the object rather than of the class:
+    a member the object holds and did not write is a member it left out, and
+    that needs no protected name to answer. The declaration is asked for
+    whether such a member may be left out at all, which is a different
+    question and is `optional_members` below.
+
+    Args:
+        config: Configuration object these values belong to. It is not
+            modified.
+        members: One JSON space value per member that object wrote.
+
+    Returns:
+        Those values, with nothing at all for every member the object left
+        out of them.
+    """
+    left_out = {name: None for name, value in vars(config).items()
+                if value is None and not name.startswith('_')
+                and name not in members}
+    return {**members, **left_out}
+
+
+def file_values(members: Mapping[str, JsonType],
+                omitted: frozenset[ConfigPath]) -> dict[str, JsonType]:
+    """Return the values of one edit buffer as a file would hold them.
+
+    It is the inverse of what `shown_values` adds, and what it is for is that
+    **what is validated is the document that would be written**. A save writes
+    the object that a validation pass built, and that object leaves such a
+    member out, so a pass given `null` for it would be reaching its verdict
+    about a document that no save of this configuration produces. A class is
+    free to make something of a key it does not find — rules for reading an
+    older file are given the keys of the document before anything else looks
+    at them — so the two documents are not promised to be read alike, and the
+    one that matters is the one the file will hold.
+
+    Every level of the tree is asked, because the class that may leave a
+    member out is the class that owns it: a nested configuration object reads
+    its own JSON.
+
+    Args:
+        members: The edit buffer, as one JSON space value per member.
+        omitted: Every member that the object holding it may leave out, by the
+            absolute path of that member, which `optional_paths` answers with.
+
+    Returns:
+        The values that a file of this configuration would hold.
+    """
+    kept = _kept_values(path=(), value=dict(members), omitted=omitted)
+    assert isinstance(kept, dict)
+    return kept
+
+
+def _kept_values(path: ConfigPath, value: JsonType,
+                 omitted: frozenset[ConfigPath]) -> JsonType:
+    """Return one node without the members that the file leaves out.
+
+    Only a member of a configuration object can be one, so an ordinary
+    dictionary key is never dropped however it is named: the paths asked about
+    are the ones the objects of the tree answered with.
+    """
+    if isinstance(value, list):
+        return [_kept_values(path=path + (str(index),), value=held,
+                             omitted=omitted)
+                for index, held in enumerate(value)]
+    if not isinstance(value, dict):
+        return value
+    return {key: _kept_values(path=path + (key,), value=held, omitted=omitted)
+            for key, held in value.items()
+            if held is not None or path + (key,) not in omitted}
 
 
 def is_container(value: JsonType) -> bool:
@@ -427,6 +519,48 @@ def _unchecked_of(config: Config) -> list[str]:
     return config._unchecked_dicts
 
 
+def optional_members(config: Config) -> frozenset[str]:
+    """Return the members that one configuration may leave out of a file.
+
+    The class is asked, because only the class knows: a member that holds
+    nothing right now may be one that has to hold something, and one that
+    holds something may still be allowed to hold nothing. It is a protected
+    name of `config_as_json` and it is read for the same reason
+    `_unchecked_dicts` is: nothing else answers the question, section 4.1 of
+    `doc/design.md` names it as one of the sources of the structure, and the
+    answer decides what the editor may offer. It needs no checking here,
+    because constructing the object checked it.
+
+    Args:
+        config: Configuration object being edited. It is not modified.
+
+    Returns:
+        The names of the members that are genuinely optional.
+    """
+    # pylint: disable-next=protected-access
+    return frozenset(config._omit_none_from_json())
+
+
+def optional_paths(nodes: Mapping[ConfigPath, ConfigNode]) \
+        -> frozenset[ConfigPath]:
+    """Return every member of one tree that its own class may leave out.
+
+    A nested configuration object writes its own JSON, so which of its members
+    it may leave out of that JSON is its class's to say and not the class's
+    above it. The paths are absolute, so a member is looked up here by the same
+    path that addresses it everywhere else.
+
+    Args:
+        nodes: Every configuration object of the tree, by its path.
+
+    Returns:
+        The path of every member that the object holding it may omit.
+    """
+    return frozenset(path + (name,) for path, node in nodes.items()
+                     if node.config is not None
+                     for name in optional_members(node.config))
+
+
 def owner_path(path: ConfigPath,
                nodes: Mapping[ConfigPath, ConfigNode]) -> ConfigPath:
     """Return the path of the configuration object that owns one node.
@@ -453,9 +587,10 @@ def ordered_names(config: Config,
     editor shows. The JSON document cannot supply it, because
     `config_as_json` writes its keys sorted.
 
-    A member that the class omits from JSON while its value is `None` is
-    not serialized and so gets no row. A serialized name that is not an
-    attribute of the object is appended instead of dropped, so that no
+    A member that the class omits from JSON while its value is `None` is not
+    serialized, and `shown_values` puts it back before this is asked, so it
+    keeps the place its own declaration gives it. A serialized name that is
+    not an attribute of the object is appended instead of dropped, so that no
     member can go missing whatever a validator or a converter did.
 
     Only the members are ordered this way, and a nested configuration object
@@ -486,9 +621,19 @@ def _walked(path: ConfigPath, value: JsonType,
     read in and the order they are shown in. A declared configuration object
     is walked into by the order its own class declares, and every ordinary
     container by the order it holds its values in.
+
+    Such an object is asked for the members it left out of the file as well,
+    because they are members of it and a member with no row could never be
+    given a value. That is done to the value of the node and not only to the
+    walk over it, so that everything reading it afterwards — the children of
+    the row, and what the row holds once they are edited — sees the same
+    members.
     """
-    yield path, value
     node = nodes.get(path)
+    if node is not None and node.config is not None and \
+            isinstance(value, dict):
+        value = shown_values(config=node.config, members=value)
+    yield path, value
     if node is None:
         for child, held in child_values(path=path, value=value):
             yield from _walked(path=child, value=held, nodes=nodes)
@@ -504,6 +649,10 @@ def flat_values(members: Mapping[str, JsonType],
         -> list[tuple[ConfigPath, JsonType]]:
     """Return every node of one configuration, depth first, in row order.
 
+    A member that the configuration leaves out of the file while it holds
+    nothing is one of them, at every level of the tree, because it is a member
+    of that object whether or not the file holds it.
+
     Args:
         members: One JSON space value per serialized member.
         nodes: Every configuration object of the tree, by its path, including
@@ -515,9 +664,10 @@ def flat_values(members: Mapping[str, JsonType],
     """
     root = nodes[()].config
     assert root is not None
+    held = shown_values(config=root, members=members)
     found: list[tuple[ConfigPath, JsonType]] = []
-    for name in ordered_names(config=root, members=members):
-        found.extend(_walked((name,), members[name], nodes))
+    for name in ordered_names(config=root, members=held):
+        found.extend(_walked((name,), held[name], nodes))
     return found
 
 

@@ -242,12 +242,28 @@ say; and the members are ordered as that class declares them and not as the
 sorted dictionary it writes. What does *not* stop at the boundary is the
 description mapping (section 4.3).
 
-**A declared member that holds no object is a row that says so**, where the
-class writes `null` for it. It says which class is missing and cannot be
-edited, because no text typed into a field becomes a configuration object;
-making one is adding, and belongs with adding an element of a list. A class
-that lists such a member in `_omit_none_from_json()` writes nothing for it, and
-it then has no row at all.
+**A declared member that holds no object is a row that says so.** It says which
+class is missing and cannot be edited, because no text typed into a field
+becomes a configuration object; making one is adding, and belongs with adding
+an element of a list.
+
+**A member that its class leaves out of the file has a row all the same.** A
+class that lists a member in `_omit_none_from_json()` writes nothing at all for
+it while it holds nothing, so the values one object writes are fewer than the
+members it has. The ones it left out are the ones it holds and did not write,
+and they are added back, each of them holding nothing. Without that, a file
+with no key for such a member would be exactly the file in which the member
+could never be given a value, and that is the file the application ships: a
+member is optional because it is usually absent.
+
+**So the tree differs from the file in one direction and the buffer in the
+other.** Reading adds those members, holding nothing; writing them back to the
+class takes them out again, so that what a validation pass is given is the
+document a save would write. Passing `null` for one of them instead would be
+reaching a verdict about a document no save of this configuration produces, and
+a class is free to make something of a key it does not find — the rules of
+section 5.3 for reading an older file are given the keys of the document before
+anything else looks at them.
 
 **What a validator inside a nested object refuses is attributed by asking that
 object on its own.** Such an object validates itself while the whole
@@ -466,11 +482,26 @@ than texts in a field:
   says no more than which kind it is.
 
 Those are the two controls that section 4.9 already gives a declared member
-holding no configuration object, and the same rule governs clearing: it is
-offered only where the class writes `null` for the member, because one that
-lists it in `_omit_none_from_json()` leaves it out of the file and then has no
-row at all. Nothing new is added to either backend, to the keys or to the
-command line, which is most of why this is the answer.
+holding no configuration object. Nothing new is added to either backend, to the
+keys or to the command line, which is most of why this is the answer.
+
+**How the class writes such a member decides nothing about the two states.** A
+member written as `null` and a member that `_omit_none_from_json()` leaves out
+of the file have the same pair of states and the same pair of controls; what
+differs is the file, which holds `null` for the first and no key at all for the
+second. Both of them have a row while they hold nothing, for the reason section
+4.1 gives, and the line under the member says which of the two kinds of
+optional it is because that is the difference there is.
+
+**A member declared to hold a dict is the one that cannot be given a value.**
+`Config.check_dict_parse` refuses a dict written for a member whose value is not
+one — *Unexpected dictionary for X in JSON data* — whatever keys it has and even
+where it has none, so the empty dict is the one value of a kind that the editor
+cannot give such a member. It is the first bullet of section 4.9 one step up:
+the same check refuses a new key of an ordinary dict member, and offering the
+control anyway would be offering one that produces a refusal. That member says
+so below its own row instead. A list has no such check, so a member declared to
+hold one is given the empty list and grown from there in the ordinary way.
 
 **A field can therefore never put a member into that state.** Text that parses
 as JSON `null` is kept as the text it is for such a member, exactly as any
@@ -483,6 +514,14 @@ member with no such state reads `null` as the JSON it is, as it always did.
 exactly as it was: an editable field showing `null`. The two states exist only
 where the class said there were two, and a value that the class does not allow
 is a wrong value that the user has to be able to type over.
+
+**A member whose kind nothing says is that same field**, for the same reason
+one step further back: the two states exist only where the editor can make a
+value for one of them, so a member with no annotation at all has one state
+however its class writes it. Such a member is still reachable, which is what
+matters — the field takes a value and takes `null` back again — and the moral
+is the one section 4.1 ends with: annotate the members of a configuration
+class.
 
 ### 4.3 Descriptions and docstrings
 
@@ -817,13 +856,21 @@ value is a configuration object or an ordinary one. A declared member holding
 no configuration object is given one; a member the declaration allows to hold
 nothing is given the value of its kind that says no more than which kind it is
 (section 4.2). The two are the same pair of controls, because they are the
-same question one step apart, and the rule below governs both.
+same question one step apart.
 
-**Such a member is cleared only where the class writes `null` for it.** One
-that lists it in `_omit_none_from_json()` leaves it out of the file and then
-has no row, so a
-member the editor had cleared could never be given a value again. Such a
-member therefore cannot be given its first value through the editor at all.
+**How the class writes such a member decides nothing here.** One that
+`_omit_none_from_json()` names is left out of the file altogether and keeps a
+row all the same (section 4.1), so clearing it is not a way of losing it: the
+row then says that the member holds nothing and offers to give it something
+again. That is what makes such a member reachable at all, and it is the case
+that matters most, because a file the application ships holds no key for a
+member that is usually absent.
+
+**A member the editor cannot make a value for is offered nothing**, and there
+are two of those. A member whose kind nothing says has one state rather than
+two and stays the field it was (section 4.2). A member declared to hold a dict
+says why it cannot be given one, which is the first bullet above: the same
+check refuses the empty dict written for a member that holds none.
 
 **Where an object is added, an object is made.** The tree finds the nested
 configuration objects by walking the real objects (section 4.1), so an element
@@ -1130,8 +1177,9 @@ produced no member consumed a key of the file that nothing here holds, and
 joins the keys the message says saving leaves out — and a key that a member did
 receive is taken *out* of that list, because the comparison put it there and
 the record knows better. A record that did neither supplied a value this
-configuration does not write, which has no row at all, so the message names it
-and its value.
+configuration does not write, and the row such a member has says that it holds
+nothing rather than saying what was supplied, so the message names the value
+and it is named nowhere else.
 
 **The records are versioned, and the fallback is text.** `config_as_json` steps
 `DATA_STRUCTURE_VERSION` whenever what it records changes, and asks a reader to
@@ -2473,6 +2521,29 @@ version rather than assumed.
   4.9's first bullet is the whole reason. This limitation does not apply to
   dicts that will not will not be checked, examples of not checked dicts are
   `list[dict[str,str]]` or dict listed as unchecked dicts.
+- **The empty dict given to a member declared to allow no value.** The same
+  check, one step up: `check_dict_parse` refuses a dict written for a member
+  whose value is not a dict, whatever keys that dict has and even where it has
+  none, so the member cannot be given the empty dict of its kind. It is the
+  one kind of value that the two states of section 4.2 do not reach, and the
+  member says so below its own row rather than offering a control that produces
+  a refusal. A list is not affected: there is no such check for one.
+- **A row only for the omitted members the editor can make a value for.** It
+  would have kept the tree closer to the file, and it would have made the
+  existence of a row a second thing to explain: some members the class leaves
+  out would be there and some would not. Every one of them is a member of the
+  configuration, so every one of them has a row, and the one whose kind nothing
+  says is an ordinary field holding `null` — which is what section 4.2 already
+  says about a member with one state. Sections 4.1 and 4.9.
+- **A raw JSON editing surface for a sub-object whose class cannot be read.**
+  The early sketch of the work that gave the omitted members their rows
+  proposed a text area holding the JSON of one sub-object, for the case where
+  nothing says what the object is. It was not needed for that case: the class
+  of a nested object is named by its declaration, and one the editor cannot
+  construct says so instead of offering a control that refuses every press. It
+  is recorded as a step of its own rather than as a rejection, because what
+  would make it worth having is a different question — an editing surface for
+  a subtree, which nothing in the editor has yet.
 - **The user changing the type metadata of a leaf.** It was an open question
   until the declaration of a member was read, and the one thing it would have
   been useful for — telling a `None` apart from an empty text in an

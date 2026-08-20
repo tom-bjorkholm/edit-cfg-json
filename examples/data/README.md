@@ -164,7 +164,17 @@ with no annotation at all.
 
 | File | What happens |
 | --- | --- |
-| [e18_report.json](e18_report.json) | Opens with the mirror of what the class declares: `subtitle` is an empty text where the class holds nothing, and `footer` holds nothing where the class holds a text. It is what shows that the two states of an optional member survive a round trip, which is the whole reason for telling them apart. The file does not hold `note`, which the class leaves out while it holds nothing, so that member has no row at all. |
+| [e18_report.json](e18_report.json) | Opens with the mirror of what the class declares: `subtitle` is an empty text where the class holds nothing, and `footer` holds nothing where the class holds a text. It is what shows that the two states of an optional member survive a round trip, which is the whole reason for telling them apart. The file holds no key for `note`, which the class leaves out while it holds nothing, and that member comes back holding nothing with a row of its own. |
+
+## Files for `e19_omitted_members.py`
+
+`ReportConfig` names every member but the title in `_omit_none_from_json()`,
+so a file of it holds a key for a member only while there is something to say
+about that member.
+
+| File | What happens |
+| --- | --- |
+| [e19_report.json](e19_report.json) | Opens with one key and six rows. Every member but the title is left out of this file, which is the state each of them holds nothing in, and the rows come from the configuration object rather than from the file: a file with no key for a member is exactly the file in which that member has to be reachable. |
 
 ## Why a file with a bad value cannot be opened
 

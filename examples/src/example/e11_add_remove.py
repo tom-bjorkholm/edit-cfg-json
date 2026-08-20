@@ -120,10 +120,11 @@ python3 e11_add_remove.py --ui dump --fold stages --fold runners
 
 `audit` holds one `StageConfig` or none. No text typed into a field becomes a
 configuration object, so giving it one is *adding*, and putting it back to
-holding none is *removing*. It works here because this class writes `null` for
-that member; a class that listed it in `_omit_none_from_json()` would leave it
-out of the file altogether, and a member with no row could never be given an
-object again, so the editor does not offer to clear one of those.
+holding none is *removing*. This class writes `null` for that member while it
+holds none; a class that listed it in `_omit_none_from_json()` would leave it
+out of the file altogether instead, and the same two controls would move it
+between the same two states. Example 19 is about that other kind of optional
+member.
 
 ````sh
 cd examples/src/example

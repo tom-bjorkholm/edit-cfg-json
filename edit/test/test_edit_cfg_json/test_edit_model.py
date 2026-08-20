@@ -66,10 +66,18 @@ def test_declaration_order() -> None:
         ['tags', 'limits', 'answer']
 
 
-def test_omitted_none_no_row() -> None:
-    """Test a member left out of JSON while it is None gets no row."""
+def test_omitted_none_has_row() -> None:
+    """Test a member left out of JSON while it is None has a row all the same.
+
+    The class writes nothing at all for it, so nothing about it reaches the
+    values the rows are built from, and the object it belongs to is asked for
+    it instead: a member with no row could never be given a value. It keeps
+    the place its own declaration gives it, between the two members that are
+    written.
+    """
     model = EditModel(OmitCfg())
-    assert [row.name for row in model.rows] == ['first', 'last']
+    assert [row.name for row in model.rows] == ['first', 'optional', 'last']
+    assert _row(model, 'optional').holds_nothing
 
 
 def test_type_name() -> None:
@@ -544,10 +552,16 @@ def test_validate_containers() -> None:
 
 
 def test_omitted_none_ok() -> None:
-    """Test a member left out of JSON while None does not fail a pass."""
+    """Test a member left out of JSON while None does not fail a pass.
+
+    What the pass is given is the document a save would write, so the member
+    is left out of that document as well, and the row it has survives the
+    pass: the object the pass built leaves the member out again and the tree
+    asks that object for it again.
+    """
     model = EditModel(OmitCfg())
     assert model.validate().valid
-    assert [row.name for row in model.rows] == ['first', 'last']
+    assert [row.name for row in model.rows] == ['first', 'optional', 'last']
 
 
 def test_no_stderr_output(capsys: pytest.CaptureFixture[str]) -> None:

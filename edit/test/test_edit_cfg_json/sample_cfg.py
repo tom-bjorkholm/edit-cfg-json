@@ -154,6 +154,30 @@ class OmitCfg(SampleCfg):
         return ['optional']
 
 
+class OmitKindsCfg(SampleCfg):
+    """A configuration that leaves out one member of every kind it has.
+
+    Every member of it but the first is named in `_omit_none_from_json()`, so
+    nothing at all is written for any of them and each has to be asked of the
+    object. What differs between them is what a value of one would be: the
+    empty text and the empty list are values the editor can make, the empty
+    dict is the one it cannot, and the member with no annotation has no kind
+    at all.
+    """
+
+    def declare_members(self) -> None:
+        """Assign one written member and one of each kind that is not."""
+        self.answer: int = 3
+        self.note: Optional[str] = None
+        self.hosts: Optional[list[str]] = None
+        self.limits: Optional[dict[str, int]] = None
+        self.legacy = None
+
+    def _omit_none_from_json(self) -> list[str]:
+        """Return the members that are left out of JSON while they are None."""
+        return ['note', 'hosts', 'limits', 'legacy']
+
+
 class RewriteCfg(SampleCfg):
     """A configuration whose validator rewrites its text member.
 

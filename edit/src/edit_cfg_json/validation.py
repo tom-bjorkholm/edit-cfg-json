@@ -37,7 +37,8 @@ from config_as_json import Config, ConfigPath, JsonType, \
 from edit_cfg_json.constructing import parsed_config
 from edit_cfg_json.converting import convert_member, node_converters, \
     refusal_text
-from edit_cfg_json.tree import ConfigNode, config_nodes, flat_values
+from edit_cfg_json.tree import ConfigNode, config_nodes, file_values, \
+    flat_values, optional_paths
 
 BUFFER_ERRORS = (KeyError, TypeError, ValueError)
 """Every way in which a configuration class refuses an edit buffer.
@@ -231,7 +232,8 @@ def _probe(config: Config, members: dict[str, JsonType]) -> Optional[Config]:
 
     Args:
         config: Configuration object of this session. It is not modified.
-        members: The edit buffer, as one JSON space value per member.
+        members: The buffer as a file of this configuration would hold it,
+            which is what `file_values` answers with.
 
     Returns:
         An object holding the buffer, or None when the buffer is not a
@@ -389,7 +391,7 @@ def _attribution(config: Config, members: dict[str, JsonType]) -> Attribution:
 
     Args:
         config: Configuration object of this session. It is not modified.
-        members: The edit buffer, as one JSON space value per member.
+        members: The buffer as a file of this configuration would hold it.
 
     Returns:
         What each member was refused for, and what could not be attributed.
@@ -415,7 +417,7 @@ def _refused_verdict(config: Config, members: dict[str, JsonType],
 
     Args:
         config: Configuration object of this session. It is not modified.
-        members: The edit buffer, as one JSON space value per member.
+        members: The buffer as a file of this configuration would hold it.
         captured: What the refused parse wrote to its stream.
         error: The failure that the parse reported.
 
@@ -462,6 +464,12 @@ def _single_pass(config: Config, members: dict[str, JsonType],
     only report the same thing as text it could not read as JSON, which is
     an answer to a question the user did not ask.
 
+    What the class is asked to read is the buffer as a *file* of it would be
+    written, so a member that holds nothing and that this class leaves out of
+    its files is left out here too. What is validated is then the document
+    that a save writes, which is what keeps the verdict about the file rather
+    than about a document with a `null` in it that no save produces.
+
     The stream the candidate writes to is captured rather than passed on,
     because these diagnostics are the answer to a question the user asked
     and belong on the screen and not in the terminal behind it.
@@ -483,13 +491,15 @@ def _single_pass(config: Config, members: dict[str, JsonType],
         return _no_pass(ValidationVerdict(valid=False, diagnostics='',
                                           refused=unconverted))
     diagnostics = StringIO()
+    written = file_values(members=members,
+                          omitted=optional_paths(config_nodes(config)))
     try:
-        candidate = parsed_config(config, json.dumps(members),
+        candidate = parsed_config(config, json.dumps(written),
                                   stream=diagnostics)
         validated = json.loads(
             candidate.as_json_string(stderr_file=diagnostics))
     except BUFFER_ERRORS as error:
-        return _no_pass(_refused_verdict(config=config, members=members,
+        return _no_pass(_refused_verdict(config=config, members=written,
                                          captured=diagnostics.getvalue(),
                                          error=error))
     assert isinstance(validated, dict)

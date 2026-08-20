@@ -38,6 +38,9 @@
   * [path\_text](#edit_cfg_json.tree.path_text)
   * [text\_path](#edit_cfg_json.tree.text_path)
   * [member\_values](#edit_cfg_json.tree.member_values)
+  * [shown\_values](#edit_cfg_json.tree.shown_values)
+  * [file\_values](#edit_cfg_json.tree.file_values)
+  * [\_kept\_values](#edit_cfg_json.tree._kept_values)
   * [is\_container](#edit_cfg_json.tree.is_container)
   * [container\_text](#edit_cfg_json.tree.container_text)
   * [rows\_below](#edit_cfg_json.tree.rows_below)
@@ -56,6 +59,8 @@
   * [\_first\_nesting](#edit_cfg_json.tree._first_nesting)
   * [unchecked\_members](#edit_cfg_json.tree.unchecked_members)
   * [\_unchecked\_of](#edit_cfg_json.tree._unchecked_of)
+  * [optional\_members](#edit_cfg_json.tree.optional_members)
+  * [optional\_paths](#edit_cfg_json.tree.optional_paths)
   * [owner\_path](#edit_cfg_json.tree.owner_path)
   * [ordered\_names](#edit_cfg_json.tree.ordered_names)
   * [\_walked](#edit_cfg_json.tree._walked)
@@ -146,6 +151,7 @@
   * [NO\_CLASS\_FORM](#edit_cfg_json.elements.NO_CLASS_FORM)
   * [FIXED\_KEYS](#edit_cfg_json.elements.FIXED_KEYS)
   * [BY\_KEY\_SCOPE](#edit_cfg_json.elements.BY_KEY_SCOPE)
+  * [NO\_DICT\_YET](#edit_cfg_json.elements.NO_DICT_YET)
   * [UNCHECKED\_SCOPE](#edit_cfg_json.elements.UNCHECKED_SCOPE)
   * [NOT\_EXTENDABLE](#edit_cfg_json.elements.NOT_EXTENDABLE)
   * [NOT\_REMOVABLE](#edit_cfg_json.elements.NOT_REMOVABLE)
@@ -166,7 +172,6 @@
     * [nodes](#edit_cfg_json.elements.TreeFacts.nodes)
     * [nestings](#edit_cfg_json.elements.TreeFacts.nestings)
     * [unchecked](#edit_cfg_json.elements.TreeFacts.unchecked)
-    * [omitted](#edit_cfg_json.elements.TreeFacts.omitted)
     * [types](#edit_cfg_json.elements.TreeFacts.types)
     * [defaults](#edit_cfg_json.elements.TreeFacts.defaults)
     * [made](#edit_cfg_json.elements.TreeFacts.made)
@@ -672,8 +677,6 @@
   * [class\_summary](#edit_cfg_json.descriptions.class_summary)
   * [\_enum\_type](#edit_cfg_json.descriptions._enum_type)
   * [enum\_text](#edit_cfg_json.descriptions.enum_text)
-  * [optional\_members](#edit_cfg_json.descriptions.optional_members)
-  * [optional\_paths](#edit_cfg_json.descriptions.optional_paths)
   * [MemberFacts](#edit_cfg_json.descriptions.MemberFacts)
     * [value](#edit_cfg_json.descriptions.MemberFacts.value)
     * [declared](#edit_cfg_json.descriptions.MemberFacts.declared)
@@ -1096,6 +1099,16 @@ configuration apart into one entry per node, and putting the edit buffer back
 together into the values of one configuration. Where those values come from in
 the first place is `member_values`, which is what the object would write.
 
+**A member that its class leaves out of the file has a row all the same.**
+`_omit_none_from_json()` names the members a class writes nothing at all for
+while they hold nothing, so what one object writes is fewer members than it
+has. Both directions therefore differ from the file by exactly those members:
+`shown_values` adds them back on the way in, each of them holding nothing, so
+that a member with no value has a row to be given one at, and `file_values`
+takes them out again on the way to the class, so that what a validation pass
+is given is the document a save would write. Giving such a member a value is
+what design section 4.9 of `doc/design.md` calls adding.
+
 Every node is addressed by a `config_as_json.ConfigPath`, which is what
 section 4.2 of `doc/design.md` asks for: a member inside a list or a dict needs
 no second way of naming it, and the description mapping already names one that
@@ -1179,12 +1192,12 @@ The same for the one dict that holds a single entry.
 
 What a declared nested member that holds no object says instead.
 
-An `OPTIONAL_MEMBER` is what holds none, and a class that writes it as `null`
-rather than leaving it out gives it a row. The row says which class would be
-there and that there is nothing there, because both of those are worth knowing
-and neither is a value: no text typed into a field becomes a configuration
-object, so the row cannot be edited. Making one is adding, and belongs with
-adding an element of a list.
+An `OPTIONAL_MEMBER` is what holds none, and it has a row whether its class
+writes `null` for it or leaves it out of the file altogether. The row says
+which class would be there and that there is nothing there, because both of
+those are worth knowing and neither is a value: no text typed into a field
+becomes a configuration object, so the row cannot be edited. Making one is
+adding, and belongs with adding an element of a list.
 
 <a id="edit_cfg_json.tree.OPEN_AT_MOST"></a>
 
@@ -1275,6 +1288,93 @@ written itself as the dictionary a file holds it as.
 
 - `InvalidConfiguration` - The configuration object is not valid.
 - `InvalidConfigurationValue` - A member does not hold a valid value.
+
+<a id="edit_cfg_json.tree.shown_values"></a>
+
+#### shown\_values
+
+```python
+def shown_values(config: Config,
+                 members: Mapping[str, JsonType]) -> dict[str, JsonType]
+```
+
+Return the members of one object, the ones it left out included.
+
+A class writes nothing at all for a member that `_omit_none_from_json()`
+names while that member holds nothing, so the values one object writes are
+fewer than the members it has. The ones it left out are added back here,
+each of them holding nothing, because a member with no row could never be
+given a value and giving one a value is what design section 4.9 of
+`doc/design.md` calls adding.
+
+Which members those are is asked of the object rather than of the class:
+a member the object holds and did not write is a member it left out, and
+that needs no protected name to answer. The declaration is asked for
+whether such a member may be left out at all, which is a different
+question and is `optional_members` below.
+
+**Arguments**:
+
+- `config` - Configuration object these values belong to. It is not
+  modified.
+- `members` - One JSON space value per member that object wrote.
+  
+
+**Returns**:
+
+  Those values, with nothing at all for every member the object left
+  out of them.
+
+<a id="edit_cfg_json.tree.file_values"></a>
+
+#### file\_values
+
+```python
+def file_values(members: Mapping[str, JsonType],
+                omitted: frozenset[ConfigPath]) -> dict[str, JsonType]
+```
+
+Return the values of one edit buffer as a file would hold them.
+
+It is the inverse of what `shown_values` adds, and what it is for is that
+**what is validated is the document that would be written**. A save writes
+the object that a validation pass built, and that object leaves such a
+member out, so a pass given `null` for it would be reaching its verdict
+about a document that no save of this configuration produces. A class is
+free to make something of a key it does not find — rules for reading an
+older file are given the keys of the document before anything else looks
+at them — so the two documents are not promised to be read alike, and the
+one that matters is the one the file will hold.
+
+Every level of the tree is asked, because the class that may leave a
+member out is the class that owns it: a nested configuration object reads
+its own JSON.
+
+**Arguments**:
+
+- `members` - The edit buffer, as one JSON space value per member.
+- `omitted` - Every member that the object holding it may leave out, by the
+  absolute path of that member, which `optional_paths` answers with.
+  
+
+**Returns**:
+
+  The values that a file of this configuration would hold.
+
+<a id="edit_cfg_json.tree._kept_values"></a>
+
+#### \_kept\_values
+
+```python
+def _kept_values(path: ConfigPath, value: JsonType,
+                 omitted: frozenset[ConfigPath]) -> JsonType
+```
+
+Return one node without the members that the file leaves out.
+
+Only a member of a configuration object can be one, so an ordinary
+dictionary key is never dropped however it is named: the paths asked about
+are the ones the objects of the tree answered with.
 
 <a id="edit_cfg_json.tree.is_container"></a>
 
@@ -1608,6 +1708,59 @@ def _unchecked_of(config: Config) -> list[str]
 
 Return the dict members whose keys this class does not check.
 
+<a id="edit_cfg_json.tree.optional_members"></a>
+
+#### optional\_members
+
+```python
+def optional_members(config: Config) -> frozenset[str]
+```
+
+Return the members that one configuration may leave out of a file.
+
+The class is asked, because only the class knows: a member that holds
+nothing right now may be one that has to hold something, and one that
+holds something may still be allowed to hold nothing. It is a protected
+name of `config_as_json` and it is read for the same reason
+`_unchecked_dicts` is: nothing else answers the question, section 4.1 of
+`doc/design.md` names it as one of the sources of the structure, and the
+answer decides what the editor may offer. It needs no checking here,
+because constructing the object checked it.
+
+**Arguments**:
+
+- `config` - Configuration object being edited. It is not modified.
+  
+
+**Returns**:
+
+  The names of the members that are genuinely optional.
+
+<a id="edit_cfg_json.tree.optional_paths"></a>
+
+#### optional\_paths
+
+```python
+def optional_paths(
+        nodes: Mapping[ConfigPath, ConfigNode]) -> frozenset[ConfigPath]
+```
+
+Return every member of one tree that its own class may leave out.
+
+A nested configuration object writes its own JSON, so which of its members
+it may leave out of that JSON is its class's to say and not the class's
+above it. The paths are absolute, so a member is looked up here by the same
+path that addresses it everywhere else.
+
+**Arguments**:
+
+- `nodes` - Every configuration object of the tree, by its path.
+  
+
+**Returns**:
+
+  The path of every member that the object holding it may omit.
+
 <a id="edit_cfg_json.tree.owner_path"></a>
 
 #### owner\_path
@@ -1647,9 +1800,10 @@ application thinks about its configuration in, so it is the order the
 editor shows. The JSON document cannot supply it, because
 `config_as_json` writes its keys sorted.
 
-A member that the class omits from JSON while its value is `None` is
-not serialized and so gets no row. A serialized name that is not an
-attribute of the object is appended instead of dropped, so that no
+A member that the class omits from JSON while its value is `None` is not
+serialized, and `shown_values` puts it back before this is asked, so it
+keeps the place its own declaration gives it. A serialized name that is
+not an attribute of the object is appended instead of dropped, so that no
 member can go missing whatever a validator or a converter did.
 
 Only the members are ordered this way, and a nested configuration object
@@ -1687,6 +1841,13 @@ read in and the order they are shown in. A declared configuration object
 is walked into by the order its own class declares, and every ordinary
 container by the order it holds its values in.
 
+Such an object is asked for the members it left out of the file as well,
+because they are members of it and a member with no row could never be
+given a value. That is done to the value of the node and not only to the
+walk over it, so that everything reading it afterwards — the children of
+the row, and what the row holds once they are edited — sees the same
+members.
+
 <a id="edit_cfg_json.tree.flat_values"></a>
 
 #### flat\_values
@@ -1699,6 +1860,10 @@ def flat_values(
 ```
 
 Return every node of one configuration, depth first, in row order.
+
+A member that the configuration leaves out of the file while it holds
+nothing is one of them, at every level of the tree, because it is a member
+of that object whether or not the file holds it.
 
 **Arguments**:
 
@@ -3003,6 +3168,13 @@ converters of nobody and no badge of its own. So the model's own configuration
 object — the copy the caller never sees — gains the object as the buffer gains
 its values, and everything that walks the tree finds it there.
 
+**How a member is written is not what decides whether it can be cleared.** A
+member the class leaves out of the file while it holds nothing has a row all
+the same, which `tree.shown_values` gives it, so putting it back to holding
+nothing is not a way of losing it. What the class does decide is what a value
+of it would be: a declared object for a member that holds one, and the
+emptiest value of its kind for a member declared to allow no value.
+
 <a id="edit_cfg_json.elements.BUILD_ERRORS"></a>
 
 #### BUILD\_ERRORS
@@ -3066,6 +3238,20 @@ than offering a control that produces a refusal.
 #### BY\_KEY\_SCOPE
 
 What a `DICT_VALUE_BY_KEY` member says, which is out of scope for v1.
+
+<a id="edit_cfg_json.elements.NO_DICT_YET"></a>
+
+#### NO\_DICT\_YET
+
+What a member declared to allow no value says instead of taking a dict.
+
+`Config.check_dict_parse` refuses a dict written for a member whose value is
+not one — *Unexpected dictionary for X in JSON data* — whatever keys it has and
+even where it has none, so the empty dict of design section 4.2 of
+`doc/design.md` is the one kind of value that such a member cannot be given.
+It is the first bullet of section 4.9 one step up: what refuses a dict here is
+the same check that refuses a new key of one, and offering the control anyway
+would be offering one that produces a refusal.
 
 <a id="edit_cfg_json.elements.UNCHECKED_SCOPE"></a>
 
@@ -3158,10 +3344,10 @@ Whether this node can be taken out of the thing that holds it.
 
 An element of a list and a value of a dict of configuration objects can
 be. So can a declared optional member that holds an object, where removing
-is putting it back to holding none — but only where its class writes
-`null` for it. A class that leaves such a member out of the file
-altogether would leave it with no row at all, and a member the editor had
-taken off the screen for good could never be given an object again.
+is putting it back to holding none, and so can a member that its class
+declared to allow no value. How the class writes such a member is not
+asked: one it leaves out of the file altogether keeps its row, which says
+that it holds nothing and offers to give it something.
 
 <a id="edit_cfg_json.elements.ElementOffer.earlier"></a>
 
@@ -3240,12 +3426,6 @@ What each object declares about a member of its own, by that path.
 #### unchecked
 
 Every dict member whose keys its own class does not check.
-
-<a id="edit_cfg_json.elements.TreeFacts.omitted"></a>
-
-#### omitted
-
-Every member that the object holding it may leave out of the file.
 
 <a id="edit_cfg_json.elements.TreeFacts.types"></a>
 
@@ -3397,6 +3577,11 @@ none. That is what settles the open question at the end of design section
 4.2 — the user chooses between the states the class allowed, and never
 what kind of value the member is for.
 
+A member declared to hold a dict is the one that cannot be given a value,
+for the reason `NO_DICT_YET` gives: the class refuses a dict written for a
+member that holds none, so the control would be one that produces a
+refusal.
+
 <a id="edit_cfg_json.elements._new_object"></a>
 
 #### \_new\_object
@@ -3406,6 +3591,12 @@ def _new_object(path: ConfigPath, facts: TreeFacts) -> ElementOffer
 ```
 
 Return whether a declared member holding no object can be given one.
+
+An `OPTIONAL_MEMBER` is the one declaration that reaches this, whether its
+class writes `null` for the member or leaves it out of the file: every
+other kind says that the member holds an object or a container of them,
+and `config_as_json` refuses such a member holding nothing while it
+validates, so no configuration the editor is given has one.
 
 <a id="edit_cfg_json.elements._growing_list"></a>
 
@@ -3574,10 +3765,12 @@ def _removable(path: ConfigPath, facts: TreeFacts) -> bool
 Return whether one node can be taken out of what holds it.
 
 A member declared to allow no value is cleared by the same rule as a
-member declared to hold a configuration object: only where its class
-writes `null` for it. One that lists it in `_omit_none_from_json()` leaves
-it out of the file and then has no row, so a member the editor had cleared
-could never be given a value again.
+member declared to hold a configuration object, and neither of them asks
+how its class writes the member it clears. One that
+`_omit_none_from_json()` names is left out of the file altogether, and it
+keeps a row all the same, so clearing it is not a way of losing it: the
+row then says that the member holds nothing, exactly as it does for the
+member its class writes `null` for.
 
 <a id="edit_cfg_json.elements._movable"></a>
 
@@ -12139,11 +12332,11 @@ What the editor says about the names one enum member accepts.
 
 What the editor says about a member that the class treats as optional.
 
-`_omit_none_from_json()` is what says which members those are, and section 4.1
-of `doc/design.md` names it as one of the sources of the structure. It is a
-protected name of `config_as_json` and it is read anyway, because nothing else
-answers the question and the answer is worth having: a member that may be left
-out is a member a user may leave empty.
+`_omit_none_from_json()` is what says which members those are, and
+`tree.optional_members` is what reads it: it is a source of the structure by
+section 4.1 of `doc/design.md`, so it is read where the rest of the structure
+is. What is worth saying here is that a member which may be left out is a
+member a user may leave empty.
 
 <a id="edit_cfg_json.descriptions.NOTHING_TEXT"></a>
 
@@ -12316,56 +12509,6 @@ between them needs. What they need is the first line and the names.
 
   What that enum class says about itself and which names it accepts,
   and an empty text for a member that holds no enum.
-
-<a id="edit_cfg_json.descriptions.optional_members"></a>
-
-#### optional\_members
-
-```python
-def optional_members(config: Config) -> frozenset[str]
-```
-
-Return the members that this configuration may leave out of a file.
-
-The class is asked, because only the class knows: a member that holds
-nothing right now may be one that has to hold something, and one that holds
-something may still be allowed to hold nothing. What it is asked is a
-protected method, for the reason `OPTIONAL_TEXT` gives, and the answer
-needs no checking here, because constructing the object checked it.
-
-**Arguments**:
-
-- `config` - Configuration object being edited. It is not modified.
-  
-
-**Returns**:
-
-  The names of the members that are genuinely optional.
-
-<a id="edit_cfg_json.descriptions.optional_paths"></a>
-
-#### optional\_paths
-
-```python
-def optional_paths(
-        nodes: Mapping[ConfigPath, ConfigNode]) -> frozenset[ConfigPath]
-```
-
-Return every member of one tree that its own class may leave out.
-
-A nested configuration object writes its own JSON, so which of its members
-it may leave out of that JSON is its class's to say and not the class's
-above it. The paths are absolute, so a member is looked up here by the same
-path that addresses it everywhere else.
-
-**Arguments**:
-
-- `nodes` - Every configuration object of the tree, by its path.
-  
-
-**Returns**:
-
-  The path of every member that the object holding it may omit.
 
 <a id="edit_cfg_json.descriptions.MemberFacts"></a>
 
@@ -13392,7 +13535,8 @@ belongs. The one method left out is the whole of what this borrows.
 **Arguments**:
 
 - `config` - Configuration object of this session. It is not modified.
-- `members` - The edit buffer, as one JSON space value per member.
+- `members` - The buffer as a file of this configuration would hold it,
+  which is what `file_values` answers with.
   
 
 **Returns**:
@@ -13549,7 +13693,7 @@ Return what the validators of one refused buffer were about.
 **Arguments**:
 
 - `config` - Configuration object of this session. It is not modified.
-- `members` - The edit buffer, as one JSON space value per member.
+- `members` - The buffer as a file of this configuration would hold it.
   
 
 **Returns**:
@@ -13579,7 +13723,7 @@ instead, so that the same sentence is not on the screen twice.
 **Arguments**:
 
 - `config` - Configuration object of this session. It is not modified.
-- `members` - The edit buffer, as one JSON space value per member.
+- `members` - The buffer as a file of this configuration would hold it.
 - `captured` - What the refused parse wrote to its stream.
 - `error` - The failure that the parse reported.
   
@@ -13631,6 +13775,12 @@ converter of its member. A value that means nothing is reported as the
 one member it is about, and the candidate is not built at all: it would
 only report the same thing as text it could not read as JSON, which is
 an answer to a question the user did not ask.
+
+What the class is asked to read is the buffer as a *file* of it would be
+written, so a member that holds nothing and that this class leaves out of
+its files is left out here too. What is validated is then the document
+that a save writes, which is what keeps the verdict about the file rather
+than about a document with a `null` in it that no save produces.
 
 The stream the candidate writes to is captured rather than passed on,
 because these diagnostics are the answer to a question the user asked

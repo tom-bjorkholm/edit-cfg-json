@@ -4,15 +4,17 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from io import StringIO
 from config_as_json import Config, ConfigPath, JsonType
 import pytest
 from edit_cfg_json.tree import OPEN_AT_MOST, assembled, child_values, \
-    config_nodes, container_text, flat_values, is_container, ordered_names, \
-    owner_path, path_text, rows_below, selects, starts_folded, text_path, \
-    under_dict
+    config_nodes, container_text, file_values, flat_values, is_container, \
+    member_values, optional_members, optional_paths, ordered_names, \
+    owner_path, path_text, rows_below, selects, shown_values, starts_folded, \
+    text_path, under_dict
 from .container_cfg import ConfigListCfg, DeepConfigCfg, InnerCfg, \
-    NestedCfg, NullNestedCfg, OmitNestedCfg, TreeCfg
-from .sample_cfg import FlatCfg
+    NestedCfg, NullNestedCfg, OmitNestedCfg, OwnedOptionCfg, TreeCfg
+from .sample_cfg import FlatCfg, OmitCfg
 
 
 @pytest.mark.parametrize('path, text', [(('name',), 'name'),
@@ -228,3 +230,106 @@ def test_assembled(children: list[tuple[str, JsonType]], as_list: bool,
                    value: JsonType) -> None:
     """Test a container is put together again from what its children hold."""
     assert assembled(children=children, as_list=as_list) == value
+
+
+def test_optional_asked() -> None:
+    """Test the class is what says which of its members are optional."""
+    assert optional_members(OmitCfg()) == frozenset({'optional'})
+    assert optional_members(FlatCfg()) == frozenset()
+
+
+def test_optional_by_path() -> None:
+    """Test each object of a tree says which of its own members it omits.
+
+    The nested object leaves `note` out of its own JSON and the class holding
+    it does not leave out the member of that name, which is what says that
+    `_omit_none_from_json()` belongs to the class that owns the subtree.
+    """
+    assert optional_paths(config_nodes(OwnedOptionCfg())) == \
+        frozenset({('inner', 'note')})
+
+
+def test_left_out_shown() -> None:
+    """Test the members one object left out of its JSON are added back.
+
+    They hold nothing, which is why the object wrote nothing for them, and
+    they are members of it all the same: a member with no row could never be
+    given a value.
+    """
+    config = OmitCfg()
+    written = member_values(config=config, stderr_file=StringIO())
+    assert 'optional' not in written
+    assert shown_values(config=config, members=written) == \
+        {'first': 1, 'optional': None, 'last': 2}
+
+
+def test_left_out_in_place() -> None:
+    """Test such a member keeps the place its own declaration gives it."""
+    config = OmitCfg()
+    held = shown_values(config=config,
+                        members=member_values(config=config,
+                                              stderr_file=StringIO()))
+    assert ordered_names(config=config, members=held) == ['first', 'optional',
+                                                          'last']
+
+
+def test_left_out_has_a_node() -> None:
+    """Test a nested member the class leaves out is a node of the tree.
+
+    It is the case that had no row at all before: the class writes nothing for
+    it, so nothing about it reached the values the rows are built from.
+    """
+    config = OmitNestedCfg()
+    nodes = config_nodes(config)
+    flat = flat_values(members=member_values(config=config,
+                                             stderr_file=StringIO()),
+                       nodes=nodes)
+    assert dict(flat)[('inner',)] is None
+    assert nodes[('inner',)].config is None
+
+
+def test_inner_left_out_shown() -> None:
+    """Test a member a nested object leaves out is a node of the tree too.
+
+    The class that may leave a member out is the class that owns it, so this
+    has to hold at every depth and not only at the outermost one.
+    """
+    config = OwnedOptionCfg()
+    config.inner.note = None
+    flat = flat_values(members=member_values(config=config,
+                                             stderr_file=StringIO()),
+                       nodes=config_nodes(config))
+    assert dict(flat)[('inner', 'note')] is None
+    assert dict(flat)[('inner',)] == {'note': None, 'width': 4}
+
+
+def test_file_leaves_out() -> None:
+    """Test the buffer is written as the file holds it.
+
+    A member that holds nothing and that its class leaves out of the file is
+    not in the file, so it is not in what that class is asked to read: what a
+    validation pass is given is the document that a save would write.
+    """
+    omitted = optional_paths(config_nodes(OmitCfg()))
+    values = {'first': 1, 'optional': None, 'last': 2}
+    assert file_values(members=values, omitted=omitted) == {'first': 1,
+                                                            'last': 2}
+
+
+def test_file_keeps_a_value() -> None:
+    """Test such a member is written as soon as it holds anything at all."""
+    omitted = optional_paths(config_nodes(OmitCfg()))
+    values: dict[str, JsonType] = {'first': 1, 'optional': '', 'last': 2}
+    assert file_values(members=values, omitted=omitted) == values
+
+
+def test_file_keeps_plain_key() -> None:
+    """Test a key of an ordinary dict is kept whatever it is called.
+
+    Only a member of a configuration object can be left out of the file, and
+    the paths asked about are the ones the objects of the tree answered with,
+    so a dictionary entry that holds nothing is never mistaken for one.
+    """
+    omitted = optional_paths(config_nodes(OmitCfg()))
+    values: dict[str, JsonType] = {'first': {'optional': None}, 'last': 2}
+    assert file_values(members=values, omitted=omitted) == values

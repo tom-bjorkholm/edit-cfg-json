@@ -23,13 +23,14 @@ from typing import NamedTuple, Optional
 from config_as_json import Config, ConfigPath, JsonType, ParseConverter
 from edit_cfg_json.converting import node_converters
 from edit_cfg_json.descriptions import Descriptions, MemberFacts, \
-    member_description, optional_paths
+    member_description
 from edit_cfg_json.elements import ElementOffer, element_offers, tree_facts
 from edit_cfg_json.leaf_value import LeafType, NO_VALUE_TEXT, leaf_kind, \
     value_as_text, values_differ
 from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.tree import ConfigNode, NO_OBJECT_FORM, child_values, \
-    config_nodes, container_text, flat_values, is_container, ordered_names
+    config_nodes, container_text, flat_values, is_container, optional_paths, \
+    ordered_names
 from edit_cfg_json.validation import SubtreeAnswer
 
 NOT_A_MEMBER = ''

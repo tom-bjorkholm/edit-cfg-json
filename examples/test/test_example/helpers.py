@@ -468,6 +468,32 @@ async def edit_and_save(app: App[None], pilot: Pilot[None], text: str) -> None:
     await pilot.pause()
 
 
+def saved_members(main: Callable[[list[str]], None],
+                  capsys: pytest.CaptureFixture[str], out_file: Path,
+                  class_name: str, *settings: str) -> dict[str, object]:
+    """Run one example with `--ui dump`, save it, and return what it wrote.
+
+    Two things are checked on the way, because both of them have to hold for
+    the values to mean anything: the run said that it saved, and what it saved
+    is a JSON object. What the test then asserts is the members themselves.
+
+    Args:
+        main: The `main` function of the example to run.
+        capsys: The pytest fixture that captured the output.
+        out_file: File to write, which the run is given with `-o`.
+        class_name: Name of the configuration class of the example.
+        settings: Further command line arguments, usually `--set` pairs.
+
+    Returns:
+        One JSON space value per member that reached the file.
+    """
+    printed = dump(main, capsys, *settings, '-o', str(out_file), '--save')
+    assert printed.endswith(saved_tail(out_file, class_name))
+    written = written_json(out_file)
+    assert isinstance(written, dict)
+    return written
+
+
 def written_json(out_file: Path) -> object:
     """Return what one output file holds, as JSON space values.
 

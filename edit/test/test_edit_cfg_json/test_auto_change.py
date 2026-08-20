@@ -213,16 +213,22 @@ def test_unplaced_value_named(tmp_path: Path) -> None:
     """Test a supplied value that no member holds is named in the message.
 
     Such a record consumed no key of the file and produced nothing the
-    configuration writes, so there is no row it could be marked on and the
-    message is the only place it can be reported. It is reported with the value
-    the rules put there, which is the one thing the editor would otherwise have
-    no way at all of knowing.
+    configuration writes, so the message is the only place it can be reported.
+    It is reported with the value the rules put there, which is the one thing
+    the editor would otherwise have no way at all of knowing.
+
+    The member does have a row, because a member the class leaves out of the
+    file has one whether the file held it or not. What the row says is that
+    the member holds nothing, which is not what the rules supplied: the
+    validation plan emptied it again, so the value is still nowhere but in the
+    message.
     """
     model = _model(SuppliedNoteCfg(), tmp_path, {'name': 'noted'})
     assert SUPPLIED_FORM.format(
         names=f'note = {SUPPLIED_NOTE!r}') in model.load_message
     assert AUTO_CHANGED in model.load_message
-    assert [row.name for row in model.rows] == ['name']
+    assert [row.name for row in model.rows] == ['name', 'note']
+    assert [row.holds_nothing for row in model.rows] == [False, True]
 
 
 def test_several_records(tmp_path: Path) -> None:

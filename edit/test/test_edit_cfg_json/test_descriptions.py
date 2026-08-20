@@ -17,13 +17,11 @@ from edit_cfg_json.converting import member_converters
 from edit_cfg_json.descriptions import MemberFacts, NOTHING_TEXT, \
     OPTIONAL_TEXT, \
     class_docstring, class_summary, enum_text, member_description, \
-    optional_members, optional_paths, path_description
+    path_description
 from edit_cfg_json.leaf_value import BOOL_KIND, LeafType, NO_KIND, \
     NUMBER_KIND, TEXT_KIND, WHOLE_NUMBER_KIND, kind_text
-from edit_cfg_json.tree import config_nodes
-from .container_cfg import OwnedOptionCfg
-from .sample_cfg import DocumentedCfg, EnumCfg, FlatCfg, HexCfg, IntEnumCfg, \
-    NoDocCfg, OmitCfg, PlainEnumCfg, SampleCfg, WrappedDocCfg
+from .sample_cfg import DocumentedCfg, EnumCfg, FlatCfg, HexCfg, \
+    IntEnumCfg, NoDocCfg, PlainEnumCfg, SampleCfg, WrappedDocCfg
 
 SUMMARY = 'One line that says what this configuration is for.'
 """The summary paragraph of the docstring of `DocumentedCfg`."""
@@ -291,23 +289,6 @@ def test_omitted_says_more() -> None:
         facts=MemberFacts(value=None, optional=True,
                           declared=LeafType(kind=str, nothing=True)))
     assert said == f'{TEXT_KIND} {OPTIONAL_TEXT}'
-
-
-def test_optional_asked() -> None:
-    """Test the class is what says which of its members are optional."""
-    assert optional_members(OmitCfg()) == frozenset({'optional'})
-    assert optional_members(FlatCfg()) == frozenset()
-
-
-def test_optional_by_path() -> None:
-    """Test each object of a tree says which of its own members it omits.
-
-    The nested object leaves `note` out of its own JSON and the class holding
-    it does not leave out the member of that name, which is what says that
-    `_omit_none_from_json()` belongs to the class that owns the subtree.
-    """
-    assert optional_paths(config_nodes(OwnedOptionCfg())) == \
-        frozenset({('inner', 'note')})
 
 
 def test_nested_says_no_kind() -> None:

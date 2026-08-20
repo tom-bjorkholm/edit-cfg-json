@@ -119,19 +119,26 @@ python3 e18_declared_types.py --ui tk -i ../../data/e18_report.json
 
 `subtitle` comes back as an ordinary field holding nothing typed into it and
 `footer` comes back saying `no value`, which is the state the file's `null`
-put it in. `note` has no row at all, because the file does not hold it and the
-class leaves it out while it holds nothing, which is the section below.
+put it in. `note` comes back saying `no value` too, and the file holds no key
+of that name at all, which is the section below.
 
-## One member that cannot be cleared, and why
+## The other kind of optional, which is also two states
 
-`note` is declared `Optional[str]` like the two above, and it has no remove
-control. The difference is `_omit_none_from_json()`: this class leaves that
-member out of the file altogether while it holds nothing, and a member that is
-not in the file has no row in the editor. Clearing it would therefore take it
-off the screen for good, with no control anywhere to give it a value again, so
-the editor does not offer to clear it. It is the same rule that example 11
-gives for an optional nested object, and the line under `note` says which of
-the two kinds of optional it is.
+`note` is declared `Optional[str]` like the two above, and its class writes it
+differently: `_omit_none_from_json()` names it, so while it holds nothing the
+file has no key for it rather than a `null`. Example 19 is about that
+difference and about the members it reaches; what matters here is that it does
+not change what the editor offers. `note` has the same two states as
+`subtitle` and `footer`, moved between by the same two controls, and the line
+under it says which of the two kinds of optional it is, because the file it
+writes is what differs:
+
+````sh
+cd examples/src/example
+python3 e18_declared_types.py --ui dump --remove note
+python3 e18_declared_types.py --ui dump --remove note \
+    --save -o /tmp/no_note.json
+````
 
 ## An empty list that can now be given an element
 
@@ -257,6 +264,10 @@ class ReportConfig(Config):
     those annotations. Reading them is what lets it say that `threshold` holds
     a number rather than a whole number, and what gives `subtitle`, `footer`
     and `note` the two states that an optional member has.
+
+    `note` is the member this class leaves out of the file while it holds
+    nothing, and the other two are written as `null`. Example 19 is about that
+    difference.
     """
 
     def __init__(self, from_json_data_text: Optional[str] = None,
@@ -284,7 +295,8 @@ class ReportConfig(Config):
         self.footer: Optional[str] = 'Confidential'
         # Declared to allow no value as well, and left out of the file while
         # it holds none, which is what `_omit_none_from_json()` below says.
-        # That is why the editor does not offer to clear this one.
+        # It has the same two states as the two above it; the difference is
+        # the file, and example 19 is about that difference.
         self.note: Optional[str] = 'Draft, do not circulate'
         # The member whose value says the wrong thing. `0` is a whole number
         # and this member holds a number, which only the annotation says.
@@ -307,8 +319,9 @@ class ReportConfig(Config):
 
         `config_as_json` writes `null` for an optional member by default, and
         a member named here is left out of the file altogether instead. The
-        editor reads this, because a member that is not in the file has no row
-        and a member with no row could never be given a value again.
+        editor reads this, because it decides what the line under the member
+        says and what a save writes, and it asks the object itself for such a
+        member so that it has a row whether the file holds it or not.
         """
         return ['note']
 
@@ -344,8 +357,8 @@ DESCRIPTIONS: Descriptions = {
                     'all.'),
     ('footer',): 'What is printed at the bottom of every page, if anything.',
     ('note',): ('A remark for whoever runs the report. It is left out of the '
-                'file rather than written as null, so the editor does not '
-                'offer to clear it.'),
+                'file rather than written as null, which is a difference '
+                'between two files and not between two rows.'),
     ('threshold',): 'The largest share of a page that one column may take.',
     ('tags',): 'Labels for this report. A new one is an empty text.',
     ('spare',): ('Anything else, and nothing says what one of them is: this '

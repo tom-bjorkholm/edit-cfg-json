@@ -31,6 +31,13 @@ as the dictionary it serializes to, with the member order of nobody, the parse
 converters of nobody and no badge of its own. So the model's own configuration
 object — the copy the caller never sees — gains the object as the buffer gains
 its values, and everything that walks the tree finds it there.
+
+**How a member is written is not what decides whether it can be cleared.** A
+member the class leaves out of the file while it holds nothing has a row all
+the same, which `tree.shown_values` gives it, so putting it back to holding
+nothing is not a way of losing it. What the class does decide is what a value
+of it would be: a declared object for a member that holds one, and the
+emptiest value of its kind for a member declared to allow no value.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -43,7 +50,6 @@ from typing import NamedTuple, Optional, TextIO
 from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
     ConfigPath, JsonType
 from edit_cfg_json.constructing import built_config
-from edit_cfg_json.descriptions import optional_paths
 from edit_cfg_json.leaf_value import LeafType, empty_value
 from edit_cfg_json.loader import ConfigSource
 from edit_cfg_json.member_types import node_types
@@ -107,6 +113,20 @@ BY_KEY_SCOPE = ('One named key of this dict holds a configuration object and '
                 'This version does not add or remove them.')
 """What a `DICT_VALUE_BY_KEY` member says, which is out of scope for v1."""
 
+NO_DICT_YET = ('A dict written for a member that holds none is refused by '
+               'the configuration class itself, which matches it against the '
+               'dict the member holds. So this member cannot be given one.')
+"""What a member declared to allow no value says instead of taking a dict.
+
+`Config.check_dict_parse` refuses a dict written for a member whose value is
+not one — *Unexpected dictionary for X in JSON data* — whatever keys it has and
+even where it has none, so the empty dict of design section 4.2 of
+`doc/design.md` is the one kind of value that such a member cannot be given.
+It is the first bullet of section 4.9 one step up: what refuses a dict here is
+the same check that refuses a new key of one, and offering the control anyway
+would be offering one that produces a refusal.
+"""
+
 UNCHECKED_SCOPE = ('The keys of this dict are the application\'s own to '
                    'decide, with validators of its own. This version does not '
                    'add or remove them.')
@@ -167,10 +187,10 @@ class ElementOffer(NamedTuple):
 
     An element of a list and a value of a dict of configuration objects can
     be. So can a declared optional member that holds an object, where removing
-    is putting it back to holding none — but only where its class writes
-    `null` for it. A class that leaves such a member out of the file
-    altogether would leave it with no row at all, and a member the editor had
-    taken off the screen for good could never be given an object again.
+    is putting it back to holding none, and so can a member that its class
+    declared to allow no value. How the class writes such a member is not
+    asked: one it leaves out of the file altogether keeps its row, which says
+    that it holds nothing and offers to give it something.
     """
 
     earlier: bool = False
@@ -224,9 +244,6 @@ class TreeFacts(NamedTuple):
 
     unchecked: frozenset[ConfigPath]
     """Every dict member whose keys its own class does not check."""
-
-    omitted: frozenset[ConfigPath]
-    """Every member that the object holding it may leave out of the file."""
 
     types: Mapping[ConfigPath, LeafType]
     """What the class owning each node says the value there is.
@@ -297,7 +314,6 @@ def tree_facts(nodes: Mapping[ConfigPath, ConfigNode],
     return TreeFacts(values=dict(flat), nodes=nodes,
                      nestings=member_nestings(nodes),
                      unchecked=unchecked_members(nodes),
-                     omitted=optional_paths(nodes),
                      types=node_types(nodes=nodes, flat=flat),
                      defaults=defaults, made={})
 
@@ -357,15 +373,29 @@ def _new_value(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
     none. That is what settles the open question at the end of design section
     4.2 — the user chooses between the states the class allowed, and never
     what kind of value the member is for.
+
+    A member declared to hold a dict is the one that cannot be given a value,
+    for the reason `NO_DICT_YET` gives: the class refuses a dict written for a
+    member that holds none, so the control would be one that produces a
+    refusal.
     """
     declared = facts.types.get(path, LeafType())
     if facts.values[path] is not None or not declared.nothing:
         return ElementOffer()
+    if declared.kind is dict:
+        return ElementOffer(refusal=NO_DICT_YET)
     return ElementOffer(extend=True, template=empty_value(declared.kind))
 
 
 def _new_object(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
-    """Return whether a declared member holding no object can be given one."""
+    """Return whether a declared member holding no object can be given one.
+
+    An `OPTIONAL_MEMBER` is the one declaration that reaches this, whether its
+    class writes `null` for the member or leaves it out of the file: every
+    other kind says that the member holds an object or a container of them,
+    and `config_as_json` refuses such a member holding nothing while it
+    validates, so no configuration the editor is given has one.
+    """
     nesting = facts.nestings.get(path)
     if nesting is None:
         return ElementOffer()
@@ -520,19 +550,20 @@ def _removable(path: ConfigPath, facts: TreeFacts) -> bool:
     """Return whether one node can be taken out of what holds it.
 
     A member declared to allow no value is cleared by the same rule as a
-    member declared to hold a configuration object: only where its class
-    writes `null` for it. One that lists it in `_omit_none_from_json()` leaves
-    it out of the file and then has no row, so a member the editor had cleared
-    could never be given a value again.
+    member declared to hold a configuration object, and neither of them asks
+    how its class writes the member it clears. One that
+    `_omit_none_from_json()` names is left out of the file altogether, and it
+    keeps a row all the same, so clearing it is not a way of losing it: the
+    row then says that the member holds nothing, exactly as it does for the
+    member its class writes `null` for.
     """
     nesting = facts.nestings.get(path)
     if nesting is not None and \
             nesting.kind is ConfigNestingKind.OPTIONAL_MEMBER:
         node = facts.nodes.get(path)
-        return node is not None and node.config is not None and \
-            path not in facts.omitted
+        return node is not None and node.config is not None
     if facts.types.get(path, LeafType()).nothing:
-        return facts.values[path] is not None and path not in facts.omitted
+        return facts.values[path] is not None
     return _element_of(path=path, facts=facts) is not None
 
 

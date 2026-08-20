@@ -47,5 +47,5 @@ def main(args: Optional[Sequence[str]] = None) -> int:
                    home_settings=HOME_SETTINGS)
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     sys.exit(main())

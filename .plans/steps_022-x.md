@@ -2,7 +2,7 @@
 
 ## Where everything is
 
-Steps 1 to 23 are implemented and committed, step 23 with the corrections its
+Steps 1 to 25 are implemented and committed, step 23 with the corrections its
 review asked for. Steps 1 to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md) and steps 10 to 21 in
 [steps_010-021.md](steps_010-021.md). Step 22 and the steps still to build are
@@ -88,6 +88,10 @@ in this file. Where any of the three files mentions a design decision,
 - [Step 24][s24] — the declaration of a member read as well as the value it
   holds, and the open question of section 4.2 answered: a member allowed to
   hold nothing has two states rather than a kind the user can change.
+- [Step 25][s25] — the members a class leaves out of the file given a row to be
+  given a value at, the buffer written back to the class as the document a save
+  would write, and the one kind of value that a member holding nothing cannot
+  be given.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -120,6 +124,7 @@ in this file. Where any of the three files mentions a design decision,
 [s22]: #step-22---better-bool-support
 [s23]: #step-23---finding-a-member
 [s24]: #step-24---more-type-information-and-whether-the-user-may-change-it
+[s25]: #step-25---add-and-remove-omitted-members
 
 ## 1. How this plan is meant to be used
 
@@ -140,11 +145,11 @@ decision gets built.
 - Every step touches all three packages where the capability is
   user-visible, so `edit_cfg_json`, `edit_cfg_json_tk` and
   `edit_cfg_json_textual` never drift apart by more than one review.
-- Steps 1 to 23 are built, and each is written up in
+- Steps 1 to 25 are built, and each is written up in
   [steps_001-009_done.md](steps_001-009_done.md), in
   [steps_010-021.md](steps_010-021.md) or in section 3 of this file as what it
   decided, what it found while building it and what came of its review. Steps
-  24 onwards are named steps with their observable outcome and their main
+  26 onwards are named steps with their observable outcome and their main
   risks; they are detailed just before they are started, when the core API is
   real rather than imagined.
 
@@ -512,36 +517,82 @@ editor's own `file_extension` as `no value` rather than as `null`.
 
 ### Step 25 - Add and remove omitted members
 
-A member that a class omits from JSON while it holds no object shall also
-be possible to add and remove in the editor. Exactly how to achieve this
-is the subject of a design investigation in the beginning of this step.
+Status: **Implemented, committed.**
 
-One possible early idea to investigate for how to implement this:
-With vars() on the config object we can detect the member variable even
-when it has value None.
-We should (in most cases) be able to look up the Python code (often in
-site-packages). Most of the time the Python code is type and the type hint
-tells us what class the attribute should have. We should be able to
-create an object of that type, and then get the fields to edit from that
-object.
-For the cases when this fails, we should be clear to the user that we
-failed to discover what the types of the editable fields should be for
-this sub-object, but as a fallback we offer the user to type in raw
-JSON for this sub-object that the editor can then validate.
-This first idea could lead to better spin off ideas.
+A member that `_omit_none_from_json()` names is written as no key of the file
+at all while it holds nothing, so nothing about it reached the values the rows
+were built from and it had no row. Step 24 had given every other optional
+member two states and the pair of controls that moves between them, and had
+recorded the reason this one could not have them: clearing it would take the
+row off the screen with no control anywhere to give it a value again. This step
+removes the cause rather than the consequence.
 
-A lot of this early idea is changed by what was found in step 24.
-The likelyhood of not being able to detect the type at all is maybe
-so small that the JSON fallback is not worth it for that case - to
-be investigated.
+**The answer was one question, not the one the plan expected.** The early idea
+recorded above was about *discovering* what such a member holds, with a raw
+JSON fallback where nothing could be discovered. Almost none of that was
+needed, because step 24 had already done the discovering: the three type
+sources answer a leaf, `nested_configs()` names the class of an object, and
+`built_config` already constructs a class whose constructor takes arguments
+this library knows nothing about — that was step 14's work, and a class it
+cannot construct already says so instead of offering a control that refuses
+every press. What was actually missing was one row.
 
-We also need to be able to be able to add an ommitted member of a
-user defined class derived from `config_as_json.Config` to handle
-the case of an optional nested config class when we start from
-it being absent. (Here we probably need to solve the question of
-how to handle the case where the construction of the object needs
-some arguments. The best way of solving this needs to be
-investigated.)
+**Where the row comes from.** `vars()` on the configuration object, as the
+early idea guessed, and nothing more: the members one object *holds and did not
+write* are exactly the ones it left out, which needs no protected name to ask.
+`tree.shown_values` adds them back, each of them holding nothing, and it is
+applied to the value of every configuration node of the tree and not only to
+the outermost one, because a nested object leaves out its own members by its
+own class.
+
+**And one row is not enough, because the buffer is written back.**
+`tree.file_values` is the inverse, and it settled the rule that the whole thing
+turns on: **what is validated is the document that would be written**. A save
+writes the object a validation pass built, and that object leaves such a member
+out, so a pass given `null` for it would reach its verdict about a document no
+save produces. A class is free to make something of a key it does not find —
+the rules for reading an older file are given the keys of the document before
+anything else looks at them — so the two documents are not promised to be read
+alike, and the one that matters is the one the file will hold.
+
+**What the investigation found in `config_as_json`**, both of which changed
+what was built.
+
+- **A dict cannot be given to a member that holds none.**
+  `Config.check_dict_parse` refuses one — *Unexpected dictionary for X in JSON
+  data* — whatever keys it has and even where it has none, because it matches
+  the dict in the document against the dict the member holds. So the empty dict
+  of step 24 is the one value of a kind that a member allowed to hold nothing
+  cannot be given, and it now says so below its own row. That was a defect in
+  step 24 rather than a new case: it was reachable for a member written as
+  `null` and was reached by nothing. Sections 4.2, 4.9 and 11 of the design
+  record it, and it is the first bullet of 4.9 one step up — the same check
+  refuses a new key of an ordinary dict member.
+- **A nesting kind other than `OPTIONAL_MEMBER` can never hold nothing.**
+  `_validate_nested_config` requires a list for `LIST_ELEMENT`, a dict for
+  `DICT_VALUE` and a dict for `DICT_VALUE_BY_KEY`, and it runs while the object
+  is constructed, so `Optional[list[SomeConfig]]` holding `None` is not a state
+  any configuration the editor is given can be in — not even as an omitted
+  member. Code written for it was written and then taken out again, which is the
+  right way round: it was a moving part for a state that does not exist.
+
+**What is observable.** A new example,
+`examples/src/example/e19_omitted_members.py`, with
+`examples/data/e19_report.json` holding one key and opening with six rows. It
+has the five shapes side by side: an omitted `Optional[str]`, an omitted
+`OPTIONAL_MEMBER` added from being absent and cleared again, an omitted
+`Optional[list[str]]` that takes two presses to reach an element, the omitted
+`Optional[dict[str, int]]` that says why it can be given nothing, and the
+unannotated member that is an ordinary field showing `null`. Two examples said
+the opposite and now say what is true: e18's `note` has the same two states as
+the two members beside it, and e11 says that an `_omit_none_from_json()` member
+would be moved between the same two states by the same two controls.
+
+**The one small refactor.** `optional_members` and `optional_paths` moved from
+`descriptions.py` to `tree.py`, beside `unchecked_members`, which reads
+`_unchecked_dicts` for the same reason. Section 4.1 lists
+`_omit_none_from_json()` as a source of the structure, so that is where it is
+read, and `file_values` needs it where the rest of the structure is.
 
 ### Step 26 - Full support for `DICT_VALUE_BY_KEY`
 
@@ -583,6 +634,24 @@ dict the entry control, with `dict[str, int]` saying what the new value is.
 The main risk is exactly the reason it is last: the rule has to be right
 against the implementation of `config_as_json` and not merely plausible, and
 being wrong means offering a control whose result the application refuses.
+
+### Step 27C - Raw JSON for a subtree the editor cannot show
+
+Step 25's early idea included a raw JSON editing surface for a sub-object whose
+class nothing says anything about, and step 25 found that the case it was
+proposed for does not need it: the class of a nested object is named by its
+declaration, and one the editor cannot construct says so rather than offering a
+control that refuses every press. Section 11 of the design records that it is
+kept as a step rather than rejected, because what would make it worth having is
+a different question from the one it was proposed for.
+
+That question is an editing surface for a *subtree*, which nothing in the
+editor has: a text area holding the JSON of one node, validated by the class on
+the next pass, which would also serve pasting a whole section from somewhere
+else and repairing a shape no row can express. The risks are the two that
+belong to any second way of editing the same thing — which of the two wins
+while both are open, and what a validation pass does to text the user is half
+way through typing — and they are the reason this is last rather than cheap.
 
 ### Step 28 - Pull-down selection of enum and bool values
 
@@ -631,13 +700,15 @@ run, with a refusal and an exit code of its own where it can run none.
 | 27B An entry in a dict the class never checks | 3 | Step 24's type model and step 14's machinery are both there; the work is getting one rule right against `config_as_json` and a configuration shape to show it with. |
 | 30 The launcher | 4 | Little logic, spread over all three packages: an entry-point group, a script the core has never installed, discovery, and what a machine that can run neither editor is told. |
 | 28 Pull-down for enum and bool | 6 | A second kind of field in both backends, touching every rule written for the first: write on change, focus loss, the rebuild after a pass, and the marks. |
-| 25 Add and remove omitted members | 8 | Discovering a class the runtime does not record, and then the raw-JSON fallback, which is an editing surface the editor does not have at all yet. |
+| 27C Raw JSON for a subtree | 8 | An editing surface the editor does not have at all yet, in both backends, and two rules about a second way of editing one thing. |
 | 29 The wizard | 10 | Two toolkits' dialogs and file choosers, two bridge libraries to weigh against the menubar alternative, and no headless test worth much. |
 Two things the numbers do not say.
 
 - **Effort is not order.**
-- **Steps 25 and 29 each begin with a question**, so their numbers are the two
-  least trustworthy of the eight. Step 24 did too, and is built.
+- **Step 29 begins with a question**, so its number is the least trustworthy of
+  the seven. Steps 24 and 25 did too, and both are built — and step 25 came in
+  well under its estimate of 8, because the question it began with turned out to
+  have been answered by step 24.
 
 ## 5. Open questions recorded, not answered
 
