@@ -18,12 +18,14 @@ from textual.widgets import Button, Input
 from config_as_json import ConfigPath
 from edit_cfg_json import EditModel
 from edit_cfg_json_textual.textual_editor import EditorApp
-from edit_cfg_json_textual.textual_look import ASK_BOX_ID
+from edit_cfg_json_textual.textual_look import ASK_BOX_ID, value_id
 from edit_cfg_json_textual.textual_elements import ADD_ACTION, ADD_LABEL, \
     ASK_KEY_ID, EARLIER_ACTION, LATER_ACTION, LATER_LABEL, REMOVE_ACTION, \
     REMOVE_LABEL, element_id
 from example.e11_add_remove import PipelineConfig
-from .helpers import ENTER_KEY, ESCAPE_KEY, ROOMY_SIZE
+from example.e18_declared_types import ReportConfig
+from .helpers import ENTER_KEY, ESCAPE_KEY, ROOMY_SIZE, \
+    VALIDATE_KEY
 
 NEW_KEY = 'nightly'
 """Key that the question about a new entry is answered with."""
@@ -194,3 +196,77 @@ def test_question_is_a_screen() -> None:
         await pilot.pause()
     _run(model, look)
     assert asked == [1]
+
+
+NOTHING_HELD: ConfigPath = ('subtitle',)
+"""The member of the other example that holds nothing to begin with."""
+
+CLEARED: ConfigPath = ('footer',)
+"""The member of it that a validation pass can move to holding nothing.
+
+A member validator returns the value that is stored back into the member, so
+one of them can take a field away from a row that had one. It is the one thing
+a backend has to mount its widgets afresh for beyond a pass that changed how
+many rows there are.
+"""
+
+
+def _fields(app: EditorApp) -> int:
+    """Return how many nodes of one application are shown with a field."""
+    return len(app.query(Input))
+
+
+def test_nothing_offers_add() -> None:
+    """Test a member holding nothing has an add control and no field."""
+    model = EditModel(ReportConfig())
+    seen: list[object] = []
+
+    async def look(app: EditorApp, pilot: Pilot[None]) -> None:
+        """Collect what that row has and what it says."""
+        _ = pilot
+        index = _index_of(model, NOTHING_HELD)
+        seen.append(len(app.query(f'#{element_id(index, ADD_ACTION)}')))
+        seen.append(len(app.query(Input)
+                        .filter(f'#{value_id(index)}')))
+    _run(model, look)
+    assert seen == [1, 0]
+    assert _value_of(model, NOTHING_HELD) == 'no value'
+
+
+def test_add_gives_a_value() -> None:
+    """Test pressing the control gives that member the value of its kind."""
+    model = EditModel(ReportConfig())
+    _run(model, _presser(model, NOTHING_HELD, ADD_ACTION))
+    assert _value_of(model, NOTHING_HELD) == ''
+
+
+def test_value_is_cleared() -> None:
+    """Test the control of a member holding a value puts it back to none."""
+    model = EditModel(ReportConfig())
+    _run(model, _presser(model, CLEARED, REMOVE_ACTION))
+    assert _value_of(model, CLEARED) == 'no value'
+
+
+def test_pass_takes_a_field() -> None:
+    """Test the widgets are mounted afresh when a pass takes a field away.
+
+    The paths are the same before and after, so a backend that compared only
+    those would leave a field on the screen for a member holding nothing, and
+    the next key typed into it would be refused.
+    """
+    model = EditModel(ReportConfig())
+    counted: list[int] = []
+
+    async def clear(app: EditorApp, pilot: Pilot[None]) -> None:
+        """Empty that field, validate, and count the fields left."""
+        counted.append(_fields(app))
+        app.query_one(f'#{value_id(_index_of(model, CLEARED))}',
+                      Input).value = ''
+        await pilot.pause()
+        await pilot.press(VALIDATE_KEY)
+        await pilot.pause()
+        await pilot.pause()
+        counted.append(_fields(app))
+    _run(model, clear)
+    assert _value_of(model, CLEARED) == 'no value'
+    assert counted[1] == counted[0] - 1

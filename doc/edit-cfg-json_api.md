@@ -144,6 +144,7 @@
     * [nestings](#edit_cfg_json.elements.TreeFacts.nestings)
     * [unchecked](#edit_cfg_json.elements.TreeFacts.unchecked)
     * [omitted](#edit_cfg_json.elements.TreeFacts.omitted)
+    * [types](#edit_cfg_json.elements.TreeFacts.types)
     * [defaults](#edit_cfg_json.elements.TreeFacts.defaults)
     * [made](#edit_cfg_json.elements.TreeFacts.made)
   * [declared\_values](#edit_cfg_json.elements.declared_values)
@@ -200,6 +201,15 @@
 * [edit\_cfg\_json.dump](#edit_cfg_json.dump)
   * [PROGRAM](#edit_cfg_json.dump.PROGRAM)
   * [main](#edit_cfg_json.dump.main)
+* [edit\_cfg\_json.member\_types](#edit_cfg_json.member_types)
+  * [SELF\_NAME](#edit_cfg_json.member_types.SELF_NAME)
+  * [SOURCE\_ERRORS](#edit_cfg_json.member_types.SOURCE_ERRORS)
+  * [HINT\_ERRORS](#edit_cfg_json.member_types.HINT_ERRORS)
+  * [attribute\_texts](#edit_cfg_json.member_types.attribute_texts)
+  * [declared\_hints](#edit_cfg_json.member_types.declared_hints)
+  * [leaf\_type](#edit_cfg_json.member_types.leaf_type)
+  * [member\_types](#edit_cfg_json.member_types.member_types)
+  * [node\_types](#edit_cfg_json.member_types.node_types)
 * [edit\_cfg\_json.cli](#edit_cfg_json.cli)
   * [DESCRIPTION](#edit_cfg_json.cli.DESCRIPTION)
   * [POLICY\_NAMES](#edit_cfg_json.cli.POLICY_NAMES)
@@ -211,16 +221,27 @@
   * [WHOLE\_NUMBER\_KIND](#edit_cfg_json.leaf_value.WHOLE_NUMBER_KIND)
   * [NUMBER\_KIND](#edit_cfg_json.leaf_value.NUMBER_KIND)
   * [BOOL\_KIND](#edit_cfg_json.leaf_value.BOOL_KIND)
+  * [LIST\_KIND](#edit_cfg_json.leaf_value.LIST_KIND)
+  * [DICT\_KIND](#edit_cfg_json.leaf_value.DICT_KIND)
   * [VALUE\_KINDS](#edit_cfg_json.leaf_value.VALUE_KINDS)
+  * [EMPTY\_VALUES](#edit_cfg_json.leaf_value.EMPTY_VALUES)
   * [NO\_KIND](#edit_cfg_json.leaf_value.NO_KIND)
+  * [NO\_VALUE\_TEXT](#edit_cfg_json.leaf_value.NO_VALUE_TEXT)
   * [BOOL\_WORDS](#edit_cfg_json.leaf_value.BOOL_WORDS)
   * [BOOL\_CHOICES](#edit_cfg_json.leaf_value.BOOL_CHOICES)
+  * [LeafType](#edit_cfg_json.leaf_value.LeafType)
+    * [kind](#edit_cfg_json.leaf_value.LeafType.kind)
+    * [nothing](#edit_cfg_json.leaf_value.LeafType.nothing)
+    * [inside](#edit_cfg_json.leaf_value.LeafType.inside)
+  * [empty\_value](#edit_cfg_json.leaf_value.empty_value)
+  * [kind\_of](#edit_cfg_json.leaf_value.kind_of)
+  * [leaf\_kind](#edit_cfg_json.leaf_value.leaf_kind)
   * [bool\_word](#edit_cfg_json.leaf_value.bool_word)
   * [value\_as\_text](#edit_cfg_json.leaf_value.value_as_text)
   * [text\_as\_value](#edit_cfg_json.leaf_value.text_as_value)
   * [canonical\_text](#edit_cfg_json.leaf_value.canonical_text)
   * [values\_differ](#edit_cfg_json.leaf_value.values_differ)
-  * [value\_kind](#edit_cfg_json.leaf_value.value_kind)
+  * [kind\_text](#edit_cfg_json.leaf_value.kind_text)
 * [edit\_cfg\_json.loader](#edit_cfg_json.loader)
   * [NO\_FILE\_NAME](#edit_cfg_json.loader.NO_FILE_NAME)
   * [LOADER\_EXITED](#edit_cfg_json.loader.LOADER_EXITED)
@@ -378,6 +399,7 @@
   * [row\_validates](#edit_cfg_json.model_text.row_validates)
   * [row\_subtree\_text](#edit_cfg_json.model_text.row_subtree_text)
   * [row\_fold\_text](#edit_cfg_json.model_text.row_fold_text)
+  * [rows\_shape](#edit_cfg_json.model_text.rows_shape)
   * [can\_fold](#edit_cfg_json.model_text.can_fold)
   * [fold\_hides](#edit_cfg_json.model_text.fold_hides)
   * [row\_diagnostic](#edit_cfg_json.model_text.row_diagnostic)
@@ -464,12 +486,15 @@
     * [subtree\_refusal](#edit_cfg_json.rows.MemberRow.subtree_refusal)
     * [has\_objects](#edit_cfg_json.rows.MemberRow.has_objects)
     * [found](#edit_cfg_json.rows.MemberRow.found)
+    * [declared](#edit_cfg_json.rows.MemberRow.declared)
     * [offer](#edit_cfg_json.rows.MemberRow.offer)
     * [name](#edit_cfg_json.rows.MemberRow.name)
     * [depth](#edit_cfg_json.rows.MemberRow.depth)
     * [foldable](#edit_cfg_json.rows.MemberRow.foldable)
     * [is\_object](#edit_cfg_json.rows.MemberRow.is_object)
+    * [holds\_nothing](#edit_cfg_json.rows.MemberRow.holds_nothing)
     * [editable](#edit_cfg_json.rows.MemberRow.editable)
+    * [kind](#edit_cfg_json.rows.MemberRow.kind)
     * [is\_text](#edit_cfg_json.rows.MemberRow.is_text)
     * [is\_bool](#edit_cfg_json.rows.MemberRow.is_bool)
     * [edited](#edit_cfg_json.rows.MemberRow.edited)
@@ -481,6 +506,7 @@
     * [converters](#edit_cfg_json.rows.RowContext.converters)
     * [optional](#edit_cfg_json.rows.RowContext.optional)
     * [offers](#edit_cfg_json.rows.RowContext.offers)
+    * [types](#edit_cfg_json.rows.RowContext.types)
     * [refreshing](#edit_cfg_json.rows.RowContext.refreshing)
   * [built\_rows](#edit_cfg_json.rows.built_rows)
   * [BufferState](#edit_cfg_json.rows.BufferState)
@@ -497,6 +523,7 @@
 * [edit\_cfg\_json.descriptions](#edit_cfg_json.descriptions)
   * [CHOICES\_FORM](#edit_cfg_json.descriptions.CHOICES_FORM)
   * [OPTIONAL\_TEXT](#edit_cfg_json.descriptions.OPTIONAL_TEXT)
+  * [NOTHING\_TEXT](#edit_cfg_json.descriptions.NOTHING_TEXT)
   * [path\_description](#edit_cfg_json.descriptions.path_description)
   * [class\_docstring](#edit_cfg_json.descriptions.class_docstring)
   * [class\_summary](#edit_cfg_json.descriptions.class_summary)
@@ -505,6 +532,7 @@
   * [optional\_paths](#edit_cfg_json.descriptions.optional_paths)
   * [MemberFacts](#edit_cfg_json.descriptions.MemberFacts)
     * [value](#edit_cfg_json.descriptions.MemberFacts.value)
+    * [declared](#edit_cfg_json.descriptions.MemberFacts.declared)
     * [converter](#edit_cfg_json.descriptions.MemberFacts.converter)
     * [optional](#edit_cfg_json.descriptions.MemberFacts.optional)
     * [nested](#edit_cfg_json.descriptions.MemberFacts.nested)
@@ -2320,12 +2348,14 @@ declarations are about the member itself rather than about what is inside it.
 
 #### NO\_PATTERN
 
-What a list with nothing to copy says instead of offering to grow.
+What a list nothing says anything about says instead of growing.
 
 It is the one case that design section 11 of `doc/design.md` puts out of scope
 for good rather than for now, because the missing thing cannot be supplied by
 any amount of work here: only the application knows what an element of its own
-list looks like, and a member it never gave one for has never said.
+list looks like, and a member it never gave one for and never declared a type
+for has never said. A member with an ordinary annotation is answered by that
+annotation and never reaches this.
 
 <a id="edit_cfg_json.elements.NO_CLASS_FORM"></a>
 
@@ -2534,6 +2564,15 @@ Every dict member whose keys its own class does not check.
 #### omitted
 
 Every member that the object holding it may leave out of the file.
+
+<a id="edit_cfg_json.elements.TreeFacts.types"></a>
+
+#### types
+
+What the class owning each node says the value there is.
+
+It is what a member allowed to hold nothing is known by, and what says
+what an element of a list its class declares empty would be.
 
 <a id="edit_cfg_json.elements.TreeFacts.defaults"></a>
 
@@ -3494,6 +3533,188 @@ Run this program and return what it ends with.
 
   What this run ends with, as one of `edit_cfg_json.ExitCode`.
 
+<a id="edit_cfg_json.member_types"></a>
+
+# edit\_cfg\_json.member\_types
+
+What the class of a configuration says the type of each member is.
+
+The value a member held when the file was last agreed with says a great deal
+about it, and there are two things it cannot say. A member that holds nothing
+says nothing at all about what it would hold, and a member declared `float`
+whose default is written `0` says the wrong thing. Both are answered by the
+declaration, which is what this module reads.
+
+**Three sources, in order of authority.** A class built on the dataclass
+pattern, and any class with class level annotations, records real types that
+`typing.get_type_hints` answers with. The ordinary `Config` pattern records
+nothing at all: `self.answer: int = 42` inside `__init__` is a PEP 526
+annotation on an instance attribute, and Python keeps it nowhere, so the
+source of the class is read and its annotations are taken from there.
+Where neither answers, the value is still what says the kind, exactly as
+before, and that is what makes every one of these optional: a class whose
+source cannot be read costs the editor what a declaration would have added
+and nothing else.
+
+**Nothing here is evaluated by this module.** An annotation read from source
+is a text, and the text is given to `inspect.get_annotations`, which is the
+standard library's own resolver for one — the same resolution
+`typing.get_type_hints` does, in the namespace of the module that class was
+written in. One annotation that will not resolve costs that member its
+declaration and leaves every other member of the class alone.
+
+**What is made of the answer is deliberately little.** An annotation says one
+of the kinds of `leaf_value`, or it says nothing this editor can use. A class
+of the application's own is nothing it can use: what the editor does with a
+kind is say what it is and make an empty one of it, and it can do neither with
+a class it has never seen. Where the member holds a nested configuration
+object, the object itself is what answers (section 4.1 of `doc/design.md`),
+and where it holds an enum, the parse converter of the class answers.
+
+<a id="edit_cfg_json.member_types.SELF_NAME"></a>
+
+#### SELF\_NAME
+
+What the first argument of a method is called, by every convention.
+
+<a id="edit_cfg_json.member_types.SOURCE_ERRORS"></a>
+
+#### SOURCE\_ERRORS
+
+Every way in which the source of one method can fail to be read.
+
+`inspect.getsource` raises `OSError` for a class defined where there is no
+source to read — an interactive session, `exec`, and a frozen program are the
+three — and `TypeError` for an object it cannot take source from at all.
+Parsing what it did read is what raises the other two.
+
+<a id="edit_cfg_json.member_types.HINT_ERRORS"></a>
+
+#### HINT\_ERRORS
+
+Every way in which one annotation can fail to say what it means.
+
+A name that is not in the namespace of its own module is the ordinary one, and
+it arises for real: a name imported under `if TYPE_CHECKING` exists while the
+type checker reads the file and never at runtime. An annotation that fails
+costs that member its declaration and nothing else.
+
+<a id="edit_cfg_json.member_types.attribute_texts"></a>
+
+#### attribute\_texts
+
+```python
+def attribute_texts(described: type[object]) -> dict[str, str]
+```
+
+Return the annotation of every attribute one class sets on `self`.
+
+The whole of the class is read and not only its `__init__`, because a
+class is free to declare its members in a method of its own that
+`__init__` calls, and the annotations are just as real there. Only the
+source this class writes itself: a class further up is asked in its own
+right, and its own module is where the names of its annotations mean
+something.
+
+**Arguments**:
+
+- `described` - Class to read the source of.
+  
+
+**Returns**:
+
+  One annotation per annotated attribute of `self`, as the text it is
+  written as, and nothing at all for a class whose source cannot be
+  read.
+
+<a id="edit_cfg_json.member_types.declared_hints"></a>
+
+#### declared\_hints
+
+```python
+def declared_hints(described: type[object]) -> dict[str, object]
+```
+
+Return what every declaration of one class says its members are.
+
+The bases are walked from the top down, so a class that annotates a member
+its base also annotates is the one that answers for it, which is what
+Python itself does with the value.
+
+**Arguments**:
+
+- `described` - Class of the configuration object being asked.
+  
+
+**Returns**:
+
+  One annotation per member that has one, as what it means.
+
+<a id="edit_cfg_json.member_types.leaf_type"></a>
+
+#### leaf\_type
+
+```python
+def leaf_type(hint: object) -> LeafType
+```
+
+Return what one annotation says about the value it is about.
+
+**Arguments**:
+
+- `hint` - What one annotation means.
+  
+
+**Returns**:
+
+  What that says about the value, which is empty for an annotation
+  naming anything the editor cannot make a value of.
+
+<a id="edit_cfg_json.member_types.member_types"></a>
+
+#### member\_types
+
+```python
+def member_types(described: type[object]) -> dict[str, LeafType]
+```
+
+Return what one class says about the type of each member it declares.
+
+**Arguments**:
+
+- `described` - Class of the configuration object being asked.
+  
+
+**Returns**:
+
+  One answer per member whose declaration says anything, by the name of
+  that member. A private attribute is never one, because a member of a
+  configuration is a public attribute of it.
+
+<a id="edit_cfg_json.member_types.node_types"></a>
+
+#### node\_types
+
+```python
+def node_types(
+        nodes: Mapping[ConfigPath, ConfigNode],
+        flat: Sequence[tuple[ConfigPath,
+                             JsonType]]) -> dict[ConfigPath, LeafType]
+```
+
+Return what the classes of one tree say about each node of it.
+
+**Arguments**:
+
+- `nodes` - Every configuration object of the tree, by its path.
+- `flat` - The path and the value of every node, in row order.
+  
+
+**Returns**:
+
+  One answer per node whose declaration says anything, by the path of
+  that node.
+
 <a id="edit_cfg_json.cli"></a>
 
 # edit\_cfg\_json.cli
@@ -3677,6 +3898,23 @@ What is said about a member that holds a floating point number.
 
 What is said about a member that holds a boolean.
 
+<a id="edit_cfg_json.leaf_value.LIST_KIND"></a>
+
+#### LIST\_KIND
+
+What is said about a member that holds a list and holds none now.
+
+A member that really holds one says nothing here, because its row already says
+how many elements there are. It is only worth saying where the row says that
+the member holds nothing at all, which is where the kind of the value comes
+from the declaration and not from a value.
+
+<a id="edit_cfg_json.leaf_value.DICT_KIND"></a>
+
+#### DICT\_KIND
+
+The same for a member that holds a dict and holds none now.
+
 <a id="edit_cfg_json.leaf_value.VALUE_KINDS"></a>
 
 #### VALUE\_KINDS
@@ -3687,15 +3925,40 @@ The order is what makes `True` say what it is: `bool` is a subclass of `int` in
 Python, so a value that is asked in the other order would be a whole number.
 Nothing else here depends on the order.
 
+<a id="edit_cfg_json.leaf_value.EMPTY_VALUES"></a>
+
+#### EMPTY\_VALUES
+
+What a value of each kind is before anything has been put into it.
+
+It is what a member that holds nothing is given when the user asks for it to
+hold something, and what an element of a list that the class declares empty
+is. Nothing here is invented about the *application*: the kind is what the
+class declared, and the value is the one value of that kind that says nothing
+more than which kind it is.
+
 <a id="edit_cfg_json.leaf_value.NO_KIND"></a>
 
 #### NO\_KIND
 
-What is said about a member that holds nothing at all.
+What is said about a member whose kind nothing says.
 
-The kind of a member is the kind of the value it held when the file was last
-agreed with, which is the only type information there is (section 4.2 of
-`doc/design.md`), and a member that held nothing gave none.
+The kind of a member is what the class declared for it, and failing that the
+kind of the value it held when the file was last agreed with (section 4.2 of
+`doc/design.md`). A member that has neither gave none.
+
+<a id="edit_cfg_json.leaf_value.NO_VALUE_TEXT"></a>
+
+#### NO\_VALUE\_TEXT
+
+What the row of a member holding nothing says where a value would be.
+
+It is worded as the `no {name}` of a declared member holding no configuration
+object, because it is the same state one step down: the member is one the
+class allows to hold nothing, and it holds nothing. Showing the `null` that
+the file holds would be showing the notation of the file as if it were a value
+the user had typed, and it is exactly the confusion between that `null` and an
+empty text that this state exists to end.
 
 <a id="edit_cfg_json.leaf_value.BOOL_WORDS"></a>
 
@@ -3713,6 +3976,123 @@ another kind.
 #### BOOL\_CHOICES
 
 The two words as they are listed to the user, in the order asked.
+
+<a id="edit_cfg_json.leaf_value.LeafType"></a>
+
+## LeafType Objects
+
+```python
+class LeafType(NamedTuple)
+```
+
+What the class of a configuration says one leaf of it holds.
+
+It is what the declaration of a member says, and it is empty where the
+declaration says nothing this editor can use: an annotation naming a class
+of the application's own, a member with no annotation at all, and a class
+whose source cannot be read all answer with this holding nothing.
+
+<a id="edit_cfg_json.leaf_value.LeafType.kind"></a>
+
+#### kind
+
+Which kind of value belongs here, None where nothing says.
+
+It is one of the types of `VALUE_KINDS` and never a class of the
+application: what the editor does with a kind is say what it is and make
+an empty one of it, and it can do neither with a class it has never seen.
+
+<a id="edit_cfg_json.leaf_value.LeafType.nothing"></a>
+
+#### nothing
+
+Whether this member may hold no value at all.
+
+`Optional[str]` says it, and so does `str | None`. It is never true where
+`kind` says nothing, because the two states of such a member are *holds a
+value* and *holds nothing*, and a member the editor cannot make a value
+for has only one of them.
+
+It is set for a member that a class declares and never for a value inside
+a list or a dict. What may hold nothing is something a class says about a
+member of its own, and an element that could be taken out of what holds it
+already has a control that means that.
+
+<a id="edit_cfg_json.leaf_value.LeafType.inside"></a>
+
+#### inside
+
+What one value inside this one is, None where nothing says.
+
+It is the element of a list and the value of a dict, which is what says
+what an element of a list that its class declares empty would be.
+
+<a id="edit_cfg_json.leaf_value.empty_value"></a>
+
+#### empty\_value
+
+```python
+def empty_value(kind: Optional[type]) -> JsonType
+```
+
+Return the value of one kind that says no more than its kind.
+
+**Arguments**:
+
+- `kind` - Kind of value to make one of, None for a kind nothing says.
+  
+
+**Returns**:
+
+  That value, and None where nothing says which kind it would be. A
+  fresh one every time, because a list and a dict are values that the
+  next edit would otherwise reach through.
+
+<a id="edit_cfg_json.leaf_value.kind_of"></a>
+
+#### kind\_of
+
+```python
+def kind_of(value: JsonType) -> Optional[type]
+```
+
+Return the kind of one value, None for a value that has no kind.
+
+**Arguments**:
+
+- `value` - One leaf value of the edit buffer, in JSON space.
+  
+
+**Returns**:
+
+  The kind of that value, which is None only for `null`.
+
+<a id="edit_cfg_json.leaf_value.leaf_kind"></a>
+
+#### leaf\_kind
+
+```python
+def leaf_kind(declared: LeafType, original: JsonType) -> Optional[type]
+```
+
+Return the kind of value that one leaf takes.
+
+What the class declared wins over what the leaf held, because a member
+declared `float` whose default is written `0` is a number member whatever
+the value says, and a member declared `Optional[str]` says that it takes
+text while it holds nothing at all. The value answers where the class said
+nothing, which is a class whose source cannot be read and a member with no
+annotation.
+
+**Arguments**:
+
+- `declared` - What the class says the value here is.
+- `original` - Value that the leaf held when the file was last agreed with.
+  
+
+**Returns**:
+
+  The kind of value that leaf takes, None where nothing says.
 
 <a id="edit_cfg_json.leaf_value.bool_word"></a>
 
@@ -3774,14 +4154,16 @@ notation, which is also how the user would type it.
 #### text\_as\_value
 
 ```python
-def text_as_value(text: str, original: JsonType) -> JsonType
+def text_as_value(
+    text: str, original: JsonType,
+    declared: LeafType = LeafType()) -> JsonType
 ```
 
 Return the value that the text of one edit field stands for.
 
-A member that holds text keeps exactly what the user typed, so that a
+A member that takes text keeps exactly what the user typed, so that a
 text member can hold the digits of a number without becoming a number. A
-member that holds true or false takes any beginning of either word, as
+member that takes true or false takes any beginning of either word, as
 `bool_word` says. Every other member has its text read as JSON, which is
 the inverse of how `value_as_text` writes it.
 
@@ -3791,13 +4173,22 @@ that refused them could not be typed in at all. The string that a number
 member then holds is not hidden: it is the wrong type, and validation
 reports it as the wrong type.
 
+**A field cannot put a member into the state that holds nothing.** Where a
+member has that state it has a control that means it, and `null` typed
+into the field is text that means no value of the member, exactly as any
+other text of the wrong type is. Without that, the four characters of
+`null` would take the field away from under the cursor that typed them. A
+member with no such state reads `null` as the JSON it is, as before.
+
 **Arguments**:
 
 - `text` - Text that the edit field holds.
 - `original` - Value that this member held when the file was last agreed
-  with, which is the whole of the type information there is
-  (section 4.2 of `doc/design.md`). It says how the text is read
-  and never what it becomes.
+  with, which says how the text is read where the class said
+  nothing. It never says what the text becomes.
+- `declared` - What the class says the value here is, which says how the
+  text is read wherever it says anything (section 4.2 of
+  `doc/design.md`).
   
 
 **Returns**:
@@ -3858,25 +4249,31 @@ the editor has to say so.
 
   Whether the two values are different values.
 
-<a id="edit_cfg_json.leaf_value.value_kind"></a>
+<a id="edit_cfg_json.leaf_value.kind_text"></a>
 
-#### value\_kind
+#### kind\_text
 
 ```python
-def value_kind(value: JsonType) -> str
+def kind_text(declared: LeafType, value: JsonType) -> str
 ```
 
-Return what kind of value one member holds, as a line to read.
+Return what kind of value one node holds, as a line to read.
 
 It is what the editor knows about a member without being told anything by
-the application: what the value is, which is what tells the digits of a
-number from a text that happens to be digits. A list and a dict answer with
-nothing, because a member the editor cannot edit yet already says which of
-the two it is where its value would be.
+the application: which kind of value belongs there, which is what tells
+the digits of a number from a text that happens to be digits. What the
+class declared is asked first and the value answers where it said nothing,
+which is what `leaf_kind` decides.
+
+A node that really holds a list or a dict answers with nothing, because
+its row already says how many things are in it and the rows below it say
+what each of them is. One that holds nothing does say which of the two it
+would be, because its row then says only that it holds nothing.
 
 **Arguments**:
 
-- `value` - One leaf value of the edit buffer, in JSON space.
+- `declared` - What the class says the value here is.
+- `value` - Value that the node holds, in JSON space.
   
 
 **Returns**:
@@ -4170,7 +4567,8 @@ Message of the error raised when a node is not a value.
 A list, a dict and a nested configuration object are all structure rather than
 a value, and each of them is edited through the rows below it. A declared
 member that holds no configuration object is refused as well, because no text
-becomes one.
+becomes one, and so is a member in the state of holding nothing, because that
+state is asked for with a control and never typed.
 
 <a id="edit_cfg_json.buffer.NOT_A_CONTAINER"></a>
 
@@ -4505,10 +4903,12 @@ def add_element(config: Config, path: ConfigPath, key: str = '') -> None
 Put one more element into a node that holds them.
 
 A new element is what the class of the configuration said one is: an
-object of the declared class where the class declares one, and a copy
-of what it declares for the member where it does not. A declared member
-that holds no object is grown by being given the object it is for,
-which is what design section 4.1 of `doc/design.md` calls adding.
+object of the declared class where the class declares one, a copy of
+what it declares for the member where it does not, and the emptiest
+value of the kind the member is annotated with where it declares
+neither. A member that holds nothing is grown by being given a value,
+which is what design sections 4.1 and 4.9 of `doc/design.md` call
+adding, whether that value is a configuration object or not.
 
 **Arguments**:
 
@@ -4539,8 +4939,8 @@ Take one element out of the node that holds it.
 **Arguments**:
 
 - `config` - Configuration object of the session, modified as above.
-- `path` - Path of the element to remove, or of the declared optional
-  member to put back to holding no object.
+- `path` - Path of the element to remove, or of the member to put back
+  to holding nothing at all.
   
 
 **Raises**:
@@ -6277,6 +6677,41 @@ Return what says that one container is folded, empty when it is not.
 
   The mark of a folded container, and nothing for every other node.
 
+<a id="edit_cfg_json.model_text.rows_shape"></a>
+
+#### rows\_shape
+
+```python
+def rows_shape(model: EditModel) -> tuple[tuple[ConfigPath, bool], ...]
+```
+
+Return what the widgets a backend builds for the rows depend on.
+
+A validation pass is not read only, and neither is it only about values.
+It can leave the model with other rows than it had, which a validator
+that normalizes a list does, and it can leave one row a different thing
+from what it was, which a validator that answers `None` for a member
+allowed to hold nothing does: that row had a field and now has none. A
+backend that only wrote the values back would then be showing a field for
+a member that holds nothing, and the next key typed into it would be
+refused.
+
+So a backend compares this before and after, and makes its widgets again
+where it differs. It is here rather than in each backend for the same
+reason every other question about a row is: two user interfaces of one
+application that rebuilt at different moments would each be right about a
+different editor.
+
+**Arguments**:
+
+- `model` - Model to ask about.
+  
+
+**Returns**:
+
+  The path of every row and whether that row is a value with a field,
+  in the order the rows are shown.
+
 <a id="edit_cfg_json.model_text.can_fold"></a>
 
 #### can\_fold
@@ -7512,15 +7947,19 @@ Put one more element into a node that holds them.
 A new element is what the class of the configuration said one is,
 because it is the only thing that knows: an object of the declared
 class where a class declares that every element of a list or every
-value of a dict is one, and a copy of what the class declares for the
-member itself where it declares no such thing. The editor invents no
-value that the application never mentioned, and a node it has nothing
-to copy for offers nothing and says why.
+value of a dict is one, a copy of what the class declares for the
+member itself where it declares no such thing, and failing both of
+those the emptiest value of the kind the member is annotated with. The
+editor invents no value that the application never mentioned, and a
+node that says none of the three offers nothing and says why.
 
-A declared member holding no configuration object is grown by being
-given the object it is for. That is adding rather than editing, for
-the reason a field cannot do it: no text typed into a field becomes a
-configuration object.
+A member holding nothing is grown by being given a value. That is
+adding rather than editing, for the reason a field cannot do it: no
+text typed into a field becomes a configuration object, and holding
+nothing is a state of a member rather than a text in a field. It is
+the same pair of actions for a declared member holding no
+configuration object and for one the declaration allows to hold no
+value at all.
 
 Which nodes offer this is on the rows, as `MemberRow.offer`, so that
 two user interfaces of one application cannot offer different things.
@@ -7549,11 +7988,13 @@ def remove_element(path: ConfigPath) -> None
 
 Take one element out of the node that holds it.
 
-A declared optional member that holds an object is put back to holding
-none, which is the other half of what adding one does. A member that
-its class leaves out of the file altogether is not offered this: it
-would then have no row at all, and a member the editor had taken off
-the screen could never be given an object again.
+A member that may hold nothing and holds something is put back to
+holding nothing, which is the other half of what adding does. It is
+what tells a value the class allowed to be absent apart from an empty
+text of the same member, which no field could do. A member that its
+class leaves out of the file altogether is not offered this: it would
+then have no row at all, and a member the editor had taken off the
+screen could never be given a value again.
 
 **Arguments**:
 
@@ -7790,14 +8231,12 @@ That is when the model was built, and again after every save: what has
 just been written is what there is no longer anything to save about, so a
 save makes the written value the one the buffer is compared against.
 
-It is what the current value is compared against, and it is also the only
-type information that the model has. A PEP 526 annotation on an instance
-attribute is recorded nowhere at runtime, so the value that the
-configuration object holds is the only source of the type. Reading the
-type from the current value instead would not work: a number member that
-the user has half typed holds text for as long as the text is not a
-number yet, and the member would then stop being a number member. A save
-is safe to move it to, because only a validated value is ever written.
+It is what the current value is compared against, and it is the type
+information of every node whose declaration says nothing. Reading the type
+from the current value instead would not work: a number member that the
+user has half typed holds text for as long as the text is not a number
+yet, and the member would then stop being a number member. A save is safe
+to move it to, because only a validated value is ever written.
 
 <a id="edit_cfg_json.rows.MemberRow.children"></a>
 
@@ -8023,6 +8462,24 @@ a search that reaches several of them says nothing. It is written onto the
 rows rather than carried by them, exactly as the fold state is, because a
 search outlives the rows that a validation pass replaces.
 
+<a id="edit_cfg_json.rows.MemberRow.declared"></a>
+
+#### declared
+
+What the class that owns this node says the value here is.
+
+A member of a configuration is declared by the class that owns it, and
+what the declaration says is read from the attribute type rather than from
+the value: `self.ratio: float = 0` is a number member however its default
+is written, and `self.title: Optional[str] = None` is a text member that
+may hold nothing while it holds nothing at all. A value inside a list or a
+dict is answered by what the declaration of the member says is inside it.
+
+It is empty wherever nothing says anything, which is a member with no
+annotation, a class whose source cannot be read, and an annotation naming
+a class of the application's own. The value the node held is what answers
+then, exactly as it always did.
+
 <a id="edit_cfg_json.rows.MemberRow.offer"></a>
 
 #### offer
@@ -8095,6 +8552,27 @@ A member declared to hold one and holding none is not, because it has
 a class and no object, and everything the editor asks of such a node
 is asked of the object that is not there.
 
+<a id="edit_cfg_json.rows.MemberRow.holds_nothing"></a>
+
+#### holds\_nothing
+
+```python
+@property
+def holds_nothing() -> bool
+```
+
+Return whether this member is in the state of holding no value.
+
+A member whose class declares that it may hold nothing has two states
+rather than one, and this is the second of them. It is not a value
+being typed and it is not a value of the wrong kind: it is the member
+holding nothing, which is what the class allowed it to do, and it is
+told apart from an empty text by being a state and not a text.
+
+Which state it is in is changed by the two controls that change how
+many things a node holds and by nothing else, so a field can never
+take itself away from under the cursor that is typing in it.
+
 <a id="edit_cfg_json.rows.MemberRow.editable"></a>
 
 #### editable
@@ -8110,7 +8588,31 @@ A list, a dict and a nested configuration object are all structure
 rather than a value, so none of them is edited in a field: each of
 them is edited through the rows below it. A declared member that holds
 no object is not edited either, because no text typed into a field
-becomes a configuration object.
+becomes a configuration object, and neither is a member that holds
+nothing, because the value it would hold is asked for and not typed.
+
+The rows below it are asked as well as the value it was compared
+against, because a member that may hold nothing held nothing then and
+holds a list of rows now. Neither of them is the value it holds this
+moment, which is what every keystroke changes: text that happens to be
+JSON for a list would otherwise take the field away while it was being
+typed.
+
+<a id="edit_cfg_json.rows.MemberRow.kind"></a>
+
+#### kind
+
+```python
+@property
+def kind() -> Optional[type]
+```
+
+Return which kind of value this node takes, None where unknown.
+
+What the class declared wins over what the node held, which is the
+whole of what more type information buys: a member declared `float`
+takes a number however its default was written, and a member that
+holds nothing still says what it would hold.
 
 <a id="edit_cfg_json.rows.MemberRow.is_text"></a>
 
@@ -8121,7 +8623,7 @@ becomes a configuration object.
 def is_text() -> bool
 ```
 
-Return whether this node holds text.
+Return whether this node takes text.
 
 This is the difference between a value that is text and a value
 whose text is a rendering of it. The text of a text value is the
@@ -8137,12 +8639,12 @@ written.
 def is_bool() -> bool
 ```
 
-Return whether this node holds true or false.
+Return whether this node takes true or false.
 
 It is what makes the two words the values this node takes, so that
 any beginning of either of them is one of them and anything else is
-neither. A node that held nothing when the file was last agreed with
-is not one of these: nothing was held, so nothing is known.
+neither. A node whose kind nothing says is not one of these: nothing
+is known, so nothing is refused.
 
 <a id="edit_cfg_json.rows.MemberRow.edited"></a>
 
@@ -8179,9 +8681,10 @@ Return the value of this node as the text a field would show.
 A nested configuration object says its class, because that is what it
 is: showing how many entries it serializes to would be showing it as
 the dictionary it is not. A member that holds no object says which
-class is missing. A list or a dict says how much it holds, because its
-value is on the rows below it. Every other node shows the text of the
-value it holds.
+class is missing, and a member that holds no value says that it holds
+none. A list or a dict says how much it holds, because its value is on
+the rows below it. Every other node shows the text of the value it
+holds.
 
 <a id="edit_cfg_json.rows.RowContext"></a>
 
@@ -8240,6 +8743,12 @@ Every member that the object holding it may leave out of the file.
 #### offers
 
 What each node offers about the elements it holds, by its path.
+
+<a id="edit_cfg_json.rows.RowContext.types"></a>
+
+#### types
+
+What the class owning each node says the value there is.
 
 <a id="edit_cfg_json.rows.RowContext.refreshing"></a>
 
@@ -8571,6 +9080,18 @@ protected name of `config_as_json` and it is read anyway, because nothing else
 answers the question and the answer is worth having: a member that may be left
 out is a member a user may leave empty.
 
+<a id="edit_cfg_json.descriptions.NOTHING_TEXT"></a>
+
+#### NOTHING\_TEXT
+
+What the editor says about a member declared to allow no value.
+
+`Optional[str]` is what says it, and the member then has two states rather
+than one: it holds a value, or it holds nothing, and which of them it is in is
+something the user can change. It is not said together with the line above it,
+which says the same thing about the file and says more: a member left out of
+the file is a member holding nothing, written the way that class writes it.
+
 <a id="edit_cfg_json.descriptions.path_description"></a>
 
 #### path\_description
@@ -8756,8 +9277,19 @@ about this node that the application did not say.
 
 Value the node held when the file was last agreed with.
 
-It is the only type information there is for an ordinary value, because a
-PEP 526 annotation on an instance attribute is recorded nowhere at runtime.
+It is what says the kind of the value wherever the declaration of the
+member says nothing, which is a class whose source cannot be read and a
+member with no annotation at all.
+
+<a id="edit_cfg_json.descriptions.MemberFacts.declared"></a>
+
+#### declared
+
+What the class that owns this node says the value here is.
+
+It wins over the value, because a member declared `float` whose default is
+written `0` is a number member whatever the value says, and a member that
+holds nothing has a kind only if its declaration gives it one.
 
 <a id="edit_cfg_json.descriptions.MemberFacts.converter"></a>
 
@@ -8801,7 +9333,7 @@ thing the editor knows about every member of every configuration.
 A declared nested configuration object says neither, because it holds no
 value: it says its class, which its row shows, and its docstring, which is
 shown below it. What it can still say here is that the class above it may
-leave it out of the file altogether.
+leave it out of the file altogether, or that it may hold nothing.
 
 **Arguments**:
 

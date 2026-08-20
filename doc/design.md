@@ -182,7 +182,8 @@ Sources of structural information, in order of authority:
 | Source | Provides |
 | --- | --- |
 | `nested_configs()` | Which members are nested configs, their `ConfigNestingKind`, their `config_type`, any `factory_function` |
-| Default instance | Every attribute name, its default value, and therefore its type |
+| Default instance | Every attribute name and its default value |
+| The declaration of each member | Which kind of value that member takes, whether it may hold nothing, and what one value inside it would be |
 | `parse_converters()` | Which keys become rich Python types, and the expected parsed type |
 | `serialize_converters()` | Which values need explicit conversion on write |
 | `_unchecked_dicts` | Which dict members have relaxed key policy |
@@ -259,15 +260,49 @@ A list of nested `Config`s, each having a dict of nested `Config`s, is the
 normal case and not a special case. A trivial configuration of scalars is the
 exception.
 
-**Runtime type information caveat.** `self.story_points: int = 5` inside
-`__init__` is a PEP 526 annotation on an instance attribute, and Python records
-it nowhere at runtime. `typing.get_type_hints()` therefore returns nothing
-useful for the ordinary `Config` pattern, and the type of the *default value*
-is the only type source. Config classes built on the dataclass pattern —
-`e04_third_party_class.py` of the
-[`config_as_json` examples](https://github.com/tom-bjorkholm/config_as_json/tree/master/example/src/example)
-is one — do expose real types through `dataclasses.fields()`. Both are
-supported; annotations are never assumed to exist.
+**Where the declared type of a member is read from.** `self.story_points: int
+= 5` inside `__init__` is a PEP 526 annotation on an instance attribute, and
+Python records it nowhere at runtime, so `typing.get_type_hints()` returns
+nothing useful for the ordinary `Config` pattern. Three sources are asked, in
+this order, and each covers a pattern the others do not.
+
+1. **`typing.get_type_hints()` on the class**, which answers for a class built
+   on the dataclass pattern — `e04_third_party_class.py` of the
+   [`config_as_json` examples](https://github.com/tom-bjorkholm/config_as_json/tree/master/example/src/example)
+   is one — and for any class level annotation.
+2. **The source of the class**, parsed with `ast`, taking the annotation of
+   every `self.x` there is. The whole of the class and not only its
+   `__init__`, because a class is free to declare its members in a method of
+   its own that `__init__` calls, and the annotations there are just as real.
+   A class further up the MRO is asked in its own right, because its own
+   module is where the names of its annotations mean something.
+3. **The value the member held when the file was last agreed with**, which is
+   what section 4.2 has always used and remains the answer wherever the two
+   above say nothing.
+
+**Nothing is evaluated by this library.** An annotation read from source is a
+text, and the text is handed to `inspect.get_annotations`, which is the
+standard library's own resolver for one — the same resolution
+`typing.get_type_hints` does, in the namespace of the module the class was
+written in. An annotation written in quotation marks is unwrapped first, so a
+forward reference resolves to what it names rather than to its own name.
+
+**Every one of the three is optional, and that is the point of having three.**
+A class defined in an interactive session, by `exec` or inside a frozen
+program has no source to read; an annotation naming something that exists only
+while a type checker is running will not resolve; and a member can simply be
+assigned without an annotation. Each of those costs that member its
+declaration and nothing else, and one annotation that fails leaves every other
+member of the class alone.
+
+**What is made of the answer is deliberately little.** A declaration says one
+of the kinds a leaf value has — text, a whole number, a number, true or false,
+a list or a dict — or it says nothing this library can use. A class of the
+application's own is nothing it can use: what the editor does with a kind is
+say what it is and make an empty one of it, and it can do neither with a class
+it has never seen. Where the member holds a nested configuration object, the
+object itself is what answers; where it holds an enum, the parse converter
+of the class answers, and it says far more.
 
 ### 4.2 Edit buffer
 
@@ -284,14 +319,21 @@ else explanatory; section 4.3 says what it says. It is not a label beside the
 field, because it is text about the value and not part of it, and because a
 narrow window would then squeeze the field for it.
 
-The type metadata of a leaf is **derived from the value that leaf held when the
-file was last agreed with**, which is when the model was built and again after
-every save. Deriving it from the current value does not work: a number member
-that is half typed holds text until its text is a number, and it would stop
-being a number member for the rest of the session. That kept value also answers
-whether the user changed the leaf. The comparison is made on the JSON notation
-rather than with `==`, because Python considers `True` equal to `1` and `1`
-equal to `1.0` while a file writes all three differently.
+The type metadata of a leaf is **what the class declared for that member**,
+and failing that **the value that leaf held when the file was last agreed
+with**, which is when the model was built and again after every save. Section
+4.1 says where a declaration is read from and how little is made of it.
+
+The declaration wins because the value cannot always answer. `self.threshold:
+float = 0` holds a whole number and the member takes a number, and a member
+whose default is `None` held nothing, so nothing was learned from it at all.
+
+Deriving the kind from the *current* value does not work either way: a number
+member that is half typed holds text until its text is a number, and it would
+stop being a number member for the rest of the session. The kept value also
+answers whether the user changed the leaf. The comparison is made on the JSON
+notation rather than with `==`, because Python considers `True` equal to `1`
+and `1` equal to `1.0` while a file writes all three differently.
 
 The one thing that comparison ignores is **the order of the keys of a
 dictionary**: `config_as_json` writes them sorted, so a file cannot hold two
@@ -406,11 +448,41 @@ cannot drift:
   and no more. It is never set together with the mark above it, which says the
   same thing more precisely.
 
-**Open question.** Whether the user may change the type metadata of a leaf is
-not decided. It would in many cases trigger an error at validation, but it
-might be useful for separating a `None` value from an empty string value of an
-`Optional[str]`. Later versions are likely to derive more type information from
-the attribute types.
+**The user never changes what kind of value a leaf takes.** That was left open
+until the declaration of a member was read, because the one thing it would
+have been useful for is telling a `None` apart from an empty text in an
+`Optional[str]`, and there was then nothing that said which members those
+were. There is now, and it answers that question without letting anybody
+change the kind of anything.
+
+**A member the class declared to allow no value has two states.** It holds a
+value, or it holds nothing, and both of them are states of the member rather
+than texts in a field:
+
+- while it **holds a value** it is an ordinary field, and it offers *removing*,
+  which puts it back to holding nothing;
+- while it **holds nothing** its row says so where the value would be, has no
+  field at all, and offers *adding*, which gives it the value of its kind that
+  says no more than which kind it is.
+
+Those are the two controls that section 4.9 already gives a declared member
+holding no configuration object, and the same rule governs clearing: it is
+offered only where the class writes `null` for the member, because one that
+lists it in `_omit_none_from_json()` leaves it out of the file and then has no
+row at all. Nothing new is added to either backend, to the keys or to the
+command line, which is most of why this is the answer.
+
+**A field can therefore never put a member into that state.** Text that parses
+as JSON `null` is kept as the text it is for such a member, exactly as any
+other text of the wrong type is. Without that, four characters typed into a
+field would take the field away from under the cursor that typed them, and the
+state is one the user asks for with a control rather than one they type. A
+member with no such state reads `null` as the JSON it is, as it always did.
+
+**A member that holds nothing while its class does not allow it to** is left
+exactly as it was: an editable field showing `null`. The two states exist only
+where the class said there were two, and a value that the class does not allow
+is a wrong value that the user has to be able to type over.
 
 ### 4.3 Descriptions and docstrings
 
@@ -444,12 +516,22 @@ discarded, and PEP 526 annotations are not recorded.
 `parse_converters()` is what says so, and the enum class then says the rest
 itself: the summary of its own docstring and the names it accepts. Where it
 holds anything else, what is said is **what kind of value it is** — text, a
-whole number, a number, or true or false — read from the value the member held
-when the file was last agreed with (section 4.2). A member that may be left out
-of the file says that as well, from the `_omit_none_from_json()` of the class
-that owns it. It answers the one question a value cannot answer about itself:
-whether `10` in a field is the number or the text. It matters most where the
-application described nothing.
+whole number, a number, or true or false — read from what the class declared
+for that member, and failing that from the value the member held when the file
+was last agreed with (sections 4.1 and 4.2). It answers the one question a
+value cannot answer about itself: whether `10` in a field is the number or the
+text. It matters most where the application described nothing.
+
+**A member that need not hold a value says so as well**, and there are two
+ways it can be one and they are not said together. A member the class leaves
+out of the file while it holds nothing says that, from the
+`_omit_none_from_json()` of the class that owns it, and that is the more of
+the two: a member left out of the file is a member holding nothing, and it
+also says how it is written. Every other member the declaration allows to hold
+nothing says that instead. A member that really holds a list or a dict says
+nothing about its kind, because its row already says how much it holds; one
+that holds nothing does say which of the two it would be, because its row then
+says only that it holds nothing.
 
 A node that is not a value says nothing here, because its row already says
 which kind of container or which class it is. What it may still say is that the
@@ -690,9 +772,19 @@ first element of them, and failing that the first element the member holds now.
 That fallback makes a member the class declares nothing for extendable as soon
 as a file has put something in it.
 
-A member with neither is the one case section 11 puts permanently out of scope:
-only the application knows what an element of its own list looks like. Such a
-member says so and offers removing and moving.
+**Where no value says, the declared type of the member does.** `list[str]`
+says that an element of that list is text, and the empty text is the one value
+of that kind that says no more than which kind it is. It is asked last, after
+both of the places above, because a value the application wrote says more
+about what belongs in that list than its kind does. It is not an element
+invented out of nothing: the kind is the application's, read from the
+annotation it wrote, and only the *emptiest value of that kind* is this
+library's.
+
+A member with none of the three is the one case section 11 puts permanently
+out of scope. It is a narrow case now: a list member with no annotation at
+all, or one annotated with something the editor cannot make an empty value of.
+Such a member says so and offers removing and moving.
 
 **What cannot be done is said and not left to be discovered.** Three kinds of
 dict cannot be given an entry, for three different reasons, and each says which
@@ -703,7 +795,12 @@ below its own row:
   parsing — so a dict that gained or lost one would be refused by the
   configuration class itself. Confirmed against the implementation of
   `config_as_json`, and it is why a dict is offered an entry or not according
-  to the key policy its class declares rather than because it is a dict.
+  to the key policy its class declares rather than because it is a dict. The
+  declared type of the member does not change this and cannot: `dict[str,
+  int]` says what a new value would be and nothing at all about whether the
+  class would accept the key beside it, and the check is what refuses it. That
+  is the whole difference between a dict and a list here, and it is why the
+  declared type unlocked the empty list and not the empty dict.
 - a member of `_unchecked_dicts`, whose key policy the application defines with
   validators of its own. Out of v1 scope.
 - a `DICT_VALUE_BY_KEY` member, where one named key holds an object and the
@@ -715,12 +812,18 @@ description, and the toggle of section 4.4 covers it. Nothing is
 half-supported: a node that cannot be given an element gets no control at all
 rather than one that refuses every press.
 
-**A declared member holding no configuration object is grown by being given
-one** and cleared by being put back to holding none. Clearing is offered only
-where the class writes `null` for the member: one that lists it in
-`_omit_none_from_json()` leaves it out of the file and then has no row, so a
-member the editor had cleared could never be given an object again. Such a
-member therefore cannot be given its first object through the editor at all.
+**A member holding nothing is grown by being given a value**, whether that
+value is a configuration object or an ordinary one. A declared member holding
+no configuration object is given one; a member the declaration allows to hold
+nothing is given the value of its kind that says no more than which kind it is
+(section 4.2). The two are the same pair of controls, because they are the
+same question one step apart, and the rule below governs both.
+
+**Such a member is cleared only where the class writes `null` for it.** One
+that lists it in `_omit_none_from_json()` leaves it out of the file and then
+has no row, so a
+member the editor had cleared could never be given a value again. Such a
+member therefore cannot be given its first value through the editor at all.
 
 **Where an object is added, an object is made.** The tree finds the nested
 configuration objects by walking the real objects (section 4.1), so an element
@@ -1432,6 +1535,16 @@ library, so it cannot name one. Each backend package therefore also exports an
 `edit` of its own that supplies itself and forwards everything else. Those
 wrappers are a signature and one call; if either ever grows a decision of its
 own, that decision belongs here instead.
+
+**When a backend has to make its widgets again** is one answer and not two, so
+the core gives it: `rows_shape` is the path of every row and whether that row
+is a value with a field, and a backend that finds it changed rebuilds instead
+of writing the values back. Both halves of it are needed. A validation pass
+that normalizes a list changes how many rows there are, and one that answers
+`None` for a member allowed to hold nothing leaves the same rows with one of
+them no longer a field (section 4.2). A backend comparing the paths alone
+would leave a field on the screen for a member that holds nothing, and the
+next key typed into it would be refused.
 
 A practical consequence of the split: the backends must stay thin. All three
 packages share a single pylint invocation, and this repository forbids
@@ -2341,12 +2454,32 @@ version rather than assumed.
   because applications may define arbitrary validator subclasses, so this would
   work for known classes and silently fail for the rest.
 - **Editing a live `Config` object.** Section 4.2.
-- **An element invented for a member that has no pattern to copy one from.**
+- **An element invented for a member that nothing says anything about.**
   Permanently out of scope rather than not yet built: where a class declares no
-  element for a list member and the member holds none, only the application
-  knows what an element of its own list looks like, and a member it never gave
-  one for has never said. Such a member says so and offers removing and moving
-  instead. Section 4.9.
+  element for a list member, the member holds none, and no declared type says
+  what one would be, only the application knows what an element of its own list
+  looks like, and a member it never gave one for and never annotated has never
+  said. Such a member says so and offers removing and moving instead. What was
+  narrowed rather than reversed is *which* members those are: `list[str]` says
+  that an element is text, and giving such a member the empty text is reading
+  the application's own annotation rather than inventing anything. Sections 4.1
+  and 4.9.
+- **An entry invented for an empty dict from its declared type.** A dict is not
+  a list here. What refuses a new entry of an ordinary dict member is
+  `Config.check_dict_parse` matching it against the keys its class declares,
+  and `dict[str, int]` says what a new value would be and nothing about whether
+  the key beside it would be accepted. Offering the control anyway would be
+  offering one that produces a refusal, which section 4.9 rules out. Section
+  4.9's first bullet is the whole reason. This limitation does not apply to
+  dicts that will not will not be checked, examples of not checked dicts are
+  `list[dict[str,str]]` or dict listed as unchecked dicts.
+- **The user changing the type metadata of a leaf.** It was an open question
+  until the declaration of a member was read, and the one thing it would have
+  been useful for — telling a `None` apart from an empty text in an
+  `Optional[str]` — is answered by the two states of section 4.2 without
+  letting anybody change the kind of anything. A kind chosen by the user would
+  in most cases produce a value the application then refuses, which is a
+  control that produces a refusal by another route.
 - **A `parent` argument on the backend classes.** `TkEditor(parent=...)` reads
   well until `run_editor` has to mean "run to completion" with no parent and
   "mount and return" with one. One method with two meanings makes `edit()`

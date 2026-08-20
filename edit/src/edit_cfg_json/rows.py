@@ -25,7 +25,8 @@ from edit_cfg_json.converting import node_converters
 from edit_cfg_json.descriptions import Descriptions, MemberFacts, \
     member_description, optional_paths
 from edit_cfg_json.elements import ElementOffer, element_offers, tree_facts
-from edit_cfg_json.leaf_value import value_as_text, values_differ
+from edit_cfg_json.leaf_value import LeafType, NO_VALUE_TEXT, leaf_kind, \
+    value_as_text, values_differ
 from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.tree import ConfigNode, NO_OBJECT_FORM, child_values, \
     config_nodes, container_text, flat_values, is_container, ordered_names
@@ -71,14 +72,12 @@ class MemberRow(NamedTuple):
     just been written is what there is no longer anything to save about, so a
     save makes the written value the one the buffer is compared against.
 
-    It is what the current value is compared against, and it is also the only
-    type information that the model has. A PEP 526 annotation on an instance
-    attribute is recorded nowhere at runtime, so the value that the
-    configuration object holds is the only source of the type. Reading the
-    type from the current value instead would not work: a number member that
-    the user has half typed holds text for as long as the text is not a
-    number yet, and the member would then stop being a number member. A save
-    is safe to move it to, because only a validated value is ever written.
+    It is what the current value is compared against, and it is the type
+    information of every node whose declaration says nothing. Reading the type
+    from the current value instead would not work: a number member that the
+    user has half typed holds text for as long as the text is not a number
+    yet, and the member would then stop being a number member. A save is safe
+    to move it to, because only a validated value is ever written.
     """
 
     children: Optional[tuple[ConfigPath, ...]] = None
@@ -277,6 +276,22 @@ class MemberRow(NamedTuple):
     search outlives the rows that a validation pass replaces.
     """
 
+    declared: LeafType = LeafType()
+    """What the class that owns this node says the value here is.
+
+    A member of a configuration is declared by the class that owns it, and
+    what the declaration says is read from the attribute type rather than from
+    the value: `self.ratio: float = 0` is a number member however its default
+    is written, and `self.title: Optional[str] = None` is a text member that
+    may hold nothing while it holds nothing at all. A value inside a list or a
+    dict is answered by what the declaration of the member says is inside it.
+
+    It is empty wherever nothing says anything, which is a member with no
+    annotation, a class whose source cannot be read, and an annotation naming
+    a class of the application's own. The value the node held is what answers
+    then, exactly as it always did.
+    """
+
     offer: ElementOffer = ElementOffer()
     """What can be done here about how many things this node holds.
 
@@ -327,6 +342,22 @@ class MemberRow(NamedTuple):
         return self.config_type is not None and self.foldable
 
     @property
+    def holds_nothing(self) -> bool:
+        """Return whether this member is in the state of holding no value.
+
+        A member whose class declares that it may hold nothing has two states
+        rather than one, and this is the second of them. It is not a value
+        being typed and it is not a value of the wrong kind: it is the member
+        holding nothing, which is what the class allowed it to do, and it is
+        told apart from an empty text by being a state and not a text.
+
+        Which state it is in is changed by the two controls that change how
+        many things a node holds and by nothing else, so a field can never
+        take itself away from under the cursor that is typing in it.
+        """
+        return self.value is None and self.declared.nothing
+
+    @property
     def editable(self) -> bool:
         """Return whether this node is a value that can be edited.
 
@@ -334,31 +365,51 @@ class MemberRow(NamedTuple):
         rather than a value, so none of them is edited in a field: each of
         them is edited through the rows below it. A declared member that holds
         no object is not edited either, because no text typed into a field
-        becomes a configuration object.
+        becomes a configuration object, and neither is a member that holds
+        nothing, because the value it would hold is asked for and not typed.
+
+        The rows below it are asked as well as the value it was compared
+        against, because a member that may hold nothing held nothing then and
+        holds a list of rows now. Neither of them is the value it holds this
+        moment, which is what every keystroke changes: text that happens to be
+        JSON for a list would otherwise take the field away while it was being
+        typed.
         """
-        return not is_container(self.original) and self.config_type is None
+        return not self.foldable and not is_container(self.original) \
+            and self.config_type is None and not self.holds_nothing
+
+    @property
+    def kind(self) -> Optional[type]:
+        """Return which kind of value this node takes, None where unknown.
+
+        What the class declared wins over what the node held, which is the
+        whole of what more type information buys: a member declared `float`
+        takes a number however its default was written, and a member that
+        holds nothing still says what it would hold.
+        """
+        return leaf_kind(declared=self.declared, original=self.original)
 
     @property
     def is_text(self) -> bool:
-        """Return whether this node holds text.
+        """Return whether this node takes text.
 
         This is the difference between a value that is text and a value
         whose text is a rendering of it. The text of a text value is the
         value itself, while the text of a number is how the number is
         written.
         """
-        return isinstance(self.original, str)
+        return self.kind is str
 
     @property
     def is_bool(self) -> bool:
-        """Return whether this node holds true or false.
+        """Return whether this node takes true or false.
 
         It is what makes the two words the values this node takes, so that
         any beginning of either of them is one of them and anything else is
-        neither. A node that held nothing when the file was last agreed with
-        is not one of these: nothing was held, so nothing is known.
+        neither. A node whose kind nothing says is not one of these: nothing
+        is known, so nothing is refused.
         """
-        return isinstance(self.original, bool)
+        return self.kind is bool
 
     @property
     def edited(self) -> bool:
@@ -383,13 +434,16 @@ class MemberRow(NamedTuple):
         A nested configuration object says its class, because that is what it
         is: showing how many entries it serializes to would be showing it as
         the dictionary it is not. A member that holds no object says which
-        class is missing. A list or a dict says how much it holds, because its
-        value is on the rows below it. Every other node shows the text of the
-        value it holds.
+        class is missing, and a member that holds no value says that it holds
+        none. A list or a dict says how much it holds, because its value is on
+        the rows below it. Every other node shows the text of the value it
+        holds.
         """
         if self.config_type is not None:
             return self.config_type.__name__ if self.foldable else \
                 NO_OBJECT_FORM.format(name=self.config_type.__name__)
+        if self.holds_nothing:
+            return NO_VALUE_TEXT
         if is_container(self.value):
             return container_text(self.value)
         return value_as_text(self.value)
@@ -429,6 +483,9 @@ class RowContext(NamedTuple):
 
     offers: Mapping[ConfigPath, ElementOffer]
     """What each node offers about the elements it holds, by its path."""
+
+    types: Mapping[ConfigPath, LeafType]
+    """What the class owning each node says the value there is."""
 
     refreshing: bool
     """Whether these rows are what a validation pass left behind.
@@ -520,6 +577,7 @@ def _row_of(path: ConfigPath, value: JsonType, context: RowContext,
     member = path[0] if len(path) == 1 else NOT_A_MEMBER
     node = context.nodes.get(path)
     converter = context.converters.get(path)
+    declared = context.types.get(path, LeafType())
     was = previous.get(path)
     return MemberRow(
         path=path, value=value,
@@ -528,12 +586,13 @@ def _row_of(path: ConfigPath, value: JsonType, context: RowContext,
         config_type=None if node is None else node.config_type,
         changed_by_validator=_rewritten(was=was, value=value,
                                         refreshing=context.refreshing),
-        offer=context.offers[path],
+        offer=context.offers[path], declared=declared,
         filled_from_default=member in context.report.filled,
         load_reason=context.report.reasons.get(member, ''),
         description=member_description(
             descriptions=context.descriptions, path=path,
-            facts=MemberFacts(value=value, converter=converter,
+            facts=MemberFacts(value=value, declared=declared,
+                              converter=converter,
                               optional=path in context.optional,
                               nested=node is not None)),
         converter=converter, conversion='' if was is None else was.conversion)
@@ -584,7 +643,8 @@ def built_rows(config: Config, *, members: Mapping[str, JsonType],
     context = RowContext(report=report, descriptions=descriptions, nodes=nodes,
                          converters=node_converters(nodes=nodes, flat=flat),
                          optional=optional_paths(nodes),
-                         offers=element_offers(facts), refreshing=refreshing)
+                         offers=element_offers(facts), types=facts.types,
+                         refreshing=refreshing)
     return {path: _row_of(path=path, value=value, context=context,
                           previous=previous)
             for path, value in flat}

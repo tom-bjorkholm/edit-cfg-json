@@ -17,8 +17,9 @@ mentioned. This one configuration puts every case side by side:
   list, which can still be given an element for exactly that reason.
 - `retry_delays` — add, remove, move. The class declares elements for it, so
   the first of them is what a new one is copied from.
-- `extra_hosts` — remove and move only. Its declared value is empty and
-  nothing declares an element, so there is nothing to copy.
+- `extra_hosts` — add, remove, move. Its declared value is empty and nothing
+  declares an element, so there is nothing to copy; what a new one is comes
+  from `list[str]`, the type the class annotates the member with.
 - `runners` — add with a key, remove. `DICT_VALUE` says every value of it is
   a `RunnerConfig` object.
 - `limits` — nothing. Its class declares which keys it has.
@@ -28,10 +29,11 @@ mentioned. This one configuration puts every case side by side:
 - `audit` — add and remove. An `OPTIONAL_MEMBER` is given its object, or put
   back to holding none.
 
-## A new element is copied and never invented
+## A new element is copied, and invented only from a declared type
 
-There are exactly two places a new element can come from, and both of them are
-the application's.
+There are three places a new element can come from, and all of them are the
+application's. The first two are values it wrote; the third is a type it
+declared.
 
 **The nesting declaration.** `LIST_ELEMENT` and `DICT_VALUE` name a class, and
 a new element is one object of that class holding the values it declares. That
@@ -42,11 +44,21 @@ declaration says what an element of it is even though the member holds none.
 `[1, 5, 15]`, so the editor knows what one element of it looks like: a whole
 number, and `1` in particular. A new one is a copy of the first.
 
-`extra_hosts` has neither. Its class declares an empty list and no nesting, so
-nothing anywhere says what one host looks like, and the editor says so instead
-of guessing at `''` or `'localhost'`. Its elements can still be removed and
-moved; there is simply nothing to add. Read a file that holds one, and it can
-be extended from then on, because the member now holds an element to copy.
+**The type the class annotates the member with.** `extra_hosts` has neither of
+the above: its class declares an empty list and no nesting, so no *value*
+anywhere says what one host looks like. What does say something is
+`self.extra_hosts: list[str]`, and a new element is then the empty text — the
+one value of that kind which says no more than which kind it is. This is asked
+last, because a value the application wrote says more about what belongs in
+that list than its kind does. Example 18 is about where the declared types
+come from and what else they answer.
+
+A member with none of the three is still refused, and it is worth knowing what
+that is now: a member with no annotation at all, or one annotated with a class
+the editor could not make an empty one of. Example 18 has one.
+
+Read a file that holds an element, and the copy takes over: the file's element
+says more than the empty text of its kind does.
 
 In an editor these are controls at the end of the row of the node, and the
 member that cannot be given an element has no add control at all rather than
@@ -171,7 +183,8 @@ Inside this repository, use the virtual environment that the build creates:
 
 Look along the rows and see which controls each of them gets. `stages` offers
 adding on its own row and removing and moving on the row of each element it
-holds; `extra_hosts` offers no adding at all and says why below itself, and
+holds; `extra_hosts` offers the same although nothing in it was ever written
+down, because its declared type says what one element of it would be; and
 `limits`, `labels` and `hooks` offer nothing with a line below each saying
 why. Adding an entry to `runners` is where the editor asks a question, which
 is the other thing only an editor does.
@@ -179,7 +192,8 @@ is the other thing only an editor does.
 `--ui dump` is the very limited non-interactive user interface, and the
 command lines above press the same controls without a display. There is a file
 to read in [examples/data/](../../data/), and it holds a pipeline whose
-`extra_hosts` is not empty, which is what makes that member extendable:
+`extra_hosts` is not empty, which is what makes a new element of that member a
+copy of what the file put there rather than an empty text:
 
 ````sh
 cd examples/src/example
@@ -502,9 +516,9 @@ DESCRIPTIONS: Descriptions = {
                         'comes from the declaration.'),
     ('retry_delays',): ('How long to wait before each retry, in seconds. A '
                         'new one is a copy of the first.'),
-    ('extra_hosts',): ('Machines to build on besides the runners. Nothing '
-                       'declares what one looks like, so nothing can be '
-                       'added until the member holds one.'),
+    ('extra_hosts',): ('Machines to build on besides the runners. No value '
+                       'anywhere says what one looks like, so a new one is '
+                       'the empty text that list[str] asks for.'),
     ('runners',): 'The machines this pipeline may run its stages on.',
     ('runners', '[', 'parallel'): 'How many stages this machine runs at once.',
     ('limits',): 'What one stage may use.',

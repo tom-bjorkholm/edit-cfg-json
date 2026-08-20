@@ -525,15 +525,19 @@ class EditModel:
         A new element is what the class of the configuration said one is,
         because it is the only thing that knows: an object of the declared
         class where a class declares that every element of a list or every
-        value of a dict is one, and a copy of what the class declares for the
-        member itself where it declares no such thing. The editor invents no
-        value that the application never mentioned, and a node it has nothing
-        to copy for offers nothing and says why.
+        value of a dict is one, a copy of what the class declares for the
+        member itself where it declares no such thing, and failing both of
+        those the emptiest value of the kind the member is annotated with. The
+        editor invents no value that the application never mentioned, and a
+        node that says none of the three offers nothing and says why.
 
-        A declared member holding no configuration object is grown by being
-        given the object it is for. That is adding rather than editing, for
-        the reason a field cannot do it: no text typed into a field becomes a
-        configuration object.
+        A member holding nothing is grown by being given a value. That is
+        adding rather than editing, for the reason a field cannot do it: no
+        text typed into a field becomes a configuration object, and holding
+        nothing is a state of a member rather than a text in a field. It is
+        the same pair of actions for a declared member holding no
+        configuration object and for one the declaration allows to hold no
+        value at all.
 
         Which nodes offer this is on the rows, as `MemberRow.offer`, so that
         two user interfaces of one application cannot offer different things.
@@ -556,11 +560,13 @@ class EditModel:
     def remove_element(self, path: ConfigPath) -> None:
         """Take one element out of the node that holds it.
 
-        A declared optional member that holds an object is put back to holding
-        none, which is the other half of what adding one does. A member that
-        its class leaves out of the file altogether is not offered this: it
-        would then have no row at all, and a member the editor had taken off
-        the screen could never be given an object again.
+        A member that may hold nothing and holds something is put back to
+        holding nothing, which is the other half of what adding does. It is
+        what tells a value the class allowed to be absent apart from an empty
+        text of the same member, which no field could do. A member that its
+        class leaves out of the file altogether is not offered this: it would
+        then have no row at all, and a member the editor had taken off the
+        screen could never be given a value again.
 
         Args:
             path: Path of the element to remove.

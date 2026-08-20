@@ -44,7 +44,9 @@ from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
     ConfigPath, JsonType
 from edit_cfg_json.constructing import built_config
 from edit_cfg_json.descriptions import optional_paths
+from edit_cfg_json.leaf_value import LeafType, empty_value
 from edit_cfg_json.loader import ConfigSource
+from edit_cfg_json.member_types import node_types
 from edit_cfg_json.tree import ConfigNode, config_nodes, member_nestings, \
     member_values, owner_path, path_text, unchecked_members
 
@@ -67,14 +69,17 @@ two that a new element is made from the declared class for. The other three
 declarations are about the member itself rather than about what is inside it.
 """
 
-NO_PATTERN = ('There is nothing here to copy a new element from: this class '
-              'declares no element for this member and it holds none.')
-"""What a list with nothing to copy says instead of offering to grow.
+NO_PATTERN = ('Nothing says what an element of this member would be: this '
+              'class declares no element for it, it holds none, and its '
+              'declared type names nothing the editor can make one of.')
+"""What a list nothing says anything about says instead of growing.
 
 It is the one case that design section 11 of `doc/design.md` puts out of scope
 for good rather than for now, because the missing thing cannot be supplied by
 any amount of work here: only the application knows what an element of its own
-list looks like, and a member it never gave one for has never said.
+list looks like, and a member it never gave one for and never declared a type
+for has never said. A member with an ordinary annotation is answered by that
+annotation and never reaches this.
 """
 
 NO_CLASS_FORM = ('The editor cannot construct {name} on its own, so it has '
@@ -223,6 +228,13 @@ class TreeFacts(NamedTuple):
     omitted: frozenset[ConfigPath]
     """Every member that the object holding it may leave out of the file."""
 
+    types: Mapping[ConfigPath, LeafType]
+    """What the class owning each node says the value there is.
+
+    It is what a member allowed to hold nothing is known by, and what says
+    what an element of a list its class declares empty would be.
+    """
+
     defaults: Mapping[str, JsonType]
     """The values that the class of the configuration declares.
 
@@ -285,7 +297,9 @@ def tree_facts(nodes: Mapping[ConfigPath, ConfigNode],
     return TreeFacts(values=dict(flat), nodes=nodes,
                      nestings=member_nestings(nodes),
                      unchecked=unchecked_members(nodes),
-                     omitted=optional_paths(nodes), defaults=defaults, made={})
+                     omitted=optional_paths(nodes),
+                     types=node_types(nodes=nodes, flat=flat),
+                     defaults=defaults, made={})
 
 
 def element_offers(facts: TreeFacts) -> dict[ConfigPath, ElementOffer]:
@@ -330,7 +344,24 @@ def _extending(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
         return _growing_list(path=path, facts=facts, value=value)
     if isinstance(value, dict):
         return _growing_dict(path=path, facts=facts)
-    return ElementOffer()
+    return _new_value(path=path, facts=facts)
+
+
+def _new_value(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
+    """Return whether a member that holds nothing can be given a value.
+
+    A member whose class declares that it may hold nothing has two states, and
+    moving between them is the same pair of actions as making and clearing the
+    object of a member declared to hold one: adding is giving it a value of
+    the kind its declaration names, and removing is putting it back to holding
+    none. That is what settles the open question at the end of design section
+    4.2 — the user chooses between the states the class allowed, and never
+    what kind of value the member is for.
+    """
+    declared = facts.types.get(path, LeafType())
+    if facts.values[path] is not None or not declared.nothing:
+        return ElementOffer()
+    return ElementOffer(extend=True, template=empty_value(declared.kind))
 
 
 def _new_object(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
@@ -353,8 +384,24 @@ def _growing_list(path: ConfigPath, facts: TreeFacts,
     if pattern is None and value:
         pattern = value[0]
     if pattern is None:
+        pattern = _typed_element(path=path, facts=facts)
+    if pattern is None:
         return ElementOffer(refusal=NO_PATTERN)
     return ElementOffer(extend=True, template=pattern)
+
+
+def _typed_element(path: ConfigPath, facts: TreeFacts) -> Optional[JsonType]:
+    """Return the empty value that the type of one list says an element is.
+
+    It is asked last, after the class has been asked for an element to copy
+    and the member for one of its own, because a value the application wrote
+    says more about what belongs in that list than its kind does. It is what
+    makes a list that its class declares empty growable at all, which is the
+    case design section 11 of `doc/design.md` had put out of scope while the
+    kind of an element was unknowable.
+    """
+    inside = facts.types.get(path, LeafType()).inside
+    return None if inside is None else empty_value(inside.kind)
 
 
 def _growing_dict(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
@@ -470,13 +517,22 @@ def _member_path(path: ConfigPath, facts: TreeFacts) -> ConfigPath:
 
 
 def _removable(path: ConfigPath, facts: TreeFacts) -> bool:
-    """Return whether one node can be taken out of what holds it."""
+    """Return whether one node can be taken out of what holds it.
+
+    A member declared to allow no value is cleared by the same rule as a
+    member declared to hold a configuration object: only where its class
+    writes `null` for it. One that lists it in `_omit_none_from_json()` leaves
+    it out of the file and then has no row, so a member the editor had cleared
+    could never be given a value again.
+    """
     nesting = facts.nestings.get(path)
     if nesting is not None and \
             nesting.kind is ConfigNestingKind.OPTIONAL_MEMBER:
         node = facts.nodes.get(path)
         return node is not None and node.config is not None and \
             path not in facts.omitted
+    if facts.types.get(path, LeafType()).nothing:
+        return facts.values[path] is not None and path not in facts.omitted
     return _element_of(path=path, facts=facts) is not None
 
 

@@ -278,7 +278,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._members = tkinter.Frame(body)
         self._members.pack(fill='x')
         self._rows: list[RowWidgets] = []
-        self._paths: tuple[ConfigPath, ...] = ()
+        self._shape: tuple[tuple[ConfigPath, bool], ...] = ()
         self._create_rows()
         finding = FindPanel(fixed, model, searched=self._searched,
                             reached=self._reach_found)
@@ -554,7 +554,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
             child.destroy()
         self._rows = [self._add_row(parent=self._members, row=row)
                       for row in self._model.rows]
-        self._paths = tuple(row.path for row in self._model.rows)
+        self._shape = core.rows_shape(self._model)
 
     def _build_rows(self) -> None:
         """Make the widgets of every node again and put them on the window.
@@ -902,11 +902,13 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         already holds into a field is not an edit, so this refresh does not
         undo the marks that the pass has just set.
 
-        A pass can also leave the model with other rows than it had, which a
-        validator that normalizes a list does, and the widgets are then made
-        again rather than written into.
+        A pass can also leave the model with other rows than it had, or leave
+        one row a different thing from what it was: a validator that
+        normalizes a list does the first and one that answers `None` for a
+        member allowed to hold nothing does the second. `rows_shape` is what
+        says so, and the widgets are then made again rather than written into.
         """
-        if self._paths != tuple(row.path for row in self._model.rows):
+        if self._shape != core.rows_shape(self._model):
             self._build_rows()
         for row, widgets in zip(self._model.rows, self._rows, strict=True):
             if widgets.field is not None:

@@ -33,7 +33,7 @@ from enum import Enum
 from typing import NamedTuple, Optional
 import inspect
 from config_as_json import Config, ConfigPath, JsonType, ParseConverter
-from edit_cfg_json.leaf_value import value_kind
+from edit_cfg_json.leaf_value import LeafType, kind_text
 from edit_cfg_json.tree import ConfigNode, EVERY_ELEMENT, selects
 
 CHOICES_FORM = 'One of: {names}.'
@@ -47,6 +47,16 @@ of `doc/design.md` names it as one of the sources of the structure. It is a
 protected name of `config_as_json` and it is read anyway, because nothing else
 answers the question and the answer is worth having: a member that may be left
 out is a member a user may leave empty.
+"""
+
+NOTHING_TEXT = 'It may hold nothing at all.'
+"""What the editor says about a member declared to allow no value.
+
+`Optional[str]` is what says it, and the member then has two states rather
+than one: it holds a value, or it holds nothing, and which of them it is in is
+something the user can change. It is not said together with the line above it,
+which says the same thing about the file and says more: a member left out of
+the file is a member holding nothing, written the way that class writes it.
 """
 
 
@@ -251,8 +261,17 @@ class MemberFacts(NamedTuple):
     value: JsonType
     """Value the node held when the file was last agreed with.
 
-    It is the only type information there is for an ordinary value, because a
-    PEP 526 annotation on an instance attribute is recorded nowhere at runtime.
+    It is what says the kind of the value wherever the declaration of the
+    member says nothing, which is a class whose source cannot be read and a
+    member with no annotation at all.
+    """
+
+    declared: LeafType = LeafType()
+    """What the class that owns this node says the value here is.
+
+    It wins over the value, because a member declared `float` whose default is
+    written `0` is a number member whatever the value says, and a member that
+    holds nothing has a kind only if its declaration gives it one.
     """
 
     converter: Optional[ParseConverter] = None
@@ -271,6 +290,26 @@ class MemberFacts(NamedTuple):
     """
 
 
+def _may_hold_nothing(facts: MemberFacts) -> str:
+    """Return what is said about a node that need not hold a value.
+
+    What the class writes for such a member says the more of the two, so a
+    member it leaves out of the file says that and nothing else: a member that
+    may be left out is a member that may hold nothing, and it also says how it
+    is written.
+
+    Args:
+        facts: What the editor knows about the type of that node.
+
+    Returns:
+        What is said about it, and an empty text where the node has to hold a
+        value.
+    """
+    if facts.optional:
+        return OPTIONAL_TEXT
+    return NOTHING_TEXT if facts.declared.nothing else ''
+
+
 def type_text(facts: MemberFacts) -> str:
     """Return everything the type of one node says about it.
 
@@ -283,7 +322,7 @@ def type_text(facts: MemberFacts) -> str:
     A declared nested configuration object says neither, because it holds no
     value: it says its class, which its row shows, and its docstring, which is
     shown below it. What it can still say here is that the class above it may
-    leave it out of the file altogether.
+    leave it out of the file altogether, or that it may hold nothing.
 
     Args:
         facts: What the editor knows about the type of that node.
@@ -293,10 +332,9 @@ def type_text(facts: MemberFacts) -> str:
         nothing at all.
     """
     said = '' if facts.nested else \
-        (enum_text(facts.converter) or value_kind(facts.value))
-    if not facts.optional:
-        return said
-    return f'{said} {OPTIONAL_TEXT}'.strip()
+        (enum_text(facts.converter)
+         or kind_text(declared=facts.declared, value=facts.value))
+    return f'{said} {_may_hold_nothing(facts)}'.strip()
 
 
 def member_description(descriptions: Descriptions, path: ConfigPath,

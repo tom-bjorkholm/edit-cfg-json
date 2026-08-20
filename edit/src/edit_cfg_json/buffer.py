@@ -39,7 +39,8 @@ NOT_EDITABLE_ERROR = 'Member {name} is not a value that can be edited.'
 A list, a dict and a nested configuration object are all structure rather than
 a value, and each of them is edited through the rows below it. A declared
 member that holds no configuration object is refused as well, because no text
-becomes one.
+becomes one, and so is a member in the state of holding nothing, because that
+state is asked for with a control and never typed.
 """
 
 NOT_A_CONTAINER = 'Member {name} is not a list or a dict.'
@@ -220,7 +221,8 @@ class EditBuffer:
             raise ValueError(NOT_EDITABLE_ERROR.format(name=row.name))
         if row.value_text == text:
             return False
-        value = text_as_value(text=text, original=row.original)
+        value = text_as_value(text=text, original=row.original,
+                              declared=row.declared)
         self._rows[path] = row._replace(value=value, conversion='',
                                         changed_by_validator=False)
         self._hold_again(path)
@@ -399,10 +401,12 @@ class EditBuffer:
         """Put one more element into a node that holds them.
 
         A new element is what the class of the configuration said one is: an
-        object of the declared class where the class declares one, and a copy
-        of what it declares for the member where it does not. A declared member
-        that holds no object is grown by being given the object it is for,
-        which is what design section 4.1 of `doc/design.md` calls adding.
+        object of the declared class where the class declares one, a copy of
+        what it declares for the member where it does not, and the emptiest
+        value of the kind the member is annotated with where it declares
+        neither. A member that holds nothing is grown by being given a value,
+        which is what design sections 4.1 and 4.9 of `doc/design.md` call
+        adding, whether that value is a configuration object or not.
 
         Args:
             config: Configuration object of the session. It is modified where
@@ -430,8 +434,8 @@ class EditBuffer:
 
         Args:
             config: Configuration object of the session, modified as above.
-            path: Path of the element to remove, or of the declared optional
-                member to put back to holding no object.
+            path: Path of the element to remove, or of the member to put back
+                to holding nothing at all.
 
         Raises:
             KeyError: The path is not a node of this configuration.
@@ -668,6 +672,11 @@ class EditBuffer:
     def _hold_again(self, path: ConfigPath) -> None:
         """Bring every container that one node is inside up to date with it.
 
+        Whether a container is a list is read from what it holds now and not
+        from what it held when the file was last agreed with: a member that
+        may hold nothing held nothing then and holds a list now, and putting
+        its elements back together as a dictionary would lose all of them.
+
         Args:
             path: Path of the node that was just edited.
         """
@@ -675,7 +684,7 @@ class EditBuffer:
             parent = self._rows[path[:depth]]
             self._rows[parent.path] = parent._replace(
                 value=assembled(children=self._held(parent),
-                                as_list=isinstance(parent.original, list)))
+                                as_list=isinstance(parent.value, list)))
         if self._forget_answers(path):
             self._stamp()
 

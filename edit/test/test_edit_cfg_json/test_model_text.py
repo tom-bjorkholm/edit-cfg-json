@@ -11,10 +11,12 @@ from config_as_json import Config, ConfigPath, JsonType
 from edit_cfg_json import Descriptions, EditModel, LoadReport, MemberRow, \
     Settings, close_question, docstring_text, load_text, model_as_text, \
     model_title, overwrite_question, row_description, row_diagnostic, \
-    row_marks, row_subtree_text, row_value_text, save_text, verdict_text
+    row_marks, row_subtree_text, row_value_text, rows_shape, save_text, \
+    verdict_text
 from .container_cfg import KeyedEnumCfg, TreeCfg
-from .sample_cfg import HIGHEST, TOO_LARGE_MESSAGE, DocumentedCfg, FlatCfg, \
-    IntEnumCfg, ListCfg, NoDocCfg, NoneCfg, RangeCfg, RewriteCfg, RulesCfg
+from .sample_cfg import HIGHEST, TOO_LARGE_MESSAGE, ClearedCfg, \
+    DocumentedCfg, FlatCfg, IntEnumCfg, ListCfg, NoDocCfg, NoneCfg, \
+    RangeCfg, RewriteCfg, RulesCfg
 
 
 FLAT_DOC = 'A configuration with one text member and one number member.'
@@ -85,8 +87,13 @@ def test_text_has_no_quotes() -> None:
 
 
 def test_none_text() -> None:
-    """Test a member holding None is rendered as JSON null."""
-    assert 'name = null' in model_as_text(EditModel(NoneCfg()))
+    """Test a member holding nothing says so where its value would be.
+
+    It is written with the colon that every row without a value of its own
+    uses, because holding nothing is a state of the member and not a text
+    that anybody typed into it.
+    """
+    assert 'name: no value' in model_as_text(EditModel(NoneCfg()))
 
 
 def test_container_text() -> None:
@@ -659,3 +666,25 @@ def test_described_element() -> None:
     text = model_as_text(model)
     assert f'    0 = first\n        {about}\n' in text
     assert f'    1 = second\n        {about}\n' in text
+
+
+def test_shape_of_the_rows() -> None:
+    """Test the shape says the path of every row and whether it has a field."""
+    assert rows_shape(EditModel(NoneCfg())) == ((('name',), False),
+                                                (('answer',), True))
+
+
+def test_shape_after_clearing() -> None:
+    """Test a pass that takes a field away changes what the shape says.
+
+    A member validator returns the value that is stored back into the member,
+    so a member allowed to hold nothing can be given none by one. The row
+    then has no field where it had one, and a backend that compared the paths
+    alone would leave a field on the screen for a member holding nothing.
+    """
+    model = EditModel(ClearedCfg())
+    model.set_text(('title',), '')
+    before = rows_shape(model)
+    assert model.validate().valid
+    assert rows_shape(model) != before
+    assert rows_shape(model)[0] == (('title',), False)

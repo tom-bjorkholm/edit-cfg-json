@@ -20,11 +20,13 @@ from tkinter import simpledialog
 import pytest
 from config_as_json import ConfigPath
 from edit_cfg_json import EditModel
-from edit_cfg_json_tk.tk_editor import EditorWidgets
+from edit_cfg_json_tk.tk_editor import EditorWidgets, VALIDATE_TEXT
 from edit_cfg_json_tk.tk_elements import ADD_TEXT, EARLIER_TEXT, LATER_TEXT, \
     REMOVE_TEXT
 from example.e11_add_remove import PipelineConfig
-from .helpers import FakeWidget, real_buttons, stub_editor
+from example.e18_declared_types import ReportConfig
+from .helpers import FakeWidget, real_buttons, real_fields, \
+    real_press, retype, stub_editor, stub_field_widgets
 
 NEW_KEY = 'nightly'
 """Key that the stubbed question about a new entry answers with."""
@@ -199,3 +201,78 @@ def test_real_adds_an_element(root_or_skip: tkinter.Tk) -> None:
     added[0].invoke()
     assert {row.path: row.value_text for row in model.rows}[STAGES] == \
         '3 elements'
+
+
+NOTHING_HELD: ConfigPath = ('subtitle',)
+"""The member of the other example that holds nothing to begin with."""
+
+CLEARED: ConfigPath = ('footer',)
+"""The member of it that a validation pass can move to holding nothing.
+
+A member validator returns the value that is stored back into the member, so
+one of them can take a field away from a row that had one. It is the one thing
+a backend has to make its widgets again for beyond a pass that changed how
+many rows there are.
+"""
+
+
+def _report_stub() -> Editor:
+    """Build the stubbed widgets of the example with the two states."""
+    model = EditModel(ReportConfig())
+    return Editor(widgets=stub_editor(model), model=model)
+
+
+def test_stub_nothing_adds(stub_tk: None) -> None:
+    """Test a member holding nothing has an add control and no field."""
+    _ = stub_tk
+    editor = _report_stub()
+    assert _controls_of(editor, NOTHING_HELD) == [ADD_TEXT]
+    assert _value_of(editor, NOTHING_HELD) == 'no value'
+    assert len(stub_field_widgets()) == \
+        len([row for row in editor.model.rows if row.editable])
+
+
+def test_stub_value_removes(stub_tk: None) -> None:
+    """Test a member holding a value offers being put back to nothing."""
+    _ = stub_tk
+    editor = _report_stub()
+    assert _controls_of(editor, CLEARED) == [REMOVE_TEXT]
+
+
+def test_stub_add_gives(stub_tk: None) -> None:
+    """Test pressing the control gives that member the value of its kind."""
+    _ = stub_tk
+    editor = _report_stub()
+    _press(ADD_TEXT, place=_place_of(editor, NOTHING_HELD, ADD_TEXT))
+    assert _value_of(editor, NOTHING_HELD) == ''
+
+
+def test_stub_pass_clears(stub_tk: None) -> None:
+    """Test the widgets are made again when a pass takes a field away.
+
+    The paths are the same before and after, so a backend that compared only
+    those would leave a field on the screen for a member holding nothing, and
+    the next key typed into it would be refused.
+    """
+    _ = stub_tk
+    editor = _report_stub()
+    before = len(stub_field_widgets())
+    editor.model.set_text(CLEARED, '')
+    _press(VALIDATE_TEXT)
+    assert _value_of(editor, CLEARED) == 'no value'
+    assert len(stub_field_widgets()) == before - 1
+
+
+def test_real_pass_clears(root_or_skip: tkinter.Tk) -> None:
+    """Test real Tk makes the widgets again for the same reason.
+
+    The fields are the editable rows and not all of them, so the field of
+    this member is found by counting the editable rows before it.
+    """
+    model = EditModel(ReportConfig())
+    EditorWidgets(parent=root_or_skip, model=model)
+    before = len(real_fields(root_or_skip))
+    typed = [row.path for row in model.rows if row.editable]
+    retype(real_fields(root_or_skip)[typed.index(CLEARED)], '')
+    real_press(root_or_skip, VALIDATE_TEXT)
+    assert len(real_fields(root_or_skip)) == before - 1

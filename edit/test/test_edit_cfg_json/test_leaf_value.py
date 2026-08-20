@@ -7,8 +7,9 @@
 import json
 import pytest
 from config_as_json import JsonType
-from edit_cfg_json.leaf_value import bool_word, canonical_text, \
-    text_as_value, value_as_text, values_differ
+from edit_cfg_json.leaf_value import BOOL_KIND, LeafType, LIST_KIND, \
+    NO_KIND, NUMBER_KIND, TEXT_KIND, WHOLE_NUMBER_KIND, bool_word, \
+    canonical_text, kind_text, text_as_value, value_as_text, values_differ
 
 EVERY_KIND = [None, True, False, 0, 42, -1, 1.5, '', 'text', '42',
               'with "quotes"', 'Björkholm', [1, 2], {'key': 1}]
@@ -171,3 +172,91 @@ def test_canonical_json(value: JsonType) -> None:
     written as it is written. Only the keys of a dictionary are sorted.
     """
     assert canonical_text(value) == json.dumps(value, sort_keys=True)
+
+
+TEXT_TYPE = LeafType(kind=str)
+"""What a member declared to hold text says about itself."""
+
+MAYBE_TEXT = LeafType(kind=str, nothing=True)
+"""What a member declared `Optional[str]` says about itself."""
+
+
+@pytest.mark.parametrize('text', ['42', 'true', 'null', '[1, 2]'])
+def test_declared_text_kept(text: str) -> None:
+    """Test a member declared to hold text keeps what was typed into it.
+
+    The value it holds says nothing here, because it holds none: without the
+    declaration every one of these would be read as the JSON it is.
+    """
+    assert _same(text_as_value(text=text, original=None,
+                               declared=TEXT_TYPE), text)
+
+
+@pytest.mark.parametrize('text, expected', [('t', True), ('FAL', False)])
+def test_declared_flag(text: str, expected: bool) -> None:
+    """Test a member declared to hold true or false takes a beginning."""
+    assert _same(text_as_value(text=text, original=None,
+                               declared=LeafType(kind=bool)), expected)
+
+
+def test_declared_beats_value() -> None:
+    """Test the declaration answers where the value would answer otherwise.
+
+    A member declared to hold text and holding a number is a text member, and
+    a member declared to hold a number and holding text is not.
+    """
+    assert _same(text_as_value(text='42', original=7, declared=TEXT_TYPE),
+                 '42')
+    assert _same(text_as_value(text='42', original='seven',
+                               declared=LeafType(kind=int)), 42)
+
+
+def test_field_means_no_none() -> None:
+    """Test `null` typed into a member that may hold nothing stays text.
+
+    Holding nothing is a state of such a member and has a control of its own,
+    so a field never puts the member into it: four characters would otherwise
+    take the field away from under the cursor that typed them.
+    """
+    assert _same(text_as_value(text='null', original=7,
+                               declared=LeafType(kind=int, nothing=True)),
+                 'null')
+
+
+def test_null_is_json() -> None:
+    """Test a member with no such state reads `null` as the JSON it is."""
+    assert text_as_value(text='null', original=7) is None
+
+
+@pytest.mark.parametrize('declared, value, expected',
+                         [(LeafType(), 'text', TEXT_KIND),
+                          (LeafType(), None, NO_KIND),
+                          (LeafType(kind=float), 0, NUMBER_KIND),
+                          (LeafType(kind=str), None, TEXT_KIND),
+                          (LeafType(kind=bool), None, BOOL_KIND),
+                          (LeafType(kind=int), 7, WHOLE_NUMBER_KIND),
+                          (LeafType(kind=list), None, LIST_KIND),
+                          (LeafType(kind=list), [1], ''),
+                          (LeafType(), {'a': 1}, '')])
+def test_kind_text(declared: LeafType, value: JsonType, expected: str) -> None:
+    """Test what each node says about the kind of value it holds.
+
+    A member declared `float` whose value is written `0` is the case that the
+    value alone gets wrong, and a member holding nothing is the case it
+    cannot answer at all. A node that really holds a container says nothing,
+    because its row already says how much it holds.
+    """
+    assert kind_text(declared=declared, value=value) == expected
+
+
+@pytest.mark.parametrize('value', EVERY_KIND)
+def test_declared_round_trip(value: JsonType) -> None:
+    """Test a declared text member shows and reads back the same value.
+
+    Every value of every kind is shown as text and read back as the text it
+    was shown as, which is what a member declared to hold text does with
+    anything that reaches it.
+    """
+    text = value_as_text(value)
+    assert _same(text_as_value(text=text, original=value,
+                               declared=MAYBE_TEXT), text)

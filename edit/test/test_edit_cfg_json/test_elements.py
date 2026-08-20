@@ -25,8 +25,11 @@ from .sample_cfg import FlatCfg
 TAGS: ConfigPath = ('tags',)
 """Path of the list of `ElementCfg` that a new element can be copied for."""
 
+GROWS: ConfigPath = ('grows',)
+"""Path of the empty list of `ElementCfg` whose type says its elements."""
+
 SPARE: ConfigPath = ('spare',)
-"""Path of the list of `ElementCfg` that has nothing to copy."""
+"""Path of the list of `ElementCfg` that nothing says anything about."""
 
 OUTPUTS: ConfigPath = ('outputs',)
 """Path of the member that holds nested objects in the samples above."""
@@ -41,16 +44,18 @@ in which it has one.
 
 
 @pytest.mark.parametrize('path, extend, refusal',
-                         [(TAGS, True, ''), (SPARE, False, NO_PATTERN),
+                         [(TAGS, True, ''), (GROWS, True, ''),
+                          (SPARE, False, NO_PATTERN),
                           (('limits',), False, FIXED_KEYS),
                           (('labels',), False, UNCHECKED_SCOPE)])
 def test_offer_to_extend(path: ConfigPath, extend: bool, refusal: str) -> None:
     """Test each container says whether it can grow, and why it cannot.
 
-    The four members of the sample are the four different answers: a list with
-    an element to copy, one with none anywhere, an ordinary dict whose keys
-    its class declares, and a dict whose key policy the application defines
-    with validators of its own.
+    The five members of the sample are the five different answers: a list with
+    an element to copy, an empty list whose declared type says what an element
+    of it would be, one that nothing says anything about, an ordinary dict
+    whose keys its class declares, and a dict whose key policy the application
+    defines with validators of its own.
     """
     offer = row_at(model=EditModel(ElementCfg()), path=path).offer
     assert offer.extend is extend
@@ -169,6 +174,18 @@ def test_key_is_checked(key: str, message: str) -> None:
     model = EditModel(ConfigDictCfg())
     with pytest.raises(ValueError, match=message):
         model.add_element(path=OUTPUTS, key=key)
+
+
+def test_typed_element_added() -> None:
+    """Test a list its class declares empty grows by what its type says.
+
+    There is nothing to copy an element from, so what an element of this list
+    would be is read from `list[str]`, and the empty text is the one value of
+    that kind which says no more than which kind it is.
+    """
+    model = EditModel(ElementCfg())
+    model.add_element(GROWS)
+    assert row_at(model=model, path=(*GROWS, '0')).value == ''
 
 
 def test_list_takes_no_key() -> None:

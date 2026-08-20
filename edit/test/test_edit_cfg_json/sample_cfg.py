@@ -426,6 +426,39 @@ class SilentRefusal(MemberValidator):  # pylint: disable=too-few-public-methods
         raise ValueError(REFUSAL_MESSAGE.format(name=member_name))
 
 
+class EmptyToNothing(MemberValidator):  # pylint: disable=R0903
+    """A validator that answers with nothing for a text of no characters.
+
+    A member validator returns the value that is stored back into the member,
+    and a member declared to allow no value may be given none by one. It is
+    what makes a validation pass able to take a field away from a row that
+    had one, which is the one thing a backend has to make its widgets again
+    for beyond a pass that changed how many rows there are.
+    """
+
+    def validate_member(self, config: Config, member_name: str,
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
+        """Return nothing at all for an empty text, and the value for all."""
+        _ = (config, member_name, stderr_file)
+        return None if member_value == '' else member_value
+
+
+class ClearedCfg(SampleCfg):
+    """A configuration one of whose members a validator can clear."""
+
+    def declare_members(self) -> None:
+        """Assign one member that may hold nothing and one that may not."""
+        self.title: Optional[str] = 'a title'
+        self.answer: int = 7
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return the one rule that turns an empty title into no title."""
+        _ = stderr_file
+        return [MemberValidationStep(member_names=['title'],
+                                     validator=EmptyToNothing())]
+
+
 class RefuseCfg(SampleCfg):
     """A configuration whose own validator refuses without a word.
 

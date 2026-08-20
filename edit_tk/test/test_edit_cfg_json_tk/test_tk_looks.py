@@ -13,7 +13,7 @@ and drive the scrolling.
 
 import tkinter
 import pytest
-from edit_cfg_json import Emphasis, EditModel
+from edit_cfg_json import Emphasis, EditModel, FindOptions
 from edit_cfg_json_tk.scrolling import BODY_HEIGHT, BODY_WIDTH
 from edit_cfg_json_tk.tk_editor import EditorWidgets, EXPLAIN_TEXT
 from edit_cfg_json_tk.tk_look import EMPHASIS_COLOURS, FIELD_BACKGROUND, \
@@ -25,6 +25,14 @@ from .helpers import ABOUT_NAME, DESCRIPTIONS, FakeWidget, FILLED_REPORT, \
 
 WHEEL_UP = -1
 """How far one turn of the wheel away from the user scrolls the body."""
+
+SETTLED_TICKS = [*FindOptions(), True]
+"""What every tick-box of a settled window is, in creation order.
+
+The four of the search come first and are what `FindOptions` declares, so a
+default that moves moves this with it, and the explain toggle is the last of
+them and is ticked while the explanations are showing.
+"""
 
 
 def _described_model() -> EditModel:
@@ -437,7 +445,7 @@ def test_shown_window_settles() -> None:
         real_press(window, EXPLAIN_TEXT)
         assert len(_resizes(window, seen)) < RESTLESS_RESIZES
         assert (window.winfo_width(), window.winfo_height()) == opened
-        assert real_ticks(window) == [True]
+        assert real_ticks(window) == SETTLED_TICKS
     finally:
         window.destroy()
 

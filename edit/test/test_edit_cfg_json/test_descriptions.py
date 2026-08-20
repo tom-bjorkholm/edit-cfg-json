@@ -14,11 +14,12 @@ from config_as_json import ConfigPath, JsonType, ParseConverter
 import pytest
 from edit_cfg_json import Descriptions
 from edit_cfg_json.converting import member_converters
-from edit_cfg_json.descriptions import MemberFacts, OPTIONAL_TEXT, \
+from edit_cfg_json.descriptions import MemberFacts, NOTHING_TEXT, \
+    OPTIONAL_TEXT, \
     class_docstring, class_summary, enum_text, member_description, \
     optional_members, optional_paths, path_description
-from edit_cfg_json.leaf_value import BOOL_KIND, NO_KIND, NUMBER_KIND, \
-    TEXT_KIND, WHOLE_NUMBER_KIND, value_kind
+from edit_cfg_json.leaf_value import BOOL_KIND, LeafType, NO_KIND, \
+    NUMBER_KIND, TEXT_KIND, WHOLE_NUMBER_KIND, kind_text
 from edit_cfg_json.tree import config_nodes
 from .container_cfg import OwnedOptionCfg
 from .sample_cfg import DocumentedCfg, EnumCfg, FlatCfg, HexCfg, IntEnumCfg, \
@@ -251,7 +252,7 @@ def test_kind_of_value(value: JsonType, expected: str) -> None:
     member the editor cannot edit yet says which of the two it is where its
     value would be.
     """
-    assert value_kind(value) == expected
+    assert kind_text(declared=LeafType(), value=value) == expected
 
 
 def test_optional_is_said() -> None:
@@ -264,6 +265,32 @@ def test_optional_is_said() -> None:
     said = member_description(descriptions={}, path=('optional',),
                               facts=MemberFacts(value=None, optional=True))
     assert said == f'{NO_KIND} {OPTIONAL_TEXT}'
+
+
+def test_nothing_is_said() -> None:
+    """Test a member declared to allow no value says so under itself.
+
+    It is a different question from the one above: that member is one the
+    class leaves out of the file, and this one is written as `null`.
+    """
+    said = member_description(
+        descriptions={}, path=('title',),
+        facts=MemberFacts(value=None,
+                          declared=LeafType(kind=str, nothing=True)))
+    assert said == f'{TEXT_KIND} {NOTHING_TEXT}'
+
+
+def test_omitted_says_more() -> None:
+    """Test a member that is both says only the one that says more.
+
+    A member left out of the file is a member holding nothing, written the
+    way that class writes it, so saying both would say the same thing twice.
+    """
+    said = member_description(
+        descriptions={}, path=('title',),
+        facts=MemberFacts(value=None, optional=True,
+                          declared=LeafType(kind=str, nothing=True)))
+    assert said == f'{TEXT_KIND} {OPTIONAL_TEXT}'
 
 
 def test_optional_asked() -> None:

@@ -632,18 +632,31 @@ class ConfigDictCfg(SampleCfg):
                                          config_type=InnerCfg)}
 
 
-class ElementCfg(SampleCfg):
-    """A configuration holding every kind of container that cannot grow.
+def _nothing_says() -> list[str]:
+    """Return the empty list of a member whose type says nothing.
 
-    The four members are the four different answers the editor gives about
+    The member it is assigned to is deliberately left without an annotation,
+    which is what makes it the one list nothing says anything about: its class
+    declares no element for it, it holds none, and there is no declared type
+    to make an element of. mypy is still told what it holds, because this
+    function says so, so the fixture is as strictly typed as everything else.
+    """
+    return []
+
+
+class ElementCfg(SampleCfg):
+    """A configuration holding one container of each answer about growing.
+
+    The five members are the five different answers the editor gives about
     adding an element, and they are together in one class so that a test can
-    read all four of one model.
+    read all five of one model.
     """
 
     def declare_members(self) -> None:
         """Assign one list of each kind and one dict of each kind."""
         self.tags: list[str] = ['first', 'second']
-        self.spare: list[str] = []
+        self.grows: list[str] = []
+        self.spare = _nothing_says()
         self.limits: dict[str, int] = {'low': 1}
         self.labels: dict[str, str] = {'team': 'platform'}
         self._unchecked_dicts = ['labels']

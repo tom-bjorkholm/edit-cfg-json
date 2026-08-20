@@ -230,8 +230,13 @@ def test_edited_value() -> None:
 
     Editing the settings of the editor in the editor is what `--edit-settings`
     is for, so what a user types has to be validated the way any value is.
+
+    This setting is declared `Optional[str]` and holds nothing until it is
+    asked to hold something, so it is given a value before one is typed into
+    it, exactly as the user gives it one with the control on its row.
     """
     model = EditModel(SettingsConfig(), descriptions=SETTINGS_DESCRIPTIONS)
+    model.add_element(('file_extension',))
     model.set_text(('file_extension',), 'cfg')
     assert model.validate().valid
     assert row_at(model, ('file_extension',)).value == '.cfg'

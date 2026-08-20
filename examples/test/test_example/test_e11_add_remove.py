@@ -28,15 +28,6 @@ STAGE_CLASS = StageConfig.__name__
 DATA_NAME = 'e11_pipeline.json'
 """Input file of this example, whose spare hosts are not empty."""
 
-NO_PATTERN = ('    There is nothing here to copy a new element from: this '
-              'class declares no element for this member and it holds none.')
-"""What the editor says below the one list it can add nothing to.
-
-Only the application knows what one element of its own list looks like, and a
-member it never gave one for has never said. It is written out here rather
-than read from an internal module of the core, in the same way as every other
-text these tests expect.
-"""
 
 FIXED_KEYS = ('    This version adds an entry only to a dict whose class '
               'declares that every value in it is one configuration object.')
@@ -110,11 +101,16 @@ def test_declared_copied(capsys: pytest.CaptureFixture[str]) -> None:
     assert '    3 = 1' in printed
 
 
-def test_nothing_to_copy(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test the one list with nothing to copy says so and refuses to grow."""
-    assert NO_PATTERN in _explained(capsys)
-    refusal = _refused(capsys, '--ui', 'dump', '--add', 'extra_hosts')
-    assert 'Nothing can be added' in refusal
+def test_typed_element_added(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the list with nothing to copy grows by what its type says.
+
+    Its class declares an empty list and no nesting, so no value anywhere
+    says what one host looks like. `list[str]` does, and the empty text is
+    the one value of that kind which says no more than which kind it is.
+    """
+    printed = _dump(capsys, '--add', 'extra_hosts')
+    assert 'extra_hosts: 1 element (edited)' in printed
+    assert '    0 = \n' in printed
 
 
 def test_file_gives_a_pattern(capsys: pytest.CaptureFixture[str]) -> None:

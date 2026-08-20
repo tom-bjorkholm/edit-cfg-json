@@ -111,7 +111,7 @@ class ModelPanel(Widget):
         self._member_rows: dict[str, core.MemberRow] = {}
         self._fold_rows: dict[str, core.MemberRow] = {}
         self._element_rows: dict[str, tuple[core.MemberRow, str]] = {}
-        self._built: tuple[ConfigPath, ...] = ()
+        self._built: tuple[tuple[ConfigPath, bool], ...] = ()
         self._find = FindRow(model, searched=self._searched,
                              reached=self._reach_found)
         self._bind_editor_keys()
@@ -253,7 +253,7 @@ class ModelPanel(Widget):
         self._member_rows = {}
         self._fold_rows = {}
         self._element_rows = {}
-        self._built = tuple(row.path for row in self._model.rows)
+        self._built = core.rows_shape(self._model)
         return [self._member_widget(index=index, row=row)
                 for index, row in enumerate(self._model.rows)]
 
@@ -881,14 +881,16 @@ class ModelPanel(Widget):
         already holds into a field is not an edit, so this refresh does not
         undo the marks that the pass has just set.
 
-        A pass can also leave the model with other rows than it had, which a
-        validator that normalizes a list does, and the widgets are then
-        mounted afresh rather than written into. That is done after this
-        message rather than inside it, because taking a widget out of the
-        screen and putting another one in its place is awaited and this is
-        not.
+        A pass can also leave the model with other rows than it had, or leave
+        one row a different thing from what it was: a validator that
+        normalizes a list does the first and one that answers `None` for a
+        member allowed to hold nothing does the second. `rows_shape` is what
+        says so, and the widgets are then mounted afresh rather than written
+        into. That is done after this message rather than inside it, because
+        taking a widget out of the screen and putting another one in its
+        place is awaited and this is not.
         """
-        if self._built != tuple(row.path for row in self._model.rows):
+        if self._built != core.rows_shape(self._model):
             self.call_next(self._rebuild_rows)
             return
         for index, row in enumerate(self._model.rows):

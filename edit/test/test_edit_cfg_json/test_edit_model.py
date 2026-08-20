@@ -77,12 +77,44 @@ def test_type_name() -> None:
     assert EditModel(FlatCfg()).config_type_name == 'FlatCfg'
 
 
-def test_none_is_a_value() -> None:
-    """Test a member defaulting to None is an editable row holding None."""
+def test_none_holds_nothing() -> None:
+    """Test a member declared to allow no value and holding none says so.
+
+    It is not a field holding the text `null`: the member has two states, and
+    this is the one in which it holds nothing. What it would hold is still
+    known, because `Optional[str]` says it, and the row offers to give it a
+    value rather than asking anyone to type one.
+    """
     row = _row(EditModel(NoneCfg()), 'name')
     assert row.value is None
+    assert row.holds_nothing
+    assert not row.editable
+    assert row.is_text
+    assert row.offer.extend
+    assert not row.offer.remove
+
+
+def test_nothing_gets_value() -> None:
+    """Test such a member is given the empty value of the kind declared."""
+    model = EditModel(NoneCfg())
+    model.add_element(('name',))
+    row = _row(model, 'name')
+    assert row.value == ''
     assert row.editable
-    assert not row.is_text
+    assert row.offer.remove
+
+
+def test_value_gets_cleared() -> None:
+    """Test such a member is put back to holding nothing, and not to text.
+
+    This is what tells a `None` apart from an empty text, which is the open
+    question at the end of design section 4.2 of `doc/design.md`.
+    """
+    model = EditModel(NoneCfg())
+    model.add_element(('name',))
+    model.set_text(('name',), 'something')
+    model.remove_element(('name',))
+    assert _row(model, 'name').value is None
 
 
 def test_containers_reported() -> None:

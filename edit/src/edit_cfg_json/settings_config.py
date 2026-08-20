@@ -446,14 +446,14 @@ _MEMBER_DESCRIPTIONS: Descriptions = {
                   'its button or its command palette entry.',
     ('actions', '['): EVERY_ACTION,
     ('file_extension',): 'What a configuration file of this application is '
-                         'called, or null for no opinion. A value that does '
-                         'not begin with a dot is given one.',
+                         'called, and nothing at all for no opinion. A value '
+                         'that does not begin with a dot is given one.',
     ('extension_enforced',): 'Whether a file name with another extension is '
                              'refused. It says nothing while there is no '
                              'extension to enforce.',
-    ('backup_suffix',): 'What the file that a save writes over is kept as, or '
-                        'null to keep nothing. It is added to the whole name, '
-                        'so .bak keeps xx.cfg as xx.cfg.bak.',
+    ('backup_suffix',): 'What the file that a save writes over is kept as, '
+                        'and nothing at all to keep nothing. It is added to '
+                        'the whole name, so .bak keeps xx.cfg as xx.cfg.bak.',
     ('backup_count',): 'How many of those are kept. One is kept under the '
                        'plain name, and two or more are numbered from _1, '
                        'which is the file that was written over last.',

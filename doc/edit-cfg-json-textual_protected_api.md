@@ -2807,12 +2807,14 @@ different from the one the user typed. Writing the text the model
 already holds into a field is not an edit, so this refresh does not
 undo the marks that the pass has just set.
 
-A pass can also leave the model with other rows than it had, which a
-validator that normalizes a list does, and the widgets are then
-mounted afresh rather than written into. That is done after this
-message rather than inside it, because taking a widget out of the
-screen and putting another one in its place is awaited and this is
-not.
+A pass can also leave the model with other rows than it had, or leave
+one row a different thing from what it was: a validator that
+normalizes a list does the first and one that answers `None` for a
+member allowed to hold nothing does the second. `rows_shape` is what
+says so, and the widgets are then mounted afresh rather than written
+into. That is done after this message rather than inside it, because
+taking a widget out of the screen and putting another one in its
+place is awaited and this is not.
 
 <a id="edit_cfg_json_textual.textual_panel.ModelPanel._rebuild_rows"></a>
 

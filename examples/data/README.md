@@ -156,6 +156,16 @@ holding a whole `edit_cfg_json.SettingsConfig`.
 | [e17_tool.json](e17_tool.json) | Opens with every value from the file, including a whole settings block: another backup suffix, three of them kept, an extension for this tool's files and `ctrl+w` for Save. It holds every member of `SettingsConfig` because a nested configuration object is read whole whatever policy the parse around it was given, which is the one thing about this example that a shorter file would have hidden. |
 | [e17_tool_old.json](e17_tool_old.json) | Opens. It is the same file as a release before the editor had the `find` and `find_next` actions wrote it, so its `actions` block names seven actions where the class now declares nine. `SettingsConfig` declares rules for reading such a file, so the two are supplied with the combinations the editor declares, the `editor` row is marked as holding what the load put there, and the printout says that reading the file changed it. Without those rules this whole application would refuse to start over two keys of the editor it embeds. |
 
+## Files for `e18_declared_types.py`
+
+`ReportConfig` declares three members that may hold nothing, one member
+holding a number whose default is written as a whole number, and one member
+with no annotation at all.
+
+| File | What happens |
+| --- | --- |
+| [e18_report.json](e18_report.json) | Opens with the mirror of what the class declares: `subtitle` is an empty text where the class holds nothing, and `footer` holds nothing where the class holds a text. It is what shows that the two states of an optional member survive a round trip, which is the whole reason for telling them apart. The file does not hold `note`, which the class leaves out while it holds nothing, so that member has no row at all. |
+
 ## Why a file with a bad value cannot be opened
 
 An editor that refused to open the very file that has to be repaired would

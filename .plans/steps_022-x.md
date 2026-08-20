@@ -85,6 +85,9 @@ in this file. Where any of the three files mentions a design decision,
 - [Step 23][s23] — looking for a member of a configuration that does not fit a
   window: a field that stays, four controls that say where it looks, and a match
   inside a folded container opened, brought into view and typed into.
+- [Step 24][s24] — the declaration of a member read as well as the value it
+  holds, and the open question of section 4.2 answered: a member allowed to
+  hold nothing has two states rather than a kind the user can change.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -116,6 +119,7 @@ in this file. Where any of the three files mentions a design decision,
 [s21]: steps_010-021.md#step-21---version-command-line-flag
 [s22]: #step-22---better-bool-support
 [s23]: #step-23---finding-a-member
+[s24]: #step-24---more-type-information-and-whether-the-user-may-change-it
 
 ## 1. How this plan is meant to be used
 
@@ -397,17 +401,114 @@ done about the files of the release before them.
 
 ### Step 24 - More type information, and whether the user may change it
 
-Two things the design records and no step claims, both in section 4.2. It is an
-open question whether the user may change the type metadata of a leaf, and the
-reason it might be wanted is written down: telling a `None` apart from an empty
-string in an `Optional[str]`. And later versions are said to be likely to
-derive more type information from the attribute types than the type of the
-default value, which is all section 4.1 has today. The step answers the
-question before it builds what the answer asks for.
+Status: **Implemented, committed.**
 
-Built before step 28 it would give the pull-down a better answer about which
-members have a known set of values, and before step 25 it would give that
-step's investigation a type model to start from. Neither is forced.
+Two things the design recorded and no step claimed, both in section 4.2: an
+open question about whether the user may change the type metadata of a leaf,
+and the note that later versions would derive more type information from the
+attribute types than from the type of the default value. The step answered the
+question first, and the answer decided what was built.
+
+**The answer to the open question.** *No, and the case it was wanted for is
+answered another way.* The one thing changing the kind of a leaf would have
+been useful for is telling a `None` apart from an empty text in an
+`Optional[str]`, and there was nothing that said which members those were.
+There is now. A member the class declares to allow no value has **two states**
+— it holds a value, or it holds nothing — and the user moves between them with
+the **same add and remove controls** that give a declared `OPTIONAL_MEMBER`
+its configuration object and take it away again. No new control in either
+backend, no new key, no new command line option, and no backend change at all:
+both backends already render `ElementOffer`, and `--add` and `--remove`
+already press it. Section 4.2 of the design is the authority, and section 11
+records the rejection.
+
+**Where a declared type is read from.** Three sources, each covering a pattern
+the others do not: `typing.get_type_hints()` for a dataclass and for any class
+level annotation; the **source of the class**, parsed with `ast`, for the
+ordinary `Config` pattern, which records nothing at runtime; and the value the
+leaf held, which is what there always was and remains the fallback. The whole
+of the class is read and not only its `__init__`, because a class may declare
+its members in a method of its own — every configuration fixture in this
+repository's own core tests does. Nothing is evaluated here: an annotation is
+a text and the text goes to `inspect.get_annotations`, which is the standard
+library's own resolver for one.
+
+**What the reach was decided to be**, from four answers, each of which could
+have gone the other way.
+
+- **Also how a field's text is read**, and not the explanatory line alone. A
+  member declared `Optional[str]` holding nothing reads `123` as the text and
+  not as the number, and one declared `bool` gets step 22's expansion.
+- **Also an element of an empty list**, from `list[str]`, which is the case
+  section 11 had put permanently out of scope while the kind of an element was
+  unknowable. It is asked **last**, after the class's declared element and the
+  member's own first element, because a value the application wrote says more
+  than its kind does. Section 11 keeps the rejection with a narrower scope.
+- **Not an entry of an empty dict**, and the reason is worth keeping: what
+  refuses one is `Config.check_dict_parse` matching the member against the
+  keys its class declares, and a type hint says what a *value* would be and
+  nothing about the key beside it. Offering the control would be offering one
+  that produces a refusal. Recorded as step 27B for the dicts that check never
+  reaches.
+- **`nothing` is never set where the kind is unknown.** The two states exist
+  only where the editor can make a value for one of them, which keeps
+  `Optional[SomeEnum]` and `Optional[SomeClass]` exactly as they were.
+
+The public names it settled:
+
+| Name | Kind |
+| --- | --- |
+| `LeafType` | what a class says one leaf of it holds: the kind, whether it may hold nothing, and what one value inside it is |
+| `MemberRow.declared` | that answer for one node |
+| `MemberRow.holds_nothing`, `.kind` | the state of such a member, and which kind of value it takes |
+| `edit_cfg_json.member_types` | reading the three sources, and `node_types` for a whole tree |
+| `leaf_value.kind_text`, `.leaf_kind`, `.empty_value` | what a kind is called, which kind a leaf takes, and the emptiest value of one |
+| `rows_shape` | what a backend makes its widgets again for |
+| `NO_VALUE_TEXT`, `NOTHING_TEXT`, `LIST_KIND`, `DICT_KIND` | what such a row and such a line say |
+
+**What building it found.**
+
+- **A field must never change whether it is a field.** Typing `null` into a
+  member with the two states would have taken the field away from under the
+  cursor after four characters, and a backend does not rebuild its widgets on
+  a keystroke. So such a member reads `null` as the text it is, and the state
+  is only ever reached through a control. A member with no such state reads
+  `null` as JSON, exactly as before.
+- **`editable` had to stop asking `is_container(original)` alone.** A member
+  declared `Optional[list[str]]` and given `[]` has rows below it and an
+  `original` of `None`, so it was both foldable and editable. It now asks the
+  rows as well.
+- **Both backends rebuilt on the paths alone, and a pass can change less than
+  that.** A member validator returns the value that is stored back into the
+  member, so one can answer `None` for a member allowed to hold nothing: the
+  rows are the same rows and one of them is no longer a field. `rows_shape` is
+  the core's one answer to when a backend makes its widgets again, and section
+  8 of the design is the rule. Example 18 has such a validator, so both
+  backends have a test that presses Validate and counts the fields.
+- **`_hold_again` read the shape from `original` and had to read it from the
+  value.** The same member would have had its elements put back together as a
+  dictionary, losing all of them. Found by reasoning about the new state
+  rather than by a failing test, because no member of that shape existed yet.
+- **A quoted forward reference was read as its own name.** `ast.unparse` of
+  `self.x: 'MyType'` writes the quotation marks back, so resolving it answered
+  with the string. Unwrapped before it is resolved.
+- **The core test fixtures declare their members in `declare_members()`**,
+  which is what made reading the whole class source the right shape rather
+  than a generalization for its own sake.
+- **A focus-sensitive Tk test was already broken on master.** Step 23 added
+  four tick-boxes to the find row and `test_shown_window_settles` still
+  expected one. The build deselects `focus_sensitive`, so no build had
+  reported it. It now reads the four from `FindOptions` itself.
+
+**What is observable.** A new example,
+`examples/src/example/e18_declared_types.py`, with
+`examples/data/e18_report.json`. `--ui dump` shows `threshold = 0` saying *A
+number.*, `subtitle: no value` with an add control, and `footer` with a remove
+control; `--add subtitle --save` and `--save` write `""` and `null` into two
+different files. Two existing examples changed without being asked to:
+`e11_add_remove.py --ui dump --add extra_hosts` now adds an empty text where
+it used to refuse, and `e17_settings_config.py --edit-settings` shows the
+editor's own `file_extension` as `no value` rather than as `null`.
 
 ### Step 25 - Add and remove omitted members
 
@@ -415,7 +516,7 @@ A member that a class omits from JSON while it holds no object shall also
 be possible to add and remove in the editor. Exactly how to achieve this
 is the subject of a design investigation in the beginning of this step.
 
-One possible idea to investigate for how to implement this:
+One possible early idea to investigate for how to implement this:
 With vars() on the config object we can detect the member variable even
 when it has value None.
 We should (in most cases) be able to look up the Python code (often in
@@ -428,6 +529,19 @@ failed to discover what the types of the editable fields should be for
 this sub-object, but as a fallback we offer the user to type in raw
 JSON for this sub-object that the editor can then validate.
 This first idea could lead to better spin off ideas.
+
+A lot of this early idea is changed by what was found in step 24.
+The likelyhood of not being able to detect the type at all is maybe
+so small that the JSON fallback is not worth it for that case - to
+be investigated.
+
+We also need to be able to be able to add an ommitted member of a
+user defined class derived from `config_as_json.Config` to handle
+the case of an optional nested config class when we start from
+it being absent. (Here we probably need to solve the question of
+how to handle the case where the construction of the object needs
+some arguments. The best way of solving this needs to be
+investigated.)
 
 ### Step 26 - Full support for `DICT_VALUE_BY_KEY`
 
@@ -447,6 +561,28 @@ application's own validators refuse is then the ordinary verdict.
 It shares its mechanism with step 23, because both need a dict that accepts a
 key its class does not declare, so whichever is built first makes the other one
 cheaper. Neither forces the other's order.
+
+### Step 27B - An entry in a dict the class never checks
+
+Step 24 gave an empty list its elements from `list[str]` and deliberately gave
+an empty dict nothing, because what refuses a new entry of a dict is not the
+absence of a pattern. It is `Config.check_dict_parse` matching the member
+against the keys its class declares, and a type hint says what a *value* would
+be and nothing about whether the key beside it would be accepted.
+
+There is one place where that check does not reach. `check_dict_parse` returns
+without checking anything as soon as a list is between the member and the dict,
+so a dict inside an element of a `list[dict[str, int]]` really can gain a key
+and be read back. The editor refuses it today, and refuses it conservatively:
+its rule is about the *member* rather than about whether the class checks that
+particular dict.
+
+This step would make section 4.9's first bullet a question about where the dict
+sits in the tree rather than about which member it belongs to, and give such a
+dict the entry control, with `dict[str, int]` saying what the new value is.
+The main risk is exactly the reason it is last: the rule has to be right
+against the implementation of `config_as_json` and not merely plausible, and
+being wrong means offering a control whose result the application refuses.
 
 ### Step 28 - Pull-down selection of enum and bool values
 
@@ -492,17 +628,16 @@ run, with a refusal and an exit code of its own where it can run none.
 | --- | --- | --- |
 | 27 An entry in an `_unchecked_dicts` member | 2 | Step 14's machinery reused: the row stops saying why it cannot, and both backends show controls they already have. |
 | 26 Full `DICT_VALUE_BY_KEY` | 3 | The same work, complicated by a member whose values are of two kinds, and by what deleting the named key would mean. |
+| 27B An entry in a dict the class never checks | 3 | Step 24's type model and step 14's machinery are both there; the work is getting one rule right against `config_as_json` and a configuration shape to show it with. |
 | 30 The launcher | 4 | Little logic, spread over all three packages: an entry-point group, a script the core has never installed, discovery, and what a machine that can run neither editor is told. |
 | 28 Pull-down for enum and bool | 6 | A second kind of field in both backends, touching every rule written for the first: write on change, focus loss, the rebuild after a pass, and the marks. |
-| 24 More type information | 6 | It answers a design question before it builds anything, and the runtime records nothing for the ordinary `Config` pattern (section 4.1). |
 | 25 Add and remove omitted members | 8 | Discovering a class the runtime does not record, and then the raw-JSON fallback, which is an editing surface the editor does not have at all yet. |
 | 29 The wizard | 10 | Two toolkits' dialogs and file choosers, two bridge libraries to weigh against the menubar alternative, and no headless test worth much. |
-
 Two things the numbers do not say.
 
 - **Effort is not order.**
-- **Steps 24, 25, 29 each begin with a question**, so their numbers are the
-  three least trustworthy of the nine.
+- **Steps 25 and 29 each begin with a question**, so their numbers are the two
+  least trustworthy of the eight. Step 24 did too, and is built.
 
 ## 5. Open questions recorded, not answered
 

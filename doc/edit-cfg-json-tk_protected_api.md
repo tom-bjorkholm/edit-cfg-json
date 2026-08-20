@@ -1303,9 +1303,11 @@ different from the one the user typed. Writing the text the model
 already holds into a field is not an edit, so this refresh does not
 undo the marks that the pass has just set.
 
-A pass can also leave the model with other rows than it had, which a
-validator that normalizes a list does, and the widgets are then made
-again rather than written into.
+A pass can also leave the model with other rows than it had, or leave
+one row a different thing from what it was: a validator that
+normalizes a list does the first and one that answers `None` for a
+member allowed to hold nothing does the second. `rows_shape` is what
+says so, and the widgets are then made again rather than written into.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._show_state"></a>
 

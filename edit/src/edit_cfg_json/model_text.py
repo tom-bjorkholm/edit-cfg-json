@@ -4,6 +4,7 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from config_as_json import ConfigPath
 from edit_cfg_json.descriptions import class_docstring, class_summary
 from edit_cfg_json.edit_model import EditModel
 from edit_cfg_json.finding import looks_nowhere
@@ -428,6 +429,34 @@ def row_fold_text(row: MemberRow) -> str:
         The mark of a folded container, and nothing for every other node.
     """
     return FOLDED_MARK if row.folded else ''
+
+
+def rows_shape(model: EditModel) -> tuple[tuple[ConfigPath, bool], ...]:
+    """Return what the widgets a backend builds for the rows depend on.
+
+    A validation pass is not read only, and neither is it only about values.
+    It can leave the model with other rows than it had, which a validator
+    that normalizes a list does, and it can leave one row a different thing
+    from what it was, which a validator that answers `None` for a member
+    allowed to hold nothing does: that row had a field and now has none. A
+    backend that only wrote the values back would then be showing a field for
+    a member that holds nothing, and the next key typed into it would be
+    refused.
+
+    So a backend compares this before and after, and makes its widgets again
+    where it differs. It is here rather than in each backend for the same
+    reason every other question about a row is: two user interfaces of one
+    application that rebuilt at different moments would each be right about a
+    different editor.
+
+    Args:
+        model: Model to ask about.
+
+    Returns:
+        The path of every row and whether that row is a value with a field,
+        in the order the rows are shown.
+    """
+    return tuple((row.path, row.editable) for row in model.rows)
 
 
 def can_fold(model: EditModel) -> bool:
