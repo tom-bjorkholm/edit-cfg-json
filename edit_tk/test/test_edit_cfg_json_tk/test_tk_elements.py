@@ -40,6 +40,9 @@ RUNNERS: ConfigPath = ('runners',)
 HOOKS: ConfigPath = ('hooks',)
 """The member of it whose one named key holds a configuration object."""
 
+LABELS: ConfigPath = ('labels',)
+"""The member of it whose keys `_unchecked_dicts` leaves to its class."""
+
 
 class Editor(NamedTuple):
     """One editor of the example, and the model it is showing."""
@@ -130,15 +133,28 @@ def test_stub_offers_controls(stub_tk: None) -> None:
 
 
 def test_stub_offers_nothing(stub_tk: None) -> None:
-    """Test the dicts that cannot grow have no controls at all.
+    """Test the dict that cannot grow has no controls at all.
 
     Nothing is half-supported: such a dict gets no control rather than one
     that refuses every press.
     """
     _ = stub_tk
     editor = _pipeline_stub()
-    for path in [('limits',), ('limits', 'cpu'), ('labels',)]:
+    for path in [('limits',), ('limits', 'cpu')]:
         assert _controls_of(editor, path) == []
+
+
+def test_stub_unchecked(stub_tk: None) -> None:
+    """Test the dict whose keys its class does not check has the controls.
+
+    `_unchecked_dicts` took the declared-keys check off that member, so it is
+    an ordinary container: it is given an entry under a key the question asks
+    for, and each of its entries can be taken out.
+    """
+    _ = stub_tk
+    editor = _pipeline_stub()
+    assert _controls_of(editor, LABELS) == [ADD_TEXT]
+    assert _controls_of(editor, (*LABELS, 'team')) == [REMOVE_TEXT]
 
 
 def test_stub_offers_by_key(stub_tk: None) -> None:

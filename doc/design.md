@@ -835,29 +835,39 @@ out of scope. It is a narrow case now: a list member with no annotation at
 all, or one annotated with something the editor cannot make an empty value of.
 Such a member says so and offers removing and moving.
 
-**What cannot be done is said and not left to be discovered.** Two kinds of
-dict cannot be given an entry, for two different reasons, and each says which
-below its own row:
-
-- an ordinary dict member, because `config_as_json` checks such a member
-  against the keys its class declares — `Config.check_dict_parse` does it while
-  parsing — so a dict that gained or lost one would be refused by the
-  configuration class itself. Confirmed against the implementation of
-  `config_as_json`, and it is why a dict is offered an entry or not according
-  to the key policy its class declares rather than because it is a dict. The
-  declared type of the member does not change this and cannot: `dict[str,
-  int]` says what a new value would be and nothing at all about whether the
-  class would accept the key beside it, and the check is what refuses it. That
-  is the whole difference between a dict and a list here, and it is why the
-  declared type unlocked the empty list and not the empty dict.
-- a member of `_unchecked_dicts`, whose key policy the application defines with
-  validators of its own. Out of v1 scope.
+**What cannot be done is said and not left to be discovered.** One kind of
+dict cannot be given an entry, and it says so below its own row: an ordinary
+dict member, because `config_as_json` checks such a member against the keys its
+class declares — `Config.check_dict_parse` does it while parsing — so a dict
+that gained or lost one would be refused by the configuration class itself.
+Confirmed against the implementation of `config_as_json`, and it is why a dict
+is offered an entry or not according to the key policy its class declares
+rather than because it is a dict. The declared type of the member does not
+change this and cannot: `dict[str, int]` says what a new value would be and
+nothing at all about whether the class would accept the key beside it, and the
+check is what refuses it. That is the whole difference between a dict and a
+list here, and it is why the declared type unlocked the empty list and not the
+empty dict.
 
 That sentence is **explanation and not a refusal to act on**: it says what this
 member is, so it is `Emphasis.MUTED`, it sits below the member with the
 description, and the toggle of section 4.4 covers it. Nothing is
 half-supported: a node that cannot be given an element gets no control at all
 rather than one that refuses every press.
+
+**A class that owns the key policy of a member says so, and such a member is
+an ordinary container.** `_unchecked_dicts` is how a class takes the check
+above away and defines the keys of one member with validators of its own
+instead, so nothing in `config_as_json` matches that member against the keys
+the class declares: the member takes an entry under a key the user gives and
+gives one up again, and what a new entry holds is the same three questions a
+new element of a list is answered by. The whole of such a member is unchecked
+and not only its outermost dictionary, because the check returns at the member
+rather than recursing into it, so a dict inside one is offered the same entry.
+What the application's own validators then make of a key is the ordinary
+verdict of a validation pass, exactly as it is for a stage whose name another
+stage already has: the editor runs the application's rules and has none of its
+own about keys.
 
 **A member holding nothing is grown by being given a value**, whether that
 value is a configuration object or an ordinary one. A declared member holding
@@ -902,8 +912,10 @@ holds, because its row is there whether the object is or not.
 **A member the editor cannot make a value for is offered nothing**, and there
 are two of those. A member whose kind nothing says has one state rather than
 two and stays the field it was (section 4.2). A member declared to hold a dict
-says why it cannot be given one, which is the first bullet above: the same
-check refuses the empty dict written for a member that holds none.
+says why it cannot be given one, which is the check above: the same check
+refuses the empty dict written for a member that holds none. It refuses it
+before it reaches the member whose keys it does not check, so a member of
+`_unchecked_dicts` that holds nothing is not given a dict either.
 
 **Where an object is added, an object is made.** The tree finds the nested
 configuration objects by walking the real objects (section 4.1), so an element
@@ -2550,10 +2562,10 @@ version rather than assumed.
   `Config.check_dict_parse` matching it against the keys its class declares,
   and `dict[str, int]` says what a new value would be and nothing about whether
   the key beside it would be accepted. Offering the control anyway would be
-  offering one that produces a refusal, which section 4.9 rules out. Section
-  4.9's first bullet is the whole reason. This limitation does not apply to
-  dicts that will not will not be checked, examples of not checked dicts are
-  `list[dict[str,str]]` or dict listed as unchecked dicts.
+  offering one that produces a refusal, which section 4.9 rules out. The check
+  is the whole reason. This limitation does not apply to dicts that will not be
+  checked, examples of not checked dicts are `list[dict[str,str]]` or dict
+  listed as unchecked dicts.
 - **The empty dict given to a member declared to allow no value.** The same
   check, one step up: `check_dict_parse` refuses a dict written for a member
   whose value is not a dict, whatever keys that dict has and even where it has

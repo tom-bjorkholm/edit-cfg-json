@@ -158,7 +158,7 @@
   * [FIXED\_KEYS](#edit_cfg_json.elements.FIXED_KEYS)
   * [BY\_KEY\_PATTERN](#edit_cfg_json.elements.BY_KEY_PATTERN)
   * [NO\_DICT\_YET](#edit_cfg_json.elements.NO_DICT_YET)
-  * [UNCHECKED\_SCOPE](#edit_cfg_json.elements.UNCHECKED_SCOPE)
+  * [NO\_ENTRY\_PATTERN](#edit_cfg_json.elements.NO_ENTRY_PATTERN)
   * [NOT\_EXTENDABLE](#edit_cfg_json.elements.NOT_EXTENDABLE)
   * [NOT\_REMOVABLE](#edit_cfg_json.elements.NOT_REMOVABLE)
   * [NOT\_MOVABLE](#edit_cfg_json.elements.NOT_MOVABLE)
@@ -194,7 +194,7 @@
   * [\_growing\_list](#edit_cfg_json.elements._growing_list)
   * [\_typed\_element](#edit_cfg_json.elements._typed_element)
   * [\_growing\_dict](#edit_cfg_json.elements._growing_dict)
-  * [\_growing\_by\_key](#edit_cfg_json.elements._growing_by_key)
+  * [\_growing\_entries](#edit_cfg_json.elements._growing_entries)
   * [\_ordinary\_entry](#edit_cfg_json.elements._ordinary_entry)
   * [\_first\_entry](#edit_cfg_json.elements._first_entry)
   * [\_from\_class](#edit_cfg_json.elements._from_class)
@@ -3307,11 +3307,12 @@ says so rather than inventing a value that the application never mentioned.
 
 **What cannot be done is said and not left to be discovered.** A dict whose
 keys are the ones its class declares cannot gain or lose one at all —
-`config_as_json` checks a dict member against those keys while it parses — and
-a dict whose keys the application decides with validators of its own is a key
-policy that this version does not serve. Each of those is a sentence below
-that member, in the same place and under the same toggle as everything else
-explanatory.
+`config_as_json` checks a dict member against those keys while it parses — so
+that is a sentence below that member, in the same place and under the same
+toggle as everything else explanatory. A class that names the member in
+`_unchecked_dicts` has taken that check away and defined the key policy with
+validators of its own, so such a member is an ordinary container here and what
+those validators make of a new key is the ordinary verdict.
 
 **A member whose values are of two kinds is asked twice.** A
 `DICT_VALUE_BY_KEY` declaration names one key of a dict that holds a
@@ -3357,9 +3358,10 @@ The declarations of a dict member whose keys its own class does not check.
 `Config.check_dict_parse` is what matches an ordinary dict member against the
 keys its class declares, and a member named in `nested_configs()` never
 reaches it: `config_as_json` reads such a member whole instead. So an entry of
-one of these can be taken out of it and another one put in. A member of
-`_unchecked_dicts` is the other dict whose keys nothing here checks, and it is
-left out for a different reason: its keys are the application's own to decide.
+one of these can be taken out of it and another one put in. A member named in
+`_unchecked_dicts` is the other answer to the same question, and it is not a
+declaration: `_holds_elements` asks both, because the check returns for such a
+member as well.
 
 <a id="edit_cfg_json.elements.CLEARED_KINDS"></a>
 
@@ -3405,7 +3407,9 @@ What an ordinary dict member says instead of offering to grow.
 `Config.check_dict_parse` matches such a member against the keys the class
 declares for it, so a dict that gained or lost one would be refused by
 `config_as_json` itself on the next validation pass. The editor says so rather
-than offering a control that produces a refusal.
+than offering a control that produces a refusal. A class that wants another
+key policy takes this check away by naming the member in `_unchecked_dicts`,
+and such a member is offered the entry instead of this sentence.
 
 <a id="edit_cfg_json.elements.BY_KEY_PATTERN"></a>
 
@@ -3433,11 +3437,17 @@ It is the first bullet of section 4.9 one step up: what refuses a dict here is
 the same check that refuses a new key of one, and offering the control anyway
 would be offering one that produces a refusal.
 
-<a id="edit_cfg_json.elements.UNCHECKED_SCOPE"></a>
+<a id="edit_cfg_json.elements.NO_ENTRY_PATTERN"></a>
 
-#### UNCHECKED\_SCOPE
+#### NO\_ENTRY\_PATTERN
 
-What a member of `_unchecked_dicts` says, which is out of scope for v1.
+What a dict whose keys nothing checks says instead of gaining one.
+
+It is `NO_PATTERN` for a dict, and it is reached by a member of
+`_unchecked_dicts`: the keys of such a member are the application's own to
+decide, so the editor offers an entry as soon as anything says what one would
+hold, and says this where nothing does. `BY_KEY_PATTERN` is the same sentence
+for a member that has declared keys beside the entries.
 
 <a id="edit_cfg_json.elements.NOT_EXTENDABLE"></a>
 
@@ -3858,31 +3868,38 @@ def _growing_dict(path: ConfigPath, facts: TreeFacts) -> ElementOffer
 
 Return whether one dict can be given an entry, and why not.
 
-<a id="edit_cfg_json.elements._growing_by_key"></a>
+<a id="edit_cfg_json.elements._growing_entries"></a>
 
-#### \_growing\_by\_key
+#### \_growing\_entries
 
 ```python
-def _growing_by_key(path: ConfigPath, facts: TreeFacts) -> ElementOffer
+def _growing_entries(path: ConfigPath, facts: TreeFacts) -> ElementOffer
 ```
 
-Return whether a dict with named objects in it can gain a key.
+Return whether a dict whose keys nothing checks can gain one.
 
-Nothing checks which keys it has: `config_as_json` reads such a member
-whole, parsing the keys its declarations name as the classes they name and
-keeping every other key as the ordinary value it is, so a key it never
-heard of is read back exactly as it was written. What a new one of those
-holds is therefore the same three questions a list element is answered by,
-asked of the entries that no declaration names: an object belongs at the
-keys that declare one and never beside them, and `_validate_dict_by_key`
-is what refuses it there.
+Nothing checks which keys it has, for one of the two reasons that
+`_holds_elements` asks about, so a key it never heard of is read back
+exactly as it was written: `config_as_json` reads a member named in
+`nested_configs()` whole, parsing the keys its declarations name as the
+classes they name and keeping every other key as the ordinary value it is,
+and it returns from the check for a member named in `_unchecked_dicts`
+without looking at a key at all.
+
+What a new entry holds is therefore the same three questions a list
+element is answered by, asked of the entries that no declaration names: an
+object belongs at the keys that declare one and never beside them, and
+`_validate_dict_by_key` is what refuses it there. Which of the two
+sentences a member with nothing to copy says follows from the same thing:
+one that has declared keys is answered for those and for nothing else.
 
 <a id="edit_cfg_json.elements._ordinary_entry"></a>
 
 #### \_ordinary\_entry
 
 ```python
-def _ordinary_entry(path: ConfigPath, facts: TreeFacts) -> Optional[JsonType]
+def _ordinary_entry(path: ConfigPath, facts: TreeFacts,
+                    named: Container[str]) -> Optional[JsonType]
 ```
 
 Return what an entry of one dict that no declaration names holds.
@@ -4055,9 +4072,19 @@ def _holds_elements(path: ConfigPath, facts: TreeFacts) -> bool
 
 Return whether the entries of one dict are elements of it.
 
-They are wherever the class of the configuration declared the member in
-`nested_configs()`, because such a member never reaches the check that
-matches an ordinary dict against the keys its class declares.
+They are wherever nothing checks which keys the member holding them has,
+and there are two ways for a class to say that. One is declaring the
+member in `nested_configs()`, because such a member never reaches the
+check that matches an ordinary dict against the keys its class declares.
+The other is naming it in `_unchecked_dicts`, which is how a class takes
+that check away and defines the key policy with validators of its own; the
+whole of such a member is unchecked, because the check returns at the
+member rather than recursing into it.
+
+It is one question rather than two, because adding an entry and taking one
+out are the same question about the same member: a dict that can gain a
+key can lose one, and the sentence that says why neither is offered is
+about the check that refuses both.
 
 <a id="edit_cfg_json.elements.grown"></a>
 

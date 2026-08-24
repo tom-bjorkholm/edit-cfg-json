@@ -2,7 +2,7 @@
 
 ## Where everything is
 
-Steps 1 to 26 are implemented and committed, step 23 with the corrections its
+Steps 1 to 27 are implemented and committed, step 23 with the corrections its
 review asked for. Steps 1 to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md) and steps 10 to 21 in
 [steps_010-021.md](steps_010-021.md). Step 22 and the steps still to build are
@@ -95,6 +95,9 @@ in this file. Where any of the three files mentions a design decision,
 - [Step 26][s26] — the dict whose values are of two kinds asked twice: the key
   a declaration names given the two states of a member that may hold no object,
   and every other key of it an entry of an ordinary container after all.
+- [Step 27][s27] — the dict whose keys its own class does not check given the
+  entry control every other container has, and the key policy left where
+  `_unchecked_dicts` put it: with the validators of the application.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -129,6 +132,7 @@ in this file. Where any of the three files mentions a design decision,
 [s24]: #step-24---more-type-information-and-whether-the-user-may-change-it
 [s25]: #step-25---add-and-remove-omitted-members
 [s26]: #step-26---full-support-for-dict_value_by_key
+[s27]: #step-27---adding-an-entry-to-an-_unchecked_dicts-member
 
 ## 1. How this plan is meant to be used
 
@@ -149,11 +153,11 @@ decision gets built.
 - Every step touches all three packages where the capability is
   user-visible, so `edit_cfg_json`, `edit_cfg_json_tk` and
   `edit_cfg_json_textual` never drift apart by more than one review.
-- Steps 1 to 26 are built, and each is written up in
+- Steps 1 to 27 are built, and each is written up in
   [steps_001-009_done.md](steps_001-009_done.md), in
   [steps_010-021.md](steps_010-021.md) or in section 3 of this file as what it
   decided, what it found while building it and what came of its review. Steps
-  27 onwards are named steps with their observable outcome and their main
+  28 onwards are named steps with their observable outcome and their main
   risks; they are detailed just before they are started, when the core API is
   real rather than imagined.
 
@@ -669,20 +673,64 @@ says what is different about it instead.
 
 ### Step 27 - Adding an entry to an `_unchecked_dicts` member
 
-Section 4.9 of the design now names two kinds of dict that cannot be given an
-entry. One of them is permanently impossible, and this is the other: a member
+Status: **Implemented, committed.**
+
+Section 4.9 of the design named two kinds of dict that cannot be given an
+entry. One of them is permanently impossible, and this was the other: a member
 of `_unchecked_dicts`, whose key policy the application defines with validators
-of its own, which the design marks out of v1 scope and no step has claimed.
+of its own, which the design marked out of v1 scope and no step had claimed.
 Step 26 took the third off that list by finding that a member named in
-`nested_configs()` never reaches the check the list is about. Such a member
+`nested_configs()` never reaches the check the list is about. Such a member now
 stops saying why it cannot be given an entry and is offered the controls every
 other container already has; a key the application's own validators refuse is
-then the ordinary verdict.
+the ordinary verdict.
 
-Step 26 made it cheaper, because a dict that accepts a key its class does not
+Step 26 made it cheap, because a dict that accepts a key its class does not
 declare is what both of them need and step 26 built it: `ENTRY_KINDS` in
 `elements.py` is the list of declarations whose entries are elements, and this
 step adds the members of `_unchecked_dicts` to the same question.
+
+**One question, asked in one place.** `_holds_elements` was already the
+question *are the entries of this dict elements of it* and was already read by
+the removal side; growing asked it again in its own words. Now both read it,
+and it has two answers rather than one: an `ENTRY_KINDS` declaration, or the
+member being one of `tree.unchecked_members`. That is the whole of the change
+in the core — the offer says `extend`, `keyed` and `remove`, and the buffer,
+the rows and both backends already do the rest — and it is why no file outside
+`elements.py` was touched.
+
+**What a new entry holds** is `_ordinary_entry`, which step 26 wrote for the
+undeclared half of a `DICT_VALUE_BY_KEY` member: the three questions of step
+14 asked of the keys that no declaration names. An unchecked member has no
+declared keys, so the same function answers for the whole of it, and which of
+the two sentences a member with nothing to copy says follows from the same
+fact: `BY_KEY_PATTERN` where declarations name keys, and the new
+`NO_ENTRY_PATTERN` where none do. `UNCHECKED_SCOPE` is gone.
+
+**The whole of such a member is unchecked, and not only its outermost dict.**
+`Config.check_dict_parse` returns as soon as the member is named in
+`_unchecked_dicts`, *before* it recurses into the keys, so a dict inside such a
+member really can gain a key too and is offered one. `_member_path` already
+said this in its docstring for the sentence that used to be shown there; it now
+decides a control.
+
+**And `NO_DICT_YET` is untouched, which is worth writing down.** The same
+check refuses a dict written for a member that holds none — *Unexpected
+dictionary for X in JSON data* — and it refuses it *before* the return for an
+unchecked member. So a member of `_unchecked_dicts` that holds nothing still
+cannot be given a dict, and the sentence saying so is still right. Design
+section 4.9 says it in that order now.
+
+**What is observable.** `labels` in `examples/src/example/e11_add_remove.py`,
+which already had the shape and said it was out of scope. It takes an entry
+under a key the user gives and gives one up again, and what a new one holds is
+the one entry the class declares. The class also gained the key policy that
+`_unchecked_dicts` handed it — a `DictKeysValidator` insisting on `team` and
+allowing `owner` and `tier` — so the division of work is what the example
+shows: `--add labels=owner` is valid, `--add labels=region` is added and then
+refused by the application, and `--remove labels.team` takes away the one key
+it insists on. Only `limits` now says why it can be given nothing, and e08,
+which shows the same sentence, says it in its new words.
 
 ### Step 28 - An entry in a dict the class never checks
 
@@ -766,7 +814,6 @@ run, with a refusal and an exit code of its own where it can run none.
 
 | Step | Effort | What the number is mostly |
 | --- | --- | --- |
-| 27 An entry in an `_unchecked_dicts` member | 2 | Step 14's machinery reused: the row stops saying why it cannot, and both backends show controls they already have. |
 | 28 An entry in a dict the class never checks | 3 | Step 24's type model and step 14's machinery are both there; the work is getting one rule right against `config_as_json` and a configuration shape to show it with. |
 | 32 The launcher | 4 | Little logic, spread over all three packages: an entry-point group, a script the core has never installed, discovery, and what a machine that can run neither editor is told. |
 | 30 Pull-down for enum and bool | 6 | A second kind of field in both backends, touching every rule written for the first: write on change, focus loss, the rebuild after a pass, and the marks. |
@@ -777,9 +824,11 @@ Two things the numbers do not say.
 
 - **Effort is not order.**
 - **Step 31 begins with a question**, so its number is the least trustworthy of
-  the six. Steps 24 and 25 did too, and both are built — and step 25 came in
+  the five. Steps 24 and 25 did too, and both are built — and step 25 came in
   well under its estimate of 8, because the question it began with turned out to
-  have been answered by step 24.
+  have been answered by step 24. Step 27 came in at its estimate of 2, and for
+  the reason the estimate gave: one question in the core had two answers
+  instead of one, and everything downstream of it was already built.
 
 ## 5. Open questions recorded, not answered
 

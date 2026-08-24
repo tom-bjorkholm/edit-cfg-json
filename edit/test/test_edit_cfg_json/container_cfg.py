@@ -664,6 +664,36 @@ class ElementCfg(SampleCfg):
         self._unchecked_dicts = ['labels']
 
 
+def _nothing_declared() -> dict[str, str]:
+    """Return the empty dict of a member whose type says nothing.
+
+    The member it is assigned to is deliberately left without an annotation,
+    which is what makes it the one dict whose keys nothing checks and that
+    still cannot be given an entry: its class declares no entry for it, it
+    holds none, and there is no declared type to make one of. mypy is still
+    told what it holds, because this function says so.
+    """
+    return {}
+
+
+class UncheckedCfg(SampleCfg):
+    """A configuration whose dict members its own class does not check.
+
+    `_unchecked_dicts` is how a class takes the declared-keys check away and
+    defines the key policy of a member with validators of its own, and the
+    whole of such a member is unchecked: the check returns at the member
+    rather than recursing into it. The three members are the three answers
+    that gives the editor.
+    """
+
+    def declare_members(self) -> None:
+        """Assign one unchecked dict of each of the three answers."""
+        self.plain: dict[str, str] = {}
+        self.deep: dict[str, dict[str, str]] = {'eu': {'team': 'platform'}}
+        self.blank = _nothing_declared()
+        self._unchecked_dicts = ['plain', 'deep', 'blank']
+
+
 class EmptyObjectsCfg(SampleCfg):
     """A configuration whose declared list of objects holds none of them.
 

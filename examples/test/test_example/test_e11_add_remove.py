@@ -30,14 +30,29 @@ DATA_NAME = 'e11_pipeline.json'
 """Input file of this example, whose spare hosts are not empty."""
 
 
-FIXED_KEYS = ('    This version adds an entry only to a dict whose class '
-              'declares that every value in it is one configuration object.')
+FIXED_KEYS = ('    The keys of this dict are the ones its class declares, and '
+              'the configuration class checks them while it parses, so a '
+              'dict that gained or lost one would be refused.')
 """What it says below an ordinary dict member."""
 
-UNCHECKED = ("    The keys of this dict are the application's own to decide, "
-             'with validators of its own. This version does not add or '
-             'remove them.')
-"""What it says below a dict listed in `_unchecked_dicts`."""
+UNKNOWN_LABEL = "Unknown key 'region' in labels."
+"""What the key policy of this application says about a key it has not.
+
+The editor adds the entry and the application refuses the result, which is the
+division of work that a member of `_unchecked_dicts` is about: its keys are
+the application's own to decide, and this is it deciding.
+"""
+
+LOST_LABEL = "Mandatory key 'team' is missing from labels."
+"""What the same policy says when the key it insists on is taken away."""
+
+LABELS_REFUSED = 'validation: invalid, see labels'
+"""The verdict of a pass that the key policy of this application refused.
+
+It is attributed to that member, in the same way as every other refusal a
+validator of one member makes, so the editor shows what was refused where the
+user changed something.
+"""
 
 HOOKS = 'hooks'
 """The member of this example that is declared `DICT_VALUE_BY_KEY`."""
@@ -145,22 +160,53 @@ def test_removed_entry(capsys: pytest.CaptureFixture[str]) -> None:
     assert 'fast: RunnerConfig' not in printed
 
 
-@pytest.mark.parametrize('said', [FIXED_KEYS, UNCHECKED])
-def test_dicts_say_why(capsys: pytest.CaptureFixture[str], said: str) -> None:
-    """Test each dict that cannot grow says why, in its own words.
+def test_dict_says_why(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the one dict that cannot grow says why, in the class's terms.
 
-    The two of them cannot for two different reasons, and each reason is the
-    class's own decision: the keys it declares, and the key policy it defines
-    with validators of its own.
+    The reason is the class's own decision: it declares which keys that member
+    has, and `config_as_json` checks them while it parses.
     """
-    assert said in _explained(capsys)
+    assert FIXED_KEYS in _explained(capsys)
 
 
-@pytest.mark.parametrize('name', ['limits', 'labels'])
-def test_dicts_refuse(capsys: pytest.CaptureFixture[str], name: str) -> None:
-    """Test neither of those two dicts can be given an entry after all."""
-    refusal = _refused(capsys, '--ui', 'dump', '--add', f'{name}=new')
+def test_dict_refuses(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test that dict cannot be given an entry after all."""
+    refusal = _refused(capsys, '--ui', 'dump', '--add', 'limits=new')
     assert 'Nothing can be added' in refusal
+
+
+def test_label_added(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the dict whose keys nothing checks takes an entry.
+
+    `_unchecked_dicts` took the declared-keys check off that member, so it is
+    an ordinary container here, and what a new entry holds is the one entry
+    this class declares.
+    """
+    printed = _dump(capsys, '--add', 'labels=owner')
+    assert 'labels: 2 entries (edited)' in printed
+    assert '    owner = platform' in printed
+    assert 'validation: valid' in printed
+
+
+def test_label_key_refused(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the application's own key policy is what judges a new key.
+
+    The editor offers the control and adds what it was asked for; which keys
+    that member may have is a rule of this application, so a key it has never
+    heard of is the ordinary verdict of a validation pass.
+    """
+    printed = _dump(capsys, '--add', 'labels=region')
+    assert '    region = platform' in printed
+    assert UNKNOWN_LABEL in printed
+    assert LABELS_REFUSED in printed
+
+
+def test_label_removed(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test an entry of that dict is taken out, and judged the same way."""
+    printed = _dump(capsys, '--remove', 'labels.team')
+    assert 'labels: 0 entries (edited)' in printed
+    assert LOST_LABEL in printed
+    assert LABELS_REFUSED in printed
 
 
 def test_named_key_cleared(capsys: pytest.CaptureFixture[str]) -> None:

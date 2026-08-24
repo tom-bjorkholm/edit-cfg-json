@@ -16,10 +16,10 @@ import pytest
 from config_as_json import ConfigPath, JsonType
 from edit_cfg_json import EditModel, model_as_text, row_description
 from edit_cfg_json.elements import BY_KEY_PATTERN, FIXED_KEYS, NO_DICT_YET, \
-    NO_PATTERN, UNCHECKED_SCOPE
+    NO_ENTRY_PATTERN, NO_PATTERN
 from .container_cfg import ByKeyCfg, ConfigDictCfg, ConfigListCfg, \
     ElementCfg, EmptyObjectsCfg, NullNestedCfg, OmitNestedCfg, OnlyNamedCfg, \
-    TreeCfg
+    TreeCfg, UncheckedCfg
 from .model_helpers import row_at, row_paths, written
 from .sample_cfg import FlatCfg, OmitKindsCfg
 
@@ -31,6 +31,9 @@ GROWS: ConfigPath = ('grows',)
 
 SPARE: ConfigPath = ('spare',)
 """Path of the list of `ElementCfg` that nothing says anything about."""
+
+LABELS: ConfigPath = ('labels',)
+"""Path of the dict whose keys `_unchecked_dicts` leaves to the class."""
 
 OUTPUTS: ConfigPath = ('outputs',)
 """Path of the member that holds nested objects in the samples above."""
@@ -70,7 +73,7 @@ it holds one is reached without pressing anything first.
                          [(TAGS, True, ''), (GROWS, True, ''),
                           (SPARE, False, NO_PATTERN),
                           (('limits',), False, FIXED_KEYS),
-                          (('labels',), False, UNCHECKED_SCOPE)])
+                          (LABELS, True, '')])
 def test_offer_to_extend(path: ConfigPath, extend: bool, refusal: str) -> None:
     """Test each container says whether it can grow, and why it cannot.
 
@@ -78,7 +81,8 @@ def test_offer_to_extend(path: ConfigPath, extend: bool, refusal: str) -> None:
     an element to copy, an empty list whose declared type says what an element
     of it would be, one that nothing says anything about, an ordinary dict
     whose keys its class declares, and a dict whose key policy the application
-    defines with validators of its own.
+    defines with validators of its own, which is the one dict of the five that
+    nothing here checks.
     """
     offer = row_at(model=EditModel(ElementCfg()), path=path).offer
     assert offer.extend is extend
@@ -207,6 +211,77 @@ def test_only_named_says_why() -> None:
     assert row_at(model=model, path=NAMED).offer.extend
 
 
+def test_unchecked_grows() -> None:
+    """Test a dict whose keys its class does not check takes an entry.
+
+    `_unchecked_dicts` is how a class takes the declared-keys check away and
+    defines the key policy of one member with validators of its own, so such a
+    member is an ordinary container here. What a new entry of it holds is the
+    three questions every other container is answered by, and the entry the
+    class declares is the first of them.
+    """
+    model = EditModel(ElementCfg())
+    model.add_element(path=LABELS, key='owner')
+    assert row_at(model=model, path=(*LABELS, 'owner')).value == 'platform'
+    assert model.validate().valid
+
+
+def test_unchecked_shrinks() -> None:
+    """Test an entry of such a dict is taken out and not merely cleared.
+
+    Nothing checks which keys the member has, so its entries are elements of a
+    container in both directions: one goes in under a key the user gives and
+    one comes out again, leaving no row behind.
+    """
+    model = EditModel(ElementCfg())
+    entry = (*LABELS, 'team')
+    offer = row_at(model=model, path=entry).offer
+    assert offer.remove and not offer.cleared
+    model.remove_element(entry)
+    assert entry not in row_paths(model)
+    assert row_at(model=model, path=LABELS).value == {}
+    assert model.validate().valid
+
+
+def test_typed_entry() -> None:
+    """Test an unchecked dict its class declares empty is extendable.
+
+    Nothing it holds says what an entry of it would be, so the declared type
+    of the member answers, exactly as it does for an empty list.
+    """
+    model = EditModel(UncheckedCfg())
+    model.add_element(path=('plain',), key='first')
+    assert row_at(model=model, path=('plain', 'first')).value == ''
+    assert model.validate().valid
+
+
+def test_no_entry_pattern() -> None:
+    """Test an unchecked dict nothing says anything about says so.
+
+    A member with no annotation, no declared entry and no entry of its own has
+    none of the three answers, so it says so rather than being given a value
+    that nobody ever mentioned.
+    """
+    offer = row_at(model=EditModel(UncheckedCfg()), path=('blank',)).offer
+    assert not offer.extend
+    assert offer.refusal == NO_ENTRY_PATTERN
+
+
+def test_inside_unchecked() -> None:
+    """Test a dict inside an unchecked member takes an entry as well.
+
+    The whole of such a member is unchecked and not only its outermost
+    dictionary, because the check returns at the member rather than recursing
+    into it.
+    """
+    model = EditModel(UncheckedCfg())
+    inner = ('deep', 'eu')
+    assert row_at(model=model, path=inner).offer.keyed
+    model.add_element(path=inner, key='tier')
+    assert row_at(model=model, path=(*inner, 'tier')).value == 'platform'
+    assert model.validate().valid
+
+
 def test_refusal_explains() -> None:
     """Test why a container cannot grow is shown with the explanations.
 
@@ -332,7 +407,7 @@ def test_list_takes_no_key() -> None:
         EditModel(ElementCfg()).add_element(path=TAGS, key='named')
 
 
-@pytest.mark.parametrize('path', [SPARE, ('limits',), ('labels',)])
+@pytest.mark.parametrize('path', [SPARE, ('limits',)])
 def test_refused_extend(path: ConfigPath) -> None:
     """Test a container that offers nothing refuses to be given anything."""
     with pytest.raises(ValueError, match='Nothing can be added'):

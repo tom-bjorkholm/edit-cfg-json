@@ -23,7 +23,8 @@ mentioned. This one configuration puts every case side by side:
 - `runners` — add with a key, remove. `DICT_VALUE` says every value of it is
   a `RunnerConfig` object.
 - `limits` — nothing. Its class declares which keys it has.
-- `labels` — nothing. `_unchecked_dicts` makes its keys the application's own.
+- `labels` — add with a key, remove. `_unchecked_dicts` makes its keys the
+  application's own, and a validator of its own says which they are.
 - `hooks` — add with a key, remove, and add and remove at one row of its own.
   `DICT_VALUE_BY_KEY`: one named key of it holds an object and the others hold
   ordinary values, so both halves of it are offered separately.
@@ -93,26 +94,46 @@ python3 e11_add_remove.py --ui dump --add runners=nightly
 python3 e11_add_remove.py --ui dump --remove runners.fast
 ````
 
-## Two dicts that cannot grow, for two different reasons
+## The one dict that cannot grow
 
-Each of them says why below its own row, with the rest of the explanations:
-
-- **`limits`** is an ordinary dict member. `config_as_json` checks such a
-  member against the keys its class declares — `Config.check_dict_parse` does
-  it while parsing — so a dict that gained or lost one would be refused by the
-  configuration class itself. The editor says so rather than offering a
-  control that produces a refusal.
-- **`labels`** is listed in `_unchecked_dicts`, which is how a class takes that
-  check away and defines its key policy with validators of its own instead.
-  What those validators allow is the application's to say, and serving it is
-  out of scope for version 1.
-
-Nothing is half-supported: neither of the two gets a control at all.
+`limits` is an ordinary dict member. `config_as_json` checks such a member
+against the keys its class declares — `Config.check_dict_parse` does it while
+parsing — so a dict that gained or lost one would be refused by the
+configuration class itself. The editor says so below that row, with the rest of
+the explanations, rather than offering a control that produces a refusal.
+Nothing is half-supported: that member gets no control at all.
 
 ````sh
 cd examples/src/example
 python3 e11_add_remove.py --ui dump --fold stages --fold runners
 ````
+
+## A dict whose keys the application itself decides
+
+`labels` is listed in `_unchecked_dicts`, which is how a class takes that same
+check away and defines the key policy of one member with validators of its own
+instead. Nothing then matches that member against the keys this class declares,
+so it is an ordinary container here: it takes an entry under a key the user
+gives, and each of its entries can be taken out. What a new entry holds is the
+question `retry_delays` is answered by, asked of a dict — `platform` here,
+copied from the one entry this class declares.
+
+The key policy is the application's, and this class writes one: a
+`DictKeysValidator` that insists on `team` and allows `owner` and `tier` beside
+it. So the editor offers the control and the application gives the verdict,
+which is the division of work this whole library is built on:
+
+````sh
+cd examples/src/example
+python3 e11_add_remove.py --ui dump --add labels=owner
+python3 e11_add_remove.py --ui dump --add labels=region
+python3 e11_add_remove.py --ui dump --remove labels.team
+````
+
+The first of those is a key the validator allows, the second is one it has
+never heard of, and the third takes away the one key it insists on. Only the
+editor's own refusals stop a press: a key the application refuses is added and
+then reported, exactly as a second stage called `build` is.
 
 ## A dict whose values are of two kinds
 
@@ -215,10 +236,11 @@ adding on its own row and removing and moving on the row of each element it
 holds; `extra_hosts` offers the same although nothing in it was ever written
 down, because its declared type says what one element of it would be; `hooks`
 offers adding on its own row and removing on every row below it, one of which
-is the named key that holds an object; and `limits` and `labels` offer nothing
-with a line below each saying why. Adding an entry to `runners` or to `hooks`
-is where the editor asks a question, which is the other thing only an editor
-does.
+is the named key that holds an object; `labels` offers what any other dict
+does, because its class took the declared-keys check away and answers for the
+keys itself; and `limits` alone offers nothing, with a line below it saying
+why. Adding an entry to `runners`, to `hooks` or to `labels` is where the
+editor asks a question, which is the other thing only an editor does.
 
 `--ui dump` is the very limited non-interactive user interface, and the
 command lines above press the same controls without a display. There is a file
@@ -240,9 +262,9 @@ from pathlib import Path
 from typing import Optional, TextIO
 import sys
 from config_as_json import CallingWholeConfigValidator, Config, \
-    ConfigNesting, ConfigNestingKind, InvalidConfiguration, \
-    IntFloatValidator, MemberValidationStep, NestedConfigs, PathOrStr, \
-    ValidationPlan, WholeConfigValidationStep
+    ConfigNesting, ConfigNestingKind, DictKeysValidator, \
+    InvalidConfiguration, IntFloatValidator, MemberValidationStep, \
+    NestedConfigs, PathOrStr, ValidationPlan, WholeConfigValidationStep
 from edit_cfg_json import Descriptions
 
 FEWEST_MINUTES = 1
@@ -269,6 +291,22 @@ NAMES_METHOD = 'check_stage_names'
 the configuration class rather than as a validator class of its own, which is
 the shorter of the two ways `config_as_json` offers. Examples 9 and 10 write
 the other one.
+"""
+
+LABEL_KEY = 'team'
+"""The one label that this application insists every build carries.
+
+It is the key policy of a member whose keys `_unchecked_dicts` handed to this
+class, so it is this class that says the key is mandatory and the editor that
+lets the user take it away and be told. Nothing about it is the editor's.
+"""
+
+MORE_LABEL_KEYS = ['owner', 'tier']
+"""The labels this application allows beside the mandatory one.
+
+A key that is neither this nor `LABEL_KEY` is one the validator has never
+heard of, which is what makes adding an entry to that member worth trying: the
+editor adds it and the application is what refuses it.
 """
 
 _OPTIONAL = ConfigNestingKind.OPTIONAL_MEMBER
@@ -458,8 +496,10 @@ class PipelineConfig(Config):
         # An ordinary dict member. `config_as_json` checks it against the keys
         # declared here, so it can neither gain nor lose one.
         self.limits: dict[str, int] = {'cpu': 2, 'memory': 512}
-        # A dict whose key policy this class defines with validators of its
-        # own instead of with the check above. Out of scope for version 1.
+        # A dict whose key policy this class defines with a validator of its
+        # own instead of with the check above, which makes it an ordinary
+        # container in the editor: entries go in and come out, and the
+        # validator below is what says which keys are allowed.
         self.labels: dict[str, str] = {'team': 'platform'}
         # A dict where one named key holds a configuration object and the
         # rest hold ordinary values. Both halves of it can be added to: the
@@ -529,16 +569,25 @@ class PipelineConfig(Config):
                                        kind=_OPTIONAL)}
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
-        """Return the one rule that is about all the stages at once.
+        """Return the two rules this pipeline obeys.
 
-        It is written as a method of this class and named here, which is what
+        The first is about all the stages at once. It is written as a method of
+        this class and named here, which is what
         `CallingWholeConfigValidator` is for. A rule about several members at
         once often wants what the object already knows — `every_stage` here —
         and a method has that without being handed the object.
+
+        The second is the key policy of `labels`, which is what
+        `_unchecked_dicts` handed to this class. It is what the editor leaves
+        to the application: an entry can be added to that member and this is
+        what says whether the key it was given belongs there.
         """
         _ = stderr_file
         named = CallingWholeConfigValidator(method_name=NAMES_METHOD)
-        return [WholeConfigValidationStep(validator=named)]
+        keys = DictKeysValidator(mandatory_keys=[LABEL_KEY],
+                                 allowed_keys=MORE_LABEL_KEYS)
+        return [WholeConfigValidationStep(validator=named),
+                MemberValidationStep(member_names=['labels'], validator=keys)]
 
 
 DESCRIPTIONS: Descriptions = {
@@ -556,7 +605,9 @@ DESCRIPTIONS: Descriptions = {
     ('runners',): 'The machines this pipeline may run its stages on.',
     ('runners', '[', 'parallel'): 'How many stages this machine runs at once.',
     ('limits',): 'What one stage may use.',
-    ('labels',): 'Whatever this installation wants to label its builds with.',
+    ('labels',): ('Whatever this installation wants to label its builds with. '
+                  'A new entry is a copy of the one declared here, and which '
+                  'keys are allowed is this application\'s own rule.'),
     ('hooks',): ('What to do when a run does not go as planned. A new entry '
                  'of it is a copy of the one this class declares beside the '
                  'key that holds a stage.'),

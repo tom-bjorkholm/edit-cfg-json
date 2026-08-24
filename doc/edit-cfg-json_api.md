@@ -132,7 +132,7 @@
   * [FIXED\_KEYS](#edit_cfg_json.elements.FIXED_KEYS)
   * [BY\_KEY\_PATTERN](#edit_cfg_json.elements.BY_KEY_PATTERN)
   * [NO\_DICT\_YET](#edit_cfg_json.elements.NO_DICT_YET)
-  * [UNCHECKED\_SCOPE](#edit_cfg_json.elements.UNCHECKED_SCOPE)
+  * [NO\_ENTRY\_PATTERN](#edit_cfg_json.elements.NO_ENTRY_PATTERN)
   * [NOT\_EXTENDABLE](#edit_cfg_json.elements.NOT_EXTENDABLE)
   * [NOT\_REMOVABLE](#edit_cfg_json.elements.NOT_REMOVABLE)
   * [NOT\_MOVABLE](#edit_cfg_json.elements.NOT_MOVABLE)
@@ -2558,11 +2558,12 @@ says so rather than inventing a value that the application never mentioned.
 
 **What cannot be done is said and not left to be discovered.** A dict whose
 keys are the ones its class declares cannot gain or lose one at all —
-`config_as_json` checks a dict member against those keys while it parses — and
-a dict whose keys the application decides with validators of its own is a key
-policy that this version does not serve. Each of those is a sentence below
-that member, in the same place and under the same toggle as everything else
-explanatory.
+`config_as_json` checks a dict member against those keys while it parses — so
+that is a sentence below that member, in the same place and under the same
+toggle as everything else explanatory. A class that names the member in
+`_unchecked_dicts` has taken that check away and defined the key policy with
+validators of its own, so such a member is an ordinary container here and what
+those validators make of a new key is the ordinary verdict.
 
 **A member whose values are of two kinds is asked twice.** A
 `DICT_VALUE_BY_KEY` declaration names one key of a dict that holds a
@@ -2608,9 +2609,10 @@ The declarations of a dict member whose keys its own class does not check.
 `Config.check_dict_parse` is what matches an ordinary dict member against the
 keys its class declares, and a member named in `nested_configs()` never
 reaches it: `config_as_json` reads such a member whole instead. So an entry of
-one of these can be taken out of it and another one put in. A member of
-`_unchecked_dicts` is the other dict whose keys nothing here checks, and it is
-left out for a different reason: its keys are the application's own to decide.
+one of these can be taken out of it and another one put in. A member named in
+`_unchecked_dicts` is the other answer to the same question, and it is not a
+declaration: `_holds_elements` asks both, because the check returns for such a
+member as well.
 
 <a id="edit_cfg_json.elements.CLEARED_KINDS"></a>
 
@@ -2656,7 +2658,9 @@ What an ordinary dict member says instead of offering to grow.
 `Config.check_dict_parse` matches such a member against the keys the class
 declares for it, so a dict that gained or lost one would be refused by
 `config_as_json` itself on the next validation pass. The editor says so rather
-than offering a control that produces a refusal.
+than offering a control that produces a refusal. A class that wants another
+key policy takes this check away by naming the member in `_unchecked_dicts`,
+and such a member is offered the entry instead of this sentence.
 
 <a id="edit_cfg_json.elements.BY_KEY_PATTERN"></a>
 
@@ -2684,11 +2688,17 @@ It is the first bullet of section 4.9 one step up: what refuses a dict here is
 the same check that refuses a new key of one, and offering the control anyway
 would be offering one that produces a refusal.
 
-<a id="edit_cfg_json.elements.UNCHECKED_SCOPE"></a>
+<a id="edit_cfg_json.elements.NO_ENTRY_PATTERN"></a>
 
-#### UNCHECKED\_SCOPE
+#### NO\_ENTRY\_PATTERN
 
-What a member of `_unchecked_dicts` says, which is out of scope for v1.
+What a dict whose keys nothing checks says instead of gaining one.
+
+It is `NO_PATTERN` for a dict, and it is reached by a member of
+`_unchecked_dicts`: the keys of such a member are the application's own to
+decide, so the editor offers an entry as soon as anything says what one would
+hold, and says this where nothing does. `BY_KEY_PATTERN` is the same sentence
+for a member that has declared keys beside the entries.
 
 <a id="edit_cfg_json.elements.NOT_EXTENDABLE"></a>
 

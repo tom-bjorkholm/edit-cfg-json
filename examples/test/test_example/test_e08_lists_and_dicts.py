@@ -45,8 +45,9 @@ is follows, indented as everything below a node is, once more for the
 container it is inside.
 """
 
-NO_ENTRIES = ('    This version adds an entry only to a dict whose class '
-              'declares that every value in it is one configuration object.')
+NO_ENTRIES = ('    The keys of this dict are the ones its class declares, and '
+              'the configuration class checks them while it parses, so a '
+              'dict that gained or lost one would be refused.')
 """What the editor says below a dict that no entry can be added to.
 
 `config_as_json` checks such a member against the keys its class declares, so

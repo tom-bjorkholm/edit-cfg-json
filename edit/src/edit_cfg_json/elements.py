@@ -18,11 +18,12 @@ says so rather than inventing a value that the application never mentioned.
 
 **What cannot be done is said and not left to be discovered.** A dict whose
 keys are the ones its class declares cannot gain or lose one at all —
-`config_as_json` checks a dict member against those keys while it parses — and
-a dict whose keys the application decides with validators of its own is a key
-policy that this version does not serve. Each of those is a sentence below
-that member, in the same place and under the same toggle as everything else
-explanatory.
+`config_as_json` checks a dict member against those keys while it parses — so
+that is a sentence below that member, in the same place and under the same
+toggle as everything else explanatory. A class that names the member in
+`_unchecked_dicts` has taken that check away and defined the key policy with
+validators of its own, so such a member is an ordinary container here and what
+those validators make of a new key is the ordinary verdict.
 
 **A member whose values are of two kinds is asked twice.** A
 `DICT_VALUE_BY_KEY` declaration names one key of a dict that holds a
@@ -81,9 +82,10 @@ ENTRY_KINDS = (ConfigNestingKind.DICT_VALUE,
 `Config.check_dict_parse` is what matches an ordinary dict member against the
 keys its class declares, and a member named in `nested_configs()` never
 reaches it: `config_as_json` reads such a member whole instead. So an entry of
-one of these can be taken out of it and another one put in. A member of
-`_unchecked_dicts` is the other dict whose keys nothing here checks, and it is
-left out for a different reason: its keys are the application's own to decide.
+one of these can be taken out of it and another one put in. A member named in
+`_unchecked_dicts` is the other answer to the same question, and it is not a
+declaration: `_holds_elements` asks both, because the check returns for such a
+member as well.
 """
 
 CLEARED_KINDS = (ConfigNestingKind.OPTIONAL_MEMBER,
@@ -119,14 +121,17 @@ either. It is said here rather than found out when the control is pressed,
 because a control that refuses every press is worse than no control.
 """
 
-FIXED_KEYS = ('This version adds an entry only to a dict whose class '
-              'declares that every value in it is one configuration object.')
+FIXED_KEYS = ('The keys of this dict are the ones its class declares, and '
+              'the configuration class checks them while it parses, so a '
+              'dict that gained or lost one would be refused.')
 """What an ordinary dict member says instead of offering to grow.
 
 `Config.check_dict_parse` matches such a member against the keys the class
 declares for it, so a dict that gained or lost one would be refused by
 `config_as_json` itself on the next validation pass. The editor says so rather
-than offering a control that produces a refusal.
+than offering a control that produces a refusal. A class that wants another
+key policy takes this check away by naming the member in `_unchecked_dicts`,
+and such a member is offered the entry instead of this sentence.
 """
 
 BY_KEY_PATTERN = ('Every key of this dict that no declaration names holds an '
@@ -157,10 +162,17 @@ the same check that refuses a new key of one, and offering the control anyway
 would be offering one that produces a refusal.
 """
 
-UNCHECKED_SCOPE = ('The keys of this dict are the application\'s own to '
-                   'decide, with validators of its own. This version does not '
-                   'add or remove them.')
-"""What a member of `_unchecked_dicts` says, which is out of scope for v1."""
+NO_ENTRY_PATTERN = ('Nothing says what an entry of this dict would be: this '
+                    'class declares none for it, it holds none, and its '
+                    'declared type names nothing the editor can make one of.')
+"""What a dict whose keys nothing checks says instead of gaining one.
+
+It is `NO_PATTERN` for a dict, and it is reached by a member of
+`_unchecked_dicts`: the keys of such a member are the application's own to
+decide, so the editor offers an entry as soon as anything says what one would
+hold, and says this where nothing does. `BY_KEY_PATTERN` is the same sentence
+for a member that has declared keys beside the entries.
+"""
 
 NOT_EXTENDABLE = 'Nothing can be added to {name}.'
 """Message of the error raised when a node that offers no element is grown."""
@@ -501,38 +513,42 @@ def _typed_element(path: ConfigPath, facts: TreeFacts) -> Optional[JsonType]:
 def _growing_dict(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
     """Return whether one dict can be given an entry, and why not."""
     nesting = facts.nestings.get(path)
-    kind = None if nesting is None else nesting.kind
-    if kind is ConfigNestingKind.DICT_VALUE:
-        assert nesting is not None
+    if nesting is not None and nesting.kind is ConfigNestingKind.DICT_VALUE:
         return _from_class(nesting=nesting, facts=facts, keyed=True)
-    if kind is ConfigNestingKind.DICT_VALUE_BY_KEY:
-        return _growing_by_key(path=path, facts=facts)
-    if _member_path(path=path, facts=facts) in facts.unchecked:
-        return ElementOffer(refusal=UNCHECKED_SCOPE)
-    return ElementOffer(refusal=FIXED_KEYS)
+    if not _holds_elements(path=path, facts=facts):
+        return ElementOffer(refusal=FIXED_KEYS)
+    return _growing_entries(path=path, facts=facts)
 
 
-def _growing_by_key(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
-    """Return whether a dict with named objects in it can gain a key.
+def _growing_entries(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
+    """Return whether a dict whose keys nothing checks can gain one.
 
-    Nothing checks which keys it has: `config_as_json` reads such a member
-    whole, parsing the keys its declarations name as the classes they name and
-    keeping every other key as the ordinary value it is, so a key it never
-    heard of is read back exactly as it was written. What a new one of those
-    holds is therefore the same three questions a list element is answered by,
-    asked of the entries that no declaration names: an object belongs at the
-    keys that declare one and never beside them, and `_validate_dict_by_key`
-    is what refuses it there.
+    Nothing checks which keys it has, for one of the two reasons that
+    `_holds_elements` asks about, so a key it never heard of is read back
+    exactly as it was written: `config_as_json` reads a member named in
+    `nested_configs()` whole, parsing the keys its declarations name as the
+    classes they name and keeping every other key as the ordinary value it is,
+    and it returns from the check for a member named in `_unchecked_dicts`
+    without looking at a key at all.
+
+    What a new entry holds is therefore the same three questions a list
+    element is answered by, asked of the entries that no declaration names: an
+    object belongs at the keys that declare one and never beside them, and
+    `_validate_dict_by_key` is what refuses it there. Which of the two
+    sentences a member with nothing to copy says follows from the same thing:
+    one that has declared keys is answered for those and for nothing else.
     """
-    pattern = _ordinary_entry(path=path, facts=facts)
+    named = {entry[-1] for entry in facts.by_key if entry[:-1] == path}
+    pattern = _ordinary_entry(path=path, facts=facts, named=named)
     if pattern is None:
-        return ElementOffer(refusal=BY_KEY_PATTERN)
+        return ElementOffer(refusal=BY_KEY_PATTERN if named
+                            else NO_ENTRY_PATTERN)
     return ElementOffer(extend=True, keyed=True, template=pattern)
 
 
-def _ordinary_entry(path: ConfigPath, facts: TreeFacts) -> Optional[JsonType]:
+def _ordinary_entry(path: ConfigPath, facts: TreeFacts,
+                    named: Container[str]) -> Optional[JsonType]:
     """Return what an entry of one dict that no declaration names holds."""
-    named = {entry[-1] for entry in facts.by_key if entry[:-1] == path}
     for held in (_at_path(path=path, facts=facts), facts.values[path]):
         found = _first_entry(value=held, named=named)
         if found is not None:
@@ -688,12 +704,24 @@ def _element_of(path: ConfigPath, facts: TreeFacts) -> Optional[JsonType]:
 def _holds_elements(path: ConfigPath, facts: TreeFacts) -> bool:
     """Return whether the entries of one dict are elements of it.
 
-    They are wherever the class of the configuration declared the member in
-    `nested_configs()`, because such a member never reaches the check that
-    matches an ordinary dict against the keys its class declares.
+    They are wherever nothing checks which keys the member holding them has,
+    and there are two ways for a class to say that. One is declaring the
+    member in `nested_configs()`, because such a member never reaches the
+    check that matches an ordinary dict against the keys its class declares.
+    The other is naming it in `_unchecked_dicts`, which is how a class takes
+    that check away and defines the key policy with validators of its own; the
+    whole of such a member is unchecked, because the check returns at the
+    member rather than recursing into it.
+
+    It is one question rather than two, because adding an entry and taking one
+    out are the same question about the same member: a dict that can gain a
+    key can lose one, and the sentence that says why neither is offered is
+    about the check that refuses both.
     """
     nesting = facts.nestings.get(path)
-    return nesting is not None and nesting.kind in ENTRY_KINDS
+    if nesting is not None and nesting.kind in ENTRY_KINDS:
+        return True
+    return _member_path(path=path, facts=facts) in facts.unchecked
 
 
 def grown(value: JsonType, key: str, template: JsonType) -> JsonType:
