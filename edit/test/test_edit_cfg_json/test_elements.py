@@ -17,9 +17,9 @@ from config_as_json import ConfigPath, JsonType
 from edit_cfg_json import EditModel, model_as_text, row_description
 from edit_cfg_json.elements import BY_KEY_PATTERN, FIXED_KEYS, NO_DICT_YET, \
     NO_ENTRY_PATTERN, NO_PATTERN
-from .container_cfg import ByKeyCfg, ConfigDictCfg, ConfigListCfg, \
-    ElementCfg, EmptyObjectsCfg, NullNestedCfg, OmitNestedCfg, OnlyNamedCfg, \
-    TreeCfg, UncheckedCfg
+from .container_cfg import ByKeyCfg, ByKeyDictCfg, ConfigDictCfg, \
+    ConfigListCfg, DictPlaceCfg, ElementCfg, EmptyObjectsCfg, NullNestedCfg, \
+    OmitNestedCfg, OnlyNamedCfg, TreeCfg, UncheckedCfg
 from .model_helpers import row_at, row_paths, written
 from .sample_cfg import FlatCfg, OmitKindsCfg
 
@@ -40,6 +40,12 @@ OUTPUTS: ConfigPath = ('outputs',)
 
 HOOKS: ConfigPath = ('hooks',)
 """Path of the dict where one named key holds a configuration object."""
+
+MATRIX_0: ConfigPath = ('matrix', '0')
+"""Path of the dict inside a list element its class declares an entry for."""
+
+MATRIX_1: ConfigPath = ('matrix', '1')
+"""Path of the dict inside a list element that its class declares empty."""
 
 NAMED: ConfigPath = ('hooks', 'main')
 """Path of the key of that dict which the class declares an object at."""
@@ -279,6 +285,95 @@ def test_inside_unchecked() -> None:
     assert row_at(model=model, path=inner).offer.keyed
     model.add_element(path=inner, key='tier')
     assert row_at(model=model, path=(*inner, 'tier')).value == 'platform'
+    assert model.validate().valid
+
+
+@pytest.mark.parametrize('path, grows, refusal',
+                         [(MATRIX_0, True, ''), (MATRIX_1, True, ''),
+                          (('regions', 'eu', '0'), True, ''),
+                          (('regions',), False, FIXED_KEYS),
+                          (('nested',), False, FIXED_KEYS),
+                          (('nested', 'eu'), False, FIXED_KEYS),
+                          (('zero_key',), False, FIXED_KEYS),
+                          (('zero_key', '0'), False, FIXED_KEYS)])
+def test_where_a_dict_sits(path: ConfigPath, grows: bool,
+                           refusal: str) -> None:
+    """Test what a dict offers follows from where it sits in the tree.
+
+    `Config.check_dict_parse` is applied once per member and steps only into
+    the dict values of that member, so a list between the member and the dict
+    stops it and the dict below is an ordinary container. The ones that say why
+    they cannot grow are the ones the check really reaches: a dict member, a
+    dict inside one, and one under a key called `0`, which is a key of a dict
+    and not the index of a list.
+    """
+    offer = row_at(model=EditModel(DictPlaceCfg()), path=path).offer
+    assert offer.extend is grows
+    assert offer.keyed is grows
+    assert offer.refusal == refusal
+
+
+def test_under_list_grows() -> None:
+    """Test a dict inside a list element takes an entry the class accepts.
+
+    The verdict is what makes this a test of `config_as_json` and not of the
+    rule alone: the pass runs `parse_json`, which is where the check that
+    would have refused the key lives.
+    """
+    model = EditModel(DictPlaceCfg())
+    model.add_element(path=MATRIX_0, key='gpu')
+    assert row_at(model=model, path=(*MATRIX_0, 'gpu')).value == 2
+    assert model.validate().valid
+
+
+def test_under_list_typed() -> None:
+    """Test one of those dicts that is empty is answered by its type.
+
+    Nothing it holds says what an entry of it would be, so `dict[str, int]`
+    says it, exactly as `list[str]` answers for an empty list.
+    """
+    model = EditModel(DictPlaceCfg())
+    model.add_element(path=MATRIX_1, key='gpu')
+    assert row_at(model=model, path=(*MATRIX_1, 'gpu')).value == 0
+    assert model.validate().valid
+
+
+def test_under_list_shrinks() -> None:
+    """Test an entry of such a dict can be taken out of it again.
+
+    A dict that can gain a key can lose one: it is the same question about
+    the same dict, and it is asked in one place.
+    """
+    model = EditModel(DictPlaceCfg())
+    model.remove_element((*MATRIX_0, 'cpu'))
+    assert row_at(model=model, path=MATRIX_0).value == {}
+    assert model.validate().valid
+
+
+def test_deep_under_list() -> None:
+    """Test a list anywhere above a dict is enough to stop the check.
+
+    The member here is a dict and the list is inside it, so what the check
+    stopped at is a step of the path and not the member.
+    """
+    model = EditModel(DictPlaceCfg())
+    inner = ('regions', 'eu', '0')
+    model.add_element(path=inner, key='gpu')
+    assert row_at(model=model, path=(*inner, 'gpu')).value == 2
+    assert model.validate().valid
+
+
+def test_by_key_dict_grows() -> None:
+    """Test a dict at a key that no declaration names takes an entry.
+
+    `config_as_json` reads a member named in `nested_configs()` whole, so the
+    check is never applied to it and nothing inside it is checked either,
+    however deep that is.
+    """
+    model = EditModel(ByKeyDictCfg())
+    inner = ('hooks', 'limits')
+    model.add_element(path=inner, key='gpu')
+    assert row_at(model=model, path=(*inner, 'gpu')).value == 2
     assert model.validate().valid
 
 

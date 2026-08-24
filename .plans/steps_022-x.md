@@ -2,7 +2,7 @@
 
 ## Where everything is
 
-Steps 1 to 27 are implemented and committed, step 23 with the corrections its
+Steps 1 to 28 are implemented and committed, step 23 with the corrections its
 review asked for. Steps 1 to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md) and steps 10 to 21 in
 [steps_010-021.md](steps_010-021.md). Step 22 and the steps still to build are
@@ -98,6 +98,9 @@ in this file. Where any of the three files mentions a design decision,
 - [Step 27][s27] — the dict whose keys its own class does not check given the
   entry control every other container has, and the key policy left where
   `_unchecked_dicts` put it: with the validators of the application.
+- [Step 28][s28] — which dicts can be given an entry became a question about
+  where a dict sits rather than about which member it belongs to, which is
+  what the check that refuses one actually asks.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -133,6 +136,7 @@ in this file. Where any of the three files mentions a design decision,
 [s25]: #step-25---add-and-remove-omitted-members
 [s26]: #step-26---full-support-for-dict_value_by_key
 [s27]: #step-27---adding-an-entry-to-an-_unchecked_dicts-member
+[s28]: #step-28---an-entry-in-a-dict-the-class-never-checks
 
 ## 1. How this plan is meant to be used
 
@@ -153,11 +157,11 @@ decision gets built.
 - Every step touches all three packages where the capability is
   user-visible, so `edit_cfg_json`, `edit_cfg_json_tk` and
   `edit_cfg_json_textual` never drift apart by more than one review.
-- Steps 1 to 27 are built, and each is written up in
+- Steps 1 to 28 are built, and each is written up in
   [steps_001-009_done.md](steps_001-009_done.md), in
   [steps_010-021.md](steps_010-021.md) or in section 3 of this file as what it
   decided, what it found while building it and what came of its review. Steps
-  28 onwards are named steps with their observable outcome and their main
+  29 onwards are named steps with their observable outcome and their main
   risks; they are detailed just before they are started, when the core API is
   real rather than imagined.
 
@@ -734,25 +738,82 @@ which shows the same sentence, says it in its new words.
 
 ### Step 28 - An entry in a dict the class never checks
 
+Status: **Implemented, committed.**
+
 Step 24 gave an empty list its elements from `list[str]` and deliberately gave
 an empty dict nothing, because what refuses a new entry of a dict is not the
 absence of a pattern. It is `Config.check_dict_parse` matching the member
 against the keys its class declares, and a type hint says what a *value* would
-be and nothing about whether the key beside it would be accepted.
+be and nothing about whether the key beside it would be accepted. This step is
+the other half of that: not a pattern for a dict, but the discovery that the
+editor was refusing dicts the check never looks at.
 
-There is one place where that check does not reach. `check_dict_parse` returns
-without checking anything as soon as a list is between the member and the dict,
-so a dict inside an element of a `list[dict[str, int]]` really can gain a key
-and be read back. The editor refuses it today, and refuses it conservatively:
-its rule is about the *member* rather than about whether the class checks that
-particular dict.
+**The rule the editor had was about the wrong thing.** It asked which *member*
+a dict belongs to — an `ENTRY_KINDS` declaration, or `_unchecked_dicts` — and
+the check asks something else. `parse_json` applies it once per member, and
+`check_dict_parse` recurses from there into the *dict values* of that member.
+So it reaches a dict only where it was applied to the member at all and where
+every step down was into a dict, which makes the question **where the dict
+sits** and not which member it is in.
 
-This step would make section 4.9's first bullet a question about where the dict
-sits in the tree rather than about which member it belongs to, and give such a
-dict the entry control, with `dict[str, int]` saying what the new value is.
-The main risk is exactly the reason it is not earlier: the rule has to be right
-against the implementation of `config_as_json` and not merely plausible, and
-being wrong means offering a control whose result the application refuses.
+**Three things stop it, and the third was the step.** Written out, and each
+confirmed against the pinned `config_as_json` by parsing a document that gains
+the key in question:
+
+- A member named in `nested_configs()`, which `parse_json` branches away to
+  `_nested_config_from_json` for, so the check is never applied to it. The old
+  rule had this for the member itself and missed everything below it.
+- A member named in `_unchecked_dicts`, where the check returns at the member
+  before it looks at a key. Step 27's answer, unchanged.
+- A list between the member and the dict. `check_dict_parse` returns as soon
+  as neither side is a dict, and a list is not one, so a dict inside an element
+  of a `list[dict[str, int]]` really can gain a key and be read back.
+
+**The third one made the first one bigger, which was not planned.** Once the
+question is *was the check applied to this member*, the answer covers the whole
+subtree of a member named in `nested_configs()` and not only the member. That
+is a real case and not a hypothetical: a `DICT_VALUE_BY_KEY` member holds
+ordinary values at every key no declaration names, one of those values may be a
+dict, and `_dict_by_key_from_json` keeps such a value exactly as it parsed it
+while `_validate_dict_by_key` looks only for a `Config` object where none was
+declared. Nothing anywhere checks its keys. Step 26 gave that member its
+entries and this step gives the dicts inside them theirs.
+
+**So `ENTRY_KINDS` is gone**, and with it the last piece of the member-shaped
+rule. `_holds_elements` reads the three answers above, `_under_list` is the new
+half-dozen lines that say the third of them, and nothing else in the core
+changed: the offer says `extend`, `keyed` and `remove`, and the buffer, the
+rows and both backends already do the rest. It is step 27's shape again — one
+question in one place, with one more answer than it had.
+
+**The values are asked and never the steps.** A dict is free to have a key
+called `0`, so `_under_list` asks what the value at each step of the path *is*
+rather than whether the step looks like an index. A `dict[str, dict[str, int]]`
+whose one key is `0` still says why it cannot be given an entry, and it is in
+the tests for exactly that reason.
+
+**What a new entry holds** needed nothing new: `_ordinary_entry` already asks
+step 14's three questions, so the declared value at that path is asked first,
+then what the dict holds now, then the annotation. `dict[str, int]` is what
+answers for an element the class declares empty, which is the sentence the step
+promised, and it is `NO_ENTRY_PATTERN` where none of the three says anything.
+
+**And `NO_DICT_YET` is untouched again.** `member_types._type_at` sets
+`nothing` false for every node below a member, so a member is the only place
+that state exists and the sentence about the empty dict written for a member
+that holds none is still a sentence about members.
+
+**What is observable.** `stage_limits` in
+`examples/src/example/e11_add_remove.py` is `limits` with a list in the way —
+the same `dict[str, int]` shape, one that can be given nothing and one where
+each element takes entries and gives them up. Its two elements are the two
+answers a new entry has: the first holds entries so a new one is a copy of `2`,
+and the second is empty so `dict[str, int]` says `0`. `hooks` gained
+`thresholds`, an ordinary value of a `DICT_VALUE_BY_KEY` member that is itself
+a dict, which is the other route to the same place. `examples/data/e11_pipeline.json`
+holds a `stage_limits` whose second element is not empty, so reading it shows
+the file answering before the annotation does, exactly as `extra_hosts` does
+for a list.
 
 ### Step 29 - Raw JSON for a subtree the editor cannot show
 
@@ -814,7 +875,6 @@ run, with a refusal and an exit code of its own where it can run none.
 
 | Step | Effort | What the number is mostly |
 | --- | --- | --- |
-| 28 An entry in a dict the class never checks | 3 | Step 24's type model and step 14's machinery are both there; the work is getting one rule right against `config_as_json` and a configuration shape to show it with. |
 | 32 The launcher | 4 | Little logic, spread over all three packages: an entry-point group, a script the core has never installed, discovery, and what a machine that can run neither editor is told. |
 | 30 Pull-down for enum and bool | 6 | A second kind of field in both backends, touching every rule written for the first: write on change, focus loss, the rebuild after a pass, and the marks. |
 | 29 Raw JSON for a subtree | 8 | An editing surface the editor does not have at all yet, in both backends, and two rules about a second way of editing one thing. |
@@ -824,11 +884,14 @@ Two things the numbers do not say.
 
 - **Effort is not order.**
 - **Step 31 begins with a question**, so its number is the least trustworthy of
-  the five. Steps 24 and 25 did too, and both are built — and step 25 came in
+  the four. Steps 24 and 25 did too, and both are built — and step 25 came in
   well under its estimate of 8, because the question it began with turned out to
   have been answered by step 24. Step 27 came in at its estimate of 2, and for
   the reason the estimate gave: one question in the core had two answers
-  instead of one, and everything downstream of it was already built.
+  instead of one, and everything downstream of it was already built. Step 28
+  came in at its estimate of 3, and the estimate named the work correctly: all
+  of it was reading `config_as_json` closely enough to state one rule, and the
+  rule turned out to be wider than the step had described it.
 
 ## 5. Open questions recorded, not answered
 

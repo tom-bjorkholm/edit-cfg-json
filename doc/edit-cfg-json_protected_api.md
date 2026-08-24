@@ -151,7 +151,6 @@
   * [edit](#edit_cfg_json.editing.edit)
 * [edit\_cfg\_json.elements](#edit_cfg_json.elements)
   * [BUILD\_ERRORS](#edit_cfg_json.elements.BUILD_ERRORS)
-  * [ENTRY\_KINDS](#edit_cfg_json.elements.ENTRY_KINDS)
   * [CLEARED\_KINDS](#edit_cfg_json.elements.CLEARED_KINDS)
   * [NO\_PATTERN](#edit_cfg_json.elements.NO_PATTERN)
   * [NO\_CLASS\_FORM](#edit_cfg_json.elements.NO_CLASS_FORM)
@@ -208,6 +207,7 @@
   * [\_movable](#edit_cfg_json.elements._movable)
   * [\_element\_of](#edit_cfg_json.elements._element_of)
   * [\_holds\_elements](#edit_cfg_json.elements._holds_elements)
+  * [\_under\_list](#edit_cfg_json.elements._under_list)
   * [grown](#edit_cfg_json.elements.grown)
   * [shrunk](#edit_cfg_json.elements.shrunk)
   * [swapped](#edit_cfg_json.elements.swapped)
@@ -3307,21 +3307,30 @@ says so rather than inventing a value that the application never mentioned.
 
 **What cannot be done is said and not left to be discovered.** A dict whose
 keys are the ones its class declares cannot gain or lose one at all —
-`config_as_json` checks a dict member against those keys while it parses — so
-that is a sentence below that member, in the same place and under the same
-toggle as everything else explanatory. A class that names the member in
-`_unchecked_dicts` has taken that check away and defined the key policy with
-validators of its own, so such a member is an ordinary container here and what
-those validators make of a new key is the ordinary verdict.
+`config_as_json` checks a dict against those keys while it parses — so that is
+a sentence below that dict, in the same place and under the same toggle as
+everything else explanatory.
+
+**Which dicts those are is a question about where the dict sits.**
+`Config.check_dict_parse` is applied once per member and recurses from there
+into the dict values of that member, so it reaches a dict only where it was
+applied to the member at all and where every step down was into a dict. Three
+things stop it, and `_holds_elements` is where all three are asked: a member
+named in `nested_configs()`, which `config_as_json` reads whole instead; a
+member named in `_unchecked_dicts`, whose key policy the class defines with
+validators of its own; and a list between the member and the dict, which the
+recursion cannot step into. A dict the check does not reach is an ordinary
+container here, and what the application's own validators make of a new key is
+the ordinary verdict.
 
 **A member whose values are of two kinds is asked twice.** A
 `DICT_VALUE_BY_KEY` declaration names one key of a dict that holds a
 configuration object, and every other key of that dict holds an ordinary
-value. Nothing checks which keys such a member has, because a member named in
-`nested_configs()` never reaches the check above, so both halves of it are
-answerable: the named key is a place that holds an object or holds nothing,
-and the rest of the dict is an ordinary container whose new entry is copied
-from what its own entries look like.
+value. Nothing checks which keys such a member has, nor which keys anything
+inside it has, because the check above is never applied to it at all, so both
+halves of it are answerable: the named key is a place that holds an object or
+holds nothing, and the rest of the dict is an ordinary container whose new
+entry is copied from what its own entries look like.
 
 **Where an object is added, an object is made.** `placing` is where that
 happens, because the model's own configuration object gains and loses the real
@@ -3348,20 +3357,6 @@ and declared values that a validator refuses raise a `ValueError` subclass.
 `NotImplementedError` is deliberately not one of them, for the same reason as
 in the validation of a buffer: it says the configuration class is incomplete,
 which is a defect of the application that no editing can put right.
-
-<a id="edit_cfg_json.elements.ENTRY_KINDS"></a>
-
-#### ENTRY\_KINDS
-
-The declarations of a dict member whose keys its own class does not check.
-
-`Config.check_dict_parse` is what matches an ordinary dict member against the
-keys its class declares, and a member named in `nested_configs()` never
-reaches it: `config_as_json` reads such a member whole instead. So an entry of
-one of these can be taken out of it and another one put in. A member named in
-`_unchecked_dicts` is the other answer to the same question, and it is not a
-declaration: `_holds_elements` asks both, because the check returns for such a
-member as well.
 
 <a id="edit_cfg_json.elements.CLEARED_KINDS"></a>
 
@@ -3402,14 +3397,14 @@ because a control that refuses every press is worse than no control.
 
 #### FIXED\_KEYS
 
-What an ordinary dict member says instead of offering to grow.
+What a dict the declared-keys check reaches says instead of growing.
 
-`Config.check_dict_parse` matches such a member against the keys the class
-declares for it, so a dict that gained or lost one would be refused by
+`Config.check_dict_parse` matches such a dict against the keys the class
+declares for it, so one that gained or lost a key would be refused by
 `config_as_json` itself on the next validation pass. The editor says so rather
-than offering a control that produces a refusal. A class that wants another
-key policy takes this check away by naming the member in `_unchecked_dicts`,
-and such a member is offered the entry instead of this sentence.
+than offering a control that produces a refusal. Which dicts the check reaches
+is `_holds_elements`, and a dict it does not reach is offered the entry
+instead of this sentence.
 
 <a id="edit_cfg_json.elements.BY_KEY_PATTERN"></a>
 
@@ -3443,11 +3438,12 @@ would be offering one that produces a refusal.
 
 What a dict whose keys nothing checks says instead of gaining one.
 
-It is `NO_PATTERN` for a dict, and it is reached by a member of
-`_unchecked_dicts`: the keys of such a member are the application's own to
-decide, so the editor offers an entry as soon as anything says what one would
-hold, and says this where nothing does. `BY_KEY_PATTERN` is the same sentence
-for a member that has declared keys beside the entries.
+It is `NO_PATTERN` for a dict, and it is reached by every dict the
+declared-keys check does not reach and that has no declared key of its own:
+the keys of such a dict are the application's own to decide, so the editor
+offers an entry as soon as anything says what one would hold, and says this
+where nothing does. `BY_KEY_PATTERN` is the same sentence for a member that
+has declared keys beside the entries.
 
 <a id="edit_cfg_json.elements.NOT_EXTENDABLE"></a>
 
@@ -3878,13 +3874,9 @@ def _growing_entries(path: ConfigPath, facts: TreeFacts) -> ElementOffer
 
 Return whether a dict whose keys nothing checks can gain one.
 
-Nothing checks which keys it has, for one of the two reasons that
+Nothing checks which keys it has, for one of the three reasons that
 `_holds_elements` asks about, so a key it never heard of is read back
-exactly as it was written: `config_as_json` reads a member named in
-`nested_configs()` whole, parsing the keys its declarations name as the
-classes they name and keeping every other key as the ordinary value it is,
-and it returns from the check for a member named in `_unchecked_dicts`
-without looking at a key at all.
+exactly as it was written.
 
 What a new entry holds is therefore the same three questions a list
 element is answered by, asked of the entries that no declaration names: an
@@ -4007,9 +3999,9 @@ def _member_path(path: ConfigPath, facts: TreeFacts) -> ConfigPath
 Return the path of the member of a configuration one node is in.
 
 A node is inside exactly one member of exactly one configuration object,
-and that member is what a class says its key policy about: a dict inside a
-dict of an unchecked member is unchecked with it, because the check that
-`_unchecked_dicts` takes away stops at the member rather than recursing.
+and that member is where the declared-keys check begins: `parse_json`
+applies it once per member, so which member this is says whether the check
+runs at all and the steps below it say how far it got.
 
 <a id="edit_cfg_json.elements._clearable"></a>
 
@@ -4072,19 +4064,55 @@ def _holds_elements(path: ConfigPath, facts: TreeFacts) -> bool
 
 Return whether the entries of one dict are elements of it.
 
-They are wherever nothing checks which keys the member holding them has,
-and there are two ways for a class to say that. One is declaring the
-member in `nested_configs()`, because such a member never reaches the
-check that matches an ordinary dict against the keys its class declares.
-The other is naming it in `_unchecked_dicts`, which is how a class takes
-that check away and defines the key policy with validators of its own; the
-whole of such a member is unchecked, because the check returns at the
-member rather than recursing into it.
+They are wherever the check that matches a dict against the keys its class
+declares does not reach that dict. `Config.check_dict_parse` is the check,
+`parse_json` applies it once per member, and it recurses from there into
+the dict values of that member, so where the dict sits is what decides and
+not which member it is in. Three things stop it.
 
-It is one question rather than two, because adding an entry and taking one
-out are the same question about the same member: a dict that can gain a
+- The member is named in `nested_configs()`. `config_as_json` reads such a
+  member whole and the check is never applied to it, so nothing anywhere
+  inside it is checked: an entry of a `DICT_VALUE` member is one case, and
+  a dict at any depth under a key of a `DICT_VALUE_BY_KEY` member that no
+  declaration names is another.
+- The member is named in `_unchecked_dicts`. The check returns at the
+  member before it looks at a key, so the whole of the member is
+  unchecked and its key policy is the application's own.
+- A list lies between the member and this dict. The recursion steps into a
+  dict value and returns as soon as neither side is a dict, so a list
+  anywhere above stops it and never reaches what is below.
+
+It is one question rather than three, because adding an entry and taking
+one out are the same question about the same dict: a dict that can gain a
 key can lose one, and the sentence that says why neither is offered is
 about the check that refuses both.
+
+<a id="edit_cfg_json.elements._under_list"></a>
+
+#### \_under\_list
+
+```python
+def _under_list(path: ConfigPath, member: ConfigPath,
+                facts: TreeFacts) -> bool
+```
+
+Return whether a list lies between one dict and its own member.
+
+The value at each step is what is asked and not the step itself, because a
+dict is free to have a key called `0`: an index is an index only where the
+value holding it is a list.
+
+**Arguments**:
+
+- `path` - Path of the dict to answer for.
+- `member` - Path of the member of a configuration object it is in.
+- `facts` - What the tree is, and what its class declares.
+  
+
+**Returns**:
+
+  Whether any of the values from that member down to the value holding
+  this dict is a list.
 
 <a id="edit_cfg_json.elements.grown"></a>
 

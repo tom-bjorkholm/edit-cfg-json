@@ -2,10 +2,11 @@
 """Tests for example e11_add_remove.
 
 What this example adds is changing how many things a member holds. So what is
-asserted here is where a new element comes from, the two members that cannot
-be given one and the two different reasons why, the member whose values are
-of two kinds and is therefore asked twice, and that what was added is
-validated and written exactly like anything that was there from the start.
+asserted here is where a new element comes from, the one member that cannot be
+given one and why, the dicts that can be given one because of where they sit
+rather than because of which member they are in, the member whose values are of
+two kinds and is therefore asked twice, and that what was added is validated
+and written exactly like anything that was there from the start.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -56,6 +57,29 @@ user changed something.
 
 HOOKS = 'hooks'
 """The member of this example that is declared `DICT_VALUE_BY_KEY`."""
+
+HOOK_DICT = 'hooks.thresholds'
+"""Path of the key of that member which holds an ordinary dict.
+
+Nothing checks the keys of that member, so nothing checks the keys of this
+dict inside it either: the check is never applied to the member at all, so it
+never reaches anything below it.
+"""
+
+UNDER_LIST = 'stage_limits.0'
+"""Path of the dict inside a list element that the class declares entries for.
+
+`Config.check_dict_parse` steps only into the dict values of a member, so the
+list stops it and this dict is an ordinary container. `limits` is the same
+shape without the list, and it can be given nothing.
+"""
+
+EMPTY_UNDER_LIST = 'stage_limits.1'
+"""Path of the dict inside a list element that its class declares empty.
+
+Nothing it holds says what an entry of it would be, so `dict[str, int]` is
+what answers, exactly as `list[str]` answers for `extra_hosts`.
+"""
 
 NAMED_KEY = 'hooks.on_failure'
 """Path of the key of that member which holds a configuration object."""
@@ -227,7 +251,7 @@ def test_named_key_written(capsys: pytest.CaptureFixture[str],
     out_file = tmp_path / 'hooks.json'
     _dump(capsys, '--remove', NAMED_KEY, '-o', str(out_file), '--save')
     written = json.loads(out_file.read_text(encoding='UTF-8'))
-    assert written[HOOKS] == {'notify': 'ops@example.org'}
+    assert sorted(written[HOOKS]) == ['notify', 'thresholds']
 
 
 def test_by_key_entry_added(capsys: pytest.CaptureFixture[str]) -> None:
@@ -237,7 +261,7 @@ def test_by_key_entry_added(capsys: pytest.CaptureFixture[str]) -> None:
     plain values is answered by, asked of the entries beside the named key.
     """
     printed = _dump(capsys, '--add', f'{HOOKS}=notify_slack')
-    assert 'hooks: 3 entries (edited)' in printed
+    assert 'hooks: 4 entries (edited)' in printed
     assert '    notify_slack = ops@example.org' in printed
 
 
@@ -245,6 +269,59 @@ def test_named_key_is_taken(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the named key is asked for at its own row and not as an entry."""
     refusal = _refused(capsys, '--ui', 'dump', '--add', f'{HOOKS}=on_failure')
     assert 'already holds an entry called on_failure' in refusal
+
+
+def test_under_list_grows(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a dict inside a list element takes an entry, and is accepted.
+
+    The verdict is the point of it: the pass runs `parse_json`, which is where
+    the check that stops `limits` lives, so a clean verdict says that this
+    document really is one the class reads back.
+    """
+    printed = _dump(capsys, '--add', f'{UNDER_LIST}=gpu')
+    assert '    0: 3 entries (edited)' in printed
+    assert '        gpu = 2' in printed
+    assert 'validation: valid' in printed
+
+
+def test_typed_entry_added(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the dict with nothing to copy grows by what its type says."""
+    printed = _dump(capsys, '--add', f'{EMPTY_UNDER_LIST}=gpu')
+    assert '    1: 1 entry (edited)' in printed
+    assert '        gpu = 0' in printed
+    assert 'validation: valid' in printed
+
+
+def test_under_list_shrinks(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test an entry of such a dict can be taken out of it again."""
+    printed = _dump(capsys, '--remove', f'{UNDER_LIST}.cpu')
+    assert '    0: 1 entry (edited)' in printed
+    assert 'validation: valid' in printed
+
+
+def test_file_entry_pattern(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the file is asked before the type of the member is.
+
+    The declared values are asked first and what the member holds after them,
+    so the entry this file put into the element the class declares empty is
+    what a new one is copied from.
+    """
+    printed = _dump(capsys, '-i', data_file(DATA_NAME), '--add',
+                    f'{EMPTY_UNDER_LIST}=gpu')
+    assert '        gpu = 100' in printed
+    assert 'validation: valid' in printed
+
+
+def test_hook_dict_grows(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a dict at a key that no declaration names takes an entry too.
+
+    `config_as_json` reads a member named in `nested_configs()` whole, so the
+    check is never applied to it and nothing inside it is checked either.
+    """
+    printed = _dump(capsys, '--add', f'{HOOK_DICT}=timeouts')
+    assert '    thresholds: 2 entries (edited)' in printed
+    assert '        timeouts = 3' in printed
+    assert 'validation: valid' in printed
 
 
 def test_optional_added(capsys: pytest.CaptureFixture[str]) -> None:

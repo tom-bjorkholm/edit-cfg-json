@@ -15,6 +15,10 @@
             "command": "make rollback",
             "minutes": 5,
             "name": "rollback"
+        },
+        "thresholds": {
+            "failures": 1,
+            "timeouts": 2
         }
     },
     "labels": {
@@ -40,6 +44,15 @@
             "parallel": 1
         }
     },
+    "stage_limits": [
+        {
+            "cpu": 8,
+            "memory": 4096
+        },
+        {
+            "disk": 100
+        }
+    ],
     "stages": [
         {
             "command": "make",

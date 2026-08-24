@@ -507,11 +507,11 @@ optional it is because that is the difference there is.
 `Config.check_dict_parse` refuses a dict written for a member whose value is not
 one — *Unexpected dictionary for X in JSON data* — whatever keys it has and even
 where it has none, so the empty dict is the one value of a kind that the editor
-cannot give such a member. It is the first bullet of section 4.9 one step up:
-the same check refuses a new key of an ordinary dict member, and offering the
-control anyway would be offering one that produces a refusal. That member says
-so below its own row instead. A list has no such check, so a member declared to
-hold one is given the empty list and grown from there in the ordinary way.
+cannot give such a member. It is section 4.9's check one step up: the same
+check refuses a new key of a dict it reaches, and offering the control anyway
+would be offering one that produces a refusal. That member says so below its
+own row instead. A list has no such check, so a member declared to hold one is
+given the empty list and grown from there in the ordinary way.
 
 **A field can therefore never put a member into that state.** Text that parses
 as JSON `null` is kept as the text it is for such a member, exactly as any
@@ -835,22 +835,45 @@ out of scope. It is a narrow case now: a list member with no annotation at
 all, or one annotated with something the editor cannot make an empty value of.
 Such a member says so and offers removing and moving.
 
-**What cannot be done is said and not left to be discovered.** One kind of
-dict cannot be given an entry, and it says so below its own row: an ordinary
-dict member, because `config_as_json` checks such a member against the keys its
-class declares — `Config.check_dict_parse` does it while parsing — so a dict
-that gained or lost one would be refused by the configuration class itself.
-Confirmed against the implementation of `config_as_json`, and it is why a dict
-is offered an entry or not according to the key policy its class declares
-rather than because it is a dict. The declared type of the member does not
-change this and cannot: `dict[str, int]` says what a new value would be and
-nothing at all about whether the class would accept the key beside it, and the
-check is what refuses it. That is the whole difference between a dict and a
-list here, and it is why the declared type unlocked the empty list and not the
-empty dict.
+**What cannot be done is said and not left to be discovered.** A dict whose
+keys the configuration class checks cannot be given an entry, and it says so
+below its own row: `Config.check_dict_parse` matches such a dict against the
+keys the class declares for it while it parses, so one that gained or lost a
+key would be refused by the configuration class itself. It is why a dict is
+offered an entry or not according to the key policy of its class rather than
+because it is a dict. The declared type does not change this and cannot:
+`dict[str, int]` says what a new value would be and nothing at all about
+whether the class would accept the key beside it, and the check is what
+refuses it. That is the whole difference between a dict and a list here, and
+it is why the declared type unlocked the empty list and not the empty dict.
+
+**Which dicts those are is a question about where the dict sits, and not about
+which member it belongs to.** `parse_json` applies that check once per member
+and it recurses from there into the dict values of that member, so it reaches a
+dict only where it was applied to the member at all and where every step down
+to that dict was into a dict. Three things stop it, and each of them leaves an
+ordinary container behind.
+
+- **A member named in `nested_configs()`**, which `config_as_json` reads whole
+  instead, so the check is never applied to it and never reaches anything
+  inside it however deep: an entry of a `DICT_VALUE` member is one case, and a
+  dict at any depth under a key of a `DICT_VALUE_BY_KEY` member that no
+  declaration names is another.
+- **A member named in `_unchecked_dicts`**, where the check returns at the
+  member before it looks at a key, which is the paragraph below.
+- **A list between the member and the dict.** The recursion steps into a dict
+  value and returns as soon as neither side is a dict, and a list is not one,
+  so a dict inside an element of a `list[dict[str, int]]` really can gain a key
+  and be read back. It is the values along the path that answer and not the
+  steps: a dict is free to have a key called `0`, and an index is an index only
+  where the value holding it is a list.
+
+Confirmed against the implementation of `config_as_json`, which is what this
+has to be right about: a control offered where the check does reach would be
+one whose result the application refuses.
 
 That sentence is **explanation and not a refusal to act on**: it says what this
-member is, so it is `Emphasis.MUTED`, it sits below the member with the
+node is, so it is `Emphasis.MUTED`, it sits below the node it is about with the
 description, and the toggle of section 4.4 covers it. Nothing is
 half-supported: a node that cannot be given an element gets no control at all
 rather than one that refuses every press.
@@ -897,12 +920,13 @@ that member offers is two answers rather than one, in two places.
   object ships.
 - **Every other key is an entry** of an ordinary container: the member takes a
   new one under a key the user gives, and each of them can be taken out.
-  Nothing checks which keys such a member has — a member named in
-  `nested_configs()` never reaches the check that the first bullet above is
-  about, because `config_as_json` reads the whole member instead — so the first
-  bullet does not apply to it. What a new entry holds is the same three
-  questions a new element of a list is answered by, asked of the entries that
-  no declaration names: an object belongs at the keys that declare one, and
+  Nothing checks which keys such a member has, nor which keys anything inside
+  it has — a member named in `nested_configs()` never reaches the check that
+  the first bullet above is about, because `config_as_json` reads the whole
+  member instead — so a dict held at one of those keys is a container of its
+  own in the same way. What a new entry holds is the same three questions a new
+  element of a list is answered by, asked of the entries that no declaration
+  names: an object belongs at the keys that declare one, and
   `config_as_json` refuses one beside them. A member that has none of the three
   says so and keeps offering the objects its declarations name.
 
@@ -2558,14 +2582,16 @@ version rather than assumed.
   the application's own annotation rather than inventing anything. Sections 4.1
   and 4.9.
 - **An entry invented for an empty dict from its declared type.** A dict is not
-  a list here. What refuses a new entry of an ordinary dict member is
+  a list here. What refuses a new entry of a dict the check reaches is
   `Config.check_dict_parse` matching it against the keys its class declares,
   and `dict[str, int]` says what a new value would be and nothing about whether
   the key beside it would be accepted. Offering the control anyway would be
   offering one that produces a refusal, which section 4.9 rules out. The check
-  is the whole reason. This limitation does not apply to dicts that will not be
-  checked, examples of not checked dicts are `list[dict[str,str]]` or dict
-  listed as unchecked dicts.
+  is the whole reason, and where it does not reach there is nothing to refuse:
+  a dict inside an element of a `list[dict[str, str]]`, a dict inside a member
+  named in `nested_configs()`, and a member named in `_unchecked_dicts` are all
+  offered the entry, and the declared type is what answers for one of them that
+  holds nothing to copy.
 - **The empty dict given to a member declared to allow no value.** The same
   check, one step up: `check_dict_parse` refuses a dict written for a member
   whose value is not a dict, whatever keys that dict has and even where it has

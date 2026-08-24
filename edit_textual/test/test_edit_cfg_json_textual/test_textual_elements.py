@@ -42,6 +42,12 @@ HOOKS: ConfigPath = ('hooks',)
 NAMED_HOOK: ConfigPath = ('hooks', 'on_failure')
 """That named key, which holds one object or holds nothing."""
 
+UNDER_LIST: ConfigPath = ('stage_limits', '0')
+"""A dict of the example that a list holds, so nothing checks its keys."""
+
+HOOK_DICT: ConfigPath = ('hooks', 'thresholds')
+"""A dict of it at a key that no declaration names, for the same reason."""
+
 
 def _index_of(model: EditModel, path: ConfigPath) -> int:
     """Return where among the rows one node of one model is.
@@ -184,7 +190,7 @@ def test_named_key_cleared() -> None:
     _run(model, _presser(model, NAMED_HOOK, REMOVE_ACTION))
     assert _value_of(model, NAMED_HOOK) == 'no StageConfig'
     _run(model, _presser(model, (*HOOKS, 'notify'), REMOVE_ACTION))
-    assert _value_of(model, HOOKS) == '1 entry'
+    assert _value_of(model, HOOKS) == '2 entries'
 
 
 def test_named_key_made() -> None:
@@ -193,6 +199,21 @@ def test_named_key_made() -> None:
     _run(model, _presser(model, NAMED_HOOK, REMOVE_ACTION))
     _run(model, _presser(model, NAMED_HOOK, ADD_ACTION))
     assert _value_of(model, NAMED_HOOK) == 'StageConfig'
+
+
+def test_dict_under_list() -> None:
+    """Test a dict that nothing checks is asked for a key like any other.
+
+    Which dicts the declared-keys check reaches is a question about where a
+    dict sits, and neither of these two is somewhere it reaches: one has a
+    list between it and its member, and the other is inside a member that
+    `config_as_json` reads whole.
+    """
+    model = EditModel(PipelineConfig())
+    _run(model, _presser(model, UNDER_LIST, ADD_ACTION, answer='gpu'))
+    assert _value_of(model, UNDER_LIST) == '3 entries'
+    _run(model, _presser(model, HOOK_DICT, ADD_ACTION, answer='timeouts'))
+    assert _value_of(model, HOOK_DICT) == '2 entries'
 
 
 def test_key_is_asked() -> None:

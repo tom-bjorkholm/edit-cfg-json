@@ -750,3 +750,41 @@ class OnlyNamedCfg(SampleCfg):
         by_key = ConfigNestingKind.DICT_VALUE_BY_KEY
         return {'hooks': ConfigNesting(kind=by_key, config_type=InnerCfg,
                                        discriminator_key='main')}
+
+
+class DictPlaceCfg(SampleCfg):
+    """A configuration holding one dict of each place a dict can sit in.
+
+    Which dicts the declared-keys check reaches is a question about where a
+    dict sits and not about which member it is in: it is applied once per
+    member and it steps only into the dict values of that member. These four
+    members are the places that answer differently.
+    """
+
+    def declare_members(self) -> None:
+        """Assign one dict under a list and three the check reaches."""
+        self.matrix: list[dict[str, int]] = [{'cpu': 2}, {}]
+        self.regions: dict[str, list[dict[str, int]]] = {'eu': [{'cpu': 2}]}
+        self.nested: dict[str, dict[str, int]] = {'eu': {'cpu': 2}}
+        self.zero_key: dict[str, dict[str, int]] = {'0': {'cpu': 2}}
+
+
+class ByKeyDictCfg(SampleCfg):
+    """A configuration whose keyed dict holds a dict at an undeclared key.
+
+    A member named in `nested_configs()` is read whole, so the check is never
+    applied to it and nothing inside it is checked either, however deep. That
+    is what makes the dict under the key no declaration names an ordinary
+    container of its own.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the keyed dict, one key of which holds a dict."""
+        self.hooks: dict[str, InnerCfg | dict[str, int]] = {
+            'main': InnerCfg(), 'limits': {'cpu': 2}}
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration of the one key that holds an object."""
+        by_key = ConfigNestingKind.DICT_VALUE_BY_KEY
+        return {'hooks': ConfigNesting(kind=by_key, config_type=InnerCfg,
+                                       discriminator_key='main')}

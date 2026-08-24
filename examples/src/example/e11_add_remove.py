@@ -23,11 +23,16 @@ mentioned. This one configuration puts every case side by side:
 - `runners` — add with a key, remove. `DICT_VALUE` says every value of it is
   a `RunnerConfig` object.
 - `limits` — nothing. Its class declares which keys it has.
+- `stage_limits` — add with a key at each element, remove, and add and move
+  along the list itself. A `list[dict[str, int]]`, and the check that stops
+  `limits` cannot step into a list, so each dict inside it is an ordinary
+  container.
 - `labels` — add with a key, remove. `_unchecked_dicts` makes its keys the
   application's own, and a validator of its own says which they are.
 - `hooks` — add with a key, remove, and add and remove at one row of its own.
   `DICT_VALUE_BY_KEY`: one named key of it holds an object and the others hold
-  ordinary values, so both halves of it are offered separately.
+  ordinary values, so both halves of it are offered separately. One of those
+  ordinary values is itself a dict, and it takes an entry too.
 - `audit` — add and remove. An `OPTIONAL_MEMBER` is given its object, or put
   back to holding none.
 
@@ -103,10 +108,45 @@ configuration class itself. The editor says so below that row, with the rest of
 the explanations, rather than offering a control that produces a refusal.
 Nothing is half-supported: that member gets no control at all.
 
+Which dicts that check reaches is a question about where a dict sits, and the
+next section is about where it does not.
+
 ````sh
 cd examples/src/example
 python3 e11_add_remove.py --ui dump --fold stages --fold runners
 ````
+
+## Where that check does not reach
+
+`Config.check_dict_parse` is applied **once per member**, and from there it
+steps into the dict values of that member and no further. So a dict it reaches
+is one where every step from the member down was into a dict, and a list stops
+it: the recursion returns as soon as neither side is a dict, and a list is not
+one.
+
+`stage_limits` is a `list[dict[str, int]]`, which is `limits` with a list in
+the way. Each of the dicts inside it therefore takes an entry under a key the
+user gives and gives one up again, while `limits` itself can do neither. What a
+new entry holds is the same three questions as everywhere else, and the two
+elements are two different answers to them: the first holds entries of its own,
+so a new one is a copy of `2`, and the second holds none and has none declared,
+so `dict[str, int]` says that a new one is `0`.
+
+The member itself is an ordinary list beside all that, so it takes a whole new
+dict as an element and its elements move along it.
+
+````sh
+cd examples/src/example
+python3 e11_add_remove.py --ui dump --add stage_limits.0=gpu
+python3 e11_add_remove.py --ui dump --add stage_limits.1=gpu
+python3 e11_add_remove.py --ui dump --remove stage_limits.0.cpu
+python3 e11_add_remove.py --ui dump --add stage_limits --move stage_limits.2=up
+````
+
+Every one of those is accepted by the configuration class, which is the whole
+point: a control offered here is one whose result `config_as_json` reads back.
+The rule has to be right about the implementation and not merely plausible,
+because a control that produced a refusal would be worse than none.
 
 ## A dict whose keys the application itself decides
 
@@ -158,11 +198,19 @@ the entries that no declaration names: `notify` is the one this class declares,
 so a new entry is a copy of it. Asking for `on_failure` as an entry is refused
 as a key the dict already holds, because its row is already there.
 
+**And nothing inside such a member is checked either.** The check is never
+applied to the member at all, so it never reaches anything below it, however
+deep that is. `thresholds` is one of those ordinary values and is itself a
+dict, so it is a container of its own with the controls any other dict of
+entries has — which is what the `stage_limits` section is about, reached by the
+other of the two routes.
+
 ````sh
 cd examples/src/example
 python3 e11_add_remove.py --ui dump --remove hooks.on_failure
 python3 e11_add_remove.py --ui dump --add hooks=notify_slack
 python3 e11_add_remove.py --ui dump --remove hooks.notify
+python3 e11_add_remove.py --ui dump --add hooks.thresholds=timeouts
 ````
 
 ## An optional member is added and removed too
@@ -238,15 +286,18 @@ down, because its declared type says what one element of it would be; `hooks`
 offers adding on its own row and removing on every row below it, one of which
 is the named key that holds an object; `labels` offers what any other dict
 does, because its class took the declared-keys check away and answers for the
-keys itself; and `limits` alone offers nothing, with a line below it saying
-why. Adding an entry to `runners`, to `hooks` or to `labels` is where the
-editor asks a question, which is the other thing only an editor does.
+keys itself; `stage_limits` offers everything, at its own row and at the row of
+each dict inside it, because a list is in the way of the check; and `limits`
+alone offers nothing, with a line below it saying why. Adding an entry to
+`runners`, to `hooks`, to `labels` or to one of the dicts of `stage_limits` is
+where the editor asks a question, which is the other thing only an editor does.
 
 `--ui dump` is the very limited non-interactive user interface, and the
 command lines above press the same controls without a display. There is a file
 to read in [examples/data/](../../data/), and it holds a pipeline whose
-`extra_hosts` is not empty, which is what makes a new element of that member a
-copy of what the file put there rather than an empty text:
+`extra_hosts` is not empty and whose second `stage_limits` element is not, so
+a new element of the one and a new entry of the other are copies of what the
+file put there rather than the empty value of their kind:
 
 ````sh
 cd examples/src/example
@@ -275,6 +326,14 @@ MOST_MINUTES = 600
 
 MOST_PARALLEL = 64
 """Most stages that one runner of this example may run at once."""
+
+FEWEST_FAILURES = 3
+"""How many failures the hook of this example waits for by default.
+
+It is one entry of a dict that is held under a key of another dict, which is
+the shape this example is about at that row: nothing checks the keys of that
+member, so nothing checks the keys of this dict inside it either.
+"""
 
 REPEAT_REFUSAL = 'Two stages of this pipeline are both called {name}.'
 """What the rule below says when two stages share a name.
@@ -440,7 +499,19 @@ def _default_runners(stderr_file: TextIO) -> dict[str, RunnerConfig]:
             'slow': new_runner('build-2.example.org', 1, stderr_file)}
 
 
-def _default_hooks(stderr_file: TextIO) -> dict[str, StageConfig | str]:
+def _default_limits() -> list[dict[str, int]]:
+    """Return the limits of this pipeline, one dict of them per element.
+
+    The first of them holds two entries and the second holds none, which is
+    what makes the pair both of the answers such a dict can give: a new entry
+    of the first is a copy of what is there, and a new entry of the second is
+    what `dict[str, int]` says one would be.
+    """
+    return [{'cpu': 2, 'memory': 512}, {}]
+
+
+def _default_hooks(stderr_file: TextIO
+                   ) -> dict[str, StageConfig | str | dict[str, int]]:
     """Return the hooks dict, one key of which holds a stage.
 
     `DICT_VALUE_BY_KEY` declares exactly that shape: the value at
@@ -448,9 +519,14 @@ def _default_hooks(stderr_file: TextIO) -> dict[str, StageConfig | str]:
     dict holds an ordinary value. Both of these are what the editor copies
     from: the stage is what the named key is given again once it has been
     taken away, and `notify` is what a new entry beside it is a copy of.
+
+    `thresholds` is an ordinary value of that dict which is itself a dict.
+    Nothing checks the keys of this member, so nothing checks the keys of
+    that dict either, and it is a container of its own in the editor.
     """
     hook = new_stage('rollback', 'make rollback', 5, stderr_file)
-    return {HOOK_KEY: hook, 'notify': 'ops@example.org'}
+    return {HOOK_KEY: hook, 'notify': 'ops@example.org',
+            'thresholds': {'failures': FEWEST_FAILURES}}
 
 
 # Ten members is more than pylint likes one class to have, and here it is the
@@ -496,6 +572,11 @@ class PipelineConfig(Config):
         # An ordinary dict member. `config_as_json` checks it against the keys
         # declared here, so it can neither gain nor lose one.
         self.limits: dict[str, int] = {'cpu': 2, 'memory': 512}
+        # The same shape with a list in the way. That check is applied once
+        # per member and steps only into the dict values of it, so it cannot
+        # reach a dict inside a list element: each of these two is a
+        # container that takes an entry and gives one up.
+        self.stage_limits: list[dict[str, int]] = _default_limits()
         # A dict whose key policy this class defines with a validator of its
         # own instead of with the check above, which makes it an ordinary
         # container in the editor: entries go in and come out, and the
@@ -504,7 +585,8 @@ class PipelineConfig(Config):
         # A dict where one named key holds a configuration object and the
         # rest hold ordinary values. Both halves of it can be added to: the
         # named key at a row of its own, the rest as entries of the dict.
-        self.hooks: dict[str, StageConfig | str] = _default_hooks(stderr_file)
+        self.hooks: dict[str, StageConfig | str | dict[str, int]] = \
+            _default_hooks(stderr_file)
         # An optional member: one stage or none. Giving it one is adding.
         self.audit: Optional[StageConfig] = None
         # This is what takes the declared-keys check off `labels`, and it has
@@ -605,6 +687,8 @@ DESCRIPTIONS: Descriptions = {
     ('runners',): 'The machines this pipeline may run its stages on.',
     ('runners', '[', 'parallel'): 'How many stages this machine runs at once.',
     ('limits',): 'What one stage may use.',
+    ('stage_limits',): ('What each stage may use instead, where one of them '
+                        'needs something other than the limits above.'),
     ('labels',): ('Whatever this installation wants to label its builds with. '
                   'A new entry is a copy of the one declared here, and which '
                   'keys are allowed is this application\'s own rule.'),
@@ -613,6 +697,8 @@ DESCRIPTIONS: Descriptions = {
                  'key that holds a stage.'),
     ('hooks', 'on_failure'): ('The stage to run when a stage of the pipeline '
                               'fails. This dict need not have it at all.'),
+    ('hooks', 'thresholds'): ('How many of each kind of trouble this pipeline '
+                              'puts up with before it says so.'),
     ('audit',): 'A stage that records what the run did, when it is wanted.'}
 """What this application says about the members it declares.
 

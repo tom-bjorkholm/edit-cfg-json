@@ -123,7 +123,7 @@ have, so that what can be added to each of them can be read side by side.
 
 | File | What happens |
 | --- | --- |
-| [e11_pipeline.json](e11_pipeline.json) | Opens with two machines in `extra_hosts`, which the declared defaults leave empty. That is what makes the member extendable: nothing declares what one host looks like, so the editor has nothing to copy until the file gives it one. It also holds three stages rather than two and an `audit` stage rather than none. |
+| [e11_pipeline.json](e11_pipeline.json) | Opens with two machines in `extra_hosts`, which the declared defaults leave empty. That is what makes the member extendable: nothing declares what one host looks like, so the editor has nothing to copy until the file gives it one. The second element of `stage_limits` holds an entry for the same reason, where the declared defaults leave it empty and the type of the member is what answers instead. It also holds three stages rather than two and an `audit` stage rather than none. |
 
 ## Files for `e12_backup_files.py`
 

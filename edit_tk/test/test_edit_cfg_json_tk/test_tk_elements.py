@@ -43,6 +43,9 @@ HOOKS: ConfigPath = ('hooks',)
 LABELS: ConfigPath = ('labels',)
 """The member of it whose keys `_unchecked_dicts` leaves to its class."""
 
+UNDER_LIST: ConfigPath = ('stage_limits', '0')
+"""The dict of it that a list holds, which the declared-keys check misses."""
+
 
 class Editor(NamedTuple):
     """One editor of the example, and the model it is showing."""
@@ -157,6 +160,22 @@ def test_stub_unchecked(stub_tk: None) -> None:
     assert _controls_of(editor, (*LABELS, 'team')) == [REMOVE_TEXT]
 
 
+def test_stub_under_list(stub_tk: None) -> None:
+    """Test a dict inside a list element has the controls of a container.
+
+    What the declared-keys check reaches is a question about where a dict sits:
+    it steps only into the dict values of a member, so the list stops it and
+    this dict takes an entry and gives one up. The list holding it is an
+    ordinary list of its own beside that.
+    """
+    _ = stub_tk
+    editor = _pipeline_stub()
+    assert _controls_of(editor, UNDER_LIST[:1]) == [ADD_TEXT]
+    assert _controls_of(editor, UNDER_LIST) == [ADD_TEXT, REMOVE_TEXT,
+                                                LATER_TEXT]
+    assert _controls_of(editor, (*UNDER_LIST, 'cpu')) == [REMOVE_TEXT]
+
+
 def test_stub_offers_by_key(stub_tk: None) -> None:
     """Test the dict whose values are of two kinds has both sets of controls.
 
@@ -169,6 +188,8 @@ def test_stub_offers_by_key(stub_tk: None) -> None:
     assert _controls_of(editor, HOOKS) == [ADD_TEXT]
     assert _controls_of(editor, (*HOOKS, 'on_failure')) == [REMOVE_TEXT]
     assert _controls_of(editor, (*HOOKS, 'notify')) == [REMOVE_TEXT]
+    assert _controls_of(editor, (*HOOKS, 'thresholds')) == [ADD_TEXT,
+                                                            REMOVE_TEXT]
 
 
 def test_stub_clears_by_key(stub_tk: None) -> None:
