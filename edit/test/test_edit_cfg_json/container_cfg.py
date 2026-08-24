@@ -685,15 +685,35 @@ class EmptyObjectsCfg(SampleCfg):
 class ByKeyCfg(SampleCfg):
     """A configuration whose dict holds an object under one named key.
 
-    `DICT_VALUE_BY_KEY` is what declares that shape, and it is the one that
-    makes the keys of a dict a policy of their own: one of them holds a
-    configuration object and the others hold ordinary values.
+    `DICT_VALUE_BY_KEY` is what declares that shape, and it is the one whose
+    values are of two kinds: the named key holds a configuration object and
+    every other key of the same dict holds an ordinary value.
     """
 
     def declare_members(self) -> None:
         """Assign the dict whose one named key holds a nested object."""
         self.hooks: dict[str, InnerCfg | str] = {'main': InnerCfg(),
                                                  'note': 'nothing'}
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration of the one key that holds an object."""
+        by_key = ConfigNestingKind.DICT_VALUE_BY_KEY
+        return {'hooks': ConfigNesting(kind=by_key, config_type=InnerCfg,
+                                       discriminator_key='main')}
+
+
+class OnlyNamedCfg(SampleCfg):
+    """A configuration whose dict holds nothing but its one named key.
+
+    Nothing then says what a key that no declaration names would hold: this
+    class declares no such entry, the member holds none, and the annotation
+    says what the object is and nothing about a value beside it. The named
+    key can be given and taken away all the same.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the dict that holds only the key its class declares."""
+        self.hooks: dict[str, InnerCfg] = {'main': InnerCfg()}
 
     def nested_configs(self) -> NestedConfigs:
         """Return the declaration of the one key that holds an object."""

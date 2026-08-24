@@ -37,6 +37,7 @@
   * [text\_path](#edit_cfg_json.tree.text_path)
   * [member\_values](#edit_cfg_json.tree.member_values)
   * [shown\_values](#edit_cfg_json.tree.shown_values)
+  * [shown\_entries](#edit_cfg_json.tree.shown_entries)
   * [file\_values](#edit_cfg_json.tree.file_values)
   * [is\_container](#edit_cfg_json.tree.is_container)
   * [container\_text](#edit_cfg_json.tree.container_text)
@@ -49,9 +50,11 @@
     * [config](#edit_cfg_json.tree.ConfigNode.config)
   * [config\_nodes](#edit_cfg_json.tree.config_nodes)
   * [member\_nestings](#edit_cfg_json.tree.member_nestings)
+  * [by\_key\_nestings](#edit_cfg_json.tree.by_key_nestings)
   * [unchecked\_members](#edit_cfg_json.tree.unchecked_members)
   * [optional\_members](#edit_cfg_json.tree.optional_members)
   * [optional\_paths](#edit_cfg_json.tree.optional_paths)
+  * [omitted\_paths](#edit_cfg_json.tree.omitted_paths)
   * [owner\_path](#edit_cfg_json.tree.owner_path)
   * [ordered\_names](#edit_cfg_json.tree.ordered_names)
   * [flat\_values](#edit_cfg_json.tree.flat_values)
@@ -122,11 +125,12 @@
   * [edit](#edit_cfg_json.editing.edit)
 * [edit\_cfg\_json.elements](#edit_cfg_json.elements)
   * [BUILD\_ERRORS](#edit_cfg_json.elements.BUILD_ERRORS)
-  * [OBJECT\_KINDS](#edit_cfg_json.elements.OBJECT_KINDS)
+  * [ENTRY\_KINDS](#edit_cfg_json.elements.ENTRY_KINDS)
+  * [CLEARED\_KINDS](#edit_cfg_json.elements.CLEARED_KINDS)
   * [NO\_PATTERN](#edit_cfg_json.elements.NO_PATTERN)
   * [NO\_CLASS\_FORM](#edit_cfg_json.elements.NO_CLASS_FORM)
   * [FIXED\_KEYS](#edit_cfg_json.elements.FIXED_KEYS)
-  * [BY\_KEY\_SCOPE](#edit_cfg_json.elements.BY_KEY_SCOPE)
+  * [BY\_KEY\_PATTERN](#edit_cfg_json.elements.BY_KEY_PATTERN)
   * [NO\_DICT\_YET](#edit_cfg_json.elements.NO_DICT_YET)
   * [UNCHECKED\_SCOPE](#edit_cfg_json.elements.UNCHECKED_SCOPE)
   * [NOT\_EXTENDABLE](#edit_cfg_json.elements.NOT_EXTENDABLE)
@@ -139,6 +143,7 @@
     * [extend](#edit_cfg_json.elements.ElementOffer.extend)
     * [keyed](#edit_cfg_json.elements.ElementOffer.keyed)
     * [remove](#edit_cfg_json.elements.ElementOffer.remove)
+    * [cleared](#edit_cfg_json.elements.ElementOffer.cleared)
     * [earlier](#edit_cfg_json.elements.ElementOffer.earlier)
     * [later](#edit_cfg_json.elements.ElementOffer.later)
     * [refusal](#edit_cfg_json.elements.ElementOffer.refusal)
@@ -147,6 +152,7 @@
     * [values](#edit_cfg_json.elements.TreeFacts.values)
     * [nodes](#edit_cfg_json.elements.TreeFacts.nodes)
     * [nestings](#edit_cfg_json.elements.TreeFacts.nestings)
+    * [by\_key](#edit_cfg_json.elements.TreeFacts.by_key)
     * [unchecked](#edit_cfg_json.elements.TreeFacts.unchecked)
     * [types](#edit_cfg_json.elements.TreeFacts.types)
     * [defaults](#edit_cfg_json.elements.TreeFacts.defaults)
@@ -154,15 +160,11 @@
   * [declared\_values](#edit_cfg_json.elements.declared_values)
   * [tree\_facts](#edit_cfg_json.elements.tree_facts)
   * [element\_offers](#edit_cfg_json.elements.element_offers)
-  * [new\_object](#edit_cfg_json.elements.new_object)
   * [grown](#edit_cfg_json.elements.grown)
   * [shrunk](#edit_cfg_json.elements.shrunk)
   * [swapped](#edit_cfg_json.elements.swapped)
   * [moved\_paths](#edit_cfg_json.elements.moved_paths)
   * [kept\_order](#edit_cfg_json.elements.kept_order)
-  * [object\_added](#edit_cfg_json.elements.object_added)
-  * [object\_removed](#edit_cfg_json.elements.object_removed)
-  * [object\_moved](#edit_cfg_json.elements.object_moved)
   * [checked\_key](#edit_cfg_json.elements.checked_key)
   * [refused](#edit_cfg_json.elements.refused)
 * [edit\_cfg\_json.saving](#edit_cfg_json.saving)
@@ -293,6 +295,17 @@
   * [OLDER\_SETTINGS](#edit_cfg_json.settings_file.OLDER_SETTINGS)
   * [settings\_file](#edit_cfg_json.settings_file.settings_file)
   * [load\_settings](#edit_cfg_json.settings_file.load_settings)
+* [edit\_cfg\_json.placing](#edit_cfg_json.placing)
+  * [OBJECT\_KINDS](#edit_cfg_json.placing.OBJECT_KINDS)
+  * [ObjectPlace](#edit_cfg_json.placing.ObjectPlace)
+    * [holder](#edit_cfg_json.placing.ObjectPlace.holder)
+    * [nesting](#edit_cfg_json.placing.ObjectPlace.nesting)
+    * [member](#edit_cfg_json.placing.ObjectPlace.member)
+    * [key](#edit_cfg_json.placing.ObjectPlace.key)
+  * [new\_object](#edit_cfg_json.placing.new_object)
+  * [object\_added](#edit_cfg_json.placing.object_added)
+  * [object\_removed](#edit_cfg_json.placing.object_removed)
+  * [object\_moved](#edit_cfg_json.placing.object_moved)
 * [edit\_cfg\_json.settings](#edit_cfg_json.settings)
   * [DUPLICATE\_KEY](#edit_cfg_json.settings.DUPLICATE_KEY)
   * [NOT\_AN\_EXTENSION](#edit_cfg_json.settings.NOT_AN_EXTENSION)
@@ -878,15 +891,16 @@ configuration apart into one entry per node, and putting the edit buffer back
 together into the values of one configuration. Where those values come from in
 the first place is `member_values`, which is what the object would write.
 
-**A member that its class leaves out of the file has a row all the same.**
+**A node the file holds no key for has a row all the same.** Two of them do.
 `_omit_none_from_json()` names the members a class writes nothing at all for
-while they hold nothing, so what one object writes is fewer members than it
-has. Both directions therefore differ from the file by exactly those members:
-`shown_values` adds them back on the way in, each of them holding nothing, so
-that a member with no value has a row to be given one at, and `file_values`
-takes them out again on the way to the class, so that what a validation pass
-is given is the document a save would write. Giving such a member a value is
-what design section 4.9 of `doc/design.md` calls adding.
+while they hold nothing, and a `DICT_VALUE_BY_KEY` declaration names a key of
+a dict that holds a configuration object and is allowed not to be there. Both
+directions therefore differ from the file by exactly those nodes:
+`shown_values` and `shown_entries` add them back on the way in, each of them
+holding nothing, so that a node with no value has a row to be given one at,
+and `file_values` takes them out again on the way to the class, so that what a
+validation pass is given is the document a save would write. Giving such a
+node a value is what design section 4.9 of `doc/design.md` calls adding.
 
 Every node is addressed by a `config_as_json.ConfigPath`, which is what
 section 4.2 of `doc/design.md` asks for: a member inside a list or a dict needs
@@ -1104,6 +1118,42 @@ question and is `optional_members` below.
   Those values, with nothing at all for every member the object left
   out of them.
 
+<a id="edit_cfg_json.tree.shown_entries"></a>
+
+#### shown\_entries
+
+```python
+def shown_entries(path: ConfigPath, value: dict[str, JsonType],
+                  named: Iterable[ConfigPath]) -> dict[str, JsonType]
+```
+
+Return one dict with the declared keys it does not hold added back.
+
+A `DICT_VALUE_BY_KEY` declaration names one key of a dict that holds a
+configuration object, and nothing in `config_as_json` requires the file to
+have that key: what it refuses is a declared key holding something other
+than an object of the declared class. So such a key is a place that holds
+an object or holds nothing, exactly as an `OPTIONAL_MEMBER` is, and it is
+added back holding nothing for the reason `shown_values` adds an omitted
+member back: a key with no row could never be given an object again, so
+taking the object away would be a way of losing it.
+
+The dict is written again in the sorted order of its keys, which is the
+order a file holds it in and therefore the order the rows are shown in.
+
+**Arguments**:
+
+- `path` - Path of the dict these values belong to.
+- `value` - What that dict holds now.
+- `named` - Path of every key that a class declared an object at, anywhere
+  in the tree, which `by_key_nestings` answers with.
+  
+
+**Returns**:
+
+  Those values, with nothing at all for every declared key of this dict
+  that is not among them.
+
 <a id="edit_cfg_json.tree.file_values"></a>
 
 #### file\_values
@@ -1115,15 +1165,15 @@ def file_values(members: Mapping[str, JsonType],
 
 Return the values of one edit buffer as a file would hold them.
 
-It is the inverse of what `shown_values` adds, and what it is for is that
-**what is validated is the document that would be written**. A save writes
-the object that a validation pass built, and that object leaves such a
-member out, so a pass given `null` for it would be reaching its verdict
-about a document that no save of this configuration produces. A class is
-free to make something of a key it does not find — rules for reading an
-older file are given the keys of the document before anything else looks
-at them — so the two documents are not promised to be read alike, and the
-one that matters is the one the file will hold.
+It is the inverse of what `shown_values` and `shown_entries` add, and what
+it is for is that **what is validated is the document that would be
+written**. A save writes the object that a validation pass built, and that
+object leaves such a member out, so a pass given `null` for it would be
+reaching its verdict about a document that no save of this configuration
+produces. A class is free to make something of a key it does not find —
+rules for reading an older file are given the keys of the document before
+anything else looks at them — so the two documents are not promised to be
+read alike, and the one that matters is the one the file will hold.
 
 Every level of the tree is asked, because the class that may leave a
 member out is the class that owns it: a nested configuration object reads
@@ -1132,8 +1182,9 @@ its own JSON.
 **Arguments**:
 
 - `members` - The edit buffer, as one JSON space value per member.
-- `omitted` - Every member that the object holding it may leave out, by the
-  absolute path of that member, which `optional_paths` answers with.
+- `omitted` - Every node that the file holds no key for while it holds
+  nothing, by the absolute path of that node, which `omitted_paths`
+  answers with.
   
 
 **Returns**:
@@ -1301,9 +1352,10 @@ belong to. It is the declared class only where there is no object.
 
 The object itself, None for a member that holds none.
 
-An `OPTIONAL_MEMBER` is what holds none. Everything the editor asks of a
-node below this one is asked of this object, so a node that has none has
-nothing below it either.
+An `OPTIONAL_MEMBER` is what holds none, and so is a key that a
+`DICT_VALUE_BY_KEY` declaration names and the dict does not hold.
+Everything the editor asks of a node below this one is asked of this
+object, so a node that has none has nothing below it either.
 
 <a id="edit_cfg_json.tree.config_nodes"></a>
 
@@ -1351,7 +1403,7 @@ member that holds none of them yet has instead.
 Only the first declaration of a member is answered with. More than one is
 `DICT_VALUE_BY_KEY`, and every one of those says the same thing about the
 member that holds them, which is that its keys are not all one kind of
-thing.
+thing. What each of them says about its own key is `by_key_nestings`.
 
 **Arguments**:
 
@@ -1362,6 +1414,35 @@ thing.
 
   One declaration per declared member, under the absolute path of that
   member, which is the path of the object holding it and its own name.
+
+<a id="edit_cfg_json.tree.by_key_nestings"></a>
+
+#### by\_key\_nestings
+
+```python
+def by_key_nestings(
+        nodes: Mapping[ConfigPath,
+                       ConfigNode]) -> dict[ConfigPath, ConfigNesting]
+```
+
+Return every key of a dict that a class declared an object at.
+
+`DICT_VALUE_BY_KEY` is the one declaration that is about a key inside a
+member rather than about the member itself: the named key holds a
+configuration object and every other key of the same dict holds an
+ordinary value. One member may name several of them, each with a class of
+its own, which is what the list form of `nested_configs()` is for, so this
+answers per key where `member_nestings` answers per member.
+
+**Arguments**:
+
+- `nodes` - Every configuration object of the tree, by its path.
+  
+
+**Returns**:
+
+  One declaration per declared key, under the absolute path of that key,
+  which is the path of the member holding it and the key itself.
 
 <a id="edit_cfg_json.tree.unchecked_members"></a>
 
@@ -1448,6 +1529,33 @@ path that addresses it everywhere else.
 
   The path of every member that the object holding it may omit.
 
+<a id="edit_cfg_json.tree.omitted_paths"></a>
+
+#### omitted\_paths
+
+```python
+def omitted_paths(
+        nodes: Mapping[ConfigPath, ConfigNode]) -> frozenset[ConfigPath]
+```
+
+Return every node that a file holds no key for while it holds nothing.
+
+Two kinds of node are: a member that its own class may leave out of the
+file, and a key that a class declared a configuration object at, which the
+file is free not to have. Both are shown as a row that holds nothing and
+both are taken back out on the way to the class, so both are asked for in
+one place.
+
+**Arguments**:
+
+- `nodes` - Every configuration object of the tree, by its path.
+  
+
+**Returns**:
+
+  The path of every node whose absence from the file is what holding
+  nothing means.
+
 <a id="edit_cfg_json.tree.owner_path"></a>
 
 #### owner\_path
@@ -1526,7 +1634,8 @@ Return every node of one configuration, depth first, in row order.
 
 A member that the configuration leaves out of the file while it holds
 nothing is one of them, at every level of the tree, because it is a member
-of that object whether or not the file holds it.
+of that object whether or not the file holds it. So is a key that a class
+declared an object at and the file has not got.
 
 **Arguments**:
 
@@ -2450,25 +2559,32 @@ says so rather than inventing a value that the application never mentioned.
 **What cannot be done is said and not left to be discovered.** A dict whose
 keys are the ones its class declares cannot gain or lose one at all —
 `config_as_json` checks a dict member against those keys while it parses — and
-a dict whose keys the application decides with validators of its own, or one
-where a single named key holds an object, is a key policy that this version
-does not serve. Each of those is a sentence below that member, in the same
-place and under the same toggle as everything else explanatory.
+a dict whose keys the application decides with validators of its own is a key
+policy that this version does not serve. Each of those is a sentence below
+that member, in the same place and under the same toggle as everything else
+explanatory.
 
-**Where an object is added, an object is made.** The tree finds the nested
-configuration objects by walking the real objects rather than by matching a
-declaration, so an element that existed only in the edit buffer would be shown
-as the dictionary it serializes to, with the member order of nobody, the parse
-converters of nobody and no badge of its own. So the model's own configuration
-object — the copy the caller never sees — gains the object as the buffer gains
-its values, and everything that walks the tree finds it there.
+**A member whose values are of two kinds is asked twice.** A
+`DICT_VALUE_BY_KEY` declaration names one key of a dict that holds a
+configuration object, and every other key of that dict holds an ordinary
+value. Nothing checks which keys such a member has, because a member named in
+`nested_configs()` never reaches the check above, so both halves of it are
+answerable: the named key is a place that holds an object or holds nothing,
+and the rest of the dict is an ordinary container whose new entry is copied
+from what its own entries look like.
+
+**Where an object is added, an object is made.** `placing` is where that
+happens, because the model's own configuration object gains and loses the real
+objects as the buffer gains and loses their values.
 
 **How a member is written is not what decides whether it can be cleared.** A
 member the class leaves out of the file while it holds nothing has a row all
-the same, which `tree.shown_values` gives it, so putting it back to holding
-nothing is not a way of losing it. What the class does decide is what a value
-of it would be: a declared object for a member that holds one, and the
-emptiest value of its kind for a member declared to allow no value.
+the same, which `tree.shown_values` gives it, and so has a named key the dict
+has not got, which `tree.shown_entries` gives it; putting either of them back
+to holding nothing is therefore not a way of losing it. What the class does
+decide is what a value of it would be: a declared object for a place that
+holds one, and the emptiest value of its kind for a member declared to allow
+no value.
 
 <a id="edit_cfg_json.elements.BUILD_ERRORS"></a>
 
@@ -2483,15 +2599,29 @@ and declared values that a validator refuses raise a `ValueError` subclass.
 in the validation of a buffer: it says the configuration class is incomplete,
 which is a defect of the application that no editing can put right.
 
-<a id="edit_cfg_json.elements.OBJECT_KINDS"></a>
+<a id="edit_cfg_json.elements.ENTRY_KINDS"></a>
 
-#### OBJECT\_KINDS
+#### ENTRY\_KINDS
 
-The declarations that say every value inside one member is an object.
+The declarations of a dict member whose keys its own class does not check.
 
-They are what makes a member of that shape extendable at all, and they are the
-two that a new element is made from the declared class for. The other three
-declarations are about the member itself rather than about what is inside it.
+`Config.check_dict_parse` is what matches an ordinary dict member against the
+keys its class declares, and a member named in `nested_configs()` never
+reaches it: `config_as_json` reads such a member whole instead. So an entry of
+one of these can be taken out of it and another one put in. A member of
+`_unchecked_dicts` is the other dict whose keys nothing here checks, and it is
+left out for a different reason: its keys are the application's own to decide.
+
+<a id="edit_cfg_json.elements.CLEARED_KINDS"></a>
+
+#### CLEARED\_KINDS
+
+The declarations of a place that holds one object or holds nothing.
+
+They are the two that have the pair of states of design section 4.9 of
+`doc/design.md`: a member that may hold none, and a named key that the file
+need not have. `MEMBER` holds one always, and `LIST_ELEMENT` and `DICT_VALUE`
+are about everything inside a member rather than about one place in it.
 
 <a id="edit_cfg_json.elements.NO_PATTERN"></a>
 
@@ -2528,11 +2658,17 @@ declares for it, so a dict that gained or lost one would be refused by
 `config_as_json` itself on the next validation pass. The editor says so rather
 than offering a control that produces a refusal.
 
-<a id="edit_cfg_json.elements.BY_KEY_SCOPE"></a>
+<a id="edit_cfg_json.elements.BY_KEY_PATTERN"></a>
 
-#### BY\_KEY\_SCOPE
+#### BY\_KEY\_PATTERN
 
-What a `DICT_VALUE_BY_KEY` member says, which is out of scope for v1.
+What a dict with named objects in it says instead of gaining a key.
+
+It is `NO_PATTERN` for the half of such a member that is not declared: the
+declared keys of it are answered by the class each of them names, and every
+other key holds an ordinary value that only the application can have said
+anything about. A member that says this can still be given the objects its
+declarations name, at the row of each of those keys.
 
 <a id="edit_cfg_json.elements.NO_DICT_YET"></a>
 
@@ -2616,9 +2752,10 @@ space held for it.
 Whether an element can be added here.
 
 It is true for a list that something can be copied for, for a dict whose
-class says that every value in it is a configuration object, and for a
-declared member that holds no object yet, where adding is making the one
-object that member is for.
+class says that every value in it is a configuration object, for a dict
+where one named key of it does and something can be copied for the rest,
+and for a declared place that holds no object yet, where adding is making
+the one object that place is for.
 
 <a id="edit_cfg_json.elements.ElementOffer.keyed"></a>
 
@@ -2635,14 +2772,28 @@ because an element of a list is addressed by where it is.
 
 #### remove
 
-Whether this node can be taken out of the thing that holds it.
+Whether removing this node is something the user may ask for.
 
-An element of a list and a value of a dict of configuration objects can
-be. So can a declared optional member that holds an object, where removing
-is putting it back to holding none, and so can a member that its class
-declared to allow no value. How the class writes such a member is not
-asked: one it leaves out of the file altogether keeps its row, which says
-that it holds nothing and offers to give it something.
+An element of a list and an entry of a dict whose keys its class does not
+check can be taken out of what holds them. A declared place that holds an
+object, and a member that its class declared to allow no value, are put
+back to holding nothing instead, which `cleared` is what says. How the
+class writes such a member is not asked: one it leaves out of the file
+altogether keeps its row, which says that it holds nothing and offers to
+give it something.
+
+<a id="edit_cfg_json.elements.ElementOffer.cleared"></a>
+
+#### cleared
+
+Whether removing puts this node back to holding nothing.
+
+The two ways of removing something differ in what is left behind, and the
+difference is not visible in the row: a declared place keeps its row and
+holds nothing, and an element of a container is gone. A declared key of a
+dict is the case that needs both to be said, because it is a place that
+keeps its row while being one key of a container beside the ordinary keys
+that are taken out of it.
 
 <a id="edit_cfg_json.elements.ElementOffer.earlier"></a>
 
@@ -2715,6 +2866,16 @@ Every configuration object of the tree, by its path.
 #### nestings
 
 What each object declares about a member of its own, by that path.
+
+<a id="edit_cfg_json.elements.TreeFacts.by_key"></a>
+
+#### by\_key
+
+What each object declares about one key of a dict, by that path.
+
+It is the declaration that is about a key inside a member rather than
+about the member itself, so it is asked for by the path of that key and
+the mapping above answers for the member holding it.
 
 <a id="edit_cfg_json.elements.TreeFacts.unchecked"></a>
 
@@ -2826,37 +2987,6 @@ Return what every node of one tree offers, by the path of that node.
   One offer per node, most of them offering nothing at all: a value is
   not something that holds elements, and neither is a node of a
   configuration object, whose members are the ones its class declares.
-
-<a id="edit_cfg_json.elements.new_object"></a>
-
-#### new\_object
-
-```python
-def new_object(nesting: ConfigNesting, stream: TextIO) -> Config
-```
-
-Return one new configuration object of a declared class.
-
-The factory the declaration names is asked where it named one, exactly as
-`config_as_json` asks it while it reads a file, so an application that
-answers with a subclass answers with it here too.
-
-**Arguments**:
-
-- `nesting` - What the class declared about the member that holds these.
-- `stream` - Stream that collects what the construction says.
-  
-
-**Returns**:
-
-  One object of that class, holding the values it declares.
-  
-
-**Raises**:
-
-- `TypeError` - The class cannot be constructed this way.
-- `ValueError` - The declared values are ones the class refuses.
-- `AttributeError` - The class declares no public member at all.
 
 <a id="edit_cfg_json.elements.grown"></a>
 
@@ -2972,71 +3102,6 @@ def kept_order(count: int, without: int) -> list[int]
 ```
 
 Return the order of one list with one element taken out of it.
-
-<a id="edit_cfg_json.elements.object_added"></a>
-
-#### object\_added
-
-```python
-def object_added(config: Config, path: ConfigPath, key: str,
-                 stream: TextIO) -> None
-```
-
-Put a new configuration object where one has just been added.
-
-Nothing happens where the member holds no configuration objects, because
-there is then nothing about it that the object of the session says: what a
-list of numbers holds is what the buffer holds, and the tree asks the
-object only about the objects inside it.
-
-**Arguments**:
-
-- `config` - Configuration object of the session, which this modifies. It
-  is the editor's own copy and never the caller's.
-- `path` - Path of the member that has gained an element.
-- `key` - Name of the new entry of a dict, empty for a list.
-- `stream` - Stream that collects what the construction says.
-  
-
-**Raises**:
-
-- `TypeError` - The declared class cannot be constructed this way.
-- `ValueError` - Its declared values are ones it refuses.
-- `AttributeError` - It declares no public member at all.
-
-<a id="edit_cfg_json.elements.object_removed"></a>
-
-#### object\_removed
-
-```python
-def object_removed(config: Config, path: ConfigPath) -> None
-```
-
-Take the configuration object of a removed element out of the tree.
-
-**Arguments**:
-
-- `config` - Configuration object of the session, which this modifies. It
-  is the editor's own copy and never the caller's.
-- `path` - Path of the element that has been removed, or of the declared
-  member that has been put back to holding no object.
-
-<a id="edit_cfg_json.elements.object_moved"></a>
-
-#### object\_moved
-
-```python
-def object_moved(config: Config, path: ConfigPath, later: bool) -> None
-```
-
-Move the configuration object of a moved element with its values.
-
-**Arguments**:
-
-- `config` - Configuration object of the session, which this modifies. It
-  is the editor's own copy and never the caller's.
-- `path` - Path of the element that has been moved.
-- `later` - Whether it changed places with the one after it.
 
 <a id="edit_cfg_json.elements.checked_key"></a>
 
@@ -5093,10 +5158,16 @@ def remove_element(config: Config, path: ConfigPath) -> None
 
 Take one element out of the node that holds it.
 
+A node that a class declared a place for is put back to holding
+nothing instead of being taken out of what holds it, which is what
+`ElementOffer.cleared` says: such a node keeps its row, and a key that
+a `DICT_VALUE_BY_KEY` member declares keeps it while being one key of
+a dict whose other keys are taken out of it.
+
 **Arguments**:
 
 - `config` - Configuration object of the session, modified as above.
-- `path` - Path of the element to remove, or of the member to put back
+- `path` - Path of the element to remove, or of the place to put back
   to holding nothing at all.
   
 
@@ -5334,6 +5405,176 @@ Return the settings that one program runs with.
 
 - `ConfigLoadError` - A file was named and is not there, or the file the
   lookup found cannot be read as settings of this editor.
+
+<a id="edit_cfg_json.placing"></a>
+
+# edit\_cfg\_json.placing
+
+Where a configuration object that a class declared is held, and putting one.
+
+Adding an element and removing one are changes of the edit buffer, and one of
+them is more: where the class of a configuration declares that something is a
+configuration object, the object of the session gains one or loses one with
+the values. The tree finds those objects by walking the real objects rather
+than by matching a declaration, so an element that existed only in the buffer
+would be shown as the dictionary it serializes to, with the member order of
+nobody, the parse converters of nobody and no badge of its own.
+
+The object that changes is the model's own copy, which the caller never sees,
+so principle 5 of section 3 of `doc/design.md` is untouched.
+
+**A declaration names a place and not always a member.** `LIST_ELEMENT` and
+`DICT_VALUE` say that everything inside one member is an object, `MEMBER` and
+`OPTIONAL_MEMBER` say that the member itself is one, and `DICT_VALUE_BY_KEY`
+names one key of a dict, leaving every other key of it an ordinary value. So
+where an object goes is asked as a path, and `ObjectPlace` is what the answer
+is: the object that declared it, what was declared, the member holding it and
+the key inside that member where there is one.
+
+<a id="edit_cfg_json.placing.OBJECT_KINDS"></a>
+
+#### OBJECT\_KINDS
+
+The declarations that say every value inside one member is an object.
+
+They are what makes a member of that shape extendable at all, and they are the
+two that a new element is made from the declared class for. The other three
+declarations are about the member itself, or about one key of it, rather than
+about everything inside it.
+
+<a id="edit_cfg_json.placing.ObjectPlace"></a>
+
+## ObjectPlace Objects
+
+```python
+class ObjectPlace(NamedTuple)
+```
+
+Where one configuration object that a class declared is held.
+
+<a id="edit_cfg_json.placing.ObjectPlace.holder"></a>
+
+#### holder
+
+The object whose class declared it.
+
+<a id="edit_cfg_json.placing.ObjectPlace.nesting"></a>
+
+#### nesting
+
+What that class declared about the place.
+
+<a id="edit_cfg_json.placing.ObjectPlace.member"></a>
+
+#### member
+
+Name of the member of that object which holds it.
+
+<a id="edit_cfg_json.placing.ObjectPlace.key"></a>
+
+#### key
+
+Key of the dict that holds it, empty for the member itself.
+
+It is what tells the two things a `DICT_VALUE_BY_KEY` declaration is about
+apart: the member, which is a dict of ordinary values with named objects
+in it, and one of those named keys.
+
+<a id="edit_cfg_json.placing.new_object"></a>
+
+#### new\_object
+
+```python
+def new_object(nesting: ConfigNesting, stream: TextIO) -> Config
+```
+
+Return one new configuration object of a declared class.
+
+The factory the declaration names is asked where it named one, exactly as
+`config_as_json` asks it while it reads a file, so an application that
+answers with a subclass answers with it here too.
+
+**Arguments**:
+
+- `nesting` - What the class declared about the member that holds these.
+- `stream` - Stream that collects what the construction says.
+  
+
+**Returns**:
+
+  One object of that class, holding the values it declares.
+  
+
+**Raises**:
+
+- `TypeError` - The class cannot be constructed this way.
+- `ValueError` - The declared values are ones the class refuses.
+- `AttributeError` - The class declares no public member at all.
+
+<a id="edit_cfg_json.placing.object_added"></a>
+
+#### object\_added
+
+```python
+def object_added(config: Config, path: ConfigPath, key: str,
+                 stream: TextIO) -> None
+```
+
+Put a new configuration object where one has just been added.
+
+Nothing happens where the member holds no configuration objects, because
+there is then nothing about it that the object of the session says: what a
+list of numbers holds is what the buffer holds, and the tree asks the
+object only about the objects inside it.
+
+**Arguments**:
+
+- `config` - Configuration object of the session, which this modifies. It
+  is the editor's own copy and never the caller's.
+- `path` - Path of the member that has gained an element.
+- `key` - Name of the new entry of a dict, empty for a list.
+- `stream` - Stream that collects what the construction says.
+  
+
+**Raises**:
+
+- `TypeError` - The declared class cannot be constructed this way.
+- `ValueError` - Its declared values are ones it refuses.
+- `AttributeError` - It declares no public member at all.
+
+<a id="edit_cfg_json.placing.object_removed"></a>
+
+#### object\_removed
+
+```python
+def object_removed(config: Config, path: ConfigPath) -> None
+```
+
+Take the configuration object of a removed element out of the tree.
+
+**Arguments**:
+
+- `config` - Configuration object of the session, which this modifies. It
+  is the editor's own copy and never the caller's.
+- `path` - Path of the element that has been removed, or of the declared
+  place that has been put back to holding no object.
+
+<a id="edit_cfg_json.placing.object_moved"></a>
+
+#### object\_moved
+
+```python
+def object_moved(config: Config, path: ConfigPath, later: bool) -> None
+```
+
+Move the configuration object of a moved element with its values.
+
+**Arguments**:
+
+- `config` - Configuration object of the session, which this modifies. It
+  is the editor's own copy and never the caller's.
+- `path` - Path of the element that has been moved.
+- `later` - Whether it changed places with the one after it.
 
 <a id="edit_cfg_json.settings"></a>
 
@@ -8893,7 +9134,10 @@ One parse converter per node of the tree that has one.
 
 #### optional
 
-Every member that the object holding it may leave out of the file.
+Every node that the file holds no key for while it holds nothing.
+
+A member its own class may leave out is one, and a key that a class
+declared a configuration object at is the other.
 
 <a id="edit_cfg_json.rows.RowContext.offers"></a>
 
@@ -9229,13 +9473,14 @@ What the editor says about the names one enum member accepts.
 
 #### OPTIONAL\_TEXT
 
-What the editor says about a member that the class treats as optional.
+What the editor says about a node the file need not hold a key for.
 
-`_omit_none_from_json()` is what says which members those are, and
-`tree.optional_members` is what reads it: it is a source of the structure by
-section 4.1 of `doc/design.md`, so it is read where the rest of the structure
-is. What is worth saying here is that a member which may be left out is a
-member a user may leave empty.
+`_omit_none_from_json()` says which members those are and a
+`DICT_VALUE_BY_KEY` declaration says which keys of a dict are, and
+`tree.omitted_paths` is what reads both: they are sources of the structure by
+section 4.1 of `doc/design.md`, so they are read where the rest of the
+structure is. What is worth saying here is that a node which may be left out
+is a node a user may leave empty.
 
 <a id="edit_cfg_json.descriptions.NOTHING_TEXT"></a>
 

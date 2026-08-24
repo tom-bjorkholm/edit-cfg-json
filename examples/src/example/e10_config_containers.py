@@ -147,8 +147,9 @@ are there; a list that grows and shrinks is
 
 **`DICT_VALUE_BY_KEY`,** the third repeated shape, which declares that one
 named key of a dict is an object. It is edited exactly like the two here, and
-it is out of scope for adding and removing, so the example that shows what can
-and cannot be added is where it belongs.
+what is different about it is that the named key may be given and taken away
+while the keys beside it hold ordinary values, so the example that shows what
+can be added is where it belongs.
 
 Run this example in one of the two editors. This is the first example whose
 configuration is the size a real one is, so it is the first where the fold

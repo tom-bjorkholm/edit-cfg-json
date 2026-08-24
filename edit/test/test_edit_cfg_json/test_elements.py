@@ -15,10 +15,11 @@ from typing import Optional
 import pytest
 from config_as_json import ConfigPath, JsonType
 from edit_cfg_json import EditModel, model_as_text, row_description
-from edit_cfg_json.elements import BY_KEY_SCOPE, FIXED_KEYS, NO_DICT_YET, \
+from edit_cfg_json.elements import BY_KEY_PATTERN, FIXED_KEYS, NO_DICT_YET, \
     NO_PATTERN, UNCHECKED_SCOPE
 from .container_cfg import ByKeyCfg, ConfigDictCfg, ConfigListCfg, \
-    ElementCfg, EmptyObjectsCfg, NullNestedCfg, OmitNestedCfg, TreeCfg
+    ElementCfg, EmptyObjectsCfg, NullNestedCfg, OmitNestedCfg, OnlyNamedCfg, \
+    TreeCfg
 from .model_helpers import row_at, row_paths, written
 from .sample_cfg import FlatCfg, OmitKindsCfg
 
@@ -33,6 +34,29 @@ SPARE: ConfigPath = ('spare',)
 
 OUTPUTS: ConfigPath = ('outputs',)
 """Path of the member that holds nested objects in the samples above."""
+
+HOOKS: ConfigPath = ('hooks',)
+"""Path of the dict where one named key holds a configuration object."""
+
+NAMED: ConfigPath = ('hooks', 'main')
+"""Path of the key of that dict which the class declares an object at."""
+
+ONE_ENTRY_JSON = ('{"hooks": {"main": {"width": 4, "height": 6}, '
+                  '"note": "keep"}}')
+"""A file that puts an ordinary entry into a dict that declares none.
+
+The class of `OnlyNamedCfg` declares nothing but the key that holds an object,
+so this is what makes that member extendable: what it holds now says what an
+entry of it looks like where the class said nothing.
+"""
+
+NO_NAMED_JSON = '{"hooks": {"note": "nothing"}}'
+"""A file of that class which holds no key for the declared object.
+
+Nothing in `config_as_json` requires the key to be there, so this is the state
+such a dict is in whenever the application has not written the object, and it
+is the state the row has to be able to give the object back in.
+"""
 
 OMITTED_JSON = '{"inner": {"width": 4, "height": 6}, "answer": 3}'
 """A file that gives the omitted optional member of a sample an object.
@@ -61,11 +85,126 @@ def test_offer_to_extend(path: ConfigPath, extend: bool, refusal: str) -> None:
     assert offer.refusal == refusal
 
 
-def test_by_key_out_of_scope() -> None:
-    """Test a dict with one named object in it says so and offers nothing."""
-    offer = row_at(model=EditModel(ByKeyCfg()), path=('hooks',)).offer
-    assert not offer.extend
-    assert offer.refusal == BY_KEY_SCOPE
+def test_by_key_offers_both() -> None:
+    """Test both halves of a dict with one named object in it are offered.
+
+    Nothing checks which keys such a member has, because `config_as_json`
+    reads a member named in `nested_configs()` whole instead of matching it
+    against the keys the class declares. So the member takes an entry of its
+    own like any other dict, and the key that holds the object is a place
+    beside those entries rather than one of them.
+    """
+    model = EditModel(ByKeyCfg())
+    member = row_at(model=model, path=HOOKS).offer
+    assert member.extend and member.keyed and member.refusal == ''
+    named = row_at(model=model, path=NAMED).offer
+    assert named.remove and named.cleared and not named.extend
+    ordinary = row_at(model=model, path=(*HOOKS, 'note')).offer
+    assert ordinary.remove and not ordinary.cleared
+
+
+def test_named_key_cleared() -> None:
+    """Test the named key of such a dict is put back to holding nothing.
+
+    It keeps its row, which says which class is missing and offers to make
+    one, exactly as a member that may hold no object does. Without the row
+    there would be nowhere to ask for the object again.
+    """
+    model = EditModel(ByKeyCfg())
+    model.remove_element(NAMED)
+    row = row_at(model=model, path=NAMED)
+    assert not row.is_object
+    assert row.offer.extend
+    assert row_paths(model) == [HOOKS, (*HOOKS, 'main'), (*HOOKS, 'note')]
+    assert model.validate().valid
+
+
+def test_named_key_given() -> None:
+    """Test a dict with no such key is given the object it declares."""
+    model = EditModel(ByKeyCfg(from_json_data_text=NO_NAMED_JSON))
+    assert not row_at(model=model, path=NAMED).is_object
+    model.add_element(NAMED)
+    assert row_at(model=model, path=NAMED).is_object
+    assert row_at(model=model, path=(*NAMED, 'width')).value == 4
+    assert model.validate().valid
+
+
+def test_named_key_no_file(tmp_path: Path) -> None:
+    """Test the file of a cleared named key holds no such key at all.
+
+    That is what holding nothing means for such a key: a member that may hold
+    none is written as `null` or left out by its own class, and this one is
+    simply not there.
+    """
+    out_file = tmp_path / 'out.json'
+    model = EditModel(ByKeyCfg(), out_file=out_file)
+    model.remove_element(NAMED)
+    assert model.save().saved
+    assert written(out_file) == {'hooks': {'note': 'nothing'}}
+
+
+def test_by_key_entry_added() -> None:
+    """Test a key that no declaration names is copied like any entry.
+
+    What one of those holds is the same three questions a list element is
+    answered by, asked of the entries that no declaration names, so the entry
+    this class declares beside its named key is what a new one is.
+    """
+    model = EditModel(ByKeyCfg())
+    model.add_element(path=HOOKS, key='extra')
+    assert row_at(model=model, path=(*HOOKS, 'extra')).value == 'nothing'
+    assert model.validate().valid
+
+
+def test_by_key_entry_gone() -> None:
+    """Test a key that no declaration names is taken out of the dict."""
+    model = EditModel(ByKeyCfg())
+    model.remove_element((*HOOKS, 'note'))
+    assert row_paths(model) == [HOOKS, NAMED, (*NAMED, 'width'),
+                                (*NAMED, 'height')]
+    assert model.validate().valid
+
+
+def test_named_key_is_taken() -> None:
+    """Test the named key is asked for at its own row and not as an entry.
+
+    It has a row whether the dict holds it or not, so a new entry under that
+    name is a key the dict already holds, and the row beside the refusal is
+    the one that makes the object.
+    """
+    model = EditModel(ByKeyCfg())
+    model.remove_element(NAMED)
+    with pytest.raises(ValueError, match='already holds'):
+        model.add_element(path=HOOKS, key='main')
+
+
+def test_by_key_file_pattern() -> None:
+    """Test a file that holds an ordinary entry says what a new one is.
+
+    What the class declares is asked first and what the member holds after it,
+    so a dict that declares nothing but its named key can be given an entry as
+    soon as a file has put one in it.
+    """
+    model = EditModel(OnlyNamedCfg(from_json_data_text=ONE_ENTRY_JSON))
+    assert row_at(model=model, path=HOOKS).offer.extend
+    model.add_element(path=HOOKS, key='another')
+    assert row_at(model=model, path=(*HOOKS, 'another')).value == 'keep'
+    assert model.validate().valid
+
+
+def test_only_named_says_why() -> None:
+    """Test a dict of nothing but named keys says why it takes no entry.
+
+    Half of such a member is answered by the class each of its keys names and
+    the other half by nothing at all, so the member says so and the key that
+    holds an object is offered all the same.
+    """
+    model = EditModel(OnlyNamedCfg())
+    member = row_at(model=model, path=HOOKS).offer
+    assert not member.extend
+    assert member.refusal == BY_KEY_PATTERN
+    model.remove_element(NAMED)
+    assert row_at(model=model, path=NAMED).offer.extend
 
 
 def test_refusal_explains() -> None:

@@ -9,15 +9,16 @@ configuration apart into one entry per node, and putting the edit buffer back
 together into the values of one configuration. Where those values come from in
 the first place is `member_values`, which is what the object would write.
 
-**A member that its class leaves out of the file has a row all the same.**
+**A node the file holds no key for has a row all the same.** Two of them do.
 `_omit_none_from_json()` names the members a class writes nothing at all for
-while they hold nothing, so what one object writes is fewer members than it
-has. Both directions therefore differ from the file by exactly those members:
-`shown_values` adds them back on the way in, each of them holding nothing, so
-that a member with no value has a row to be given one at, and `file_values`
-takes them out again on the way to the class, so that what a validation pass
-is given is the document a save would write. Giving such a member a value is
-what design section 4.9 of `doc/design.md` calls adding.
+while they hold nothing, and a `DICT_VALUE_BY_KEY` declaration names a key of
+a dict that holds a configuration object and is allowed not to be there. Both
+directions therefore differ from the file by exactly those nodes:
+`shown_values` and `shown_entries` add them back on the way in, each of them
+holding nothing, so that a node with no value has a row to be given one at,
+and `file_values` takes them out again on the way to the class, so that what a
+validation pass is given is the document a save would write. Giving such a
+node a value is what design section 4.9 of `doc/design.md` calls adding.
 
 Every node is addressed by a `config_as_json.ConfigPath`, which is what
 section 4.2 of `doc/design.md` asks for: a member inside a list or a dict needs
@@ -201,19 +202,53 @@ def shown_values(config: Config,
     return {**members, **left_out}
 
 
+def shown_entries(path: ConfigPath, value: dict[str, JsonType],
+                  named: Iterable[ConfigPath]) -> dict[str, JsonType]:
+    """Return one dict with the declared keys it does not hold added back.
+
+    A `DICT_VALUE_BY_KEY` declaration names one key of a dict that holds a
+    configuration object, and nothing in `config_as_json` requires the file to
+    have that key: what it refuses is a declared key holding something other
+    than an object of the declared class. So such a key is a place that holds
+    an object or holds nothing, exactly as an `OPTIONAL_MEMBER` is, and it is
+    added back holding nothing for the reason `shown_values` adds an omitted
+    member back: a key with no row could never be given an object again, so
+    taking the object away would be a way of losing it.
+
+    The dict is written again in the sorted order of its keys, which is the
+    order a file holds it in and therefore the order the rows are shown in.
+
+    Args:
+        path: Path of the dict these values belong to.
+        value: What that dict holds now.
+        named: Path of every key that a class declared an object at, anywhere
+            in the tree, which `by_key_nestings` answers with.
+
+    Returns:
+        Those values, with nothing at all for every declared key of this dict
+        that is not among them.
+    """
+    missing: dict[str, JsonType] = {
+        entry[-1]: None for entry in named
+        if entry[:-1] == path and entry[-1] not in value}
+    if not missing:
+        return value
+    return dict(sorted({**value, **missing}.items()))
+
+
 def file_values(members: Mapping[str, JsonType],
                 omitted: frozenset[ConfigPath]) -> dict[str, JsonType]:
     """Return the values of one edit buffer as a file would hold them.
 
-    It is the inverse of what `shown_values` adds, and what it is for is that
-    **what is validated is the document that would be written**. A save writes
-    the object that a validation pass built, and that object leaves such a
-    member out, so a pass given `null` for it would be reaching its verdict
-    about a document that no save of this configuration produces. A class is
-    free to make something of a key it does not find — rules for reading an
-    older file are given the keys of the document before anything else looks
-    at them — so the two documents are not promised to be read alike, and the
-    one that matters is the one the file will hold.
+    It is the inverse of what `shown_values` and `shown_entries` add, and what
+    it is for is that **what is validated is the document that would be
+    written**. A save writes the object that a validation pass built, and that
+    object leaves such a member out, so a pass given `null` for it would be
+    reaching its verdict about a document that no save of this configuration
+    produces. A class is free to make something of a key it does not find —
+    rules for reading an older file are given the keys of the document before
+    anything else looks at them — so the two documents are not promised to be
+    read alike, and the one that matters is the one the file will hold.
 
     Every level of the tree is asked, because the class that may leave a
     member out is the class that owns it: a nested configuration object reads
@@ -221,8 +256,9 @@ def file_values(members: Mapping[str, JsonType],
 
     Args:
         members: The edit buffer, as one JSON space value per member.
-        omitted: Every member that the object holding it may leave out, by the
-            absolute path of that member, which `optional_paths` answers with.
+        omitted: Every node that the file holds no key for while it holds
+            nothing, by the absolute path of that node, which `omitted_paths`
+            answers with.
 
     Returns:
         The values that a file of this configuration would hold.
@@ -234,11 +270,12 @@ def file_values(members: Mapping[str, JsonType],
 
 def _kept_values(path: ConfigPath, value: JsonType,
                  omitted: frozenset[ConfigPath]) -> JsonType:
-    """Return one node without the members that the file leaves out.
+    """Return one node without the values that the file holds no key for.
 
-    Only a member of a configuration object can be one, so an ordinary
-    dictionary key is never dropped however it is named: the paths asked about
-    are the ones the objects of the tree answered with.
+    A member its own class may leave out is one and a key that a class
+    declared an object at is the other, so an ordinary dictionary key is never
+    dropped however it is named: the paths asked about are the ones the
+    objects of the tree answered with.
     """
     if isinstance(value, list):
         return [_kept_values(path=path + (str(index),), value=held,
@@ -370,9 +407,10 @@ class ConfigNode(NamedTuple):
     config: Optional[Config]
     """The object itself, None for a member that holds none.
 
-    An `OPTIONAL_MEMBER` is what holds none. Everything the editor asks of a
-    node below this one is asked of this object, so a node that has none has
-    nothing below it either.
+    An `OPTIONAL_MEMBER` is what holds none, and so is a key that a
+    `DICT_VALUE_BY_KEY` declaration names and the dict does not hold.
+    Everything the editor asks of a node below this one is asked of this
+    object, so a node that has none has nothing below it either.
     """
 
 
@@ -380,6 +418,11 @@ def _member_objects(name: str, held: object,
                     nesting: ConfigNesting) -> list[tuple[ConfigPath,
                                                           ConfigNode]]:
     """Return the objects that one nesting declaration says one member holds.
+
+    A key that `DICT_VALUE_BY_KEY` names is one of them whether the dict holds
+    it or not, because such a key holds an object or holds nothing and the
+    second of those is a state the user moves it out of. `shown_entries` is
+    what gives that state a row.
 
     Args:
         name: Name of the member the declaration is about.
@@ -399,9 +442,9 @@ def _member_objects(name: str, held: object,
                 for key, value in held.items()]
     if kind is ConfigNestingKind.DICT_VALUE_BY_KEY:
         key = nesting.discriminator_key
-        if key is None or not isinstance(held, dict) or key not in held:
+        if key is None or not isinstance(held, dict):
             return []
-        return [((name, key), _config_node(held[key], nesting))]
+        return [((name, key), _config_node(held.get(key), nesting))]
     return [((name,), _config_node(held, nesting))]
 
 
@@ -466,7 +509,7 @@ def member_nestings(nodes: Mapping[ConfigPath, ConfigNode]
     Only the first declaration of a member is answered with. More than one is
     `DICT_VALUE_BY_KEY`, and every one of those says the same thing about the
     member that holds them, which is that its keys are not all one kind of
-    thing.
+    thing. What each of them says about its own key is `by_key_nestings`.
 
     Args:
         nodes: Every configuration object of the tree, by its path.
@@ -484,6 +527,39 @@ def _first_nesting(declared: ConfigNesting | list[ConfigNesting]
                    ) -> ConfigNesting:
     """Return the one declaration that answers for a member."""
     return declared[0] if isinstance(declared, list) else declared
+
+
+def by_key_nestings(nodes: Mapping[ConfigPath, ConfigNode]
+                    ) -> dict[ConfigPath, ConfigNesting]:
+    """Return every key of a dict that a class declared an object at.
+
+    `DICT_VALUE_BY_KEY` is the one declaration that is about a key inside a
+    member rather than about the member itself: the named key holds a
+    configuration object and every other key of the same dict holds an
+    ordinary value. One member may name several of them, each with a class of
+    its own, which is what the list form of `nested_configs()` is for, so this
+    answers per key where `member_nestings` answers per member.
+
+    Args:
+        nodes: Every configuration object of the tree, by its path.
+
+    Returns:
+        One declaration per declared key, under the absolute path of that key,
+        which is the path of the member holding it and the key itself.
+    """
+    return {path + (name, key): nesting
+            for path, node in nodes.items() if node.config is not None
+            for name, declared in node.config.nested_configs().items()
+            for key, nesting in _named_keys_of(declared)}
+
+
+def _named_keys_of(declared: ConfigNesting | list[ConfigNesting]
+                   ) -> list[tuple[str, ConfigNesting]]:
+    """Return the key and the declaration of each named key of one member."""
+    listed = declared if isinstance(declared, list) else [declared]
+    found = [(nesting.discriminator_key, nesting) for nesting in listed
+             if nesting.kind is ConfigNestingKind.DICT_VALUE_BY_KEY]
+    return [(key, nesting) for key, nesting in found if key is not None]
 
 
 def unchecked_members(nodes: Mapping[ConfigPath, ConfigNode]
@@ -561,6 +637,26 @@ def optional_paths(nodes: Mapping[ConfigPath, ConfigNode]) \
                      for name in optional_members(node.config))
 
 
+def omitted_paths(nodes: Mapping[ConfigPath, ConfigNode]
+                  ) -> frozenset[ConfigPath]:
+    """Return every node that a file holds no key for while it holds nothing.
+
+    Two kinds of node are: a member that its own class may leave out of the
+    file, and a key that a class declared a configuration object at, which the
+    file is free not to have. Both are shown as a row that holds nothing and
+    both are taken back out on the way to the class, so both are asked for in
+    one place.
+
+    Args:
+        nodes: Every configuration object of the tree, by its path.
+
+    Returns:
+        The path of every node whose absence from the file is what holding
+        nothing means.
+    """
+    return optional_paths(nodes) | frozenset(by_key_nestings(nodes))
+
+
 def owner_path(path: ConfigPath,
                nodes: Mapping[ConfigPath, ConfigNode]) -> ConfigPath:
     """Return the path of the configuration object that owns one node.
@@ -612,9 +708,26 @@ def ordered_names(config: Config,
     return declared + [name for name in members if name not in declared]
 
 
+def _shown_at(path: ConfigPath, node: Optional[ConfigNode], value: JsonType,
+              named: Iterable[ConfigPath]) -> JsonType:
+    """Return the value of one node with what it left out added back.
+
+    A configuration object leaves out the members it may omit while they hold
+    nothing, and a dict leaves out a declared key that holds no object. Both
+    are added back holding nothing, because a node with no row could never be
+    given anything.
+    """
+    if not isinstance(value, dict):
+        return value
+    if node is not None and node.config is not None:
+        return shown_values(config=node.config, members=value)
+    return shown_entries(path=path, value=value, named=named)
+
+
 def _walked(path: ConfigPath, value: JsonType,
-            nodes: Mapping[ConfigPath, ConfigNode]
-            ) -> Iterator[tuple[ConfigPath, JsonType]]:
+            nodes: Mapping[ConfigPath, ConfigNode],
+            named: Iterable[ConfigPath]) -> Iterator[tuple[ConfigPath,
+                                                           JsonType]]:
     """Yield one node and everything below it, the node itself first.
 
     A node comes before what is inside it, which is the order the rows are
@@ -623,25 +736,25 @@ def _walked(path: ConfigPath, value: JsonType,
     container by the order it holds its values in.
 
     Such an object is asked for the members it left out of the file as well,
-    because they are members of it and a member with no row could never be
-    given a value. That is done to the value of the node and not only to the
-    walk over it, so that everything reading it afterwards — the children of
-    the row, and what the row holds once they are edited — sees the same
-    members.
+    and a dict for the declared keys it holds no object at, because a node
+    with no row could never be given a value. That is done to the value of the
+    node and not only to the walk over it, so that everything reading it
+    afterwards — the children of the row, and what the row holds once they are
+    edited — sees the same nodes.
     """
     node = nodes.get(path)
-    if node is not None and node.config is not None and \
-            isinstance(value, dict):
-        value = shown_values(config=node.config, members=value)
+    value = _shown_at(path=path, node=node, value=value, named=named)
     yield path, value
     if node is None:
         for child, held in child_values(path=path, value=value):
-            yield from _walked(path=child, value=held, nodes=nodes)
+            yield from _walked(path=child, value=held, nodes=nodes,
+                               named=named)
         return
     if node.config is None or not isinstance(value, dict):
         return
     for name in ordered_names(config=node.config, members=value):
-        yield from _walked(path=path + (name,), value=value[name], nodes=nodes)
+        yield from _walked(path=path + (name,), value=value[name], nodes=nodes,
+                           named=named)
 
 
 def flat_values(members: Mapping[str, JsonType],
@@ -651,7 +764,8 @@ def flat_values(members: Mapping[str, JsonType],
 
     A member that the configuration leaves out of the file while it holds
     nothing is one of them, at every level of the tree, because it is a member
-    of that object whether or not the file holds it.
+    of that object whether or not the file holds it. So is a key that a class
+    declared an object at and the file has not got.
 
     Args:
         members: One JSON space value per serialized member.
@@ -664,10 +778,11 @@ def flat_values(members: Mapping[str, JsonType],
     """
     root = nodes[()].config
     assert root is not None
+    named = frozenset(by_key_nestings(nodes))
     held = shown_values(config=root, members=members)
     found: list[tuple[ConfigPath, JsonType]] = []
     for name in ordered_names(config=root, members=held):
-        found.extend(_walked((name,), held[name], nodes))
+        found.extend(_walked((name,), held[name], nodes, named))
     return found
 
 

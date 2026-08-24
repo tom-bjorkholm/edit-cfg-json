@@ -23,8 +23,9 @@ from config_as_json import Config, ConfigPath, JsonType
 from edit_cfg_json.converting import convert_member
 from edit_cfg_json.descriptions import Descriptions
 from edit_cfg_json.elements import NOT_EXTENDABLE, NOT_MOVABLE, \
-    NOT_REMOVABLE, checked_key, grown, kept_order, moved_paths, object_added, \
-    object_moved, object_removed, refused, shrunk, swapped
+    NOT_REMOVABLE, checked_key, grown, kept_order, moved_paths, refused, \
+    shrunk, swapped
+from edit_cfg_json.placing import object_added, object_moved, object_removed
 from edit_cfg_json.finding import FindOptions, FindReport, FindState, \
     find_report, matched, next_match
 from edit_cfg_json.leaf_value import text_as_value
@@ -432,9 +433,15 @@ class EditBuffer:
     def remove_element(self, config: Config, path: ConfigPath) -> None:
         """Take one element out of the node that holds it.
 
+        A node that a class declared a place for is put back to holding
+        nothing instead of being taken out of what holds it, which is what
+        `ElementOffer.cleared` says: such a node keeps its row, and a key that
+        a `DICT_VALUE_BY_KEY` member declares keeps it while being one key of
+        a dict whose other keys are taken out of it.
+
         Args:
             config: Configuration object of the session, modified as above.
-            path: Path of the element to remove, or of the member to put back
+            path: Path of the element to remove, or of the place to put back
                 to holding nothing at all.
 
         Raises:
@@ -444,10 +451,10 @@ class EditBuffer:
         row = self._rows[path]
         refused(offered=row.offer.remove, form=NOT_REMOVABLE, path=path)
         object_removed(config=config, path=path)
-        held = self._container_of(path)
-        if held is None:
+        if row.offer.cleared:
             self._restructured(config=config, path=path, value=None, moved={})
             return
+        held = self._rows[path[:-1]]
         self._restructured(config=config, path=held.path,
                            value=shrunk(value=held.value, step=path[-1]),
                            moved=self._moved(held=held, path=path,
@@ -476,23 +483,6 @@ class EditBuffer:
         self._restructured(config=config, path=held.path, value=order,
                            moved=self._moved(held=held, path=path,
                                              removing=False, later=later))
-
-    def _container_of(self, path: ConfigPath) -> Optional[MemberRow]:
-        """Return the row of the container one node is an element of.
-
-        Args:
-            path: Path of the node to ask about.
-
-        Returns:
-            The row of the list or the dict holding it, and None for a
-            declared member, which is held by a configuration object and not
-            by a container.
-        """
-        parent = self._rows.get(path[:-1])
-        if parent is None or parent.config_type is not None or \
-                not parent.foldable:
-            return None
-        return parent
 
     def _moved(self, held: MemberRow, path: ConfigPath, removing: bool,
                later: bool = False) -> dict[ConfigPath, ConfigPath]:

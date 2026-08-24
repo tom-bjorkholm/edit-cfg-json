@@ -19,41 +19,48 @@ says so rather than inventing a value that the application never mentioned.
 **What cannot be done is said and not left to be discovered.** A dict whose
 keys are the ones its class declares cannot gain or lose one at all —
 `config_as_json` checks a dict member against those keys while it parses — and
-a dict whose keys the application decides with validators of its own, or one
-where a single named key holds an object, is a key policy that this version
-does not serve. Each of those is a sentence below that member, in the same
-place and under the same toggle as everything else explanatory.
+a dict whose keys the application decides with validators of its own is a key
+policy that this version does not serve. Each of those is a sentence below
+that member, in the same place and under the same toggle as everything else
+explanatory.
 
-**Where an object is added, an object is made.** The tree finds the nested
-configuration objects by walking the real objects rather than by matching a
-declaration, so an element that existed only in the edit buffer would be shown
-as the dictionary it serializes to, with the member order of nobody, the parse
-converters of nobody and no badge of its own. So the model's own configuration
-object — the copy the caller never sees — gains the object as the buffer gains
-its values, and everything that walks the tree finds it there.
+**A member whose values are of two kinds is asked twice.** A
+`DICT_VALUE_BY_KEY` declaration names one key of a dict that holds a
+configuration object, and every other key of that dict holds an ordinary
+value. Nothing checks which keys such a member has, because a member named in
+`nested_configs()` never reaches the check above, so both halves of it are
+answerable: the named key is a place that holds an object or holds nothing,
+and the rest of the dict is an ordinary container whose new entry is copied
+from what its own entries look like.
+
+**Where an object is added, an object is made.** `placing` is where that
+happens, because the model's own configuration object gains and loses the real
+objects as the buffer gains and loses their values.
 
 **How a member is written is not what decides whether it can be cleared.** A
 member the class leaves out of the file while it holds nothing has a row all
-the same, which `tree.shown_values` gives it, so putting it back to holding
-nothing is not a way of losing it. What the class does decide is what a value
-of it would be: a declared object for a member that holds one, and the
-emptiest value of its kind for a member declared to allow no value.
+the same, which `tree.shown_values` gives it, and so has a named key the dict
+has not got, which `tree.shown_entries` gives it; putting either of them back
+to holding nothing is therefore not a way of losing it. What the class does
+decide is what a value of it would be: a declared object for a place that
+holds one, and the emptiest value of its kind for a member declared to allow
+no value.
 """
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Container, Iterable, Mapping, Sequence
 from copy import deepcopy
 from io import StringIO
 from typing import NamedTuple, Optional, TextIO
-from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
-    ConfigPath, JsonType
-from edit_cfg_json.constructing import built_config
+from config_as_json import ConfigNesting, ConfigNestingKind, ConfigPath, \
+    JsonType
 from edit_cfg_json.leaf_value import LeafType, empty_value
 from edit_cfg_json.loader import ConfigSource
 from edit_cfg_json.member_types import node_types
-from edit_cfg_json.tree import ConfigNode, config_nodes, member_nestings, \
+from edit_cfg_json.placing import new_object
+from edit_cfg_json.tree import ConfigNode, by_key_nestings, member_nestings, \
     member_values, owner_path, path_text, unchecked_members
 
 BUILD_ERRORS = (AttributeError, KeyError, TypeError, ValueError)
@@ -67,12 +74,26 @@ in the validation of a buffer: it says the configuration class is incomplete,
 which is a defect of the application that no editing can put right.
 """
 
-OBJECT_KINDS = (ConfigNestingKind.LIST_ELEMENT, ConfigNestingKind.DICT_VALUE)
-"""The declarations that say every value inside one member is an object.
+ENTRY_KINDS = (ConfigNestingKind.DICT_VALUE,
+               ConfigNestingKind.DICT_VALUE_BY_KEY)
+"""The declarations of a dict member whose keys its own class does not check.
 
-They are what makes a member of that shape extendable at all, and they are the
-two that a new element is made from the declared class for. The other three
-declarations are about the member itself rather than about what is inside it.
+`Config.check_dict_parse` is what matches an ordinary dict member against the
+keys its class declares, and a member named in `nested_configs()` never
+reaches it: `config_as_json` reads such a member whole instead. So an entry of
+one of these can be taken out of it and another one put in. A member of
+`_unchecked_dicts` is the other dict whose keys nothing here checks, and it is
+left out for a different reason: its keys are the application's own to decide.
+"""
+
+CLEARED_KINDS = (ConfigNestingKind.OPTIONAL_MEMBER,
+                 ConfigNestingKind.DICT_VALUE_BY_KEY)
+"""The declarations of a place that holds one object or holds nothing.
+
+They are the two that have the pair of states of design section 4.9 of
+`doc/design.md`: a member that may hold none, and a named key that the file
+need not have. `MEMBER` holds one always, and `LIST_ELEMENT` and `DICT_VALUE`
+are about everything inside a member rather than about one place in it.
 """
 
 NO_PATTERN = ('Nothing says what an element of this member would be: this '
@@ -108,10 +129,19 @@ declares for it, so a dict that gained or lost one would be refused by
 than offering a control that produces a refusal.
 """
 
-BY_KEY_SCOPE = ('One named key of this dict holds a configuration object and '
-                'the others do not, so its keys follow a policy of their own. '
-                'This version does not add or remove them.')
-"""What a `DICT_VALUE_BY_KEY` member says, which is out of scope for v1."""
+BY_KEY_PATTERN = ('Every key of this dict that no declaration names holds an '
+                  'ordinary value, and nothing says what one would be: this '
+                  'class declares no such entry for it, it holds none, and '
+                  'its declared type names nothing the editor can make one '
+                  'of.')
+"""What a dict with named objects in it says instead of gaining a key.
+
+It is `NO_PATTERN` for the half of such a member that is not declared: the
+declared keys of it are answered by the class each of them names, and every
+other key holds an ordinary value that only the application can have said
+anything about. A member that says this can still be given the objects its
+declarations name, at the row of each of those keys.
+"""
 
 NO_DICT_YET = ('A dict written for a member that holds none is refused by '
                'the configuration class itself, which matches it against the '
@@ -168,9 +198,10 @@ class ElementOffer(NamedTuple):
     """Whether an element can be added here.
 
     It is true for a list that something can be copied for, for a dict whose
-    class says that every value in it is a configuration object, and for a
-    declared member that holds no object yet, where adding is making the one
-    object that member is for.
+    class says that every value in it is a configuration object, for a dict
+    where one named key of it does and something can be copied for the rest,
+    and for a declared place that holds no object yet, where adding is making
+    the one object that place is for.
     """
 
     keyed: bool = False
@@ -183,14 +214,26 @@ class ElementOffer(NamedTuple):
     """
 
     remove: bool = False
-    """Whether this node can be taken out of the thing that holds it.
+    """Whether removing this node is something the user may ask for.
 
-    An element of a list and a value of a dict of configuration objects can
-    be. So can a declared optional member that holds an object, where removing
-    is putting it back to holding none, and so can a member that its class
-    declared to allow no value. How the class writes such a member is not
-    asked: one it leaves out of the file altogether keeps its row, which says
-    that it holds nothing and offers to give it something.
+    An element of a list and an entry of a dict whose keys its class does not
+    check can be taken out of what holds them. A declared place that holds an
+    object, and a member that its class declared to allow no value, are put
+    back to holding nothing instead, which `cleared` is what says. How the
+    class writes such a member is not asked: one it leaves out of the file
+    altogether keeps its row, which says that it holds nothing and offers to
+    give it something.
+    """
+
+    cleared: bool = False
+    """Whether removing puts this node back to holding nothing.
+
+    The two ways of removing something differ in what is left behind, and the
+    difference is not visible in the row: a declared place keeps its row and
+    holds nothing, and an element of a container is gone. A declared key of a
+    dict is the case that needs both to be said, because it is a place that
+    keeps its row while being one key of a container beside the ordinary keys
+    that are taken out of it.
     """
 
     earlier: bool = False
@@ -241,6 +284,14 @@ class TreeFacts(NamedTuple):
 
     nestings: Mapping[ConfigPath, ConfigNesting]
     """What each object declares about a member of its own, by that path."""
+
+    by_key: Mapping[ConfigPath, ConfigNesting]
+    """What each object declares about one key of a dict, by that path.
+
+    It is the declaration that is about a key inside a member rather than
+    about the member itself, so it is asked for by the path of that key and
+    the mapping above answers for the member holding it.
+    """
 
     unchecked: frozenset[ConfigPath]
     """Every dict member whose keys its own class does not check."""
@@ -313,6 +364,7 @@ def tree_facts(nodes: Mapping[ConfigPath, ConfigNode],
     """
     return TreeFacts(values=dict(flat), nodes=nodes,
                      nestings=member_nestings(nodes),
+                     by_key=by_key_nestings(nodes),
                      unchecked=unchecked_members(nodes),
                      types=node_types(nodes=nodes, flat=flat),
                      defaults=defaults, made={})
@@ -335,9 +387,10 @@ def element_offers(facts: TreeFacts) -> dict[ConfigPath, ElementOffer]:
 def _offer_of(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
     """Return what one node offers about the elements it holds."""
     offer = _extending(path=path, facts=facts)
+    cleared = _clearable(path=path, facts=facts)
     return offer._replace(
-        remove=_removable(path=path, facts=facts),
-        earlier=_movable(path=path, facts=facts, later=False),
+        remove=cleared or _element_of(path=path, facts=facts) is not None,
+        cleared=cleared, earlier=_movable(path=path, facts=facts, later=False),
         later=_movable(path=path, facts=facts, later=True))
 
 
@@ -346,7 +399,7 @@ def _extending(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
 
     A node where a class declared an object and none is there is the one node
     that is grown without being a container: adding there is making the object
-    that the member is for, which design section 4.1 of `doc/design.md` says
+    that the place is for, which design section 4.1 of `doc/design.md` says
     belongs with adding an element of a list. A node that holds the object is
     a configuration of its own, and the members of a configuration are the
     ones its class declares.
@@ -388,20 +441,31 @@ def _new_value(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
 
 
 def _new_object(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
-    """Return whether a declared member holding no object can be given one.
+    """Return whether a declared place holding no object can be given one.
 
-    An `OPTIONAL_MEMBER` is the one declaration that reaches this, whether its
-    class writes `null` for the member or leaves it out of the file: every
-    other kind says that the member holds an object or a container of them,
-    and `config_as_json` refuses such a member holding nothing while it
-    validates, so no configuration the editor is given has one.
+    Two declarations reach this. An `OPTIONAL_MEMBER` does, whether its class
+    writes `null` for the member or leaves it out of the file, and so does a
+    key that `DICT_VALUE_BY_KEY` names and the dict has not got. Every other
+    kind says that the member holds an object or a container of them, and
+    `config_as_json` refuses such a member holding nothing while it validates,
+    so no configuration the editor is given has one.
     """
-    nesting = facts.nestings.get(path)
+    nesting = _declared_place(path=path, facts=facts)
     if nesting is None:
         return ElementOffer()
-    if nesting.kind is ConfigNestingKind.DICT_VALUE_BY_KEY:
-        return ElementOffer(refusal=BY_KEY_SCOPE)
     return _from_class(nesting=nesting, facts=facts, keyed=False)
+
+
+def _declared_place(path: ConfigPath,
+                    facts: TreeFacts) -> Optional[ConfigNesting]:
+    """Return what declares one node to hold a configuration object.
+
+    A member is declared by the class that owns it and a named key of a dict
+    by the same class one step further in, and the two cannot be the same
+    node: a member is one step below the object that declares it and a named
+    key is two.
+    """
+    return facts.nestings.get(path) or facts.by_key.get(path)
 
 
 def _growing_list(path: ConfigPath, facts: TreeFacts,
@@ -442,10 +506,46 @@ def _growing_dict(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
         assert nesting is not None
         return _from_class(nesting=nesting, facts=facts, keyed=True)
     if kind is ConfigNestingKind.DICT_VALUE_BY_KEY:
-        return ElementOffer(refusal=BY_KEY_SCOPE)
+        return _growing_by_key(path=path, facts=facts)
     if _member_path(path=path, facts=facts) in facts.unchecked:
         return ElementOffer(refusal=UNCHECKED_SCOPE)
     return ElementOffer(refusal=FIXED_KEYS)
+
+
+def _growing_by_key(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
+    """Return whether a dict with named objects in it can gain a key.
+
+    Nothing checks which keys it has: `config_as_json` reads such a member
+    whole, parsing the keys its declarations name as the classes they name and
+    keeping every other key as the ordinary value it is, so a key it never
+    heard of is read back exactly as it was written. What a new one of those
+    holds is therefore the same three questions a list element is answered by,
+    asked of the entries that no declaration names: an object belongs at the
+    keys that declare one and never beside them, and `_validate_dict_by_key`
+    is what refuses it there.
+    """
+    pattern = _ordinary_entry(path=path, facts=facts)
+    if pattern is None:
+        return ElementOffer(refusal=BY_KEY_PATTERN)
+    return ElementOffer(extend=True, keyed=True, template=pattern)
+
+
+def _ordinary_entry(path: ConfigPath, facts: TreeFacts) -> Optional[JsonType]:
+    """Return what an entry of one dict that no declaration names holds."""
+    named = {entry[-1] for entry in facts.by_key if entry[:-1] == path}
+    for held in (_at_path(path=path, facts=facts), facts.values[path]):
+        found = _first_entry(value=held, named=named)
+        if found is not None:
+            return found
+    return _typed_element(path=path, facts=facts)
+
+
+def _first_entry(value: JsonType, named: Container[str]) -> Optional[JsonType]:
+    """Return the first value of one dict under a key nothing declares."""
+    if not isinstance(value, dict):
+        return None
+    return next((held for key, held in value.items() if key not in named),
+                None)
 
 
 def _from_class(nesting: ConfigNesting, facts: TreeFacts,
@@ -456,29 +556,6 @@ def _from_class(nesting: ConfigNesting, facts: TreeFacts,
         return ElementOffer(refusal=NO_CLASS_FORM.format(
             name=nesting.config_type.__name__))
     return ElementOffer(extend=True, keyed=keyed, template=template)
-
-
-def new_object(nesting: ConfigNesting, stream: TextIO) -> Config:
-    """Return one new configuration object of a declared class.
-
-    The factory the declaration names is asked where it named one, exactly as
-    `config_as_json` asks it while it reads a file, so an application that
-    answers with a subclass answers with it here too.
-
-    Args:
-        nesting: What the class declared about the member that holds these.
-        stream: Stream that collects what the construction says.
-
-    Returns:
-        One object of that class, holding the values it declares.
-
-    Raises:
-        TypeError: The class cannot be constructed this way.
-        ValueError: The declared values are ones the class refuses.
-        AttributeError: The class declares no public member at all.
-    """
-    factory = nesting.factory_function or nesting.config_type
-    return built_config(factory, stream=stream)
 
 
 def _declared_object(nesting: ConfigNesting,
@@ -519,10 +596,16 @@ def _declared_element(path: ConfigPath,
         The first element the class declares there, or None where it declares
         no list at that path or declares an empty one.
     """
+    found = _at_path(path=path, facts=facts)
+    return found[0] if isinstance(found, list) and found else None
+
+
+def _at_path(path: ConfigPath, facts: TreeFacts) -> JsonType:
+    """Return what the class declares at one path, or None where nothing is."""
     found: JsonType = dict(facts.defaults)
     for step in path:
         found = _step_into(found, step)
-    return found[0] if isinstance(found, list) and found else None
+    return found
 
 
 def _step_into(value: JsonType, step: str) -> JsonType:
@@ -546,25 +629,30 @@ def _member_path(path: ConfigPath, facts: TreeFacts) -> ConfigPath:
     return path[:len(owner) + 1]
 
 
-def _removable(path: ConfigPath, facts: TreeFacts) -> bool:
-    """Return whether one node can be taken out of what holds it.
+def _clearable(path: ConfigPath, facts: TreeFacts) -> bool:
+    """Return whether removing one node puts it back to holding nothing.
 
-    A member declared to allow no value is cleared by the same rule as a
-    member declared to hold a configuration object, and neither of them asks
-    how its class writes the member it clears. One that
-    `_omit_none_from_json()` names is left out of the file altogether, and it
-    keeps a row all the same, so clearing it is not a way of losing it: the
-    row then says that the member holds nothing, exactly as it does for the
-    member its class writes `null` for.
+    A member declared to allow no value is cleared by the same rule as a place
+    declared to hold a configuration object, and neither of them asks how its
+    class writes what it clears. A member that `_omit_none_from_json()` names
+    is left out of the file altogether, and a key that `DICT_VALUE_BY_KEY`
+    names is simply not there; each of them keeps a row all the same, so
+    clearing it is not a way of losing it: the row then says that it holds
+    nothing, exactly as it does for the member its class writes `null` for.
+
+    A node that a class declared is answered by that declaration alone, and
+    never by the type its member is annotated with. A nesting kind that
+    `CLEARED_KINDS` leaves out can never hold nothing — `config_as_json`
+    requires the list or the dict while it validates — so an annotation
+    allowing it says something no configuration the editor is given is in.
     """
-    nesting = facts.nestings.get(path)
-    if nesting is not None and \
-            nesting.kind is ConfigNestingKind.OPTIONAL_MEMBER:
+    declared = _declared_place(path=path, facts=facts)
+    if declared is not None:
         node = facts.nodes.get(path)
-        return node is not None and node.config is not None
-    if facts.types.get(path, LeafType()).nothing:
-        return facts.values[path] is not None
-    return _element_of(path=path, facts=facts) is not None
+        return declared.kind in CLEARED_KINDS and node is not None \
+            and node.config is not None
+    return facts.types.get(path, LeafType()).nothing \
+        and facts.values[path] is not None
 
 
 def _movable(path: ConfigPath, facts: TreeFacts, later: bool) -> bool:
@@ -582,23 +670,30 @@ def _element_of(path: ConfigPath, facts: TreeFacts) -> Optional[JsonType]:
     A member of a configuration object is not an element of anything, however
     much the object writes itself as a dictionary: its members are the ones its
     class declares, and its class is what would have to be changed to have
-    another one.
+    another one. Neither is a key that a class declared an object at: it is
+    one key of a dict and it is a place of its own, which is put back to
+    holding nothing rather than taken out.
     """
     parent = path[:-1]
-    if not parent or parent in facts.nodes:
+    if not parent or parent in facts.nodes or path in facts.by_key:
         return None
     held = facts.values.get(parent)
     if isinstance(held, list):
         return held
-    if isinstance(held, dict) and _holds_objects(parent, facts):
+    if isinstance(held, dict) and _holds_elements(parent, facts):
         return held
     return None
 
 
-def _holds_objects(path: ConfigPath, facts: TreeFacts) -> bool:
-    """Return whether a class declared every value of one dict an object."""
+def _holds_elements(path: ConfigPath, facts: TreeFacts) -> bool:
+    """Return whether the entries of one dict are elements of it.
+
+    They are wherever the class of the configuration declared the member in
+    `nested_configs()`, because such a member never reaches the check that
+    matches an ordinary dict against the keys its class declares.
+    """
     nesting = facts.nestings.get(path)
-    return nesting is not None and nesting.kind is ConfigNestingKind.DICT_VALUE
+    return nesting is not None and nesting.kind in ENTRY_KINDS
 
 
 def grown(value: JsonType, key: str, template: JsonType) -> JsonType:
@@ -699,102 +794,6 @@ def moved_paths(paths: Iterable[ConfigPath], container: ConfigPath,
 def kept_order(count: int, without: int) -> list[int]:
     """Return the order of one list with one element taken out of it."""
     return [index for index in range(count) if index != without]
-
-
-def object_added(config: Config, path: ConfigPath, key: str,
-                 stream: TextIO) -> None:
-    """Put a new configuration object where one has just been added.
-
-    Nothing happens where the member holds no configuration objects, because
-    there is then nothing about it that the object of the session says: what a
-    list of numbers holds is what the buffer holds, and the tree asks the
-    object only about the objects inside it.
-
-    Args:
-        config: Configuration object of the session, which this modifies. It
-            is the editor's own copy and never the caller's.
-        path: Path of the member that has gained an element.
-        key: Name of the new entry of a dict, empty for a list.
-        stream: Stream that collects what the construction says.
-
-    Raises:
-        TypeError: The declared class cannot be constructed this way.
-        ValueError: Its declared values are ones it refuses.
-        AttributeError: It declares no public member at all.
-    """
-    found = _declared_at(config=config, path=path)
-    if found is None:
-        return
-    holder, nesting = found
-    made = new_object(nesting=nesting, stream=stream)
-    if nesting.kind is ConfigNestingKind.LIST_ELEMENT:
-        getattr(holder, path[-1]).append(made)
-    elif nesting.kind is ConfigNestingKind.DICT_VALUE:
-        getattr(holder, path[-1])[key] = made
-    else:
-        setattr(holder, path[-1], made)
-
-
-def object_removed(config: Config, path: ConfigPath) -> None:
-    """Take the configuration object of a removed element out of the tree.
-
-    Args:
-        config: Configuration object of the session, which this modifies. It
-            is the editor's own copy and never the caller's.
-        path: Path of the element that has been removed, or of the declared
-            member that has been put back to holding no object.
-    """
-    cleared = _declared_at(config=config, path=path)
-    if cleared is not None:
-        setattr(cleared[0], path[-1], None)
-        return
-    found = _declared_at(config=config, path=path[:-1])
-    if found is None:
-        return
-    holder, nesting = found
-    if nesting.kind in OBJECT_KINDS:
-        held = getattr(holder, path[-2])
-        del held[int(path[-1]) if isinstance(held, list) else path[-1]]
-
-
-def object_moved(config: Config, path: ConfigPath, later: bool) -> None:
-    """Move the configuration object of a moved element with its values.
-
-    Args:
-        config: Configuration object of the session, which this modifies. It
-            is the editor's own copy and never the caller's.
-        path: Path of the element that has been moved.
-        later: Whether it changed places with the one after it.
-    """
-    found = _declared_at(config=config, path=path[:-1])
-    if found is None or found[1].kind is not ConfigNestingKind.LIST_ELEMENT:
-        return
-    held = getattr(found[0], path[-2])
-    index = int(path[-1])
-    other = index + 1 if later else index - 1
-    held[index], held[other] = held[other], held[index]
-
-
-def _declared_at(config: Config,
-                 path: ConfigPath) -> Optional[tuple[Config, ConfigNesting]]:
-    """Return the object holding one declared member, and its declaration.
-
-    Args:
-        config: Configuration object of the session. It is not modified here.
-        path: Path to ask about, which is a declared member of one of the
-            objects of the tree or something else entirely.
-
-    Returns:
-        The object that declares that member and what it declared, and None
-        for a path that is no declared member of this configuration.
-    """
-    nodes = config_nodes(config)
-    nesting = member_nestings(nodes).get(path)
-    if nesting is None:
-        return None
-    holder = nodes[owner_path(path=path, nodes=nodes)].config
-    assert holder is not None
-    return holder, nesting
 
 
 def checked_key(offer: ElementOffer, value: JsonType, key: str,

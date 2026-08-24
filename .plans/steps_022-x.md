@@ -2,7 +2,7 @@
 
 ## Where everything is
 
-Steps 1 to 25 are implemented and committed, step 23 with the corrections its
+Steps 1 to 26 are implemented and committed, step 23 with the corrections its
 review asked for. Steps 1 to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md) and steps 10 to 21 in
 [steps_010-021.md](steps_010-021.md). Step 22 and the steps still to build are
@@ -92,6 +92,9 @@ in this file. Where any of the three files mentions a design decision,
   given a value at, the buffer written back to the class as the document a save
   would write, and the one kind of value that a member holding nothing cannot
   be given.
+- [Step 26][s26] — the dict whose values are of two kinds asked twice: the key
+  a declaration names given the two states of a member that may hold no object,
+  and every other key of it an entry of an ordinary container after all.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -125,6 +128,7 @@ in this file. Where any of the three files mentions a design decision,
 [s23]: #step-23---finding-a-member
 [s24]: #step-24---more-type-information-and-whether-the-user-may-change-it
 [s25]: #step-25---add-and-remove-omitted-members
+[s26]: #step-26---full-support-for-dict_value_by_key
 
 ## 1. How this plan is meant to be used
 
@@ -145,11 +149,11 @@ decision gets built.
 - Every step touches all three packages where the capability is
   user-visible, so `edit_cfg_json`, `edit_cfg_json_tk` and
   `edit_cfg_json_textual` never drift apart by more than one review.
-- Steps 1 to 25 are built, and each is written up in
+- Steps 1 to 26 are built, and each is written up in
   [steps_001-009_done.md](steps_001-009_done.md), in
   [steps_010-021.md](steps_010-021.md) or in section 3 of this file as what it
   decided, what it found while building it and what came of its review. Steps
-  26 onwards are named steps with their observable outcome and their main
+  27 onwards are named steps with their observable outcome and their main
   risks; they are detailed just before they are started, when the core API is
   real rather than imagined.
 
@@ -596,22 +600,89 @@ read, and `file_values` needs it where the rest of the structure is.
 
 ### Step 26 - Full support for `DICT_VALUE_BY_KEY`
 
-Add full support for adding and deleting values in a dict that are
-declared by `DICT_VALUE_BY_KEY`.
+Status: **Implemented, committed.**
+
+Adding and deleting values in a dict that `DICT_VALUE_BY_KEY` declares. Such a
+member is one dict holding values of two kinds — the named key holds a
+configuration object and every other key holds an ordinary value — which is
+why section 4.9 of the design had it as the third of the three dicts that
+cannot be given an entry, and why the effort table put it above step 27.
+
+**What the investigation of `config_as_json` found, and it changed the
+step.** The check that stops an ordinary dict member from gaining a key is
+`Config.check_dict_parse`, and **a member named in `nested_configs()` never
+reaches it**: `parse_json` branches to `_nested_config_from_json` for such a
+member and passes the whole of it. For this kind that is
+`_dict_by_key_from_json`, which parses the keys the declarations name as the
+classes they name and keeps every other key as the ordinary value it is,
+whatever that key is called. `_validate_dict_by_key` then requires only that a
+declared key, *if it is there*, holds an object of the declared class, and that
+an undeclared key does not hold a `Config`. So the key policy that the design
+called out of scope is no policy at all: the keys of such a member are
+unchecked, and **a declared key is allowed to be absent**.
+
+**The named key is a place and not an entry.** That absence is the whole of
+the step. The first idea was the cheap one — the member offers an entry with a
+key, and typing the declared name gives an object — and it is the mistake step
+25 had already made and undone one level up: taking the object away would take
+the row off the screen, and the only way back would be knowing the declared key
+by heart and typing it into the question that asks what a new entry is called.
+So a declared key is a node of the tree whether the dict holds it or not, with
+the two states and the two controls of an `OPTIONAL_MEMBER`. `tree.shown_entries`
+adds it back holding nothing, exactly as `shown_values` adds an omitted member
+back, and `tree.omitted_paths` puts it beside those members so that
+`file_values` takes it out again on the way to the class. What is validated
+stays the document that would be written.
+
+**And the rest of the dict is an ordinary container**, because nothing checks
+its keys. The member takes an entry under a key the user gives and each entry
+can be taken out, and what a new one holds is step 14's three questions —
+the value the class declares, failing that a value the member holds, failing
+that the annotated type — asked only of the entries that no declaration names.
+An object beside the named key is what `_validate_dict_by_key` refuses, so the
+declared keys are skipped when the pattern is looked for. A member with none of
+the three says so in a sentence of its own and still offers the objects its
+declarations name, which is `BY_KEY_PATTERN`.
+
+**Three small things came out of it.**
+
+- `ElementOffer.cleared` says which of the two kinds of removal a row gets,
+  because the row cannot say it: a declared key keeps its row while being one
+  key of a container whose other keys are taken out of it. It replaced
+  `EditBuffer._container_of`, which had been answering the same question from
+  the row of the parent and could not answer this one.
+- `ObjectPlace` replaced the pair that said where a declared object is held.
+  A declaration names a member for four of the five kinds and one key inside a
+  member for the fifth, so where an object goes is a member name and a key
+  rather than the last step of a path.
+- `elements.py` went over a thousand lines, so the half of it that puts real
+  configuration objects into the object of the session moved to `placing.py`.
+  The two halves were already separate: one says what a node offers and the
+  other changes the object the tree is walked over.
+
+**What is observable.** `hooks` in `examples/src/example/e11_add_remove.py`,
+which already had the shape and said it was out of scope. Its named key
+`on_failure` is taken away and given back, its other keys are added and
+removed, and the file that a save writes holds no `on_failure` while the row
+says which class is missing. e10 said the same thing about the shape and now
+says what is different about it instead.
 
 ### Step 27 - Adding an entry to an `_unchecked_dicts` member
 
-Section 4.9 of the design names three kinds of dict that cannot be given an
-entry. One of them is permanently impossible, one of them is step 26, and this
-is the third: a member of `_unchecked_dicts`, whose key policy the application
-defines with validators of its own, which the design marks out of v1 scope and
-no step has claimed. Such a member stops saying why it cannot be given an entry
-and is offered the controls every other container already has; a key the
-application's own validators refuse is then the ordinary verdict.
+Section 4.9 of the design now names two kinds of dict that cannot be given an
+entry. One of them is permanently impossible, and this is the other: a member
+of `_unchecked_dicts`, whose key policy the application defines with validators
+of its own, which the design marks out of v1 scope and no step has claimed.
+Step 26 took the third off that list by finding that a member named in
+`nested_configs()` never reaches the check the list is about. Such a member
+stops saying why it cannot be given an entry and is offered the controls every
+other container already has; a key the application's own validators refuse is
+then the ordinary verdict.
 
-It shares its mechanism with step 23, because both need a dict that accepts a
-key its class does not declare, so whichever is built first makes the other one
-cheaper. Neither forces the other's order.
+Step 26 made it cheaper, because a dict that accepts a key its class does not
+declare is what both of them need and step 26 built it: `ENTRY_KINDS` in
+`elements.py` is the list of declarations whose entries are elements, and this
+step adds the members of `_unchecked_dicts` to the same question.
 
 ### Step 27B - An entry in a dict the class never checks
 
@@ -696,12 +767,12 @@ run, with a refusal and an exit code of its own where it can run none.
 | Step | Effort | What the number is mostly |
 | --- | --- | --- |
 | 27 An entry in an `_unchecked_dicts` member | 2 | Step 14's machinery reused: the row stops saying why it cannot, and both backends show controls they already have. |
-| 26 Full `DICT_VALUE_BY_KEY` | 3 | The same work, complicated by a member whose values are of two kinds, and by what deleting the named key would mean. |
 | 27B An entry in a dict the class never checks | 3 | Step 24's type model and step 14's machinery are both there; the work is getting one rule right against `config_as_json` and a configuration shape to show it with. |
 | 30 The launcher | 4 | Little logic, spread over all three packages: an entry-point group, a script the core has never installed, discovery, and what a machine that can run neither editor is told. |
 | 28 Pull-down for enum and bool | 6 | A second kind of field in both backends, touching every rule written for the first: write on change, focus loss, the rebuild after a pass, and the marks. |
 | 27C Raw JSON for a subtree | 8 | An editing surface the editor does not have at all yet, in both backends, and two rules about a second way of editing one thing. |
 | 29 The wizard | 10 | Two toolkits' dialogs and file choosers, two bridge libraries to weigh against the menubar alternative, and no headless test worth much. |
+
 Two things the numbers do not say.
 
 - **Effort is not order.**

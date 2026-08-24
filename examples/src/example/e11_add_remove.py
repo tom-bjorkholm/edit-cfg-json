@@ -24,8 +24,9 @@ mentioned. This one configuration puts every case side by side:
   a `RunnerConfig` object.
 - `limits` — nothing. Its class declares which keys it has.
 - `labels` — nothing. `_unchecked_dicts` makes its keys the application's own.
-- `hooks` — nothing. `DICT_VALUE_BY_KEY`: one named key of it holds an object
-  and the others hold ordinary values.
+- `hooks` — add with a key, remove, and add and remove at one row of its own.
+  `DICT_VALUE_BY_KEY`: one named key of it holds an object and the others hold
+  ordinary values, so both halves of it are offered separately.
 - `audit` — add and remove. An `OPTIONAL_MEMBER` is given its object, or put
   back to holding none.
 
@@ -92,7 +93,7 @@ python3 e11_add_remove.py --ui dump --add runners=nightly
 python3 e11_add_remove.py --ui dump --remove runners.fast
 ````
 
-## Three dicts that cannot grow, for three different reasons
+## Two dicts that cannot grow, for two different reasons
 
 Each of them says why below its own row, with the rest of the explanations:
 
@@ -105,15 +106,42 @@ Each of them says why below its own row, with the rest of the explanations:
   check away and defines its key policy with validators of its own instead.
   What those validators allow is the application's to say, and serving it is
   out of scope for version 1.
-- **`hooks`** is declared `DICT_VALUE_BY_KEY`: one named key of it holds a
-  configuration object and the others hold ordinary values. That is a per-key
-  policy as well, and it is out of scope for the same reason.
 
-Nothing is half-supported: none of the three gets a control at all.
+Nothing is half-supported: neither of the two gets a control at all.
 
 ````sh
 cd examples/src/example
 python3 e11_add_remove.py --ui dump --fold stages --fold runners
+````
+
+## A dict whose values are of two kinds
+
+`hooks` is declared `DICT_VALUE_BY_KEY`, which names **one key** of a dict as
+a configuration object and leaves every other key of the same dict an ordinary
+value. Nothing checks which keys such a member has: a member named in
+`nested_configs()` never reaches the check that `limits` is stopped by,
+because `config_as_json` reads the whole member instead. So both halves of it
+are offered, and they are offered in different places.
+
+**The named key has a row whether the file holds it or not.** `on_failure`
+holds one `StageConfig` or holds nothing, exactly as `audit` below it does,
+and the same two controls move it between those states. Taking the object away
+leaves the row saying which class is missing, so the key can be given back;
+the file then simply has no `on_failure` in it, which is what an application
+that has not written the hook ships.
+
+**Every other key is an ordinary entry.** The member itself takes an entry
+with a key, and each of those entries can be taken out. What a new one holds
+is the same question a new element of `retry_delays` is answered by, asked of
+the entries that no declaration names: `notify` is the one this class declares,
+so a new entry is a copy of it. Asking for `on_failure` as an entry is refused
+as a key the dict already holds, because its row is already there.
+
+````sh
+cd examples/src/example
+python3 e11_add_remove.py --ui dump --remove hooks.on_failure
+python3 e11_add_remove.py --ui dump --add hooks=notify_slack
+python3 e11_add_remove.py --ui dump --remove hooks.notify
 ````
 
 ## An optional member is added and removed too
@@ -185,10 +213,12 @@ Inside this repository, use the virtual environment that the build creates:
 Look along the rows and see which controls each of them gets. `stages` offers
 adding on its own row and removing and moving on the row of each element it
 holds; `extra_hosts` offers the same although nothing in it was ever written
-down, because its declared type says what one element of it would be; and
-`limits`, `labels` and `hooks` offer nothing with a line below each saying
-why. Adding an entry to `runners` is where the editor asks a question, which
-is the other thing only an editor does.
+down, because its declared type says what one element of it would be; `hooks`
+offers adding on its own row and removing on every row below it, one of which
+is the named key that holds an object; and `limits` and `labels` offer nothing
+with a line below each saying why. Adding an entry to `runners` or to `hooks`
+is where the editor asks a question, which is the other thing only an editor
+does.
 
 `--ui dump` is the very limited non-interactive user interface, and the
 command lines above press the same controls without a display. There is a file
@@ -251,8 +281,9 @@ HOOK_KEY = 'on_failure'
 """The one key of the hooks dict that holds a configuration object.
 
 Every other key of that dict holds an ordinary value, which is what
-`DICT_VALUE_BY_KEY` declares and what makes the keys of such a member a policy
-of their own.
+`DICT_VALUE_BY_KEY` declares and what makes such a member two questions rather
+than one: this key is a place that holds an object or holds nothing, and the
+rest of the dict is an ordinary container of entries.
 """
 
 
@@ -376,8 +407,9 @@ def _default_hooks(stderr_file: TextIO) -> dict[str, StageConfig | str]:
 
     `DICT_VALUE_BY_KEY` declares exactly that shape: the value at
     `on_failure` is a configuration object and every other key of the same
-    dict holds an ordinary value. It is the shape that makes the keys of such
-    a member a policy of their own rather than all one kind of thing.
+    dict holds an ordinary value. Both of these are what the editor copies
+    from: the stage is what the named key is given again once it has been
+    taken away, and `notify` is what a new entry beside it is a copy of.
     """
     hook = new_stage('rollback', 'make rollback', 5, stderr_file)
     return {HOOK_KEY: hook, 'notify': 'ops@example.org'}
@@ -429,8 +461,9 @@ class PipelineConfig(Config):
         # A dict whose key policy this class defines with validators of its
         # own instead of with the check above. Out of scope for version 1.
         self.labels: dict[str, str] = {'team': 'platform'}
-        # A dict where one named key holds a configuration object and the rest
-        # hold ordinary values. Out of scope for version 1 as well.
+        # A dict where one named key holds a configuration object and the
+        # rest hold ordinary values. Both halves of it can be added to: the
+        # named key at a row of its own, the rest as entries of the dict.
         self.hooks: dict[str, StageConfig | str] = _default_hooks(stderr_file)
         # An optional member: one stage or none. Giving it one is adding.
         self.audit: Optional[StageConfig] = None
@@ -524,7 +557,11 @@ DESCRIPTIONS: Descriptions = {
     ('runners', '[', 'parallel'): 'How many stages this machine runs at once.',
     ('limits',): 'What one stage may use.',
     ('labels',): 'Whatever this installation wants to label its builds with.',
-    ('hooks',): 'What to do when a run does not go as planned.',
+    ('hooks',): ('What to do when a run does not go as planned. A new entry '
+                 'of it is a copy of the one this class declares beside the '
+                 'key that holds a stage.'),
+    ('hooks', 'on_failure'): ('The stage to run when a stage of the pipeline '
+                              'fails. This dict need not have it at all.'),
     ('audit',): 'A stage that records what the run did, when it is wanted.'}
 """What this application says about the members it declares.
 

@@ -29,7 +29,7 @@ from edit_cfg_json.leaf_value import LeafType, NO_VALUE_TEXT, leaf_kind, \
     value_as_text, values_differ
 from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.tree import ConfigNode, NO_OBJECT_FORM, child_values, \
-    config_nodes, container_text, flat_values, is_container, optional_paths, \
+    config_nodes, container_text, flat_values, is_container, omitted_paths, \
     ordered_names
 from edit_cfg_json.validation import SubtreeAnswer
 
@@ -480,7 +480,11 @@ class RowContext(NamedTuple):
     """One parse converter per node of the tree that has one."""
 
     optional: frozenset[ConfigPath]
-    """Every member that the object holding it may leave out of the file."""
+    """Every node that the file holds no key for while it holds nothing.
+
+    A member its own class may leave out is one, and a key that a class
+    declared a configuration object at is the other.
+    """
 
     offers: Mapping[ConfigPath, ElementOffer]
     """What each node offers about the elements it holds, by its path."""
@@ -643,7 +647,7 @@ def built_rows(config: Config, *, members: Mapping[str, JsonType],
     facts = tree_facts(nodes=nodes, flat=flat, defaults=defaults)
     context = RowContext(report=report, descriptions=descriptions, nodes=nodes,
                          converters=node_converters(nodes=nodes, flat=flat),
-                         optional=optional_paths(nodes),
+                         optional=omitted_paths(nodes),
                          offers=element_offers(facts), types=facts.types,
                          refreshing=refreshing)
     return {path: _row_of(path=path, value=value, context=context,

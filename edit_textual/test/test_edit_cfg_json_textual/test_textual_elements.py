@@ -36,6 +36,12 @@ STAGES: ConfigPath = ('stages',)
 RUNNERS: ConfigPath = ('runners',)
 """The member of it that holds a dict of them, keyed by a name."""
 
+HOOKS: ConfigPath = ('hooks',)
+"""The member of it whose one named key holds a configuration object."""
+
+NAMED_HOOK: ConfigPath = ('hooks', 'on_failure')
+"""That named key, which holds one object or holds nothing."""
+
 
 def _index_of(model: EditModel, path: ConfigPath) -> int:
     """Return where among the rows one node of one model is.
@@ -165,6 +171,28 @@ def test_no_control_at_end() -> None:
         found.append(len(app.query(f'#{widget_id}')))
     _run(model, look)
     assert found == [0]
+
+
+def test_named_key_cleared() -> None:
+    """Test the named key of a dict of two kinds keeps its row when cleared.
+
+    Its object goes and its row stays, saying which class is missing, so the
+    key can be given an object again. Every other key of that dict is an
+    ordinary entry and is taken out of it.
+    """
+    model = EditModel(PipelineConfig())
+    _run(model, _presser(model, NAMED_HOOK, REMOVE_ACTION))
+    assert _value_of(model, NAMED_HOOK) == 'no StageConfig'
+    _run(model, _presser(model, (*HOOKS, 'notify'), REMOVE_ACTION))
+    assert _value_of(model, HOOKS) == '1 entry'
+
+
+def test_named_key_made() -> None:
+    """Test pressing the control of a cleared named key makes the object."""
+    model = EditModel(PipelineConfig())
+    _run(model, _presser(model, NAMED_HOOK, REMOVE_ACTION))
+    _run(model, _presser(model, NAMED_HOOK, ADD_ACTION))
+    assert _value_of(model, NAMED_HOOK) == 'StageConfig'
 
 
 def test_key_is_asked() -> None:

@@ -38,7 +38,7 @@ from edit_cfg_json.constructing import parsed_config
 from edit_cfg_json.converting import convert_member, node_converters, \
     refusal_text
 from edit_cfg_json.tree import ConfigNode, config_nodes, file_values, \
-    flat_values, optional_paths
+    flat_values, omitted_paths
 
 BUFFER_ERRORS = (KeyError, TypeError, ValueError)
 """Every way in which a configuration class refuses an edit buffer.
@@ -492,7 +492,7 @@ def _single_pass(config: Config, members: dict[str, JsonType],
                                           refused=unconverted))
     diagnostics = StringIO()
     written = file_values(members=members,
-                          omitted=optional_paths(config_nodes(config)))
+                          omitted=omitted_paths(config_nodes(config)))
     try:
         candidate = parsed_config(config, json.dumps(written),
                                   stream=diagnostics)

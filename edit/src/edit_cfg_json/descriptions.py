@@ -40,13 +40,14 @@ CHOICES_FORM = 'One of: {names}.'
 """What the editor says about the names one enum member accepts."""
 
 OPTIONAL_TEXT = 'It may be left out of the file.'
-"""What the editor says about a member that the class treats as optional.
+"""What the editor says about a node the file need not hold a key for.
 
-`_omit_none_from_json()` is what says which members those are, and
-`tree.optional_members` is what reads it: it is a source of the structure by
-section 4.1 of `doc/design.md`, so it is read where the rest of the structure
-is. What is worth saying here is that a member which may be left out is a
-member a user may leave empty.
+`_omit_none_from_json()` says which members those are and a
+`DICT_VALUE_BY_KEY` declaration says which keys of a dict are, and
+`tree.omitted_paths` is what reads both: they are sources of the structure by
+section 4.1 of `doc/design.md`, so they are read where the rest of the
+structure is. What is worth saying here is that a node which may be left out
+is a node a user may leave empty.
 """
 
 NOTHING_TEXT = 'It may hold nothing at all.'

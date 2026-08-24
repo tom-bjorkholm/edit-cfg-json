@@ -37,6 +37,9 @@ STAGES: ConfigPath = ('stages',)
 RUNNERS: ConfigPath = ('runners',)
 """The member of it that holds a dict of them, keyed by a name."""
 
+HOOKS: ConfigPath = ('hooks',)
+"""The member of it whose one named key holds a configuration object."""
+
 
 class Editor(NamedTuple):
     """One editor of the example, and the model it is showing."""
@@ -134,8 +137,36 @@ def test_stub_offers_nothing(stub_tk: None) -> None:
     """
     _ = stub_tk
     editor = _pipeline_stub()
-    for path in [('limits',), ('limits', 'cpu'), ('labels',), ('hooks',)]:
+    for path in [('limits',), ('limits', 'cpu'), ('labels',)]:
         assert _controls_of(editor, path) == []
+
+
+def test_stub_offers_by_key(stub_tk: None) -> None:
+    """Test the dict whose values are of two kinds has both sets of controls.
+
+    Its named key is a place that holds an object or holds nothing, so it is
+    added and removed like a member that may hold none, and every other key
+    of it is an ordinary entry of a dict.
+    """
+    _ = stub_tk
+    editor = _pipeline_stub()
+    assert _controls_of(editor, HOOKS) == [ADD_TEXT]
+    assert _controls_of(editor, (*HOOKS, 'on_failure')) == [REMOVE_TEXT]
+    assert _controls_of(editor, (*HOOKS, 'notify')) == [REMOVE_TEXT]
+
+
+def test_stub_clears_by_key(stub_tk: None) -> None:
+    """Test pressing the control of the named key leaves its row behind.
+
+    The object goes and the row stays, saying which class is missing and
+    offering to make one, which is what makes taking it away safe.
+    """
+    _ = stub_tk
+    editor = _pipeline_stub()
+    named = (*HOOKS, 'on_failure')
+    _press(REMOVE_TEXT, place=_place_of(editor, named, REMOVE_TEXT))
+    assert _controls_of(editor, named) == [ADD_TEXT]
+    assert _value_of(editor, named) == 'no StageConfig'
 
 
 def test_stub_adds_an_element(stub_tk: None) -> None:

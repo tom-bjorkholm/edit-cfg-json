@@ -2,8 +2,9 @@
 """Tests for example e11_add_remove.
 
 What this example adds is changing how many things a member holds. So what is
-asserted here is where a new element comes from, the four members that cannot
-be given one and the four different reasons why, and that what was added is
+asserted here is where a new element comes from, the two members that cannot
+be given one and the two different reasons why, the member whose values are
+of two kinds and is therefore asked twice, and that what was added is
 validated and written exactly like anything that was there from the start.
 """
 
@@ -38,10 +39,11 @@ UNCHECKED = ("    The keys of this dict are the application's own to decide, "
              'remove them.')
 """What it says below a dict listed in `_unchecked_dicts`."""
 
-BY_KEY = ('    One named key of this dict holds a configuration object and '
-          'the others do not, so its keys follow a policy of their own. This '
-          'version does not add or remove them.')
-"""What it says below a dict declared `DICT_VALUE_BY_KEY`."""
+HOOKS = 'hooks'
+"""The member of this example that is declared `DICT_VALUE_BY_KEY`."""
+
+NAMED_KEY = 'hooks.on_failure'
+"""Path of the key of that member which holds a configuration object."""
 
 NEW_STAGE_LINES = ['        name = build', '        command = make',
                    '        minutes = 10']
@@ -143,22 +145,60 @@ def test_removed_entry(capsys: pytest.CaptureFixture[str]) -> None:
     assert 'fast: RunnerConfig' not in printed
 
 
-@pytest.mark.parametrize('said', [FIXED_KEYS, UNCHECKED, BY_KEY])
+@pytest.mark.parametrize('said', [FIXED_KEYS, UNCHECKED])
 def test_dicts_say_why(capsys: pytest.CaptureFixture[str], said: str) -> None:
     """Test each dict that cannot grow says why, in its own words.
 
-    The three of them cannot for three different reasons, and each reason is
-    the class's own decision: the keys it declares, the key policy it defines
-    with validators of its own, and the one named key that holds an object.
+    The two of them cannot for two different reasons, and each reason is the
+    class's own decision: the keys it declares, and the key policy it defines
+    with validators of its own.
     """
     assert said in _explained(capsys)
 
 
-@pytest.mark.parametrize('name', ['limits', 'labels', 'hooks'])
+@pytest.mark.parametrize('name', ['limits', 'labels'])
 def test_dicts_refuse(capsys: pytest.CaptureFixture[str], name: str) -> None:
-    """Test none of those three dicts can be given an entry after all."""
+    """Test neither of those two dicts can be given an entry after all."""
     refusal = _refused(capsys, '--ui', 'dump', '--add', f'{name}=new')
     assert 'Nothing can be added' in refusal
+
+
+def test_named_key_cleared(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the named key of the two-kinded dict is given up and kept.
+
+    Its object goes and its row stays, saying which class is missing, which
+    is what makes taking it away safe: nothing else in the editor would name
+    that key again.
+    """
+    printed = _dump(capsys, '--remove', NAMED_KEY)
+    assert f'    on_failure: no {STAGE_CLASS} (edited)' in printed
+    assert 'validation: valid' in printed
+
+
+def test_named_key_written(capsys: pytest.CaptureFixture[str],
+                           tmp_path: Path) -> None:
+    """Test the file of a cleared named key holds no such key at all."""
+    out_file = tmp_path / 'hooks.json'
+    _dump(capsys, '--remove', NAMED_KEY, '-o', str(out_file), '--save')
+    written = json.loads(out_file.read_text(encoding='UTF-8'))
+    assert written[HOOKS] == {'notify': 'ops@example.org'}
+
+
+def test_by_key_entry_added(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a key that no declaration names is copied from one that is there.
+
+    What such an entry holds is the same question a new element of a list of
+    plain values is answered by, asked of the entries beside the named key.
+    """
+    printed = _dump(capsys, '--add', f'{HOOKS}=notify_slack')
+    assert 'hooks: 3 entries (edited)' in printed
+    assert '    notify_slack = ops@example.org' in printed
+
+
+def test_named_key_is_taken(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the named key is asked for at its own row and not as an entry."""
+    refusal = _refused(capsys, '--ui', 'dump', '--add', f'{HOOKS}=on_failure')
+    assert 'already holds an entry called on_failure' in refusal
 
 
 def test_optional_added(capsys: pytest.CaptureFixture[str]) -> None:

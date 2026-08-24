@@ -256,10 +256,20 @@ with no key for such a member would be exactly the file in which the member
 could never be given a value, and that is the file the application ships: a
 member is optional because it is usually absent.
 
+**A key that `DICT_VALUE_BY_KEY` names has a row on the same terms.** Such a
+declaration names one key of a dict as a configuration object, and nothing in
+`config_as_json` requires the file to have that key: what it refuses is the key
+holding something other than an object of the declared class. So the key is a
+place that holds one object or holds nothing, exactly as an `OPTIONAL_MEMBER`
+is, and it is added back holding nothing for the same reason — a key with no
+row could never be given an object again, so taking the object away would be a
+way of losing it. Every other key of that dict is an ordinary value and an
+ordinary entry, which is section 4.9.
+
 **So the tree differs from the file in one direction and the buffer in the
-other.** Reading adds those members, holding nothing; writing them back to the
-class takes them out again, so that what a validation pass is given is the
-document a save would write. Passing `null` for one of them instead would be
+other.** Reading adds those members and those keys, holding nothing; writing
+them back to the class takes them out again, so that what a validation pass is
+given is the document a save would write. Passing `null` for one of them instead would be
 reaching a verdict about a document no save of this configuration produces, and
 a class is free to make something of a key it does not find — the rules of
 section 5.3 for reading an older file are given the keys of the document before
@@ -825,8 +835,8 @@ out of scope. It is a narrow case now: a list member with no annotation at
 all, or one annotated with something the editor cannot make an empty value of.
 Such a member says so and offers removing and moving.
 
-**What cannot be done is said and not left to be discovered.** Three kinds of
-dict cannot be given an entry, for three different reasons, and each says which
+**What cannot be done is said and not left to be discovered.** Two kinds of
+dict cannot be given an entry, for two different reasons, and each says which
 below its own row:
 
 - an ordinary dict member, because `config_as_json` checks such a member
@@ -842,8 +852,6 @@ below its own row:
   declared type unlocked the empty list and not the empty dict.
 - a member of `_unchecked_dicts`, whose key policy the application defines with
   validators of its own. Out of v1 scope.
-- a `DICT_VALUE_BY_KEY` member, where one named key holds an object and the
-  others hold ordinary values. Out of v1 scope.
 
 That sentence is **explanation and not a refusal to act on**: it says what this
 member is, so it is `Emphasis.MUTED`, it sits below the member with the
@@ -865,6 +873,31 @@ row then says that the member holds nothing and offers to give it something
 again. That is what makes such a member reachable at all, and it is the case
 that matters most, because a file the application ships holds no key for a
 member that is usually absent.
+
+**A member whose values are of two kinds is asked twice.** A
+`DICT_VALUE_BY_KEY` declaration names one key of a dict as a configuration
+object and leaves every other key of the same dict an ordinary value, so what
+that member offers is two answers rather than one, in two places.
+
+- **The named key is a place**, with the same pair of states and the same pair
+  of controls as a member declared to hold one object or none: it is given an
+  object of the class its own declaration names, and clearing it leaves the row
+  saying which class is missing (section 4.1). What the file then holds is no
+  such key at all, which is the shape an application that has not written that
+  object ships.
+- **Every other key is an entry** of an ordinary container: the member takes a
+  new one under a key the user gives, and each of them can be taken out.
+  Nothing checks which keys such a member has — a member named in
+  `nested_configs()` never reaches the check that the first bullet above is
+  about, because `config_as_json` reads the whole member instead — so the first
+  bullet does not apply to it. What a new entry holds is the same three
+  questions a new element of a list is answered by, asked of the entries that
+  no declaration names: an object belongs at the keys that declare one, and
+  `config_as_json` refuses one beside them. A member that has none of the three
+  says so and keeps offering the objects its declarations name.
+
+Asking for the named key as a new entry is refused as a key the dict already
+holds, because its row is there whether the object is or not.
 
 **A member the editor cannot make a value for is offered nothing**, and there
 are two of those. A member whose kind nothing says has one state rather than
@@ -2528,6 +2561,15 @@ version rather than assumed.
   one kind of value that the two states of section 4.2 do not reach, and the
   member says so below its own row rather than offering a control that produces
   a refusal. A list is not affected: there is no such check for one.
+- **A named key of a dict that vanishes when its object is taken away.** It is
+  what the file does — a `DICT_VALUE_BY_KEY` key that holds nothing is not
+  there — and it would have made the row follow the file exactly. It is the
+  same mistake the row for an omitted member was there to prevent one level up:
+  the row would leave the screen and nothing anywhere would name that key
+  again, so clearing it would be a way of losing it, and the only way back
+  would be typing the declared key into the question that asks what a new entry
+  is called. The key keeps its row and holds nothing instead, which is the pair
+  of states of sections 4.1 and 4.9.
 - **A row only for the omitted members the editor can make a value for.** It
   would have kept the tree closer to the file, and it would have made the
   existence of a row a second thing to explain: some members the class leaves
