@@ -346,7 +346,7 @@ The public names it settled:
 
 - **Adding an action makes an existing settings *block* incomplete.** A nested
   `SettingsConfig` is read whole (section 9.8), so `examples/data/e17_tool.json`
-  had to name both new actions to stay loadable. Worth knowing before step 28.
+  had to name both new actions to stay loadable. Worth knowing before step 30.
 - **Both backends were at the 1000-line limit**, and each was split where it
   should have been split anyway: `tk_panel` took `TkEditor` and `edit()` so that
   `tk_editor` is the widgets alone, which is how the Textual side was already
@@ -457,7 +457,7 @@ have gone the other way.
   refuses one is `Config.check_dict_parse` matching the member against the
   keys its class declares, and a type hint says what a *value* would be and
   nothing about the key beside it. Offering the control would be offering one
-  that produces a refusal. Recorded as step 27B for the dicts that check never
+  that produces a refusal. Recorded as step 28 for the dicts that check never
   reaches.
 - **`nothing` is never set where the kind is unknown.** The two states exist
   only where the editor can make a value for one of them, which keeps
@@ -684,7 +684,7 @@ declare is what both of them need and step 26 built it: `ENTRY_KINDS` in
 `elements.py` is the list of declarations whose entries are elements, and this
 step adds the members of `_unchecked_dicts` to the same question.
 
-### Step 27B - An entry in a dict the class never checks
+### Step 28 - An entry in a dict the class never checks
 
 Step 24 gave an empty list its elements from `list[str]` and deliberately gave
 an empty dict nothing, because what refuses a new entry of a dict is not the
@@ -702,11 +702,11 @@ particular dict.
 This step would make section 4.9's first bullet a question about where the dict
 sits in the tree rather than about which member it belongs to, and give such a
 dict the entry control, with `dict[str, int]` saying what the new value is.
-The main risk is exactly the reason it is last: the rule has to be right
+The main risk is exactly the reason it is not earlier: the rule has to be right
 against the implementation of `config_as_json` and not merely plausible, and
 being wrong means offering a control whose result the application refuses.
 
-### Step 27C - Raw JSON for a subtree the editor cannot show
+### Step 29 - Raw JSON for a subtree the editor cannot show
 
 Step 25's early idea included a raw JSON editing surface for a sub-object whose
 class nothing says anything about, and step 25 found that the case it was
@@ -722,16 +722,16 @@ the next pass, which would also serve pasting a whole section from somewhere
 else and repairing a shape no row can express. The risks are the two that
 belong to any second way of editing the same thing — which of the two wins
 while both are open, and what a validation pass does to text the user is half
-way through typing — and they are the reason this is last rather than cheap.
+way through typing — and they are the reason this is late rather than cheap.
 
-### Step 28 - Pull-down selection of enum and bool values
+### Step 30 - Pull-down selection of enum and bool values
 
 When the type of an attribute have a well defined set of possible
 values that we know from type discovered by introspection we should
 offer the user to select the value instead of typing the value.
 This is the case for bool, and for enums.
 
-### Step 29 — The program asks for what the command line left out
+### Step 31 — The program asks for what the command line left out
 
 A wizard: the program opens with no location, no class name and no files,
 and asks for them in the toolkit it was started in. What has been chosen,
@@ -750,7 +750,7 @@ makes implementing the wizards simpler.
 Alternatively, consider if we should use the menubar and menu items like
 File - Open. (Using the menubar may feel very natural in the Tk version.)
 
-### Step 30 - The launcher the name `edit-cfg-json` is kept for
+### Step 32 - The launcher the name `edit-cfg-json` is kept for
 
 Section 8.1 of the design is headed "planned, not implemented": an
 `edit_cfg_json.ui` entry-point group would let backends register themselves for
@@ -767,17 +767,17 @@ run, with a refusal and an exit code of its own where it can run none.
 | Step | Effort | What the number is mostly |
 | --- | --- | --- |
 | 27 An entry in an `_unchecked_dicts` member | 2 | Step 14's machinery reused: the row stops saying why it cannot, and both backends show controls they already have. |
-| 27B An entry in a dict the class never checks | 3 | Step 24's type model and step 14's machinery are both there; the work is getting one rule right against `config_as_json` and a configuration shape to show it with. |
-| 30 The launcher | 4 | Little logic, spread over all three packages: an entry-point group, a script the core has never installed, discovery, and what a machine that can run neither editor is told. |
-| 28 Pull-down for enum and bool | 6 | A second kind of field in both backends, touching every rule written for the first: write on change, focus loss, the rebuild after a pass, and the marks. |
-| 27C Raw JSON for a subtree | 8 | An editing surface the editor does not have at all yet, in both backends, and two rules about a second way of editing one thing. |
-| 29 The wizard | 10 | Two toolkits' dialogs and file choosers, two bridge libraries to weigh against the menubar alternative, and no headless test worth much. |
+| 28 An entry in a dict the class never checks | 3 | Step 24's type model and step 14's machinery are both there; the work is getting one rule right against `config_as_json` and a configuration shape to show it with. |
+| 32 The launcher | 4 | Little logic, spread over all three packages: an entry-point group, a script the core has never installed, discovery, and what a machine that can run neither editor is told. |
+| 30 Pull-down for enum and bool | 6 | A second kind of field in both backends, touching every rule written for the first: write on change, focus loss, the rebuild after a pass, and the marks. |
+| 29 Raw JSON for a subtree | 8 | An editing surface the editor does not have at all yet, in both backends, and two rules about a second way of editing one thing. |
+| 31 The wizard | 10 | Two toolkits' dialogs and file choosers, two bridge libraries to weigh against the menubar alternative, and no headless test worth much. |
 
 Two things the numbers do not say.
 
 - **Effort is not order.**
-- **Step 29 begins with a question**, so its number is the least trustworthy of
-  the seven. Steps 24 and 25 did too, and both are built — and step 25 came in
+- **Step 31 begins with a question**, so its number is the least trustworthy of
+  the six. Steps 24 and 25 did too, and both are built — and step 25 came in
   well under its estimate of 8, because the question it began with turned out to
   have been answered by step 24.
 
