@@ -14,7 +14,7 @@ import sys
 from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
     IntFloatValidator, InvalidConfiguration, ListOrderingValidator, \
     ListValueValidator, MemberValidationStep, MemberValidator, NestedConfigs, \
-    ParseConverter, ValidationPlan, WholeConfigValidationStep, \
+    ParseConverter, PathOrStr, ValidationPlan, WholeConfigValidationStep, \
     WholeConfigValidator
 from .sample_cfg import Colour, SampleCfg
 
@@ -788,3 +788,99 @@ class ByKeyDictCfg(SampleCfg):
         by_key = ConfigNestingKind.DICT_VALUE_BY_KEY
         return {'hooks': ConfigNesting(kind=by_key, config_type=InnerCfg,
                                        discriminator_key='main')}
+
+
+def _no_type_dict() -> dict[str, int]:
+    """Return the dict of a member whose type says nothing about it.
+
+    The member it is assigned to is deliberately left without an annotation,
+    which is what makes the values inside it ones no declaration reaches: the
+    declaration of a member is what a node inside it is reached through, one
+    step per step of the path, and a member with none has none to step into.
+    mypy is still told what it holds, because this function says so.
+    """
+    return {'cpu': 2}
+
+
+def _no_type_list() -> list[dict[str, int]]:
+    """Return the list of a member whose type says nothing about it.
+
+    It is the other container that a node can be inside, and the answer is the
+    same for both: no declaration reaches anything inside a member that has
+    none. mypy is still told what it holds, because this function says so.
+    """
+    return [{'cpu': 2}]
+
+
+class LooseDictCfg(SampleCfg):
+    """A configuration whose containers have no declared type at all."""
+
+    def declare_members(self) -> None:
+        """Assign the dict and the list whose types nothing declares."""
+        self.loose = _no_type_dict()
+        self.spread = _no_type_list()
+
+
+class ExtraInnerCfg(SampleCfg):
+    """A nested class whose constructor needs an argument of its own.
+
+    The editor cannot construct it, so a place that declares one has nothing
+    to put there: `config_as_json` asks a nested class for the constructor it
+    builds one with while it parses, so this is a class no file of it could be
+    read into either. The application builds them itself, which is why the
+    members below hold them.
+    """
+
+    def __init__(self, home: str, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Take the extra argument and then declare and apply the rest."""
+        self.home: str = home
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    def declare_members(self) -> None:
+        """Assign the one member that the constructor did not."""
+        self.width: int = 4
+
+
+def _extra_nesting(kind: ConfigNestingKind,
+                   key: Optional[str] = None) -> ConfigNesting:
+    """Return one declaration of the class the editor cannot construct.
+
+    Args:
+        kind: Where that class is declared to be held.
+        key: Key of the dict that holds it, for the one declaration that
+            names one.
+
+    Returns:
+        That declaration.
+    """
+    return ConfigNesting(kind=kind, config_type=ExtraInnerCfg,
+                         discriminator_key=key)
+
+
+class ExtraObjectsCfg(SampleCfg):
+    """A configuration holding objects the editor cannot make, three ways.
+
+    Every place a class declares an object is a place the editor has to say
+    that it cannot make one: a list of them, a dict of them, and one named key
+    of a dict. They are otherwise ordinary members: each of them can be
+    edited, validated and saved, and what is in them can be taken out.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the objects that the application built itself."""
+        self.outputs: list[ExtraInnerCfg] = [ExtraInnerCfg(home='here')]
+        self.by_name: dict[str, ExtraInnerCfg] = {
+            'eu': ExtraInnerCfg(home='there')}
+        self.hooks: dict[str, ExtraInnerCfg | str] = {
+            'main': ExtraInnerCfg(home='hooked'), 'note': 'nothing'}
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return the declaration of each of the three places."""
+        return {'outputs': _extra_nesting(ConfigNestingKind.LIST_ELEMENT),
+                'by_name': _extra_nesting(ConfigNestingKind.DICT_VALUE),
+                'hooks': _extra_nesting(ConfigNestingKind.DICT_VALUE_BY_KEY,
+                                        key='main')}

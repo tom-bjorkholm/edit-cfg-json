@@ -46,6 +46,9 @@ LABELS: ConfigPath = ('labels',)
 UNDER_LIST: ConfigPath = ('stage_limits', '0')
 """The dict of it that a list holds, which the declared-keys check misses."""
 
+HELD_KEY = 'fast'
+"""A key that the dict of runners already holds."""
+
 
 class Editor(NamedTuple):
     """One editor of the example, and the model it is showing."""
@@ -230,6 +233,40 @@ def test_stub_moves_element(stub_tk: None) -> None:
     assert _value_of(editor, (*STAGES, '0', 'name')) == 'test'
 
 
+def _answers_in_turn(monkeypatch: pytest.MonkeyPatch,
+                     *named: Optional[str]) -> None:
+    """Make the question about a new dict entry answer once per name.
+
+    Args:
+        monkeypatch: The pytest fixture that replaces the dialog.
+        named: What each successive question is answered with.
+    """
+    answers = list(named)
+
+    def next_answer(*args: object, **options: object) -> Optional[str]:
+        """Answer the next question, standing in for the dialog."""
+        _ = (args, options)
+        return answers.pop(0)
+    monkeypatch.setattr(simpledialog, 'askstring', next_answer)
+
+
+def test_stub_key_is_held(stub_tk: None,
+                          monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test a key the dict already holds is asked about again.
+
+    The model refuses such a key, so an editor that let the question be
+    answered with one would be offering to lose the entry that is there. The
+    question comes back instead, and the second answer is the one that is used.
+    """
+    _ = stub_tk
+    _answers_in_turn(monkeypatch, HELD_KEY, NEW_KEY)
+    editor = _pipeline_stub()
+    _press(ADD_TEXT, place=_place_of(editor, RUNNERS, ADD_TEXT))
+    paths = [row.path for row in editor.model.rows]
+    assert (*RUNNERS, NEW_KEY) in paths
+    assert paths.count((*RUNNERS, HELD_KEY)) == 1
+
+
 def test_stub_asks_a_key(stub_tk: None,
                          monkeypatch: pytest.MonkeyPatch) -> None:
     """Test a dict of objects is given the entry the question named."""
@@ -344,3 +381,44 @@ def test_real_pass_clears(root_or_skip: tkinter.Tk) -> None:
     retype(real_fields(root_or_skip)[typed.index(CLEARED)], '')
     real_press(root_or_skip, VALIDATE_TEXT)
     assert len(real_fields(root_or_skip)) == before - 1
+
+
+TEAM_KEY = 'team'
+"""The one key that the validator of the labels of the example insists on."""
+
+
+def _wrong_at(editor: Editor, path: ConfigPath) -> str:
+    """Return what the editor says is wrong with one node of the model."""
+    shown = dict(zip([row.path for row in editor.model.rows],
+                     editor.widgets.wrong_shown, strict=True))
+    return shown[path]
+
+
+def test_stub_dict_refused(stub_tk: None) -> None:
+    """Test what a validator refuses about a container is said below it.
+
+    A container has no description of its own — what it holds is said by the
+    rows below it — so it has no widget for one, and the diagnostic still has
+    to go into the layout below it. Taking the one key the validator insists on
+    out of that dict is what refuses it.
+    """
+    _ = stub_tk
+    editor = _pipeline_stub()
+    named = (*LABELS, TEAM_KEY)
+    _press(REMOVE_TEXT, place=_place_of(editor, named, REMOVE_TEXT))
+    assert _wrong_at(editor, LABELS) == ''
+    _press(VALIDATE_TEXT)
+    assert TEAM_KEY in _wrong_at(editor, LABELS)
+
+
+def test_real_dict_refused(root_or_skip: tkinter.Tk) -> None:
+    """Test real Tk puts exactly the same text below that container."""
+    model = EditModel(PipelineConfig())
+    widgets = EditorWidgets(parent=root_or_skip, model=model)
+    editor = Editor(widgets=widgets, model=model)
+    named = (*LABELS, TEAM_KEY)
+    removing = [button for button in real_buttons(root_or_skip)
+                if str(button.cget('text')) == REMOVE_TEXT]
+    removing[_place_of(editor, named, REMOVE_TEXT)].invoke()
+    real_press(root_or_skip, VALIDATE_TEXT)
+    assert TEAM_KEY in _wrong_at(editor, LABELS)

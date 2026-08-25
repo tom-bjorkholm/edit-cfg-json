@@ -356,6 +356,37 @@ def test_stub_next_focus(stub_tk: None) -> None:
     assert 'textvariable' in FakeWidget.focused[-1].options
 
 
+def test_stub_return_enters(stub_tk: None) -> None:
+    """Test pressing Return in the field goes into the member that was found.
+
+    Typing does not move the cursor, because the user is typing in the search
+    field. Return is the press that says they have found what they were
+    looking for and want to edit it, which is the same thing the button and
+    the find next key do.
+    """
+    _ = stub_tk
+    _flat_stub()
+    stub_find_var().set('answer')
+    assert not FakeWidget.focused
+    _stub_find_field().bindings['<Return>']()
+    assert FakeWidget.focused[-1].options.get('name') != FIND_FIELD_NAME
+    assert 'textvariable' in FakeWidget.focused[-1].options
+
+
+def _stub_find_field() -> FakeWidget:
+    """Return the stub field that a search is typed into."""
+    fields = [widget for widget in FakeWidget.created
+              if widget.options.get('name') == FIND_FIELD_NAME]
+    assert len(fields) == 1
+    return fields[0]
+
+
+def test_real_return_enters(root_or_skip: tkinter.Tk) -> None:
+    """Test the real field is bound to answer Return the same way."""
+    EditorWidgets(parent=root_or_skip, model=EditModel(FlatConfig()))
+    assert find_field(root_or_skip).bind('<Return>')
+
+
 def test_stub_no_focus(stub_tk: None) -> None:
     """Test a member that is not edited in a field is only brought into view.
 

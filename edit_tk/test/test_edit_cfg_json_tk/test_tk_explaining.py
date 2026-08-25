@@ -14,9 +14,10 @@ import pytest
 from edit_cfg_json import EditModel
 from edit_cfg_json_tk.tk_editor import EditorWidgets, EXPLAIN_TEXT
 from example.e01_flat_config import FlatConfig
-from .helpers import DESCRIBED_LABELS, DESCRIPTIONS, FLAT_DOCSTRING, \
-    FLAT_SUMMARY, HIDDEN_LABELS, NoDocConfig, real_press, real_texts, \
-    real_tick, stub_editor, stub_flag, stub_keys, stub_press, stub_texts
+from .helpers import ABOUT_NAME, DESCRIBED_LABELS, DESCRIPTIONS, \
+    FLAT_DOCSTRING, FLAT_SUMMARY, HIDDEN_LABELS, NoDocConfig, real_press, \
+    real_texts, real_tick, stub_editor, stub_flag, stub_keys, stub_press, \
+    stub_texts
 
 
 def _described_stub() -> EditorWidgets:
@@ -112,6 +113,39 @@ def test_real_no_docstring(root_or_skip: tkinter.Tk) -> None:
                             model=EditModel(NoDocConfig()))
     assert widgets.docstring_shown == ''
     assert FLAT_SUMMARY not in real_texts(root_or_skip)
+
+
+def _describes(texts: list[str]) -> bool:
+    """Return whether the description of the one described member is shown."""
+    return any(ABOUT_NAME in text for text in texts)
+
+
+def test_stub_no_doc_hidden(stub_tk: None) -> None:
+    """Test hiding the explanations of a class that says nothing about itself.
+
+    There is no widget to write the docstring into, because there is no
+    docstring, and the tick-box and the descriptions below the members follow
+    the state exactly as they do for any other class.
+    """
+    _ = stub_tk
+    widgets = stub_editor(EditModel(NoDocConfig(), descriptions=DESCRIPTIONS))
+    assert _describes(stub_texts(packed_only=True))
+    stub_press(EXPLAIN_TEXT)
+    assert widgets.docstring_shown == ''
+    assert not _describes(stub_texts(packed_only=True))
+    assert not stub_flag(EXPLAIN_TEXT).get()
+
+
+def test_real_no_doc_hidden(root_or_skip: tkinter.Tk) -> None:
+    """Test real Tk hides exactly the same texts for such a class."""
+    widgets = EditorWidgets(parent=root_or_skip,
+                            model=EditModel(NoDocConfig(),
+                                            descriptions=DESCRIPTIONS))
+    assert _describes(real_texts(root_or_skip, packed_only=True))
+    real_press(root_or_skip, EXPLAIN_TEXT)
+    assert widgets.docstring_shown == ''
+    assert not _describes(real_texts(root_or_skip, packed_only=True))
+    assert not real_tick(root_or_skip, EXPLAIN_TEXT)
 
 
 def test_stub_tick_follows(stub_tk: None) -> None:

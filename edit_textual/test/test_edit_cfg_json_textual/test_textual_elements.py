@@ -319,3 +319,59 @@ def test_pass_takes_a_field() -> None:
     _run(model, clear)
     assert _value_of(model, CLEARED) == 'no value'
     assert counted[1] == counted[0] - 1
+
+
+HELD_KEY = 'fast'
+"""A key that the dict of runners already holds."""
+
+
+def test_key_already_held() -> None:
+    """Test a key the dict already holds is asked about again.
+
+    The model refuses such a key, so an editor that let the question be
+    answered with one would be offering to lose the entry that is there. The
+    question comes back instead, and nothing has changed underneath it.
+    """
+    model = EditModel(PipelineConfig())
+    before = len(model.rows)
+    asked: list[int] = []
+
+    async def answer_twice(app: EditorApp, pilot: Pilot[None]) -> None:
+        """Answer with a key that is taken, and then leave the question."""
+        await _press(app=app, pilot=pilot, action=ADD_ACTION,
+                     index=_index_of(model, RUNNERS))
+        app.screen.query_one(f'#{ASK_KEY_ID}', Input).value = HELD_KEY
+        await pilot.pause()
+        await pilot.press(ENTER_KEY)
+        await pilot.pause()
+        asked.append(len(app.screen.query(f'#{ASK_KEY_ID}')))
+        await pilot.press(ESCAPE_KEY)
+        await pilot.pause()
+    _run(model, answer_twice)
+    assert asked == [1]
+    assert len(model.rows) == before
+
+
+def test_question_field_left() -> None:
+    """Test leaving the field of a question is no member being left.
+
+    The editor underneath asks the model about the member whose field was
+    left, and the field of a question is no member of the configuration: a
+    message that reached the editor would be looked for among the members and
+    found nowhere. So the question keeps this to itself.
+    """
+    model = EditModel(PipelineConfig())
+    still_up: list[int] = []
+
+    async def blur_it(app: EditorApp, pilot: Pilot[None]) -> None:
+        """Take the focus off the field of the question that is up."""
+        await _press(app=app, pilot=pilot, action=ADD_ACTION,
+                     index=_index_of(model, RUNNERS))
+        app.screen.query_one(f'#{ASK_KEY_ID}', Input).blur()
+        await pilot.pause()
+        still_up.append(len(app.screen.query(f'#{ASK_KEY_ID}')))
+        await pilot.press(ESCAPE_KEY)
+        await pilot.pause()
+    _run(model, blur_it)
+    assert still_up == [1]
+    assert model.verdict is None

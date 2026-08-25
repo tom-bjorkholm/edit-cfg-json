@@ -11,11 +11,14 @@ level annotation records one without a dataclass around it, and the ordinary
 # MIT License
 
 from dataclasses import dataclass, field
+from io import StringIO
 from typing import Optional
 import pytest
 from edit_cfg_json.leaf_value import LeafType, empty_value
 from edit_cfg_json.member_types import attribute_texts, declared_hints, \
-    leaf_type, member_types
+    leaf_type, member_types, node_types
+from edit_cfg_json.tree import config_nodes, flat_values, member_values
+from .container_cfg import LooseDictCfg
 
 
 class WrittenInInit:  # pylint: disable=too-few-public-methods
@@ -220,3 +223,50 @@ def test_empty_is_fresh() -> None:
     through, so every member given one has to be given one of its own.
     """
     assert empty_value(list) is not empty_value(list)
+
+
+class BadClassHint:  # pylint: disable=too-few-public-methods
+    """A class whose class level annotation names nothing that exists.
+
+    A name imported under `if TYPE_CHECKING` is the way this arises for real:
+    it exists while the type checker reads the file and never at runtime. What
+    it costs the class is what the class level annotations would have added,
+    and the annotations that its source writes are read as usual.
+    """
+
+    later: 'NoSuchTypeAnywhere'  # type: ignore[name-defined] # noqa: F821
+
+    def __init__(self) -> None:
+        """Assign the one member that the source annotates."""
+        self.name: str = 'here'
+
+
+def test_bad_class_annotation() -> None:
+    """Test a class annotation that will not resolve costs only itself.
+
+    `typing.get_type_hints` resolves every annotation of a class at once, so
+    one that fails takes all of them with it. The source of the class is a
+    separate source and is read afresh, which is what leaves the members that
+    it annotates with their declarations.
+    """
+    found = member_types(BadClassHint)
+    assert found['name'] == LeafType(kind=str)
+    assert 'later' not in declared_hints(BadClassHint)
+
+
+def test_nothing_to_step_into() -> None:
+    """Test a value inside a member with no declared type says nothing.
+
+    The declaration of the member is what a node inside it is reached
+    through, one step per step of the path, so a member that has no
+    declaration has none to step into and every node inside it is one that
+    the class said nothing about. The two containers a node can be inside
+    answer alike, and so does a node two steps in.
+    """
+    config = LooseDictCfg()
+    nodes = config_nodes(config)
+    flat = flat_values(members=member_values(config, stderr_file=StringIO()),
+                       nodes=nodes)
+    assert {('loose', 'cpu'), ('spread', '0'),
+            ('spread', '0', 'cpu')} <= set(dict(flat))
+    assert node_types(nodes=nodes, flat=flat) == {}

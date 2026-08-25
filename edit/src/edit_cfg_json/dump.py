@@ -64,5 +64,5 @@ def main(args: Optional[Sequence[str]] = None) -> int:
                    version_reporter=EcajVersionReporter(), interactive=False)
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     sys.exit(main())

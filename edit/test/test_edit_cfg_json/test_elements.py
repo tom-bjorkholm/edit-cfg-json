@@ -15,11 +15,12 @@ from typing import Optional
 import pytest
 from config_as_json import ConfigPath, JsonType
 from edit_cfg_json import EditModel, model_as_text, row_description
-from edit_cfg_json.elements import BY_KEY_PATTERN, FIXED_KEYS, NO_DICT_YET, \
-    NO_ENTRY_PATTERN, NO_PATTERN
+from edit_cfg_json.elements import BY_KEY_PATTERN, FIXED_KEYS, NO_CLASS_FORM, \
+    NO_DICT_YET, NO_ENTRY_PATTERN, NO_PATTERN
 from .container_cfg import ByKeyCfg, ByKeyDictCfg, ConfigDictCfg, \
-    ConfigListCfg, DictPlaceCfg, ElementCfg, EmptyObjectsCfg, NullNestedCfg, \
-    OmitNestedCfg, OnlyNamedCfg, TreeCfg, UncheckedCfg
+    ConfigListCfg, DictPlaceCfg, ElementCfg, EmptyObjectsCfg, \
+    ExtraObjectsCfg, NullNestedCfg, OmitNestedCfg, OnlyNamedCfg, TreeCfg, \
+    UncheckedCfg
 from .model_helpers import row_at, row_paths, written
 from .sample_cfg import FlatCfg, OmitKindsCfg
 
@@ -37,6 +38,9 @@ LABELS: ConfigPath = ('labels',)
 
 OUTPUTS: ConfigPath = ('outputs',)
 """Path of the member that holds nested objects in the samples above."""
+
+BY_NAME: ConfigPath = ('by_name',)
+"""Path of the dict of nested objects of the sample that holds all three."""
 
 HOOKS: ConfigPath = ('hooks',)
 """Path of the dict where one named key holds a configuration object."""
@@ -215,6 +219,50 @@ def test_only_named_says_why() -> None:
     assert member.refusal == BY_KEY_PATTERN
     model.remove_element(NAMED)
     assert row_at(model=model, path=NAMED).offer.extend
+
+
+@pytest.mark.parametrize('path, inside',
+                         [(OUTPUTS, (*OUTPUTS, '0')),
+                          (BY_NAME, (*BY_NAME, 'eu'))])
+def test_no_class_to_make(path: ConfigPath, inside: ConfigPath) -> None:
+    """Test a container of objects the editor cannot construct says so.
+
+    `config_as_json` asks a nested class for the constructor it builds one
+    with while it parses, so a class with a constructor argument of its own is
+    one no file of it could be read into either. It is said at the place
+    rather than found out when a control is pressed, because a control that
+    refuses every press is worse than no control.
+
+    The two containers are here and the named key of a dict is the test below
+    it, because a key that holds the object has nothing to be offered until it
+    is cleared. What is inside each container is untouched by the refusal, and
+    is still a row that can be edited and taken out.
+
+    Args:
+        path: Path of the place that cannot be given an object.
+        inside: Path of the object that the application put there.
+    """
+    model = EditModel(ExtraObjectsCfg())
+    member = row_at(model=model, path=path).offer
+    assert not member.extend
+    assert member.refusal == NO_CLASS_FORM.format(name='ExtraInnerCfg')
+    assert row_at(model=model, path=inside).offer.remove
+
+
+def test_named_key_no_return() -> None:
+    """Test a named key of such a class says so once it has been cleared.
+
+    Taking the object away is offered, because the object is there to take,
+    and putting it back is what cannot be done. So the row that was cleared is
+    the one that says why, and the dict around it is an ordinary container
+    still: its other keys are entries that can be added and removed.
+    """
+    model = EditModel(ExtraObjectsCfg())
+    model.remove_element(NAMED)
+    cleared = row_at(model=model, path=NAMED).offer
+    assert not cleared.extend
+    assert cleared.refusal == NO_CLASS_FORM.format(name='ExtraInnerCfg')
+    assert row_at(model=model, path=HOOKS).offer.extend
 
 
 def test_unchecked_grows() -> None:

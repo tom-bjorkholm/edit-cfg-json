@@ -11,6 +11,7 @@ editor's own answer for everything else.
 # MIT License
 
 from dataclasses import fields
+from io import StringIO
 from pathlib import Path
 import json
 import sys
@@ -20,7 +21,7 @@ from edit_cfg_json import ActionSettings, EditModel, SETTINGS_DESCRIPTIONS, \
     Settings, SettingsConfig, declared_actions, described_below, \
     model_as_text, row_description
 from edit_cfg_json.settings_config import ACTION_DESCRIPTIONS, \
-    ADDED_ACTIONS, EVERY_ACTION
+    ADDED_ACTIONS, EVERY_ACTION, UNKNOWN_ACTION
 from edit_cfg_json.tree import EVERY_ELEMENT
 from .model_helpers import row_at, written
 
@@ -181,6 +182,21 @@ def test_unknown_action() -> None:
     """
     with pytest.raises(KeyError):
         _parsed('{"actions": {"quitt": ["ctrl+w"]}}')
+
+
+def test_unknown_action_set() -> None:
+    """Test the validator of the actions refuses a name that is not one.
+
+    A file never reaches this validator with such a name, because a dict
+    member is matched against the keys its class declares while the file is
+    parsed. An object whose members were assigned by hand does reach it, and
+    an action this editor does not have has no keys that could be bound.
+    """
+    config = SettingsConfig()
+    setattr(config, 'actions', {'quitt': ['ctrl+w']})
+    with pytest.raises(InvalidConfiguration) as refusal:
+        config.validate(stderr_file=StringIO())
+    assert UNKNOWN_ACTION.format(name='quitt') == str(refusal.value)
 
 
 def test_describes_members() -> None:

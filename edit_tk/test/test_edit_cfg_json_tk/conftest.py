@@ -61,10 +61,28 @@ def fixture_root_or_skip() -> Iterator[tkinter.Tk]:
 
     On a machine without a display the test is skipped rather than failed.
     """
+    window = _withdrawn_root()
+    yield window
+    window.destroy()
+
+
+@pytest.fixture(name='closing_root')
+def fixture_closing_root() -> tkinter.Tk:
+    """Return a withdrawn Tk root that the test itself destroys.
+
+    An application quitting takes the interpreter of its window with it, and
+    the bindings of that interpreter go with it, so a test about that has to
+    be the one that destroys the root. This fixture therefore leaves it alone
+    afterwards.
+    """
+    return _withdrawn_root()
+
+
+def _withdrawn_root() -> tkinter.Tk:
+    """Return a withdrawn Tk root, or skip where there is no display."""
     try:
         window = tkinter.Tk()
     except tkinter.TclError:
         pytest.skip('No display available for Tk.')
     window.withdraw()
-    yield window
-    window.destroy()
+    return window

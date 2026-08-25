@@ -12,8 +12,8 @@ from edit_cfg_json.tree import OPEN_AT_MOST, assembled, child_values, \
     member_values, optional_members, optional_paths, ordered_names, \
     owner_path, path_text, rows_below, selects, shown_values, starts_folded, \
     text_path, under_dict
-from .container_cfg import ConfigListCfg, DeepConfigCfg, InnerCfg, \
-    NestedCfg, NullNestedCfg, OmitNestedCfg, OwnedOptionCfg, TreeCfg
+from .container_cfg import ByKeyCfg, ConfigListCfg, DeepConfigCfg, \
+    InnerCfg, NestedCfg, NullNestedCfg, OmitNestedCfg, OwnedOptionCfg, TreeCfg
 from .sample_cfg import FlatCfg, OmitCfg
 
 
@@ -156,6 +156,20 @@ def test_omitted_declared() -> None:
     still known: what decides whether it has a row is what is written.
     """
     assert config_nodes(OmitNestedCfg())[('inner',)].config is None
+
+
+def test_keyed_member_emptied() -> None:
+    """Test a keyed dict member holding no dict has no node inside it.
+
+    A `DICT_VALUE_BY_KEY` declaration names one key of a dict, so a member
+    that holds no dict at all holds no such key either. No configuration that
+    `config_as_json` accepts is in that state, and an object whose members were
+    assigned by hand can be: the tree answers for the object it is given
+    rather than assuming it was validated.
+    """
+    config = ByKeyCfg()
+    setattr(config, 'hooks', None)
+    assert set(config_nodes(config)) == {()}
 
 
 def test_nothing_is_nested() -> None:

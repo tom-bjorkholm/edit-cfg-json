@@ -21,9 +21,9 @@ from edit_cfg_json import ConfigLoadError, ConfigLoader, EditModel, \
 from edit_cfg_json.loader import LOADER_EXITED
 from edit_cfg_json.loading import BAD_VALUES, DEFAULT_POLICY, FILLED_MESSAGE, \
     INCOMPLETE, NOT_CONFIG, NOT_TEXT, NO_DEFAULTS, NO_FILE, UNKNOWN_KEY
-from .sample_cfg import PICKED_NAME, EnumCfg, ExtraArgCfg, FlatCfg, \
-    HookCfg, OmitCfg, PickedCfg, RangeCfg, exiting_loader, extra_arg_loader, \
-    picking_loader
+from .sample_cfg import NOT_A_NUMBER, PICKED_NAME, EnumCfg, ExtraArgCfg, \
+    FlatCfg, HookCfg, OmitCfg, PickedCfg, RangeCfg, WholeOnlyCfg, \
+    exiting_loader, extra_arg_loader, no_member_loader, picking_loader
 
 COMPLETE = {'name': 'From a file', 'answer': 7}
 """Values of a file that holds every member of `FlatCfg`."""
@@ -237,6 +237,35 @@ def test_cannot_construct(tmp_path: Path) -> None:
                      in_file=_written(tmp_path, {'home': 'there'}))
     assert error.message == NO_DEFAULTS.format(name='ExtraArgCfg')
     assert 'home' in error.diagnostics
+
+
+def test_no_member_declared(tmp_path: Path) -> None:
+    """Test a class with no public member is refused as one that cannot be.
+
+    `config_as_json` has nothing to read a file into for such a class, and it
+    says so with an `AttributeError` rather than with a refusal of its own.
+    It is the same answer as for a constructor argument the editor knows
+    nothing about, because it is the same thing from here: the editor cannot
+    build an object of this class.
+    """
+    error = _refusal(config=FlatCfg(), loader=no_member_loader,
+                     in_file=_written(tmp_path, COMPLETE))
+    assert error.message == NO_DEFAULTS.format(name='FlatCfg')
+    assert 'No object variables' in error.diagnostics
+
+
+def test_wrong_type_refused(tmp_path: Path) -> None:
+    """Test a value of a type the class refuses is the values being refused.
+
+    A validator of an application is free to raise what a wrong type raises in
+    Python, and the editor has to tell that apart from a class it cannot
+    construct at all: this one it constructs perfectly well, so what is wrong
+    is the file and not the class.
+    """
+    error = _refusal(config=WholeOnlyCfg(),
+                     in_file=_written(tmp_path, {'answer': 'not a number'}))
+    assert error.message == BAD_VALUES
+    assert NOT_A_NUMBER.format(name='answer') in error.diagnostics
 
 
 def test_loader_constructs_it(tmp_path: Path) -> None:

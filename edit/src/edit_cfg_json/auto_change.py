@@ -405,7 +405,7 @@ def _filled(config: Config, text: str) -> frozenset[str]:
     except _ParsedKeys as keys:
         return frozenset(keys.declared) - frozenset(keys.held)
     except PARSE_ERRORS:
-        return frozenset()
+        pass
     return frozenset()
 
 

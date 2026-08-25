@@ -8,10 +8,9 @@ from enum import Enum, IntEnum
 from functools import partial
 from typing import Optional, TextIO
 import sys
-from config_as_json import Config, ConfigAutoChangeHook, ConfigPath, \
+from config_as_json import Config, ConfigAutoChangeHook, \
     InvalidConfiguration, IntFloatValidator, MemberValidationStep, \
-    MemberValidator, ParseConverter, PathOrStr, ReadOldConfiguration, \
-    RocfKeyMove, RocfKeyRename, RocfValueMigration, RocfValueWrite, \
+    MemberValidator, ParseConverter, PathOrStr, \
     SerializeConverter, SerializeConverters, \
     StrCaseChangeValidator, StrCaseSpec, StrPositionSpec, \
     StrValidator, ValidationPlan, ValueTypeValidator, \
@@ -581,193 +580,6 @@ class CountedCfg(SampleCfg):
                                      validator=CountingValidator())]
 
 
-SUPPLIED_ANSWER = 3
-"""Value that the rules for an older file supply for the number member.
-
-It is deliberately neither declared default, so that a test can tell a value
-the migration rules supplied from one the declared defaults filled in.
-"""
-
-
-class MigrateRules(ReadOldConfiguration):
-    """How a file of the older shape of these tests becomes a current one.
-
-    All three kinds of rule are here, because each of them is something the
-    editor has to report differently: a key that changed its name, a key that
-    is gone, and a value that only the current shape has.
-    """
-
-    def get_json_key_renames(self) -> list[RocfKeyRename]:
-        """Return the one key of the older shape that has a new name."""
-        return [RocfKeyRename(old='title', new='name')]
-
-    def get_keys_to_prune(self) -> list[str]:
-        """Return the one key of the older shape that no longer exists."""
-        return ['trace']
-
-    def get_missing_path_values(self) -> dict[ConfigPath, object]:
-        """Return the value that only the current shape of a file holds."""
-        return {('answer',): SUPPLIED_ANSWER}
-
-
-class OldKeyCfg(SampleCfg):
-    """A configuration that reads a file of its own older shape.
-
-    Its constructor takes no hook, which is what most configuration classes
-    look like and which costs it nothing: `Config` gives every object one of
-    its own, and the editor reads the records from the object.
-    """
-
-    def declare_members(self) -> None:
-        """Assign the members of the current shape of this configuration."""
-        self.name: str = 'current name'
-        self.answer: int = 7
-
-    def _get_read_old_config(self) -> ReadOldConfiguration:
-        """Return the rules that turn a file of the older shape into this."""
-        return MigrateRules()
-
-
-OLDER_DICT_KEY = 'bounds'
-"""Name that the dict member of `DictKeyCfg` had in older files."""
-
-OLDER_COUNT_KEY = 'count'
-"""Name of the older value that the number member of today is derived from."""
-
-
-def doubled(value: object) -> object:
-    """Return twice one older number, as a migration of its meaning.
-
-    An older file counted pairs where the current one counts items, which is
-    the kind of change that needs a value migration rather than a move: the
-    path and the value both change.
-
-    Args:
-        value: The number that the older file held.
-
-    Returns:
-        The number that the current shape holds instead.
-    """
-    assert isinstance(value, int)
-    return 2 * value
-
-
-class DictKeyRules(ReadOldConfiguration):
-    """How an older file of `DictKeyCfg` becomes a file of today.
-
-    Two keys inside one dict member were renamed, and the dict member itself
-    was called something else. Renames are recursive and run before moves, so
-    an older file records the two renames under the older name of the member,
-    which is a path that no member of the current shape has.
-    """
-
-    def get_json_key_renames(self) -> list[RocfKeyRename]:
-        """Return the two keys inside the dict member that were renamed."""
-        return [RocfKeyRename(old='lo', new='low'),
-                RocfKeyRename(old='hi', new='high')]
-
-    def get_json_key_moves(self) -> list[RocfKeyMove]:
-        """Return the older name that the dict member itself had."""
-        return [RocfKeyMove(old_path=(OLDER_DICT_KEY,), new_path=('limits',))]
-
-    def get_value_migrations(self) -> list[RocfValueMigration]:
-        """Return the older value that the number member is derived from."""
-        return [RocfValueMigration(
-            old_path=(OLDER_COUNT_KEY,),
-            writes=[RocfValueWrite(new_path=('answer',),
-                                   transform_value=doubled)])]
-
-
-class DictKeyCfg(ListCfg):
-    """A configuration whose older files differ from it in three ways.
-
-    It is the one class of these tests about which the load records more than
-    one thing for one member, because two keys inside one dict member were
-    renamed. It is the one whose records can name a path that is neither a
-    member nor a key of the file, which is what a rule that runs before another
-    rule moves the member leaves behind. And it is the one whose number member
-    is produced by a value migration rather than moved, which the load records
-    as its own kind of change.
-    """
-
-    def _get_read_old_config(self) -> ReadOldConfiguration:
-        """Return the rules that turn an older file into this shape."""
-        return DictKeyRules()
-
-
-SUPPLIED_NOTE = 'a note that the current version does not keep'
-"""Value that the rules below supply for a member nothing writes back."""
-
-
-class NoteRules(ReadOldConfiguration):
-    """Rules that supply a value which the configuration does not write."""
-
-    def get_missing_path_values(self) -> dict[ConfigPath, object]:
-        """Return the value supplied for the member that is not written."""
-        return {('note',): SUPPLIED_NOTE}
-
-
-# The one method is the whole of what a member validator is.
-# pylint: disable-next=too-few-public-methods
-class EmptyingValidator(MemberValidator):
-    """A member validator that empties the member it is given."""
-
-    # A member validator returns the value that is stored back into the
-    # member, so returning None is the whole of what this one does and the
-    # return is anything but useless.
-    # pylint: disable-next=useless-return
-    def validate_member(self, config: Config, member_name: str,
-                        member_value: object,
-                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
-        """Return None, which is what that member holds from now on."""
-        _ = (config, member_name, member_value, stderr_file)
-        return None
-
-
-class SuppliedNoteCfg(SampleCfg):
-    """A configuration whose supplied value reaches no key of its own file.
-
-    The rules for an older file supply `note`, the validation plan then empties
-    it, and the class leaves it out of JSON while it is None. So the load
-    recorded a value that nothing the configuration writes holds, and there is
-    no row it could be shown at. That is the one thing the editor can report
-    only from the record, and only in the message.
-    """
-
-    def declare_members(self) -> None:
-        """Assign one ordinary member and the one that is not written."""
-        self.name: str = 'noted'
-        self.note: Optional[str] = None
-
-    def _omit_none_from_json(self) -> list[str]:
-        """Return the member that is left out of JSON while it is None."""
-        return ['note']
-
-    def _get_read_old_config(self) -> ReadOldConfiguration:
-        """Return the rules that supply the member that is not written."""
-        return NoteRules()
-
-    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
-        """Return the step that empties what the rules supplied."""
-        _ = stderr_file
-        return [MemberValidationStep(member_names=['note'],
-                                     validator=EmptyingValidator())]
-
-
-class OldKeyHookCfg(HookCfg):
-    """The same older shape, by a class whose constructor takes the hook.
-
-    `HookCfg` declares `auto_ch_hook` and hands it on, and `OldKeyCfg` above
-    does not. Everything else about the two of them is the same, so what one
-    of them reports about a file and what the other reports about the same
-    file have to be the same word for word.
-    """
-
-    def _get_read_old_config(self) -> ReadOldConfiguration:
-        """Return the rules that turn a file of the older shape into this."""
-        return MigrateRules()
-
-
 class AltNameCfg(Config):
     """A configuration class that names its JSON text parameter its own way.
 
@@ -987,4 +799,144 @@ extra_arg_loader = derived_loader(partial(ExtraArgCfg, home=HOME_VALUE))
 `functools.partial` binds the argument that the editor knows nothing about, and
 `derived_loader` makes the four keyword arguments of a loader out of the rest.
 It is a module level name so that the programs of this library can be told it.
+"""
+
+
+class NoStreamCfg(Config):
+    """A configuration class whose constructor takes no diagnostics stream.
+
+    Every parameter the editor knows the meaning of is passed to a class that
+    declares it and left out of a class that does not, so this class is
+    constructed exactly as well as the rest. What it costs is that whatever the
+    class says about itself goes wherever the class writes it instead of onto
+    the screen the editor owns, which is less pleasant and is no refusal.
+    """
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None) -> None:
+        """Declare the one member, taking no stream to say anything on."""
+        self.name: str = 'no stream'
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return no extra validation steps."""
+        _ = stderr_file
+        return []
+
+
+class NoKeywordCfg(Config):
+    """A configuration class whose constructor takes nothing at all.
+
+    It declares none of the parameters the editor knows the meaning of, so it
+    is constructed with no arguments whatever. That is the other end of the
+    same rule as the class above: what a class does not declare is not passed
+    to it.
+    """
+
+    def __init__(self) -> None:
+        """Declare the one member, and take nothing from anybody."""
+        self.name: str = 'no keyword'
+        super().__init__(from_json_data_text=None, from_json_filename=None)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return no extra validation steps."""
+        _ = stderr_file
+        return []
+
+
+class NoMemberCfg(SampleCfg):
+    """A configuration class that declares no public member at all.
+
+    `config_as_json` refuses to construct one, because there is nothing for it
+    to read a file into. The editor cannot construct this class either, and it
+    reports that as such rather than falling over the failure.
+    """
+
+    def declare_members(self) -> None:
+        """Assign one private attribute, which is no member of anything."""
+        self._hidden: int = 1
+
+
+NOT_A_NUMBER = 'The value of {name} is of a type this member never holds.'
+"""Message of the validator that refuses a value by its type alone."""
+
+
+# The one method is the whole of what a member validator is.
+# pylint: disable-next=too-few-public-methods
+class WholeNumbersOnly(MemberValidator):
+    """A member validator that refuses another type with `TypeError`.
+
+    Every refusal of `config_as_json` is a `ValueError`, and a validator that
+    an application writes itself is free to raise whatever a wrong type raises
+    in Python. The editor has to tell such a refusal apart from a class it
+    cannot construct at all, because the two need different messages.
+    """
+
+    def validate_member(self, config: Config, member_name: str,
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
+        """Return the number, refusing a value that is not one.
+
+        Args:
+            config: The configuration object that owns the member.
+            member_name: Name of the member being validated.
+            member_value: What the file or the edit buffer holds for it.
+            stderr_file: Stream used for user-facing diagnostics.
+
+        Returns:
+            That value, which is a whole number by then.
+
+        Raises:
+            TypeError: The value is of a type this member never holds.
+        """
+        _ = config
+        if isinstance(member_value, int):
+            return member_value
+        _refuse_type(NOT_A_NUMBER.format(name=member_name), stderr_file)
+        return None
+
+
+def _refuse_type(message: str, stderr_file: TextIO) -> None:
+    """Write one refusal to the diagnostics stream and then raise it.
+
+    Args:
+        message: What is wrong with the value.
+        stderr_file: Stream that a validator writes its refusal to before it
+            raises, which is the contract `config_as_json` states.
+
+    Raises:
+        TypeError: Always, which is what this is for.
+    """
+    print(message, file=stderr_file)
+    raise TypeError(message)
+
+
+class WholeOnlyCfg(SampleCfg):
+    """A configuration whose validator refuses a wrong type as `TypeError`.
+
+    Its declared values are ones it accepts, so the editor can construct it
+    perfectly well, and a file holding text where the number belongs is
+    refused as values this application will not have.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the one member that the validator is about."""
+        self.answer: int = 7
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return the step that refuses anything but a whole number."""
+        _ = stderr_file
+        return [MemberValidationStep(member_names=['answer'],
+                                     validator=WholeNumbersOnly())]
+
+
+no_member_loader = derived_loader(NoMemberCfg)
+"""How a load reaches a class that declares no public member at all.
+
+An application whose loader chooses its class by looking at the JSON can
+choose one that is written like this, and the caller could not have handed such
+an object over instead: the class cannot be constructed at all, so there is no
+object of it to hand over. It is a defect of that application, and one the
+editor has to report rather than fall over.
 """

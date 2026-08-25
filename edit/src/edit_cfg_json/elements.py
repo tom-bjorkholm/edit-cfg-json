@@ -457,11 +457,13 @@ def _new_object(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
     key that `DICT_VALUE_BY_KEY` names and the dict has not got. Every other
     kind says that the member holds an object or a container of them, and
     `config_as_json` refuses such a member holding nothing while it validates,
-    so no configuration the editor is given has one.
+    so no configuration the editor is given has one. Both of the two are
+    declared places, which is what the assertion below says: a node holding no
+    object that nothing declared is a node no configuration of this library
+    has.
     """
     nesting = _declared_place(path=path, facts=facts)
-    if nesting is None:
-        return ElementOffer()
+    assert nesting is not None
     return _from_class(nesting=nesting, facts=facts, keyed=False)
 
 

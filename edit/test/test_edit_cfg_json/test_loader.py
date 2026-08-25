@@ -163,3 +163,30 @@ def test_partial_of_a_class() -> None:
     """
     loader = derived_loader(partial(ExtraArgCfg, home='partly'))
     assert getattr(loader(stderr_file=StringIO()), 'home') == 'partly'
+
+
+# The one method is the whole of a loader, and this is the class that leaves
+# it unwritten, which is what the test below is about.
+# pylint: disable-next=too-few-public-methods,abstract-method
+class UnwrittenLoader(ConfigLoader):
+    """A loader class that inherits the protocol without writing it.
+
+    An application is free to declare its loader as a class of this protocol
+    rather than as a function, and a class that inherits it and leaves the one
+    method to the protocol is what a half-written one looks like. A type
+    checker refuses to build one, which is the first line of defence and is
+    not the only one there has to be.
+    """
+
+
+def test_loader_not_written() -> None:
+    """Test a loader that was declared and never written says so.
+
+    The body of that one method is the refusal every unimplemented method of
+    Python is. It is deliberately not among the failures the editor turns into
+    a refusal of the values: it says the application is incomplete, which no
+    editing can put right.
+    """
+    loader = UnwrittenLoader()  # type: ignore[abstract]
+    with pytest.raises(NotImplementedError):
+        loader(stderr_file=StringIO())

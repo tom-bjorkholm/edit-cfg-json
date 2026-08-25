@@ -220,3 +220,25 @@ def test_own_quit_turned_off() -> None:
     before, during = asyncio.run(while_asking())
     assert before
     assert during is None
+
+
+def test_quit_over_palette() -> None:
+    """Test the quit of Textual is its own where the editor is not on top.
+
+    The editor takes that action over for its own screen, so that every way out
+    of the application asks the one question in the one place. The palette of
+    Textual is a screen of its own on top of it, and the quit it offers is
+    turned off only while a question of the editor is up: there is nothing to
+    lose here, so it ends the application exactly as Textual would.
+    """
+    async def quit_it() -> tuple[Optional[bool], bool]:
+        """Open the command palette and run the quit action from there."""
+        app = EditorApp(EditModel(FlatConfig()))
+        async with app.run_test() as pilot:
+            app.action_command_palette()
+            await pilot.pause()
+            allowed = app.check_action('quit', ())
+            await app.action_quit()
+            await pilot.pause()
+            return allowed, app.is_running
+    assert asyncio.run(quit_it()) == (True, False)

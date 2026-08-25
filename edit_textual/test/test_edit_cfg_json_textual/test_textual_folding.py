@@ -196,6 +196,26 @@ async def _rebuilt() -> tuple[list[str], list[str]]:
         return before, _all_names(app)
 
 
+def test_pass_keeps_the_rows() -> None:
+    """Test a pass that leaves the rows as they were writes into the fields.
+
+    A container has no field of its own — what it shows is how much it holds,
+    which is a label — so the rows written into are the ones that have a
+    field, and the rest are left exactly as they are.
+    """
+    async def validated() -> tuple[bool, str]:
+        """Validate an unedited tree and read the rows and one value."""
+        app = _tree_app()
+        async with app.run_test(size=ROOMY_SIZE) as pilot:
+            before = _all_names(app)
+            await pilot.press(VALIDATE_KEY)
+            await pilot.pause()
+            first = index_of(app, DELAYS) + 1
+            return (_all_names(app) == before,
+                    app.query_one(f'#{value_id(first)}', Input).value)
+    assert asyncio.run(validated()) == (True, '1')
+
+
 def test_rows_mounted_again() -> None:
     """Test the rows are made again when a pass leaves the model with others.
 

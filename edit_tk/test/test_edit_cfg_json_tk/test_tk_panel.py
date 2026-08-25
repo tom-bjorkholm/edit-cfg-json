@@ -215,6 +215,40 @@ def test_stub_area_modal(stub_tk: None) -> None:
     assert area.winfo_children()[0].grabbed
 
 
+def _refuse_grab(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make every stub widget refuse the grab, as Tk does on some platforms.
+
+    Tk refuses to grab for a window that is not on the screen yet, and whether
+    a window that has just been created counts as one differs between
+    platforms. The stub is the test's own stand-in for Tk, so it is where that
+    answer is given here.
+
+    Args:
+        monkeypatch: The pytest fixture that replaces the method.
+    """
+    def refused(_: FakeWidget) -> None:
+        """Refuse the grab exactly as Tk refuses one."""
+        raise tkinter.TclError('grab failed: window not viewable')
+    monkeypatch.setattr(FakeWidget, 'grab_set', refused)
+
+
+def test_stub_grab_refused(stub_tk: None,
+                           monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test an editor whose grab Tk refuses opens without one.
+
+    An editor that opened without a grab is worth more than one that did not
+    open, so the refusal costs it the grab and nothing else. Closing it must
+    then not give back a grab it never took.
+    """
+    _ = stub_tk
+    _refuse_grab(monkeypatch)
+    panel, area = _stub_panel(modal=True)
+    assert not area.winfo_children()[0].grabbed
+    assert panel.model.config_type_name == 'FlatConfig'
+    panel.close(ask_about_unsaved=False)
+    assert not area.winfo_children()
+
+
 def test_stub_own_window(stub_tk: None) -> None:
     """Test a parent gets the editor a window of its own, named and modal."""
     _ = stub_tk

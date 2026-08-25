@@ -26,23 +26,27 @@ import json
 import pytest
 from config_as_json import Config, ConfigAutoChangeHook, ValidationPlan
 from edit_cfg_json.constructing import built_config, parsed_config
-from .sample_cfg import AltNameCfg, ExtraArgCfg, FlatCfg, HookCfg, NoTextCfg, \
-    RangeCfg
+from .sample_cfg import AltNameCfg, ExtraArgCfg, FlatCfg, HookCfg, \
+    NoKeywordCfg, NoStreamCfg, NoTextCfg, RangeCfg
 
 
 @pytest.mark.parametrize('config_type,name,answer',
                          [(FlatCfg, 'flat text', 42),
                           (AltNameCfg, 'other name', 5),
                           (HookCfg, 'hook text', 42),
-                          (NoTextCfg, 'no text', None)])
+                          (NoTextCfg, 'no text', None),
+                          (NoStreamCfg, 'no stream', None),
+                          (NoKeywordCfg, 'no keyword', None)])
 def test_declared_values(config_type: type[Config], name: str,
                          answer: Optional[int]) -> None:
     """Test a class is constructed holding the values it declares.
 
     `NoTextCfg` declares no JSON text parameter at all and is constructed
     exactly as well as the rest, because the text is never passed to a
-    constructor. It declares no second member either, which is what the
-    missing answer stands for.
+    constructor. `NoStreamCfg` declares no diagnostics stream, which costs it
+    only where what it says about itself goes, and `NoKeywordCfg` declares
+    neither and is constructed with no arguments whatever. None of the three
+    declares a second member, which is what the missing answer stands for.
     """
     config = built_config(config_type, stream=StringIO())
     assert getattr(config, 'name') == name

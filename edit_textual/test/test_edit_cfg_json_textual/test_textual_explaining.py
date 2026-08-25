@@ -124,6 +124,24 @@ def test_no_docstring_widget() -> None:
     assert not asyncio.run(widgets())
 
 
+def test_no_doc_explained() -> None:
+    """Test hiding the explanations of a class that says nothing about itself.
+
+    There is no widget to write the docstring into, because there is no
+    docstring, and the descriptions below the members are shown and hidden
+    exactly as they are for any other class.
+    """
+    async def hidden() -> tuple[bool, bool]:
+        """Run such an application and hide the explanations."""
+        app = EditorApp(EditModel(NoDocConfig(), descriptions=DESCRIPTIONS))
+        async with app.run_test() as pilot:
+            shown = description_of(app, 'name').display
+            await pilot.press(EXPLAIN_KEY)
+            await pilot.pause()
+            return shown, description_of(app, 'name').display
+    assert asyncio.run(hidden()) == (True, False)
+
+
 async def _explain_named(*keys: str) -> tuple[str, list[str]]:
     """Run the described application and read what the action is called.
 

@@ -108,6 +108,25 @@ def test_save_refuses_invalid(tmp_path: Path) -> None:
     assert 'greater than maximum 100' in verdict.refused[('answer',)]
 
 
+def test_write_that_fails(tmp_path: Path) -> None:
+    """Test a save the file system refuses leaves the session as it was.
+
+    The buffer was valid and the values are perfectly good; what failed is the
+    writing. So nothing about this save is kept: the model is still dirty, it
+    has written nothing this session, and there is no saved object to hand
+    back to the application.
+    """
+    out_file = tmp_path / 'no_such_folder' / 'out.json'
+    model = EditModel(FlatCfg(), out_file=out_file)
+    model.set_text(path=('answer',), text='7')
+    outcome = model.save()
+    assert not outcome.saved
+    assert str(out_file) in outcome.message
+    assert model.saved_config is None
+    assert model.save_message == outcome.message
+    assert model.dirty
+
+
 def test_save_keeps_old_file(tmp_path: Path) -> None:
     """Test a refused save leaves an existing output file as it was.
 

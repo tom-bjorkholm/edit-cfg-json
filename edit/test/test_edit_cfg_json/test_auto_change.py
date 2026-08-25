@@ -25,14 +25,16 @@ from config_as_json import Config, ConfigAutoChangeHook, RocfChange, \
     RocfChangeKind
 from edit_cfg_json import EditModel, LoadPolicy, LoadedConfig, load_config, \
     model_as_text, row_marks
-from edit_cfg_json.auto_change import FileChanges
+from edit_cfg_json.auto_change import FileChanges, _filled
 from edit_cfg_json.loading import AUTO_CHANGED, DEFAULT_POLICY, DROPPED_FORM, \
     FILLED_MESSAGE, MORE_REASONS_FORM, NORMALIZED_REASON, REASON_FORMS, \
     SUPPLIED_FORM
 from edit_cfg_json.model_text import FILLED_MARK
-from .sample_cfg import CountedCfg, DictKeyCfg, FlatCfg, ListCfg, NoJsonCfg, \
-    OLDER_COUNT_KEY, OLDER_DICT_KEY, OldKeyCfg, OldKeyHookCfg, RewriteCfg, \
-    SUPPLIED_ANSWER, SUPPLIED_NOTE, SuppliedNoteCfg, VALIDATOR_RUNS
+from .old_format_cfg import DictKeyCfg, OLDER_COUNT_KEY, OLDER_DICT_KEY, \
+    OldKeyCfg, OldKeyHookCfg, OwnNoteCfg, SUPPLIED_ANSWER, SUPPLIED_NOTE, \
+    SuppliedNoteCfg
+from .sample_cfg import CountedCfg, FlatCfg, ListCfg, NoJsonCfg, RewriteCfg, \
+    VALIDATOR_RUNS
 
 OLD_FILE = {'title': 'from an old file', 'trace': False}
 """A file in the older shape that `MigrateRules` reads.
@@ -229,6 +231,32 @@ def test_unplaced_value_named(tmp_path: Path) -> None:
     assert AUTO_CHANGED in model.load_message
     assert [row.name for row in model.rows] == ['name', 'note']
     assert [row.holds_nothing for row in model.rows] == [False, True]
+
+
+def test_unplaced_no_value(tmp_path: Path) -> None:
+    """Test a supplied value the record has no value for is still named.
+
+    `ConfigAutoChangeHook.rocf_missing_value_provided` is what an application
+    calls for old data it supplied itself, and it is the one entry point that
+    is not given the value. The path is then all there is to say, which is less
+    than the line above says and is never wrong.
+    """
+    model = _model(OwnNoteCfg(), tmp_path, {'name': 'noted'})
+    assert SUPPLIED_FORM.format(names='note') in model.load_message
+    assert SUPPLIED_NOTE not in model.load_message
+    assert AUTO_CHANGED in model.load_message
+
+
+def test_filled_needs_keys() -> None:
+    """Test a text the class cannot parse claims no filled-in member.
+
+    A load has already read the text by the time this is asked, so a parse
+    that fails before the key check is a state that no load reaches. The
+    answer is a mark that is not claimed rather than an exception, because
+    every member of such a load is reported as one the load changed instead,
+    which is true of it as well and says less.
+    """
+    assert _filled(FlatCfg(), '[]') == frozenset()
 
 
 def test_several_records(tmp_path: Path) -> None:
