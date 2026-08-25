@@ -9,9 +9,9 @@ widgets, for the same reason the identifiers and the sizes are in
 two of them are read by two modules — the panel binds the keys and names them,
 and the screen offers the same names in the palette.
 
-Section 9.6 of `doc/design.md` is why wording is a backend's own and not a
-setting of the core: an application that wants its own words is asking for
-translation, which is a larger thing and should be designed as one.
+Section 9.6 of `doc/detailed_design.md` is why wording is a backend's own and
+not a setting of the core: an application that wants its own words is asking
+for translation, which is a larger thing and should be designed as one.
 """
 
 # Copyright (c) 2026 Tom Björkholm

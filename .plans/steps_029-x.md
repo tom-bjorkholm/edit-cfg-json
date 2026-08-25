@@ -8,7 +8,7 @@ review asked for. Steps 1 to 9 are written up in
 [steps_010-021_done.md](steps_010-021_done.md) and steps 22 to 28 in
 [steps_022-028_done.md](steps_022-028_done.md). The steps still to build are in
 [steps_029-x.md](steps_029-x.md). Where any of the four files mentions a
-design decision, [`doc/design.md`](../doc/design.md) remains the authority and
+design decision, [`doc/detailed_design.md`](../doc/detailed_design.md) remains the authority and
 the plan says only *when* that decision gets built.
 
 - [The decisions the plan is built on][dec] — the seven settled before the
@@ -142,10 +142,10 @@ the plan says only *when* that decision gets built.
 ## 1. How this plan is meant to be used
 
 This document turns the scope recorded in
-[`doc/design.md`](../doc/design.md) into an ordered list of small,
+[`doc/detailed_design.md`](../doc/detailed_design.md) into an ordered list of small,
 individually reviewable and individually committable steps. It is a delivery
 plan, not a design document: where it mentions a design decision,
-`doc/design.md` remains the authority and this file only says *when* that
+`doc/detailed_design.md` remains the authority and this file only says *when* that
 decision gets built.
 
 - One step is one branch-less unit of work on `master`: implement, verify,

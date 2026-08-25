@@ -89,9 +89,10 @@ CLEARED_KINDS = (ConfigNestingKind.OPTIONAL_MEMBER,
 """The declarations of a place that holds one object or holds nothing.
 
 They are the two that have the pair of states of design section 4.9 of
-`doc/design.md`: a member that may hold none, and a named key that the file
-need not have. `MEMBER` holds one always, and `LIST_ELEMENT` and `DICT_VALUE`
-are about everything inside a member rather than about one place in it.
+`doc/detailed_design.md`: a member that may hold none, and a named key that the
+file need not have. `MEMBER` holds one always, and `LIST_ELEMENT` and
+`DICT_VALUE` are about everything inside a member rather than about one place
+in it.
 """
 
 NO_PATTERN = ('Nothing says what an element of this member would be: this '
@@ -99,12 +100,12 @@ NO_PATTERN = ('Nothing says what an element of this member would be: this '
               'declared type names nothing the editor can make one of.')
 """What a list nothing says anything about says instead of growing.
 
-It is the one case that design section 11 of `doc/design.md` puts out of scope
-for good rather than for now, because the missing thing cannot be supplied by
-any amount of work here: only the application knows what an element of its own
-list looks like, and a member it never gave one for and never declared a type
-for has never said. A member with an ordinary annotation is answered by that
-annotation and never reaches this.
+It is the one case that design section 11 of `doc/detailed_design.md` puts out
+of scope for good rather than for now, because the missing thing cannot be
+supplied by any amount of work here: only the application knows what an element
+of its own list looks like, and a member it never gave one for and never
+declared a type for has never said. A member with an ordinary annotation is
+answered by that annotation and never reaches this.
 """
 
 NO_CLASS_FORM = ('The editor cannot construct {name} on its own, so it has '
@@ -152,10 +153,10 @@ NO_DICT_YET = ('A dict written for a member that holds none is refused by '
 `Config.check_dict_parse` refuses a dict written for a member whose value is
 not one — *Unexpected dictionary for X in JSON data* — whatever keys it has and
 even where it has none, so the empty dict of design section 4.2 of
-`doc/design.md` is the one kind of value that such a member cannot be given.
-It is the first bullet of section 4.9 one step up: what refuses a dict here is
-the same check that refuses a new key of one, and offering the control anyway
-would be offering one that produces a refusal.
+`doc/detailed_design.md` is the one kind of value that such a member cannot be
+given. It is the first bullet of section 4.9 one step up: what refuses a dict
+here is the same check that refuses a new key of one, and offering the control
+anyway would be offering one that produces a refusal.
 """
 
 NO_ENTRY_PATTERN = ('Nothing says what an entry of this dict would be: this '
@@ -339,8 +340,8 @@ def declared_values(source: ConfigSource, stream: TextIO) -> dict[str,
     this library knows nothing about is reached no other way.
 
     A class that cannot be constructed answers with nothing, which is principle
-    4 of section 3 of `doc/design.md`: what the editor cannot find out it does
-    without, and here that costs the offer to grow an ordinary list and
+    4 of section 3 of `doc/detailed_design.md`: what the editor cannot find out
+    it does without, and here that costs the offer to grow an ordinary list and
     nothing else.
 
     Args:
@@ -408,9 +409,9 @@ def _extending(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
 
     A node where a class declared an object and none is there is the one node
     that is grown without being a container: adding there is making the object
-    that the place is for, which design section 4.1 of `doc/design.md` says
-    belongs with adding an element of a list. A node that holds the object is
-    a configuration of its own, and the members of a configuration are the
+    that the place is for, which design section 4.1 of `doc/detailed_design.md`
+    says belongs with adding an element of a list. A node that holds the object
+    is a configuration of its own, and the members of a configuration are the
     ones its class declares.
     """
     node = facts.nodes.get(path)
@@ -502,8 +503,8 @@ def _typed_element(path: ConfigPath, facts: TreeFacts) -> Optional[JsonType]:
     and the member for one of its own, because a value the application wrote
     says more about what belongs in that list than its kind does. It is what
     makes a list that its class declares empty growable at all, which is the
-    case design section 11 of `doc/design.md` had put out of scope while the
-    kind of an element was unknowable.
+    case design section 11 of `doc/detailed_design.md` had put out of scope
+    while the kind of an element was unknowable.
     """
     inside = facts.types.get(path, LeafType()).inside
     return None if inside is None else empty_value(inside.kind)

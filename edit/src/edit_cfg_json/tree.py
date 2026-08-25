@@ -18,14 +18,15 @@ directions therefore differ from the file by exactly those nodes:
 holding nothing, so that a node with no value has a row to be given one at,
 and `file_values` takes them out again on the way to the class, so that what a
 validation pass is given is the document a save would write. Giving such a
-node a value is what design section 4.9 of `doc/design.md` calls adding.
+node a value is what design section 4.9 of `doc/detailed_design.md` calls
+adding.
 
 Every node is addressed by a `config_as_json.ConfigPath`, which is what
-section 4.2 of `doc/design.md` asks for: a member inside a list or a dict needs
-no second way of naming it, and the description mapping already names one that
-way. A list element is addressed by its index written out, which is what makes
-`('retry_delays', '0')` a path and lets `('retry_delays', '[')` describe every
-element of it.
+section 4.2 of `doc/detailed_design.md` asks for: a member inside a list or a
+dict needs no second way of naming it, and the description mapping already
+names one that way. A list element is addressed by its index written out, which
+is what makes `('retry_delays', '0')` a path and lets `('retry_delays', '[')`
+describe every element of it.
 
 **A declared nested configuration object is a node of its own**, and it is
 what segments the tree. It serializes as a dict and it is not one: it has a
@@ -179,7 +180,7 @@ def shown_values(config: Config,
     fewer than the members it has. The ones it left out are added back here,
     each of them holding nothing, because a member with no row could never be
     given a value and giving one a value is what design section 4.9 of
-    `doc/design.md` calls adding.
+    `doc/detailed_design.md` calls adding.
 
     Which members those are is asked of the object rather than of the class:
     a member the object holds and did not write is a member it left out, and
@@ -603,9 +604,9 @@ def optional_members(config: Config) -> frozenset[str]:
     holds something may still be allowed to hold nothing. It is a protected
     name of `config_as_json` and it is read for the same reason
     `_unchecked_dicts` is: nothing else answers the question, section 4.1 of
-    `doc/design.md` names it as one of the sources of the structure, and the
-    answer decides what the editor may offer. It needs no checking here,
-    because constructing the object checked it.
+    `doc/detailed_design.md` names it as one of the sources of the structure,
+    and the answer decides what the editor may offer. It needs no checking
+    here, because constructing the object checked it.
 
     Args:
         config: Configuration object being edited. It is not modified.

@@ -12,8 +12,8 @@ impossible here for one reason: `ActionSettings` declares a member called
 `validate`, which would shadow `Config.validate()` on every object of the
 bridged class. `config_as_json` calls that method while it constructs and
 while it parses, so such a class cannot be built at all. That is why `Settings`
-and `ActionSettings` stay frozen, which is what section 9.1 of `doc/design.md`
-asks of them for reasons of its own.
+and `ActionSettings` stay frozen, which is what section 9.1 of
+`doc/detailed_design.md` asks of them for reasons of its own.
 
 **The key combinations are a dict of lists and not a nested object.** A nested
 `Config` object is read whole — `config_as_json` constructs one from its own
@@ -25,9 +25,10 @@ one action and the editor still shows all of them.
 
 **Nothing here restates what a valid setting is.** Each member validator hands
 the value to `Settings` or `ActionSettings` and reports what the dataclass
-refused, which is principle 1 of section 3 of `doc/design.md` applied to the
-editor's own settings: there is one place that says a key combination cannot
-belong to two actions, and it is the place the editor itself is built on.
+refused, which is principle 1 of section 3 of `doc/detailed_design.md` applied
+to the editor's own settings: there is one place that says a key combination
+cannot belong to two actions, and it is the place the editor itself is built
+on.
 
 **An action added to `ActionSettings` is a change of file format**, because
 the keys of a dict member are matched against the ones this class declares
@@ -35,8 +36,8 @@ before any validator of this class is asked anything, and they are matched
 whatever policy the parse was given. So every settings file written before that
 action existed would be refused, and a whole application would fail to start
 over a key of the editor it embeds. `ADDED_ACTIONS` is what those files are
-read by, and section 9.10 of `doc/design.md` is what says that an action added
-later belongs in it.
+read by, and section 9.10 of `doc/detailed_design.md` is what says that an
+action added later belongs in it.
 """
 
 # Copyright (c) 2026 Tom Björkholm

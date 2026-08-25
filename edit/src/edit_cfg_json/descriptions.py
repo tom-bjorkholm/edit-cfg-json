@@ -45,7 +45,7 @@ OPTIONAL_TEXT = 'It may be left out of the file.'
 `_omit_none_from_json()` says which members those are and a
 `DICT_VALUE_BY_KEY` declaration says which keys of a dict are, and
 `tree.omitted_paths` is what reads both: they are sources of the structure by
-section 4.1 of `doc/design.md`, so they are read where the rest of the
+section 4.1 of `doc/detailed_design.md`, so they are read where the rest of the
 structure is. What is worth saying here is that a node which may be left out
 is a node a user may leave empty.
 """

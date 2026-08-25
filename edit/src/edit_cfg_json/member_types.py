@@ -30,8 +30,9 @@ of the kinds of `leaf_value`, or it says nothing this editor can use. A class
 of the application's own is nothing it can use: what the editor does with a
 kind is say what it is and make an empty one of it, and it can do neither with
 a class it has never seen. Where the member holds a nested configuration
-object, the object itself is what answers (section 4.1 of `doc/design.md`),
-and where it holds an enum, the parse converter of the class answers.
+object, the object itself is what answers (section 4.1 of
+`doc/detailed_design.md`), and where it holds an enum, the parse converter of
+the class answers.
 """
 
 # Copyright (c) 2026 Tom Björkholm

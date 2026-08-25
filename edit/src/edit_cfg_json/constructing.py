@@ -7,9 +7,9 @@ There are two of them, and only one of them asks the class for anything.
 of an input file both need one, and only the class can make one. More than one
 constructor shape is in use, so every parameter this module knows the meaning
 of is passed when the class declares it and left out when it does not, which is
-principle 4 of section 3 of `doc/design.md` applied to a constructor: what
-cannot be said is not said, and the editor is then only less pleasant rather
-than unusable.
+principle 4 of section 3 of `doc/detailed_design.md` applied to a constructor:
+what cannot be said is not said, and the editor is then only less pleasant
+rather than unusable.
 
 **An object holding the edit buffer.** Validating the buffer, and saying which
 member of a refused buffer was refused, both need an object holding the values

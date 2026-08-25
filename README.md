@@ -45,6 +45,9 @@ configuration that is not two members long.
 
 ## Related documentation
 
+- Where to start when new to the code:
+  [doc/code_design_overview.md](doc/code_design_overview.md)
+
 - Package overviews (generated, see
   [Generated files](#generated-files)):
   [edit/README_pypi.md](edit/README_pypi.md),
@@ -60,7 +63,7 @@ configuration that is not two members long.
   [edit-cfg-json-tk](doc/edit-cfg-json-tk_protected_api.md),
   [edit-cfg-json-textual](doc/edit-cfg-json-textual_protected_api.md)
 
-- Library design and decisions: [doc/design.md](doc/design.md)
+- Library design and decisions, in full: [doc/detailed_design.md](doc/detailed_design.md)
 
 - Build system design: [common_build_tools/README.md](common_build_tools/README.md)
 
@@ -175,7 +178,7 @@ browsed through `reports/index.html`.
 
 ## Test summary
 
-- Test result: 1997 passed, 3 deselected in 80s (0:01:20)
+- Test result: 1997 passed, 3 deselected in 78s (0:01:18)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

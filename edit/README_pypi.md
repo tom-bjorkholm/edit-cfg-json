@@ -283,7 +283,7 @@ pip install --upgrade edit-cfg-json
 ## Documentation
 
 - Design and decisions:
-  [doc/design.md](https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/design.md)
+  [doc/detailed_design.md](https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/detailed_design.md)
 
 - Public API:
   [edit-cfg-json](https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/edit-cfg-json_api.md),
@@ -305,7 +305,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 1997 passed, 3 deselected in 80s (0:01:20)
+- Test result: 1997 passed, 3 deselected in 78s (0:01:18)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

@@ -406,8 +406,8 @@ class EditBuffer:
         what it declares for the member where it does not, and the emptiest
         value of the kind the member is annotated with where it declares
         neither. A member that holds nothing is grown by being given a value,
-        which is what design sections 4.1 and 4.9 of `doc/design.md` call
-        adding, whether that value is a configuration object or not.
+        which is what design sections 4.1 and 4.9 of `doc/detailed_design.md`
+        call adding, whether that value is a configuration object or not.
 
         Args:
             config: Configuration object of the session. It is modified where

@@ -110,7 +110,8 @@ def test_two_states_two_files(capsys: pytest.CaptureFixture[str],
     """Test the two states of one member reach the file differently.
 
     This is the whole reason for telling them apart, and it is the open
-    question that design section 4.2 of `doc/design.md` left open until now.
+    question that design section 4.2 of `doc/detailed_design.md` left open
+    until now.
     """
     holding_nothing = _saved(capsys, tmp_path / 'nothing.json')
     holding_empty = _saved(capsys, tmp_path / 'empty.json', '--add',

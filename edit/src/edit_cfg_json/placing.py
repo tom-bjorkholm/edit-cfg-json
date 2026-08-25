@@ -10,7 +10,7 @@ would be shown as the dictionary it serializes to, with the member order of
 nobody, the parse converters of nobody and no badge of its own.
 
 The object that changes is the model's own copy, which the caller never sees,
-so principle 5 of section 3 of `doc/design.md` is untouched.
+so principle 5 of section 3 of `doc/detailed_design.md` is untouched.
 
 **A declaration names a place and not always a member.** `LIST_ELEMENT` and
 `DICT_VALUE` say that everything inside one member is an object, `MEMBER` and

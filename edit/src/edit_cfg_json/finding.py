@@ -2,10 +2,10 @@
 """Looking for one node of a configuration that does not fit a window.
 
 A configuration of any interesting size does not fit a window (section 4.6 of
-`doc/design.md`), so the node a user wants is often one they cannot see. This
-module is the whole of what looking for it means: what is being looked for, how
-a piece of text is compared with one node, which nodes that reaches and which
-of them the search has got to.
+`doc/detailed_design.md`), so the node a user wants is often one they cannot
+see. This module is the whole of what looking for it means: what is being
+looked for, how a piece of text is compared with one node, which nodes that
+reaches and which of them the search has got to.
 
 Nothing here opens a folded container, gives a field the focus or scrolls
 anything. What is being looked for is state of the model, by the same rule as

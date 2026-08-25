@@ -1,7 +1,7 @@
 ## Documentation
 
 - Design and decisions:
-  [doc/design.md](https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/design.md)
+  [doc/detailed_design.md](https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/detailed_design.md)
 
 - Public API:
   [edit-cfg-json](https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/edit-cfg-json_api.md),

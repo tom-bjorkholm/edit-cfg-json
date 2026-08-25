@@ -621,8 +621,8 @@ def subtree_answers(config: Config, members: dict[str, JsonType],
     """Return what every nested object of one region says about itself.
 
     This is what folding asks, and it is the cheap local question that
-    section 6.2 of `doc/design.md` makes folding the trigger for: it needs no
-    candidate configuration and says nothing about the file.
+    section 6.2 of `doc/detailed_design.md` makes folding the trigger for: it
+    needs no candidate configuration and says nothing about the file.
 
     A region and not a single node, because the member that holds several
     configuration objects is a list or a dict and is no configuration itself.
@@ -725,9 +725,9 @@ def validate_buffer(config: Config, members: dict[str, JsonType],
 
     And it says which member of a nested object was refused. Such an object
     validates itself while `parse_json` builds it, so the walk of section 6.3
-    of `doc/design.md` never gets an object to walk and would leave the
-    message in the block below the members. Applying the subtree to the object
-    that owns it is what reaches the member.
+    of `doc/detailed_design.md` never gets an object to walk and would leave
+    the message in the block below the members. Applying the subtree to the
+    object that owns it is what reaches the member.
 
     None of that is asked of a pass the class accepted: `parse_json` built and
     validated every nested object while it read the buffer, so all of them are

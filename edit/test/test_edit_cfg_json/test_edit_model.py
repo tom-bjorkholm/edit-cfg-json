@@ -116,7 +116,7 @@ def test_value_gets_cleared() -> None:
     """Test such a member is put back to holding nothing, and not to text.
 
     This is what tells a `None` apart from an empty text, which is the open
-    question at the end of design section 4.2 of `doc/design.md`.
+    question at the end of design section 4.2 of `doc/detailed_design.md`.
     """
     model = EditModel(NoneCfg())
     model.add_element(('name',))

@@ -243,8 +243,8 @@ class TkEditor:  # pylint: disable=too-few-public-methods
         This is for an application that has no Tk of its own yet, because a
         second `tkinter.Tk` is a second Tcl interpreter and nothing can be
         shared between the two. An application that already runs Tk gets the
-        entry point of section 8.2 of `doc/design.md` instead, which mounts
-        the editor in a widget that application owns.
+        entry point of section 8.2 of `doc/detailed_design.md` instead, which
+        mounts the editor in a widget that application owns.
 
         Args:
             model: Model to show and to edit.

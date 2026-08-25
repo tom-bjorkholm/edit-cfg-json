@@ -8,7 +8,7 @@ review asked for. Steps 1 to 9 are written up in
 [steps_010-021_done.md](steps_010-021_done.md) and steps 22 to 28 in
 [steps_022-028_done.md](steps_022-028_done.md). The steps still to build are in
 [steps_029-x.md](steps_029-x.md). Where any of the four files mentions a
-design decision, [`doc/design.md`](../doc/design.md) remains the authority and
+design decision, [`doc/detailed_design.md`](../doc/detailed_design.md) remains the authority and
 the plan says only *when* that decision gets built.
 
 - [The decisions the plan is built on][dec] — the seven settled before the
@@ -178,7 +178,7 @@ that introduces each one is where the name is finally settled.
 | `derived_loader` | function, a loader made from one callable | step 9 |
 
 `Descriptions` is the only type alias the design asks for, and
-`doc/design.md` section 2.6 already declares it, so introducing it in step
+`doc/detailed_design.md` section 2.6 already declares it, so introducing it in step
 6 needs no further permission. Any *additional* alias needs permission
 first, per `CLAUDE.md`. (Do ask for permission when an alias would improve
 code quality - do not see the need for permission as a hint to avoid
@@ -374,7 +374,7 @@ Status: **Implemented and committed**
 - `Config.__init__` takes no `ok_to_use_defaults`; it belongs to
   `parse_json()` and `read()`. The derived loader therefore constructs the
   class with no JSON source and then calls `parse_json()` with the policy's
-  value. Recorded in `doc/design.md` section 5.1.
+  value. Recorded in `doc/detailed_design.md` section 5.1.
 - `Config.read()` ends the process with `sys.exit(1)` for a missing file, so
   the editor reads the file text itself.
 - A file whose values a validator refuses **cannot be opened**, because a
@@ -382,7 +382,7 @@ Status: **Implemented and committed**
   a load that stopped part way through leaves it unknown which values were
   already rewritten. Two further refusals fell out of the work: a file that
   cannot be read at all, and a class the editor cannot construct. All of
-  them are recorded in `doc/design.md` section 5.2.
+  them are recorded in `doc/detailed_design.md` section 5.2.
 - Missing and unknown keys are told apart by whether the permissive retry
   rescues the file, which needs no message text and survives ROCF renaming.
   `STRICT` runs the retry too, only to pick which refusal to report.
@@ -467,7 +467,7 @@ Status: **Implemented and committed.**
   be written, so the values that reached the file become the ones the buffer
   is compared against: the title loses its mark and every *edited* mark
   clears. The *changed by validator* mark deliberately stays, because it is
-  still true. Recorded in `doc/design.md` section 4.2.
+  still true. Recorded in `doc/detailed_design.md` section 4.2.
 - **Save with no destination asks.** The model reports that it has none and
   invents nothing; both backends turn that into the Save as question, which
   is what every editor does and what design section 7 asks a backend for.
@@ -528,7 +528,7 @@ and also other file name extensions are in use.
 - Confirm the open question in design section 7: `Config.write()`
   documents a `stderr_file` "used for user-facing diagnostics during
   validation", which suggests it validates too. Check the implementation
-  in `./venv` and record the answer in `doc/design.md`.
+  in `./venv` and record the answer in `doc/detailed_design.md`.
 
 **Backends.** Save and Cancel actions, with Save disabled or refused
 while invalid. Both backends shall offer both "Save" and "Save as",
@@ -544,7 +544,7 @@ the output file untouched; the caller's original `Config` object is
 unchanged after a save.
 
 **Milestone 1 is reached here.** Before moving on, re-read
-`doc/design.md` section 8 against what was actually built: if either
+`doc/detailed_design.md` section 8 against what was actually built: if either
 backend holds logic the other also holds, move it into the core now,
 while there are only two small backends to reconcile.
 
@@ -562,7 +562,7 @@ Status: **Implemented and committed.**
   One line for the whole configuration is worth keeping, and the per-member
   lines are the real cost. The editor starts with the explanations shown,
   because an application that wrote a description mapping wrote it to be read.
-  Recorded in `doc/design.md` section 4.4.
+  Recorded in `doc/detailed_design.md` section 4.4.
 - **Which of two selectors is more specific** had to be settled: a named step
   beats the `'['` step and an earlier step decides before a later one, so no
   two selectors can tie. Recorded in section 4.3.
@@ -609,7 +609,7 @@ shows, and one lesson worth keeping.
   Explain that hides the explanations is the wrong reading, and the two
   toolkits need two answers: Tk has a button row, so it gets a tick-box, and
   Textual has a footer of key bindings, so its action is renamed between
-  "Explain" and "Hide explanation". Recorded in `doc/design.md` section 4.4.
+  "Explain" and "Hide explanation". Recorded in `doc/detailed_design.md` section 4.4.
 - **A configuration of any size does not fit a window**, and with the
   explanations shown it fits one even less. Both backends now scroll the
   label, the docstring, the load message and the members, and keep the
@@ -635,7 +635,7 @@ and 5 each learnt once already, in their own way.
 
 **Found in the second review, from screenshots of the window.** The scrolling
 and the sizes were wrong in three ways that only a real window shows, and all
-three are recorded in `doc/design.md` section 4.6.
+three are recorded in `doc/detailed_design.md` section 4.6.
 
 - **The part that does not scroll has to be packed first.** Tk gives each child
   the space it asks for in the order they were packed, so a window too short
@@ -708,7 +708,7 @@ Status: **Implemented and committed.**
   refused is the one a refusal keeps the editor from holding. A throwaway
   subclass whose `get_validation_plan` returns nothing is that object, and the
   plan is then asked of the real class and applied step by step. Recorded in
-  `doc/design.md` section 6.3.
+  `doc/detailed_design.md` section 6.3.
 - **It is a subclass rather than a default instance with the buffer assigned
   onto it**, because the subclass gets the whole parse chain for nothing: key
   matching, the dict shape checks, the parse converters, and the nested
@@ -805,7 +805,7 @@ Status: **Implemented and committed.**
 
 Numbered `7B` rather than `8` for the same reason as step 3B: the steps
 after it are cross-referenced by number from this file and from
-`doc/design.md`, and renumbering them would be churn with no content in
+`doc/detailed_design.md`, and renumbering them would be churn with no content in
 it. It was the next step because the corpus it unlocks is what steps 8 to
 14 need, not because it belongs to milestone 2 by subject.
 
@@ -849,7 +849,7 @@ it. It was the next step because the corpus it unlocks is what steps 8 to
 **What the corpus showed, and why the step was worth having early.** The 47
 configuration classes of `dep_lib_doc/config_as_json/example/` found two things
 that no example in this repository would have, and both are recorded in
-`doc/design.md` section 8.3.4.
+`doc/detailed_design.md` section 8.3.4.
 
 - **32 of the 47 were refused over the name of a constructor parameter.**
   `Config.__init__` names the JSON text `from_json_data_text` and the example
@@ -1151,7 +1151,7 @@ recorded nowhere.
   `ConfigAutoChangeHook.check_data_version` is asked first, and a version this
   editor was not written for falls back to the marks the comparison alone gives
   plus the text of `print_changes`, which is version independent by contract
-  and is never parsed. Recorded in `doc/design.md` section 5.3.
+  and is never parsed. Recorded in `doc/detailed_design.md` section 5.3.
 
 ### Step 9 — The explicit loader
 
@@ -1175,7 +1175,7 @@ opened a file into an editor that could never validate or save it.
   constructor argument this library knows nothing about, and a class with no
   JSON text parameter at all, are now edited, validated and saved like any
   other, with no loader. `built_config` lost its `text` argument and
-  `NO_JSON_TEXT` with it. Recorded in `doc/design.md` sections 5.1, 6.1 and
+  `NO_JSON_TEXT` with it. Recorded in `doc/detailed_design.md` sections 5.1, 6.1 and
   8.3.4.
 - **The two throwaway subclasses became one method replaced on one copy.** A
   subclass cannot be used where a loader constructs the application's class,
@@ -1236,7 +1236,7 @@ the one that mattered.
   it was given — so the window narrowed, the paragraph wrapped into one more
   line, and asked for something else again. The width the editor opens at is now
   said and not measured, and the height still follows the body. Recorded in
-  `doc/design.md` section 4.6 through `BODY_WIDTH`; the loop is guarded by a
+  `doc/detailed_design.md` section 4.6 through `BODY_WIDTH`; the loop is guarded by a
   stubbed test, whose stub now reports a body narrower than the opening width,
   and by a mapped `focus_sensitive` test. Both were checked by reverting the fix.
 - **A width that cannot be measured at all.** Two attempts to keep measuring it

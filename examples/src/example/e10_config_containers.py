@@ -85,8 +85,9 @@ leaves the `'['` line above it to every other.
 
 A description path is the one thing here that **crosses** the boundary of a
 nested object. Everything else stops at it, and section 4.3 of
-[`doc/design.md`](../../../doc/design.md) says why: an application explaining
-its own settings should not have to know where its nesting boundaries fall.
+[`doc/detailed_design.md`](../../../doc/detailed_design.md) says why: an
+application explaining its own settings should not have to know where its
+nesting boundaries fall.
 
 ## A value inside one of them is addressed by the path to it
 

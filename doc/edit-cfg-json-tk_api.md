@@ -1112,7 +1112,7 @@ Tk has no theme to ask, unlike the Textual backend, which names colours of its
 terminal's theme and follows it into a dark mode. A Tk that has been put into
 a dark mode by its platform would want other values here, and that belongs
 with the rest of what an application decides rather than in the middle of a
-backend; see section 9 of `doc/design.md`.
+backend; see section 9 of `doc/detailed_design.md`.
 
 <a id="edit_cfg_json_tk.tk_look.FIELD_BACKGROUND"></a>
 
@@ -1720,8 +1720,8 @@ touches a window it did not create.
 This is for an application that has no Tk of its own yet, because a
 second `tkinter.Tk` is a second Tcl interpreter and nothing can be
 shared between the two. An application that already runs Tk gets the
-entry point of section 8.2 of `doc/design.md` instead, which mounts
-the editor in a widget that application owns.
+entry point of section 8.2 of `doc/detailed_design.md` instead, which
+mounts the editor in a widget that application owns.
 
 **Arguments**:
 

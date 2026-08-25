@@ -63,7 +63,7 @@ NO_KIND = 'No value, so what kind of value it holds is not known.'
 
 The kind of a member is what the class declared for it, and failing that the
 kind of the value it held when the file was last agreed with (section 4.2 of
-`doc/design.md`). A member that has neither gave none.
+`doc/detailed_design.md`). A member that has neither gave none.
 """
 
 NO_VALUE_TEXT = 'no value'
@@ -251,7 +251,7 @@ def text_as_value(text: str, original: JsonType,
             nothing. It never says what the text becomes.
         declared: What the class says the value here is, which says how the
             text is read wherever it says anything (section 4.2 of
-            `doc/design.md`).
+            `doc/detailed_design.md`).
 
     Returns:
         The JSON space value that the text stands for.

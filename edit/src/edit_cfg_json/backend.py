@@ -35,7 +35,7 @@ class EditorBackend(Protocol):  # pylint: disable=too-few-public-methods
     event loop that is running is the application's own, and Textual offers
     no way to nest a second one at all. It is a separate, non-blocking entry
     point of each backend package, additive to this one, and section 8.2 of
-    `doc/design.md` is where it is designed.
+    `doc/detailed_design.md` is where it is designed.
 
     The outcome of the session is read from the model afterwards rather than
     returned here, so that the protocol does not have to change when saving

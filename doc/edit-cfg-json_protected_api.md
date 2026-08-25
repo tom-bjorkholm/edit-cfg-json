@@ -789,10 +789,10 @@
 Looking for one node of a configuration that does not fit a window.
 
 A configuration of any interesting size does not fit a window (section 4.6 of
-`doc/design.md`), so the node a user wants is often one they cannot see. This
-module is the whole of what looking for it means: what is being looked for, how
-a piece of text is compared with one node, which nodes that reaches and which
-of them the search has got to.
+`doc/detailed_design.md`), so the node a user wants is often one they cannot
+see. This module is the whole of what looking for it means: what is being
+looked for, how a piece of text is compared with one node, which nodes that
+reaches and which of them the search has got to.
 
 Nothing here opens a folded container, gives a field the focus or scrolls
 anything. What is being looked for is state of the model, by the same rule as
@@ -1130,14 +1130,15 @@ directions therefore differ from the file by exactly those nodes:
 holding nothing, so that a node with no value has a row to be given one at,
 and `file_values` takes them out again on the way to the class, so that what a
 validation pass is given is the document a save would write. Giving such a
-node a value is what design section 4.9 of `doc/design.md` calls adding.
+node a value is what design section 4.9 of `doc/detailed_design.md` calls
+adding.
 
 Every node is addressed by a `config_as_json.ConfigPath`, which is what
-section 4.2 of `doc/design.md` asks for: a member inside a list or a dict needs
-no second way of naming it, and the description mapping already names one that
-way. A list element is addressed by its index written out, which is what makes
-`('retry_delays', '0')` a path and lets `('retry_delays', '[')` describe every
-element of it.
+section 4.2 of `doc/detailed_design.md` asks for: a member inside a list or a
+dict needs no second way of naming it, and the description mapping already
+names one that way. A list element is addressed by its index written out, which
+is what makes `('retry_delays', '0')` a path and lets `('retry_delays', '[')`
+describe every element of it.
 
 **A declared nested configuration object is a node of its own**, and it is
 what segments the tree. It serializes as a dict and it is not one: it has a
@@ -1328,7 +1329,7 @@ names while that member holds nothing, so the values one object writes are
 fewer than the members it has. The ones it left out are added back here,
 each of them holding nothing, because a member with no row could never be
 given a value and giving one a value is what design section 4.9 of
-`doc/design.md` calls adding.
+`doc/detailed_design.md` calls adding.
 
 Which members those are is asked of the object rather than of the class:
 a member the object holds and did not write is a member it left out, and
@@ -1831,9 +1832,9 @@ nothing right now may be one that has to hold something, and one that
 holds something may still be allowed to hold nothing. It is a protected
 name of `config_as_json` and it is read for the same reason
 `_unchecked_dicts` is: nothing else answers the question, section 4.1 of
-`doc/design.md` names it as one of the sources of the structure, and the
-answer decides what the editor may offer. It needs no checking here,
-because constructing the object checked it.
+`doc/detailed_design.md` names it as one of the sources of the structure,
+and the answer decides what the editor may offer. It needs no checking
+here, because constructing the object checked it.
 
 **Arguments**:
 
@@ -3068,7 +3069,7 @@ therefore not this protocol. It cannot run to completion, because the
 event loop that is running is the application's own, and Textual offers
 no way to nest a second one at all. It is a separate, non-blocking entry
 point of each backend package, additive to this one, and section 8.2 of
-`doc/design.md` is where it is designed.
+`doc/detailed_design.md` is where it is designed.
 
 The outcome of the session is read from the model afterwards rather than
 returned here, so that the protocol does not have to change when saving
@@ -3365,9 +3366,10 @@ which is a defect of the application that no editing can put right.
 The declarations of a place that holds one object or holds nothing.
 
 They are the two that have the pair of states of design section 4.9 of
-`doc/design.md`: a member that may hold none, and a named key that the file
-need not have. `MEMBER` holds one always, and `LIST_ELEMENT` and `DICT_VALUE`
-are about everything inside a member rather than about one place in it.
+`doc/detailed_design.md`: a member that may hold none, and a named key that the
+file need not have. `MEMBER` holds one always, and `LIST_ELEMENT` and
+`DICT_VALUE` are about everything inside a member rather than about one place
+in it.
 
 <a id="edit_cfg_json.elements.NO_PATTERN"></a>
 
@@ -3375,12 +3377,12 @@ are about everything inside a member rather than about one place in it.
 
 What a list nothing says anything about says instead of growing.
 
-It is the one case that design section 11 of `doc/design.md` puts out of scope
-for good rather than for now, because the missing thing cannot be supplied by
-any amount of work here: only the application knows what an element of its own
-list looks like, and a member it never gave one for and never declared a type
-for has never said. A member with an ordinary annotation is answered by that
-annotation and never reaches this.
+It is the one case that design section 11 of `doc/detailed_design.md` puts out
+of scope for good rather than for now, because the missing thing cannot be
+supplied by any amount of work here: only the application knows what an element
+of its own list looks like, and a member it never gave one for and never
+declared a type for has never said. A member with an ordinary annotation is
+answered by that annotation and never reaches this.
 
 <a id="edit_cfg_json.elements.NO_CLASS_FORM"></a>
 
@@ -3427,10 +3429,10 @@ What a member declared to allow no value says instead of taking a dict.
 `Config.check_dict_parse` refuses a dict written for a member whose value is
 not one — *Unexpected dictionary for X in JSON data* — whatever keys it has and
 even where it has none, so the empty dict of design section 4.2 of
-`doc/design.md` is the one kind of value that such a member cannot be given.
-It is the first bullet of section 4.9 one step up: what refuses a dict here is
-the same check that refuses a new key of one, and offering the control anyway
-would be offering one that produces a refusal.
+`doc/detailed_design.md` is the one kind of value that such a member cannot be
+given. It is the first bullet of section 4.9 one step up: what refuses a dict
+here is the same check that refuses a new key of one, and offering the control
+anyway would be offering one that produces a refusal.
 
 <a id="edit_cfg_json.elements.NO_ENTRY_PATTERN"></a>
 
@@ -3684,8 +3686,8 @@ it is given no JSON source, and a class that needs a constructor argument
 this library knows nothing about is reached no other way.
 
 A class that cannot be constructed answers with nothing, which is principle
-4 of section 3 of `doc/design.md`: what the editor cannot find out it does
-without, and here that costs the offer to grow an ordinary list and
+4 of section 3 of `doc/detailed_design.md`: what the editor cannot find out
+it does without, and here that costs the offer to grow an ordinary list and
 nothing else.
 
 **Arguments**:
@@ -3765,9 +3767,9 @@ Return whether one node can be given an element, and why not.
 
 A node where a class declared an object and none is there is the one node
 that is grown without being a container: adding there is making the object
-that the place is for, which design section 4.1 of `doc/design.md` says
-belongs with adding an element of a list. A node that holds the object is
-a configuration of its own, and the members of a configuration are the
+that the place is for, which design section 4.1 of `doc/detailed_design.md`
+says belongs with adding an element of a list. A node that holds the object
+is a configuration of its own, and the members of a configuration are the
 ones its class declares.
 
 <a id="edit_cfg_json.elements._new_value"></a>
@@ -3854,8 +3856,8 @@ It is asked last, after the class has been asked for an element to copy
 and the member for one of its own, because a value the application wrote
 says more about what belongs in that list than its kind does. It is what
 makes a list that its class declares empty growable at all, which is the
-case design section 11 of `doc/design.md` had put out of scope while the
-kind of an element was unknowable.
+case design section 11 of `doc/detailed_design.md` had put out of scope
+while the kind of an element was unknowable.
 
 <a id="edit_cfg_json.elements._growing_dict"></a>
 
@@ -5021,8 +5023,9 @@ of the kinds of `leaf_value`, or it says nothing this editor can use. A class
 of the application's own is nothing it can use: what the editor does with a
 kind is say what it is and make an empty one of it, and it can do neither with
 a class it has never seen. Where the member holds a nested configuration
-object, the object itself is what answers (section 4.1 of `doc/design.md`),
-and where it holds an enum, the parse converter of the class answers.
+object, the object itself is what answers (section 4.1 of
+`doc/detailed_design.md`), and where it holds an enum, the parse converter of
+the class answers.
 
 <a id="edit_cfg_json.member_types.SELF_NAME"></a>
 
@@ -5766,7 +5769,7 @@ What is said about a member whose kind nothing says.
 
 The kind of a member is what the class declared for it, and failing that the
 kind of the value it held when the file was last agreed with (section 4.2 of
-`doc/design.md`). A member that has neither gave none.
+`doc/detailed_design.md`). A member that has neither gave none.
 
 <a id="edit_cfg_json.leaf_value.NO_VALUE_TEXT"></a>
 
@@ -6009,7 +6012,7 @@ member with no such state reads `null` as the JSON it is, as before.
   nothing. It never says what the text becomes.
 - `declared` - What the class says the value here is, which says how the
   text is read wherever it says anything (section 4.2 of
-  `doc/design.md`).
+  `doc/detailed_design.md`).
   
 
 **Returns**:
@@ -6868,8 +6871,8 @@ object of the declared class where the class declares one, a copy of
 what it declares for the member where it does not, and the emptiest
 value of the kind the member is annotated with where it declares
 neither. A member that holds nothing is grown by being given a value,
-which is what design sections 4.1 and 4.9 of `doc/design.md` call
-adding, whether that value is a configuration object or not.
+which is what design sections 4.1 and 4.9 of `doc/detailed_design.md`
+call adding, whether that value is a configuration object or not.
 
 **Arguments**:
 
@@ -7433,7 +7436,7 @@ would be shown as the dictionary it serializes to, with the member order of
 nobody, the parse converters of nobody and no badge of its own.
 
 The object that changes is the model's own copy, which the caller never sees,
-so principle 5 of section 3 of `doc/design.md` is untouched.
+so principle 5 of section 3 of `doc/detailed_design.md` is untouched.
 
 **A declaration names a place and not always a member.** `LIST_ELEMENT` and
 `DICT_VALUE` say that everything inside one member is an object, `MEMBER` and
@@ -8298,7 +8301,7 @@ that the class is this library's own settings. Exactly one of the three is
 required, which is what makes them one group of `argparse` rather than a check
 written by hand; a single `module:Class` argument reads well and would have to
 guess which of them it was given, which is what section 8.2.1 of
-`doc/design.md` settled for this library as a whole.
+`doc/detailed_design.md` settled for this library as a whole.
 
 **What to edit is then either a class or a loader**, and `--class` and
 `--loader` name them in the module or file that was reached. At least one of
@@ -8423,9 +8426,9 @@ class that was named is accepted.
 Message of the refusal of a `--descriptions` that names something else.
 
 What the keys and the values of the mapping are is not checked, for the reason
-section 4.3 of `doc/design.md` gives: a selector that addresses no member of
-this configuration is simply never used, and a wrong description is a cosmetic
-mistake that is not worth refusing to open an editor over.
+section 4.3 of `doc/detailed_design.md` gives: a selector that addresses no
+member of this configuration is simply never used, and a wrong description is a
+cosmetic mistake that is not worth refusing to open an editor over.
 
 <a id="edit_cfg_json.cli_target.NOT_SHOWABLE_MESSAGE"></a>
 
@@ -8893,8 +8896,8 @@ impossible here for one reason: `ActionSettings` declares a member called
 `validate`, which would shadow `Config.validate()` on every object of the
 bridged class. `config_as_json` calls that method while it constructs and
 while it parses, so such a class cannot be built at all. That is why `Settings`
-and `ActionSettings` stay frozen, which is what section 9.1 of `doc/design.md`
-asks of them for reasons of its own.
+and `ActionSettings` stay frozen, which is what section 9.1 of
+`doc/detailed_design.md` asks of them for reasons of its own.
 
 **The key combinations are a dict of lists and not a nested object.** A nested
 `Config` object is read whole — `config_as_json` constructs one from its own
@@ -8906,9 +8909,10 @@ one action and the editor still shows all of them.
 
 **Nothing here restates what a valid setting is.** Each member validator hands
 the value to `Settings` or `ActionSettings` and reports what the dataclass
-refused, which is principle 1 of section 3 of `doc/design.md` applied to the
-editor's own settings: there is one place that says a key combination cannot
-belong to two actions, and it is the place the editor itself is built on.
+refused, which is principle 1 of section 3 of `doc/detailed_design.md` applied
+to the editor's own settings: there is one place that says a key combination
+cannot belong to two actions, and it is the place the editor itself is built
+on.
 
 **An action added to `ActionSettings` is a change of file format**, because
 the keys of a dict member are matched against the ones this class declares
@@ -8916,8 +8920,8 @@ before any validator of this class is asked anything, and they are matched
 whatever policy the parse was given. So every settings file written before that
 action existed would be refused, and a whole application would fail to start
 over a key of the editor it embeds. `ADDED_ACTIONS` is what those files are
-read by, and section 9.10 of `doc/design.md` is what says that an action added
-later belongs in it.
+read by, and section 9.10 of `doc/detailed_design.md` is what says that an
+action added later belongs in it.
 
 <a id="edit_cfg_json.settings_config.UNKNOWN_ACTION"></a>
 
@@ -12567,9 +12571,9 @@ There are two of them, and only one of them asks the class for anything.
 of an input file both need one, and only the class can make one. More than one
 constructor shape is in use, so every parameter this module knows the meaning
 of is passed when the class declares it and left out when it does not, which is
-principle 4 of section 3 of `doc/design.md` applied to a constructor: what
-cannot be said is not said, and the editor is then only less pleasant rather
-than unusable.
+principle 4 of section 3 of `doc/detailed_design.md` applied to a constructor:
+what cannot be said is not said, and the editor is then only less pleasant
+rather than unusable.
 
 **An object holding the edit buffer.** Validating the buffer, and saying which
 member of a refused buffer was refused, both need an object holding the values
@@ -12781,7 +12785,7 @@ What the editor says about a node the file need not hold a key for.
 `_omit_none_from_json()` says which members those are and a
 `DICT_VALUE_BY_KEY` declaration says which keys of a dict are, and
 `tree.omitted_paths` is what reads both: they are sources of the structure by
-section 4.1 of `doc/design.md`, so they are read where the rest of the
+section 4.1 of `doc/detailed_design.md`, so they are read where the rest of the
 structure is. What is worth saying here is that a node which may be left out
 is a node a user may leave empty.
 
@@ -14379,8 +14383,8 @@ def subtree_answers(
 Return what every nested object of one region says about itself.
 
 This is what folding asks, and it is the cheap local question that
-section 6.2 of `doc/design.md` makes folding the trigger for: it needs no
-candidate configuration and says nothing about the file.
+section 6.2 of `doc/detailed_design.md` makes folding the trigger for: it
+needs no candidate configuration and says nothing about the file.
 
 A region and not a single node, because the member that holds several
 configuration objects is a list or a dict and is no configuration itself.
@@ -14496,9 +14500,9 @@ of them can be valid while the configuration is refused.
 
 And it says which member of a nested object was refused. Such an object
 validates itself while `parse_json` builds it, so the walk of section 6.3
-of `doc/design.md` never gets an object to walk and would leave the
-message in the block below the members. Applying the subtree to the object
-that owns it is what reaches the member.
+of `doc/detailed_design.md` never gets an object to walk and would leave
+the message in the block below the members. Applying the subtree to the
+object that owns it is what reaches the member.
 
 None of that is asked of a pass the class accepted: `parse_json` built and
 validated every nested object while it read the buffer, so all of them are

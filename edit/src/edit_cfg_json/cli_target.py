@@ -7,7 +7,7 @@ that the class is this library's own settings. Exactly one of the three is
 required, which is what makes them one group of `argparse` rather than a check
 written by hand; a single `module:Class` argument reads well and would have to
 guess which of them it was given, which is what section 8.2.1 of
-`doc/design.md` settled for this library as a whole.
+`doc/detailed_design.md` settled for this library as a whole.
 
 **What to edit is then either a class or a loader**, and `--class` and
 `--loader` name them in the module or file that was reached. At least one of
@@ -130,9 +130,9 @@ NOT_DESCRIPTIONS = ('{module}.{name} is no mapping, so it says nothing about '
 """Message of the refusal of a `--descriptions` that names something else.
 
 What the keys and the values of the mapping are is not checked, for the reason
-section 4.3 of `doc/design.md` gives: a selector that addresses no member of
-this configuration is simply never used, and a wrong description is a cosmetic
-mistake that is not worth refusing to open an editor over.
+section 4.3 of `doc/detailed_design.md` gives: a selector that addresses no
+member of this configuration is simply never used, and a wrong description is a
+cosmetic mistake that is not worth refusing to open an editor over.
 """
 
 NOT_SHOWABLE_MESSAGE = ('The editor cannot show {name}, because the values '

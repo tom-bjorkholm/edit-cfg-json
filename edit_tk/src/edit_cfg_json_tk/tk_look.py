@@ -102,7 +102,7 @@ Tk has no theme to ask, unlike the Textual backend, which names colours of its
 terminal's theme and follows it into a dark mode. A Tk that has been put into
 a dark mode by its platform would want other values here, and that belongs
 with the rest of what an application decides rather than in the middle of a
-backend; see section 9 of `doc/design.md`.
+backend; see section 9 of `doc/detailed_design.md`.
 """
 
 FIELD_BACKGROUND = '#eef1f5'

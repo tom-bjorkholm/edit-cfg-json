@@ -106,10 +106,10 @@ def _duplicate(key: str, first: str, second: str) -> ValueError:
 
 
 # One attribute per action of the editor, which is what section 9.1 of
-# doc/design.md asks for: an action the application says nothing about keeps
-# the default of its own attribute, so there is no merge rule to explain, and
-# a misspelled action name is refused where the mistake was made. That is what
-# makes the count of these more than pylint's default.
+# doc/detailed_design.md asks for: an action the application says nothing about
+# keeps the default of its own attribute, so there is no merge rule to explain,
+# and a misspelled action name is refused where the mistake was made. That is
+# what makes the count of these more than pylint's default.
 @dataclass(frozen=True)
 class ActionSettings:  # pylint: disable=too-many-instance-attributes
     """The key combinations of every action of the editor.
