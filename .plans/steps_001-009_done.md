@@ -2,10 +2,12 @@
 
 ## Where everything is
 
-Steps 1 to 21 are implemented and committed. Steps 1 to 9 are written up in
-[steps_001-009_done.md](steps_001-009_done.md) and steps 10 to 21 in
-[steps_010-021.md](steps_010-021.md). The steps still to build are in
-[steps_022-x.md](steps_022-x.md). Where any of the three files mentions a
+Steps 1 to 28 are implemented and committed, step 23 with the corrections its
+review asked for. Steps 1 to 9 are written up in
+[steps_001-009_done.md](steps_001-009_done.md), steps 10 to 21 in
+[steps_010-021_done.md](steps_010-021_done.md) and steps 22 to 28 in
+[steps_022-028_done.md](steps_022-028_done.md). The steps still to build are in
+[steps_029-x.md](steps_029-x.md). Where any of the four files mentions a
 design decision, [`doc/design.md`](../doc/design.md) remains the authority and
 the plan says only *when* that decision gets built.
 
@@ -78,6 +80,28 @@ the plan says only *when* that decision gets built.
   every setting can be written in a file.
 - [Step 21][s21] — `--version` on all three programs, as a fourth thing a run
   does instead of editing, answered by one version reporter per distribution.
+- [Step 22][s22] — a member holding true or false entered as an enum member
+  already was: any beginning of either word in any case, and a text that means
+  neither of them refused at that member.
+- [Step 23][s23] — looking for a member of a configuration that does not fit a
+  window: a field that stays, four controls that say where it looks, and a match
+  inside a folded container opened, brought into view and typed into.
+- [Step 24][s24] — the declaration of a member read as well as the value it
+  holds, and the open question of section 4.2 answered: a member allowed to
+  hold nothing has two states rather than a kind the user can change.
+- [Step 25][s25] — the members a class leaves out of the file given a row to be
+  given a value at, the buffer written back to the class as the document a save
+  would write, and the one kind of value that a member holding nothing cannot
+  be given.
+- [Step 26][s26] — the dict whose values are of two kinds asked twice: the key
+  a declaration names given the two states of a member that may hold no object,
+  and every other key of it an entry of an ordinary container after all.
+- [Step 27][s27] — the dict whose keys its own class does not check given the
+  entry control every other container has, and the key policy left where
+  `_unchecked_dicts` put it: with the validators of the application.
+- [Step 28][s28] — which dicts can be given an entry became a question about
+  where a dict sits rather than about which member it belongs to, which is
+  what the check that refuses one actually asks.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -92,21 +116,28 @@ the plan says only *when* that decision gets built.
 [s7b]: steps_001-009_done.md#step-7b--a-ready-to-run-program-in-every-package
 [s8]: steps_001-009_done.md#step-8--automatic-change-visibility
 [s9]: steps_001-009_done.md#step-9--the-explicit-loader
-[s10]: steps_010-021.md#step-10--lists-and-dicts-of-scalars
-[s11]: steps_010-021.md#step-11--nested-config-objects
-[s12]: steps_010-021.md#step-12--subtree-validation
-[s13]: steps_010-021.md#step-13--list_element-and-dict_value-nesting
-[s14]: steps_010-021.md#step-14--adding-and-removing-elements
-[s15]: steps_010-021.md#step-15--confirmation-before-dropping-edits
-[s15b]: steps_010-021.md#step-15b---changed-descriptions-of---ui-dump
-[s16]: steps_010-021.md#step-16--oldbackup-file-when-overwriting
-[s16b]: steps_010-021.md#step-16b---fix-ux-problem-with-edit_cfg_json
-[s17]: steps_010-021.md#step-17--first-release-polish
-[s18]: steps_010-021.md#step-18--embedding-in-an-applications-own-window
-[s18b]: steps_010-021.md#step-18b---redesign-api-and-examples-for-embedding
-[s19]: steps_010-021.md#step-19---config_as_jsonconfig-for-storing-the-settings
-[s20]: steps_010-021.md#step-20--the-rest-of-the-programs-command-line
-[s21]: steps_010-021.md#step-21---version-command-line-flag
+[s10]: steps_010-021_done.md#step-10--lists-and-dicts-of-scalars
+[s11]: steps_010-021_done.md#step-11--nested-config-objects
+[s12]: steps_010-021_done.md#step-12--subtree-validation
+[s13]: steps_010-021_done.md#step-13--list_element-and-dict_value-nesting
+[s14]: steps_010-021_done.md#step-14--adding-and-removing-elements
+[s15]: steps_010-021_done.md#step-15--confirmation-before-dropping-edits
+[s15b]: steps_010-021_done.md#step-15b---changed-descriptions-of---ui-dump
+[s16]: steps_010-021_done.md#step-16--oldbackup-file-when-overwriting
+[s16b]: steps_010-021_done.md#step-16b---fix-ux-problem-with-edit_cfg_json
+[s17]: steps_010-021_done.md#step-17--first-release-polish
+[s18]: steps_010-021_done.md#step-18--embedding-in-an-applications-own-window
+[s18b]: steps_010-021_done.md#step-18b---redesign-api-and-examples-for-embedding
+[s19]: steps_010-021_done.md#step-19---config_as_jsonconfig-for-storing-the-settings
+[s20]: steps_010-021_done.md#step-20--the-rest-of-the-programs-command-line
+[s21]: steps_010-021_done.md#step-21---version-command-line-flag
+[s22]: steps_022-028_done.md#step-22---better-bool-support
+[s23]: steps_022-028_done.md#step-23---finding-a-member
+[s24]: steps_022-028_done.md#step-24---more-type-information-and-whether-the-user-may-change-it
+[s25]: steps_022-028_done.md#step-25---add-and-remove-omitted-members
+[s26]: steps_022-028_done.md#step-26---full-support-for-dict_value_by_key
+[s27]: steps_022-028_done.md#step-27---adding-an-entry-to-an-_unchecked_dicts-member
+[s28]: steps_022-028_done.md#step-28---an-entry-in-a-dict-the-class-never-checks
 
 ## 1. Decisions this plan is built on
 
