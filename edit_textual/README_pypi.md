@@ -352,6 +352,9 @@ pip install --upgrade edit-cfg-json-textual
 
 ## Documentation
 
+- For whoever edits a configuration in one of the two editors:
+  [doc/end_users_guide.md](https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/end_users_guide.md)
+
 - Design and decisions:
   [doc/detailed_design.md](https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/detailed_design.md)
 

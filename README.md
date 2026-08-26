@@ -48,6 +48,9 @@ configuration that is not two members long.
 - Where to start when new to the code:
   [doc/code_design_overview.md](doc/code_design_overview.md)
 
+- For whoever edits a configuration in one of the two editors:
+  [doc/end_users_guide.md](doc/end_users_guide.md)
+
 - Package overviews (generated, see
   [Generated files](#generated-files)):
   [edit/README_pypi.md](edit/README_pypi.md),
