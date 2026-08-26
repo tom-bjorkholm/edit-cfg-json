@@ -15,8 +15,8 @@ import pytest
 from edit_cfg_json_tk.tk_scope import TAG_PREFIX
 from example import e13_embedded_tk
 from example._shared_pipeline import CLOSE_TEXT, EDIT_TEXT, SESSION_NOTHING
-from .helpers import PIPELINE_FILE, data_file, run_tk_example, \
-    tk_fields, tk_press, written_json
+from .helpers import PIPELINE_FILE, SAVED_PIPELINE, data_file, \
+    run_tk_example, tk_fields, tk_press, written_json
 
 EDITOR_CLOSE = 'Close'
 """Text of the button of the editor itself that ends the session.
@@ -122,5 +122,4 @@ def test_file_is_read(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         tk_press(_editor(window), 'Save')
     run_tk_example(e13_embedded_tk.main, monkeypatch, save, '-i',
                    data_file(PIPELINE_FILE), '-o', str(out_file))
-    assert written_json(out_file) == {'name': 'release-candidate',
-                                      'workers': 8}
+    assert written_json(out_file) == SAVED_PIPELINE

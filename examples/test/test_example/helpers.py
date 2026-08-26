@@ -51,7 +51,14 @@ EDITOR_SIZE = (100, 40)
 """Terminal size with room for an application and the editor together."""
 
 PIPELINE_FILE = 'e13_pipeline.json'
-"""Input file that the four embedding examples share."""
+"""Input file that the six examples of opening the editor share."""
+
+SAVED_PIPELINE = {'name': 'release-candidate', 'workers': 8}
+"""What a save of that file unchanged writes, as JSON reads it back.
+
+Every example that opens the editor on `PIPELINE_FILE` and saves it writes
+these two members, so the expectation is here rather than in each test module.
+"""
 
 DATA_FOLDER = Path(__file__).resolve().parents[2] / 'data'
 """Folder holding the input files that the examples are run against.
@@ -198,9 +205,55 @@ def refused(main: Callable[[list[str]], None],
     return capsys.readouterr().err
 
 
-def _close_window(window: tkinter.Tk) -> None:
-    """Stand in for Tk.mainloop by closing the window immediately."""
-    window.destroy()
+def _acting_loop(acting: Optional[Callable[[tkinter.Tk], None]]
+                 ) -> Callable[[tkinter.Tk], None]:
+    """Return a replacement for Tk.mainloop that acts once and closes.
+
+    The window is withdrawn first, so that a test suite does not put windows
+    on the screen of whoever runs it, and realized with `update_idletasks`, so
+    that the widgets in it can be found and pressed.
+
+    Args:
+        acting: What is done to the window, standing in for the user, or None
+            for a run that only opens it.
+
+    Returns:
+        A function that can replace `Tk.mainloop` for the duration of a test.
+    """
+    def instead(window: tkinter.Tk) -> None:
+        """Act on the window once instead of waiting for the user."""
+        window.withdraw()
+        window.update_idletasks()
+        try:
+            if acting is not None:
+                acting(window)
+        finally:
+            window.destroy()
+    return instead
+
+
+def open_tk_editor(main: Callable[[list[str]], None],
+                   monkeypatch: pytest.MonkeyPatch, *settings: str,
+                   acting: Optional[Callable[[tkinter.Tk], None]] = None
+                   ) -> None:
+    """Run one example whose editor owns the window, and act on it once.
+
+    Such an example runs no `Tk.mainloop` of its own: the editor creates the
+    window and runs the loop, so replacing that loop is what stands in for the
+    user of the editor itself.
+
+    Args:
+        main: The `main` function of the example to run.
+        monkeypatch: The pytest fixture that replaces `Tk.mainloop`.
+        settings: The whole command line the example is given.
+        acting: What is done to the editor's window before it is closed, or
+            None for a run that only opens it.
+    """
+    monkeypatch.setattr(tkinter.Tk, 'mainloop', _acting_loop(acting))
+    try:
+        main(list(settings))
+    except tkinter.TclError:
+        pytest.skip(NO_DISPLAY)
 
 
 def open_tk_ui(main: Callable[[list[str]], None],
@@ -212,16 +265,12 @@ def open_tk_ui(main: Callable[[list[str]], None],
         monkeypatch: The pytest fixture that replaces `Tk.mainloop`.
         settings: Further command line arguments, such as an input file.
     """
-    monkeypatch.setattr(tkinter.Tk, 'mainloop', _close_window)
-    try:
-        main(['--ui', 'tk', *settings])
-    except tkinter.TclError:
-        pytest.skip(NO_DISPLAY)
+    open_tk_editor(main, monkeypatch, '--ui', 'tk', *settings)
 
 
-async def _quit_at_once(app: App[None], titles: list[str],
-                        quit_key: str) -> None:
-    """Start one Textual application headlessly and press its quit key.
+async def _pressed(app: App[None], titles: list[str],
+                   keys: tuple[str, ...]) -> None:
+    """Start one Textual application headlessly and press keys in it.
 
     The label is read while the application is running, because it is a widget
     of the editor and not the title of the application: an editor that an
@@ -229,23 +278,25 @@ async def _quit_at_once(app: App[None], titles: list[str],
     """
     async with app.run_test() as pilot:
         titles.append(str(app.query_one(f'#{TITLE_ID}', Static).content))
-        await pilot.press(quit_key)
+        for key in keys:
+            await pilot.press(key)
 
 
 def _headless_run(titles: list[str],
-                  quit_key: str) -> Callable[[App[None]], None]:
+                  keys: tuple[str, ...]) -> Callable[[App[None]], None]:
     """Return a replacement for App.run that runs it headlessly.
 
     Args:
         titles: List that receives the label of every started editor.
-        quit_key: Key that the stand-in user presses to end the editor.
+        keys: Keys that the stand-in user presses, ending with one that ends
+            the editor.
 
     Returns:
         A function that can replace `App.run` for the duration of a test.
     """
     def run_headless(app: App[None]) -> None:
-        """Start the application, read its label and quit it at once."""
-        asyncio.run(_quit_at_once(app, titles=titles, quit_key=quit_key))
+        """Start the application, read its label and press those keys."""
+        asyncio.run(_pressed(app, titles=titles, keys=keys))
     return run_headless
 
 
@@ -330,17 +381,9 @@ def run_tk_example(main: Callable[[list[str]], None],
             for the user of it.
         settings: Command line arguments of the run.
     """
-    def instead(window: tkinter.Tk) -> None:
-        """Stand in for Tk.mainloop by acting on the window once."""
-        window.withdraw()
-        window.update_idletasks()
-        try:
-            acting(window)
-        finally:
-            window.destroy()
     monkeypatch.setattr(tkinter.Misc, 'grab_set', _no_grab)
     monkeypatch.setattr(tkinter.Misc, 'grab_release', _no_grab)
-    monkeypatch.setattr(tkinter.Tk, 'mainloop', instead)
+    monkeypatch.setattr(tkinter.Tk, 'mainloop', _acting_loop(acting))
     try:
         main(list(settings))
     except tkinter.TclError:
@@ -494,6 +537,26 @@ def saved_members(main: Callable[[list[str]], None],
     return written
 
 
+def refusal_of(running: Callable[[], object]) -> str:
+    """Run one example that must refuse, and return what it ended with.
+
+    An example whose input file cannot be read ends the process rather than
+    opening an editor on values the user did not ask for. What it ended with
+    is the message, because that is what `sys.exit` is given.
+
+    Args:
+        running: The run that is expected to refuse. What it would have
+            answered with is not looked at, and differs between the ways of
+            running an example, which is what `object` says here.
+
+    Returns:
+        What the run ended with, as text.
+    """
+    with pytest.raises(SystemExit) as ended:
+        running()
+    return str(ended.value.code)
+
+
 def written_json(out_file: Path) -> object:
     """Return what one output file holds, as JSON space values.
 
@@ -504,6 +567,31 @@ def written_json(out_file: Path) -> object:
         The values in it, as JSON reads them.
     """
     return json.loads(out_file.read_text(encoding='UTF-8'))
+
+
+def editor_titles(main: Callable[[list[str]], None],
+                  monkeypatch: pytest.MonkeyPatch, *settings: str,
+                  keys: tuple[str, ...] = (QUIT_KEY,)) -> list[str]:
+    """Run one example whose editor owns the terminal, and read its label.
+
+    Such an example runs no Textual application of its own: the editor runs
+    one, so replacing `App.run` is what stands in for the user of the editor
+    itself.
+
+    Args:
+        main: The `main` function of the example to run.
+        monkeypatch: The pytest fixture that replaces `App.run`.
+        settings: The whole command line the example is given.
+        keys: Keys the stand-in user presses, ending with one that ends the
+            editor.
+
+    Returns:
+        The label of every editor that was started.
+    """
+    titles: list[str] = []
+    monkeypatch.setattr(App, 'run', _headless_run(titles, keys))
+    main(list(settings))
+    return titles
 
 
 def textual_titles(main: Callable[[list[str]], None],
@@ -525,7 +613,5 @@ def textual_titles(main: Callable[[list[str]], None],
     Returns:
         The label of every editor that was started.
     """
-    titles: list[str] = []
-    monkeypatch.setattr(App, 'run', _headless_run(titles, quit_key))
-    main(['--ui', 'textual', *settings])
-    return titles
+    return editor_titles(main, monkeypatch, '--ui', 'textual', *settings,
+                         keys=(quit_key,))

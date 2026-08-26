@@ -50,6 +50,33 @@ small configuration class that [_shared_pipeline.py](_shared_pipeline.py) also
 holds; examples 8 to 11 are where the shapes a real configuration has are
 taught, and every one of them works in a mounted editor unchanged.
 
+## Examples for the application programmer
+
+The examples above teach the library one idea at a time, and reading them in
+order is how to learn it. The **`a` series** is arranged the other way round:
+one example per situation an application can be in, for a programmer who
+already has a configuration class and wants to know which call to write. It
+belongs to
+[doc/application_programmers_guide.md](../../../doc/application_programmers_guide.md),
+which has one section per situation and a table that points at these files.
+
+There are six such situations, and four of them are examples 13 to 16 above.
+These are the other two, which are the two in which the editor owns the window
+or the terminal and the application has none of its own.
+
+| Example | What it teaches |
+| --- | --- |
+| [a01_tk_for_no_gui.py](a01_tk_for_no_gui.py) | A command that runs in a terminal, has no graphical user interface of its own, and wants one window for editing its configuration, which is `edit_cfg_json_tk.edit`. Why an application that already runs Tk cannot call it, why blocking is what makes the outcome a return value rather than a callback, that the object handed in is never modified so the object handed back is the one to go on with, and the two ways such a run can end before the editor opens: an input file that cannot be read, and a machine with no display. |
+| [a02_textual_for_no_gui.py](a02_textual_for_no_gui.py) | The same command in the terminal, which is `edit_cfg_json_textual.edit`: the editor takes the terminal on the alternate screen and gives it back. Why an application that already runs Textual cannot call it, and what this case has instead of a01's display, which is a terminal to run in. |
+
+**These two share the `-i` and `-o` command line of the four above**, and for
+one of the same reasons: no `--ui`. What each of them is about is *which* of
+the two `edit` functions an application calls, so an option that chose between
+them would be the example making the reader's decision for them. They share
+the one small configuration class of
+[_shared_pipeline.py](_shared_pipeline.py) as well, because what they edit is
+beside the point here too.
+
 ## Shared command line handling
 
 [cmd_line.py](cmd_line.py) is not a lesson. It is the command line handling
@@ -224,7 +251,21 @@ PYTHONPATH=examples/src ./venv/bin/edit-cfg-json-tk \
 
 That is a different thing from an example and is worth keeping apart from one.
 The examples are about what an application writes; the program is what an
-application author gets without writing anything. What the program cannot pass
-on is what only the application knows: the description mapping of
-[e03_described_config.py](e03_described_config.py) and the `Settings` of
-[e01_flat_config.py](e01_flat_config.py). Run the example itself to see those.
+application author gets without writing anything.
+
+What the program takes from the module beside the class is the description
+mapping, so the explanations of
+[e03_described_config.py](e03_described_config.py) can be seen without running
+it:
+
+```sh
+PYTHONPATH=examples/src ./venv/bin/edit-cfg-json-tk \
+    --module example.e03_described_config --class DescribedConfig \
+    --descriptions DESCRIPTIONS
+```
+
+What it cannot take is the `Settings` of
+[e01_flat_config.py](e01_flat_config.py), because a program has no application
+around it to ask: it reads every setting from a settings file instead, and
+`-c` says which one. Run the example itself to see an application deciding
+those in Python.

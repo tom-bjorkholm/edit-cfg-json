@@ -282,6 +282,10 @@ pip install --upgrade edit-cfg-json
 
 ## Documentation
 
+- For the programmer of an application that offers one of the two editors to
+  its own users:
+  [doc/application_programmers_guide.md](https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/application_programmers_guide.md)
+
 - For whoever edits a configuration in one of the two editors:
   [doc/end_users_guide.md](https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/end_users_guide.md)
 
@@ -308,7 +312,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 1997 passed, 3 deselected in 78s (0:01:18)
+- Test result: 2005 passed, 3 deselected in 77s (0:01:17)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

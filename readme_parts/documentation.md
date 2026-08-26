@@ -1,5 +1,9 @@
 ## Documentation
 
+- For the programmer of an application that offers one of the two editors to
+  its own users:
+  [doc/application_programmers_guide.md](https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/application_programmers_guide.md)
+
 - For whoever edits a configuration in one of the two editors:
   [doc/end_users_guide.md](https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/end_users_guide.md)
 

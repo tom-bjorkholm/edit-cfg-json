@@ -1,12 +1,15 @@
 #! /usr/bin/env python3
-"""The configuration that the four embedding examples all edit.
+"""The configuration that the six examples about opening the editor share.
 
 Examples 13 to 16 are about *where* the editor is: in an area of a window, in
 a window of its own, in an area of a Textual screen, or on a screen of its
-own. What they edit is beside the point, so they share this one small class
-rather than each writing a configuration of its own. Examples 8 to 11 are
-where the shapes a real configuration has are taught, and every one of them
-works in an embedded editor unchanged.
+own. Examples a01 and a02 are the two ways of opening it that a command with
+no user interface of its own uses, where the editor owns the window or the
+terminal and the call comes back when the user is done. What all six edit is
+beside the point, so they share this one small class rather than each writing
+a configuration of its own. Examples 8 to 11 are where the shapes a real
+configuration has are taught, and every one of them works in any of the six
+unchanged.
 
 The command line is shared for the same reason, and it is two options rather
 than the three every other example has: `--policy` says what to do about
@@ -30,7 +33,7 @@ CLOSE_TEXT = 'Close the editor'
 """Text of the button an application closes the editor with."""
 
 SESSION_SAVED = 'The session saved a {name} object.'
-"""What an example that mounts the editor says about what was written."""
+"""What an example of opening the editor says about what was written."""
 
 SESSION_NOTHING = 'The session saved nothing.'
 """What it says when the session ended without writing anything."""
@@ -42,6 +45,12 @@ DESCRIPTIONS: Descriptions = {
 
 MOST_WORKERS = 64
 """The largest number of jobs this application will run at the same time."""
+
+RUN_REPORT = 'Running {name} with {workers} workers.'
+"""What a command with no user interface says it is about to do."""
+
+RUN_UNCHANGED = 'Nothing was saved, so this run keeps the values it had.'
+"""What such a command says after a session that wrote nothing."""
 
 
 class PipelineConfig(Config):
@@ -92,7 +101,7 @@ class PipelineConfig(Config):
 
 
 class EditorFiles(NamedTuple):
-    """What one run of an embedding example was told about files."""
+    """What one run of an example of opening the editor was told."""
 
     in_file: Optional[str]
     """File the editor reads, or None for the declared defaults."""
@@ -121,14 +130,16 @@ def editor_files(name: str, args: Optional[list[str]]) -> EditorFiles:
 
 
 def session_result(saved: Optional[Config]) -> str:
-    """Return what one embedded editing session gave back, as a line.
+    """Return what one editing session gave back, as a line.
 
     An editor mounted in a window an application owns has no moment at which
     it could return anything, so the application reads `saved_config` of the
-    panel or the screen it mounted.
+    panel or the screen it mounted. An editor that owns the window or the
+    terminal answers with the same object as the return value of `edit`.
 
     Args:
-        saved: What that panel or screen holds as its saved object.
+        saved: The saved object of that panel or screen, or what `edit` gave
+            back.
 
     Returns:
         A line naming the saved configuration class, or saying there is none.
@@ -136,3 +147,22 @@ def session_result(saved: Optional[Config]) -> str:
     if saved is None:
         return SESSION_NOTHING
     return SESSION_SAVED.format(name=type(saved).__name__)
+
+
+def report_run(saved: Optional[Config]) -> None:
+    """Say what the session gave back and what the command goes on with.
+
+    A command that owns the whole run gets the saved object as the return
+    value of `edit`, and None when the user saved nothing. Both are ordinary
+    outcomes: the object is what the command runs with, and None leaves it
+    with the values it had before, because the editor never changes the
+    object it was handed.
+
+    Args:
+        saved: What the editing session wrote, or None when it wrote nothing.
+    """
+    print(session_result(saved))
+    if not isinstance(saved, PipelineConfig):
+        print(RUN_UNCHANGED)
+        return
+    print(RUN_REPORT.format(name=saved.name, workers=saved.workers))
