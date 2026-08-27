@@ -5,10 +5,12 @@ that is not a widget:
 
 - discovery of the editable structure of a `config_as_json.Config` object
   by introspection, so the application does not describe its schema twice:
-  its members, the values inside its lists and dicts, and the nested
-  configuration objects that own a region of the tree
+  its members, what the declaration of each of them says, the values inside
+  its lists and dicts, and the nested configuration objects that own a region
+  of the tree
 - the edit buffer, its per-field state, the tree of rows, the fold structure,
-  and what a node offers about how many elements it holds
+  what is being looked for and where the search looks, and what a node offers
+  about how many things it holds
 - validation, by applying the buffer to a copy of the configuration object and
   running the application's own validators rather than by inspecting them
 - loading, including making automatic changes to an old format file

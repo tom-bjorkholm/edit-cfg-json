@@ -29,26 +29,22 @@ is used, and it pulls in the core itself.
 
 ## Project status
 
-**Alpha. No API stability and no backward compatibility is offered while
-this package is in Alpha.** That applies to the core and to both
-backends. Public names may change without a major version bump.
+**The Alpha period is over.** From version 0.1.0 the three packages follow
+semantic versioning: a public name is not removed, and what it means is not
+changed, without a major version. That applies to the core and to both
+backends.
 
-Semantic versioning starts when the Alpha period ends. Until then, pin an
-exact version if your build needs to be reproducible.
+### What is public
 
-### Stable exception: Descriptions
+Everything a user of edit-cfg-json needs is re-exported from the top-level
+`edit_cfg_json` package, so nothing has to be imported from an internal
+module. That re-exported set is the public API, and it is what the promise
+above is about. Anything this package holds that is not re-exported is
+internal and may change in any release.
 
-A library or a program that only does
-
-```python
-from edit_cfg_json import Descriptions
-```
-
-and then uses the `Descriptions` type definition can safely use the
-latest version of `edit_cfg_json` in its declared dependencies with
-`install_requires = [ 'edit_cfg_json >=`...
-That type definition will be kept stable (or at least backward
-compatible).
+The three packages share a version number and are released together, so the
+version of one of them says which version of the other two it was built
+against.
 
 ## What this package does
 
@@ -57,10 +53,12 @@ that is not a widget:
 
 - discovery of the editable structure of a `config_as_json.Config` object
   by introspection, so the application does not describe its schema twice:
-  its members, the values inside its lists and dicts, and the nested
-  configuration objects that own a region of the tree
+  its members, what the declaration of each of them says, the values inside
+  its lists and dicts, and the nested configuration objects that own a region
+  of the tree
 - the edit buffer, its per-field state, the tree of rows, the fold structure,
-  and what a node offers about how many elements it holds
+  what is being looked for and where the search looks, and what a node offers
+  about how many things it holds
 - validation, by applying the buffer to a copy of the configuration object and
   running the application's own validators rather than by inspecting them
 - loading, including making automatic changes to an old format file
@@ -90,16 +88,17 @@ from edit_cfg_json import Descriptions, EditModel, LoadPolicy, Settings, \
 | `edit` | The whole of an editing session in one call: read the input file, build the model, run a backend to completion, and give back the configuration object that was saved, or `None` when nothing was. The backend is a parameter because this package never imports a user interface library; each backend package exports an `edit` of its own that supplies itself. |
 | `editor_model` | The first half of `edit` on its own: read the input file and give back the model of one session, for an application that shows that model itself. It takes every keyword `edit` takes except the backend, so a session is described in the same words whichever way the editor is opened. |
 | `EditModel` | The editable state of one `config_as_json.Config` object, discovered by looking at that object: the tree of rows, what has happened to each of them, `validate` over the whole buffer, and `save`. |
-| `Descriptions` | What the application says about the members it declares: a mapping from the absolute `config_as_json.ConfigPath` of a member to the text that explains it. It is the one type alias this library declares, and the one name that stays stable through Alpha. |
+| `Descriptions` | What the application says about the members it declares: a mapping from the absolute `config_as_json.ConfigPath` of a member to the text that explains it. It is one of the two type aliases this library declares, and `SettingsSource` is the other. |
 | `Settings` | What the application around the editor has already decided: the key combinations of its actions, what one of its own configuration files is called, and what becomes of a file that a save writes over. Every attribute has a default, so an application with no opinion passes nothing at all. |
 | `load_config`, `LoadPolicy` | Reading the input file into the application's own class, under a policy for declared values the file does not hold. `edit` and `editor_model` do this themselves; this is the door for an application that wants the loaded object first. |
 
 That is what an application uses. Writing a user interface backend, or a
 program on top of this one, needs the rest of the public API — `EditorBackend`
-and `DumpEditor`, the rows and their marks, the `Emphasis` vocabulary, the
-questions to ask before closing and before overwriting a file, `ConfigLoader`,
-`run_cli` and `ExitCode` — and every public name of this package is described
-in
+and `DumpEditor`, the rows and their marks, what each of them offers about how
+many things it holds, the `Emphasis` vocabulary, the search and where it looks,
+the questions to ask before closing and before overwriting a file,
+`ConfigLoader`, `SettingsConfig` with the settings file lookup, `run_cli` and
+`ExitCode` — and every public name of this package is described in
 [the api document](https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/edit-cfg-json_api.md).
 
 ## What the editor makes of a configuration class
@@ -125,11 +124,22 @@ differently. A container starts open unless opening it would flood the window.
 A member is a list or a dict because **how many** of them there are is a
 decision of whoever configures the application, so a container can be given an
 element, one can be taken out, and an element of a list can change places with
-a neighbour. A new element is copied and never invented: from the class that
-the declaration names, or from the values the class declares for the member,
-and failing both from the first element the member holds now. A container that
-can be given nothing says why below itself rather than offering a control that
-would refuse every press.
+a neighbour. A new element is copied and never invented, from one of three
+places and all of them the application's: the class that the declaration names,
+the values the class declares for the member — failing which the first element
+the member holds now — and last of all the type the member is annotated with,
+which says that an element of a `list[str]` is text. A container that can be
+given nothing says why below itself rather than offering a control that would
+refuse every press.
+
+**A member that may hold nothing is the same question one step apart**, so it
+is the same two controls. Such a member has two states rather than a text in a
+field: it holds a value, and its row offers taking that value away; or it holds
+nothing, its row says so instead of having a field, and it offers being given
+an empty value of its kind. A declared place that holds one nested
+configuration object or none works the same way, and a member the class leaves
+out of the file altogether keeps its row so that it can be given a value at
+all.
 
 ### Validation, by running the application's own validators
 
@@ -153,11 +163,13 @@ what the user typed, and every value a pass rewrote is marked.
 
 ### Explaining the values to the user
 
-Two sources of explanatory text, independent of each other and both optional.
-The docstring of the configuration class labels the configuration and the
-docstring of each nested class labels that object — nothing is passed for this,
-the class has it and the editor reads it. A `Descriptions` mapping labels the
-individual members, because a member has nothing of the kind at runtime:
+Three sources of explanatory text, independent of each other. Two of them the
+application writes and both of those are optional; the third is the type of the
+member, which is read rather than written and always says something. The
+docstring of the configuration class labels the configuration and the docstring
+of each nested class labels that object — nothing is passed for this, the class
+has it and the editor reads it. A `Descriptions` mapping labels the individual
+members, because a member has nothing of the kind at runtime:
 
 ````python
 from edit_cfg_json import Descriptions, edit
@@ -177,11 +189,16 @@ however deep the shape goes. A selector that addresses no member is never used
 and is never an error.
 
 Every member says what kind of value it holds whether the application describes
-it or not, and where a member holds an enum the names it accepts are said
-instead. What lives inside a validator — a range, a set of allowed values — is
-not read and never will be, so a limit is explained by the application in words
-or not at all. All of it is under one toggle, because a user who knows this
-configuration by heart wants the lines back.
+it or not — text, a whole number, a number, or true or false — read from the
+declaration of the member and failing that from the value it holds. Where a
+member holds an enum the names it accepts are said instead, and a member that
+may hold nothing says that as well, distinguishing the one its class writes as
+an empty value from the one its class leaves out of the file. What lives inside
+a validator — a range, a set of allowed values — is not read and never will be,
+so a limit is explained by the application in words or not at all. All of it is
+under one toggle, together with the sentence saying why a container cannot be
+given an element, because a user who knows this configuration by heart wants
+the lines back. What the application *refused* is never under it.
 
 ### Reading the input file
 
@@ -255,7 +272,14 @@ what a configuration file is called.
 The same answers are a configuration class of their own, `SettingsConfig`, so
 they can be read from a file, edited in this editor like any other
 configuration, and declared as one member of an application's own configuration
-class. That is what the two editor programs read their own settings from.
+class. `load_settings` and `settings_file` are the five-place lookup that the
+two editor programs read their own settings with, and an application is welcome
+to the same one.
+
+`settings` is a `SettingsSource`, which is a `Settings` or a callable answering
+with one. A callable is asked again at each point where an answer is used,
+which is what lets an application build the model long before it has decided
+how the editor is to behave.
 
 This package installs no program: the editors are `edit-cfg-json-tk` and
 `edit-cfg-json-textual`, and `python3 -m edit_cfg_json.dump --help` is a
@@ -312,7 +336,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 2005 passed, 3 deselected in 77s (0:01:17)
+- Test result: 2005 passed, 3 deselected in 78s (0:01:18)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

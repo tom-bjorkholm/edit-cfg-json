@@ -135,16 +135,17 @@ file when a save writes over it.
 | --- | --- |
 | [e12_archive.cfg](e12_archive.cfg) | Opens with every value from the file. It is the one data file with another extension, because that application uses `.cfg` for its configuration. Copy it somewhere else before saving over it, which is what the example says to do: the round trip is what keeps the previous content beside the file as `archive.cfg.old_1`. |
 
-## Files for the four examples that mount the editor
+## Files for the six examples about where the editor is
 
 `PipelineConfig` declares one text member and one number member.
-`e13_embedded_tk.py`, `e14_embedded_textual.py`, `e15_window_tk.py` and
-`e16_screen_textual.py` are not about them either: they are about where the
-editor is in an application that already runs a user interface.
+`e13_embedded_tk.py`, `e14_embedded_textual.py`, `e15_window_tk.py`,
+`e16_screen_textual.py`, `a01_tk_for_no_gui.py` and `a02_textual_for_no_gui.py`
+are not about them either: they are about where the editor is in an application
+that already runs a user interface, or has none at all.
 
 | File | What happens |
 | --- | --- |
-| [e13_pipeline.json](e13_pipeline.json) | Opens with both values from the file. It is one file for all four examples, because they are two applications in two toolkits each and the point of reading it at all is that the editor is told which file to read in the same call that says where it goes. It keeps its name from the example it was written for. |
+| [e13_pipeline.json](e13_pipeline.json) | Opens with both values from the file. It is one file for all six examples, because they are the six situations an application can be in and the point of reading it at all is that the editor is told which file to read in the same call that says where it goes. It keeps its name from the example it was written for. |
 
 ## Files for `e17_settings_config.py`
 

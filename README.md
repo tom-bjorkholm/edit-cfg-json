@@ -95,13 +95,13 @@ Each `README_pypi.md` is assembled from markdown fragments:
 
 - [readme_parts/](readme_parts/) holds the text that is the same for all
   three packages, such as the overview of how the packages fit together,
-  the Alpha status, installation and license.
+  the project status, installation and license.
 - `edit/readme_parts/`, `edit_tk/readme_parts/` and
   `edit_textual/readme_parts/` hold the text specific to one package.
   Each of them also holds a `template.md` that decides the section order
   for that package.
 
-Fragments may use two directives:
+Fragments may use three directives:
 
 - `{{include: name.md}}` inserts another fragment. The package's own
   `readme_parts` folder is searched first, then the repository wide one,
@@ -110,6 +110,10 @@ Fragments may use two directives:
 - `{{dist_name}}` and `{{import_name}}` insert the distribution name and
   the import name of the package the file is being generated for. This
   lets a shared fragment still name the package it ends up in.
+- `{{home_settings}}` inserts the name that the settings file of that
+  program has in the home folder, which is `.{{dist_name}}.cfg`. It is
+  what lets `readme_parts/program.md` describe the settings lookup once
+  for both editor packages.
 
 Write text that is common to all three packages once, in
 [readme_parts/](readme_parts/), rather than repeating it per package.
@@ -185,7 +189,7 @@ browsed through `reports/index.html`.
 
 ## Test summary
 
-- Test result: 2005 passed, 3 deselected in 77s (0:01:17)
+- Test result: 2005 passed, 3 deselected in 78s (0:01:18)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

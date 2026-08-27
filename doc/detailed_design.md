@@ -87,7 +87,7 @@ handling is fragile, which matters under this repository's strict checkers).
   differ.
 - The UI packages pin the core with a compatible-release constraint and not
   with an exact one, so a core patch release does not strand them.
-- After Alpha (section 2.5) the core follows semantic versioning, a promise
+- From 0.1.0 (section 2.5) the core follows semantic versioning, a promise
   third-party backend authors need more than the in-house backends do.
 - `BuildSpec.package_folders` stays unset; the three `pyproject.toml` files are
   auto-discovered.
@@ -111,20 +111,27 @@ handling is fragile, which matters under this repository's strict checkers).
   catch a wrong-direction import on their own, because all three packages are
   installed into the same venv at test time.
 
-### 2.5 Alpha status
+### 2.5 Release status
 
-The packages are released as Alpha. **While Alpha, no API stability or backward
-compatibility is offered**, for the core or for either backend. The
-public/internal split of section 2.4 still applies, but crossing a major
-version is not required to change a public name during Alpha.
+**The Alpha period ends with 0.1.0.** Releases 0.0.2 and 0.0.4 were Alpha, and
+what Alpha was for was publishing three packages before a backend written by
+somebody else had proven the public API of the core: the two in-house backends
+exercise that API and cannot test whether it is enough for a backend written
+without reading the core. Twenty-eight steps of delivery over both backends is
+what answers that instead, so the freedom to rename a public name without
+crossing a major version is given up rather than kept.
 
-Alpha is what makes it safe to publish three packages before a backend written
-by somebody else has proven the public API of the core: the two in-house
-backends exercise it and cannot test whether it is enough for a backend written
-without reading the core. The README and the PyPI classifiers say so plainly
-while it lasts: `Development Status :: 3 - Alpha` in all three
-`pyproject.toml`, and `readme_parts/alpha_status.md` in all three generated
-readme files.
+**From 0.1.0 the three packages follow semantic versioning**, which is the
+promise section 2.3 says third-party backend authors need. What the promise is
+about is exactly the public half of the split in section 2.4: a name that
+`edit_cfg_json/__init__.py` or a backend's own `__init__.py` re-exports is not
+removed, and what it means is not changed, without a major version. Everything
+else stays internal and may change in any release.
+
+The README and the PyPI classifiers say so in one place each:
+`readme_parts/project_status.md` in all three generated readme files, and the
+`Development Status` classifier in all three `pyproject.toml`, which the
+release commit moves off `3 - Alpha` together with the version.
 
 ### 2.6 Shared type aliases
 
@@ -138,10 +145,11 @@ Aliases use the `type` keyword. Two rules keep them from multiplying:
    backends. An alias for the same type declared again in another file
    is a defect, not a style preference.
 
-The aliases the design needs:
+The two aliases the design needs:
 
 ```python
-type Descriptions = Mapping[ConfigPath, str]
+type Descriptions = Mapping[ConfigPath, str]              # section 4.3
+type SettingsSource = Settings | Callable[[], Settings]   # section 9.4
 ```
 
 Buffer leaf values are `config_as_json.JsonType` under rule 1.
@@ -599,19 +607,28 @@ that holds for the marks, the title and the messages: two user interfaces that
 disagreed about whether they were explaining themselves would be worse than
 either behaviour.
 
-What the toggle covers:
+What the toggle covers is everything written below a row, which
+`row_description` puts together and `row_describes` answers for:
 
-- **shown** — the whole class docstring, and the description of every
-  described member below that member
+- **shown** — the whole class docstring; below each row, what the application
+  said about that member, what the type of it says (section 4.3), the
+  docstring of the class of the object at it, and why it cannot be given an
+  element (section 4.9)
 - **hidden** — the summary of the class docstring, and nothing else
 
 The summary survives hiding because it is one line for the whole
 configuration. The editor **starts with the explanations shown**: an
 application that took the trouble to write a description mapping wrote it to be
-read. A member the application said nothing about is shown without a
-description rather than with an empty one, and a class with no docstring of its
-own without a label. Both are principle 4 of section 3, and both mean the
-backends create no widget for what can never hold anything.
+read. A class with no docstring of its own is shown without a label rather than
+with an empty one, and so is a row that has nothing of the four above. That is
+principle 4 of section 3, and it means the backends create no widget for what
+can never hold anything. Every member does have at least the line saying what
+kind of value it holds, so a member the application described is one that says
+more below itself and not the only one that says anything.
+
+**A refusal is not under the toggle** (section 6.5). Everything above is text
+*about* a value, and what the application refused is the one thing on a row
+that has to be read whatever the user asked to be shown.
 
 **The toggle is one action, and each backend says so in its own way.** A button
 that said "Explain" while the explanations were already there would offer
@@ -776,8 +793,8 @@ the member exists to allow, so a container can be given an element, one of its
 elements can be taken out, and an element of a list can change places with a
 neighbour.
 
-**A new element is copied and never invented**, from one of exactly two places,
-both of them the application's. Where the class declares that every element of
+**A new element is copied and never invented**, from one of three places, every
+one of them the application's. Where the class declares that every element of
 a list or every value of a dict is a configuration object, the declaration
 names the class and a new element is one object of it holding the values it
 declares — which works for an *empty* container. Where it declares no such
@@ -1040,9 +1057,11 @@ cannot express, which in practice means a class chosen by looking at the JSON.
 
 **Reading a file and the declared defaults are what need the loader**, which is
 what makes it affordable: section 6.1 does not construct the class at all. The
-second of the two is section 4.9's, where the values a class declares are what
-a new element of an ordinary list is copied from, so a class the editor cannot
-construct loses that one offer and nothing else.
+second of the two is section 4.9's, where the values a class declares are one
+of the three places a new element of an ordinary list is copied from, so a
+class the editor cannot construct loses that one place and nothing else: a list
+that already holds an element, or whose member carries an annotation, is
+offered one all the same.
 
 **A loader answers a call with no JSON source**, and that answer is the
 configuration the editor edits when it was given no file. So a loader that

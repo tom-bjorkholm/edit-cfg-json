@@ -176,9 +176,10 @@ Pure inspection. Nothing here knows that an editor exists.
 The tests are in
 [edit/test/test_edit_cfg_json/](../edit/test/test_edit_cfg_json/), mostly one
 `test_<module>.py` per module.
-[examples/src/example/](../examples/src/example/) holds nineteen worked
-examples, each one a small program, and they are the quickest way to see what
-a feature is for.
+[examples/src/example/](../examples/src/example/) holds twenty-one worked
+examples, each one a small program: nineteen that teach the library one idea
+at a time, and two more that answer which call an application writes. They are
+the quickest way to see what a feature is for.
 
 `./run_static_checks.py <files>` is the fast loop. `./run_clean_build.py` is
 what a change has to end with. Both are described in

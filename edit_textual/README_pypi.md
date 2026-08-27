@@ -29,26 +29,22 @@ is used, and it pulls in the core itself.
 
 ## Project status
 
-**Alpha. No API stability and no backward compatibility is offered while
-this package is in Alpha.** That applies to the core and to both
-backends. Public names may change without a major version bump.
+**The Alpha period is over.** From version 0.1.0 the three packages follow
+semantic versioning: a public name is not removed, and what it means is not
+changed, without a major version. That applies to the core and to both
+backends.
 
-Semantic versioning starts when the Alpha period ends. Until then, pin an
-exact version if your build needs to be reproducible.
+### What is public
 
-### Stable exception: Descriptions
+Everything a user of edit-cfg-json-textual needs is re-exported from the top-level
+`edit_cfg_json_textual` package, so nothing has to be imported from an internal
+module. That re-exported set is the public API, and it is what the promise
+above is about. Anything this package holds that is not re-exported is
+internal and may change in any release.
 
-A library or a program that only does
-
-```python
-from edit_cfg_json import Descriptions
-```
-
-and then uses the `Descriptions` type definition can safely use the
-latest version of `edit_cfg_json` in its declared dependencies with
-`install_requires = [ 'edit_cfg_json >=`...
-That type definition will be kept stable (or at least backward
-compatible).
+The three packages share a version number and are released together, so the
+version of one of them says which version of the other two it was built
+against.
 
 ## What this package does
 
@@ -234,11 +230,11 @@ eval "$(register-python-argcomplete edit-cfg-json-textual)"
 
 ## What the screen shows
 
-The screen holds a header, then what the configuration class says about itself,
-what reading the input file did, and one row per node of the configuration.
-Below those, and not scrolling with them, are the validation verdict, the
-saving line and the footer of keys. The title is marked while the model holds a
-change worth saving.
+The screen holds a header, then the label of the configuration, what the class
+says about itself, what reading the input file did, and one row per node of the
+configuration. Below those, and not scrolling with them, are the search, the
+validation verdict, the saving line and the footer of keys. The label is marked
+while the model holds a change worth saving.
 
 | Key | What it does |
 | --- | --- |
@@ -287,6 +283,15 @@ a dict opens a small screen that asks for the key, because nothing but the
 person configuring the application knows what a new entry is called. A
 container that can be given nothing gets no `Add` at all and says why below
 itself instead.
+
+**The same two controls give a value to a member that holds none**, and take
+it away again. A member its class allows to hold nothing has two states rather
+than a text in a field: while it holds a value it is an ordinary field offering
+`Del`, and while it holds nothing its row says so where the value would be, has
+no field, and offers `Add`. A declared place that holds one nested
+configuration object or none is the same thing one step up, saying which class
+is missing while it holds none. That is what tells an empty text apart from no
+value at all, in either direction.
 
 **Beside the class on the row of a nested object is what that object is on its
 own**: *valid on its own*, or *refused on its own* with the member it was about
@@ -382,7 +387,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 2005 passed, 3 deselected in 77s (0:01:17)
+- Test result: 2005 passed, 3 deselected in 78s (0:01:18)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

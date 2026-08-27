@@ -32,7 +32,11 @@ LATER_ACTION = 'down'
 """Name of the action that moves one element towards the back."""
 
 ADD_LABEL = 'Add'
-"""Label of the control that puts one more element into a node.
+"""Label of the control that gives a node one more value.
+
+That is one more element of a container, and it is also the value of a member
+that is allowed to hold nothing and holds nothing: the two are the same
+question one step apart, so they are the same control.
 
 It is a word and not the `+` of the fold control beside it, because the two do
 different things and one row can have both: a list of configuration objects
@@ -41,7 +45,12 @@ offers that could not be told apart.
 """
 
 REMOVE_LABEL = 'Del'
-"""Label of the control that takes one element out of what holds it."""
+"""Label of the control that takes one value off a node.
+
+`edit_cfg_json.ElementOffer.cleared` says which of the two that is: an element
+of a container is gone, and a declared place put back to holding nothing keeps
+its row and can be given an object or a value again.
+"""
 
 EARLIER_LABEL = 'Up'
 """Label of the control that moves one element towards the front."""

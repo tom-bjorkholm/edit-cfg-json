@@ -5,7 +5,7 @@ They are here rather than in the module that builds the window for the reason
 every other split of this backend was made: one module of a thousand lines is
 one nobody reads to the end. What is here is one row's worth of controls, and
 nothing else: the question that one of them has to ask is in `tk_ask`, with
-the other question this backend asks.
+the other questions this backend asks.
 
 Nothing here decides *whether* a node offers anything. That is
 `edit_cfg_json.MemberRow.offer`, which the core works out once so that the two
@@ -22,7 +22,11 @@ from edit_cfg_json_tk.tk_ask import asked_key
 from edit_cfg_json_tk.tk_look import ELEMENT_WIDTH
 
 ADD_TEXT = 'Add'
-"""Text of the control that puts one more element into a node.
+"""Text of the control that gives a node one more value.
+
+That is one more element of a container, and it is also the value of a member
+that is allowed to hold nothing and holds nothing: the two are the same
+question one step apart, so they are the same control.
 
 It is a word and not the `+` of the fold control beside it, because the two do
 different things and one row can have both: a list of configuration objects
@@ -31,7 +35,12 @@ offers that could not be told apart.
 """
 
 REMOVE_TEXT = 'Del'
-"""Text of the control that takes one element out of what holds it."""
+"""Text of the control that takes one value off a node.
+
+`edit_cfg_json.ElementOffer.cleared` says which of the two that is: an element
+of a container is gone, and a declared place put back to holding nothing keeps
+its row and can be given an object or a value again.
+"""
 
 EARLIER_TEXT = 'Up'
 """Text of the control that moves one element towards the front."""

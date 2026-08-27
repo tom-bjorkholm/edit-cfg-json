@@ -2547,14 +2547,20 @@ decision of whoever configures the application, so an editor that could change
 every one of them and add none would be refusing the decision the shape of the
 member exists to allow.
 
-**A new element is copied and never invented.** Where the class declares that
-every element of a list or every value of a dict is a configuration object,
-the declaration says which class to make one of, and one of that class holding
-its own declared values is what a new element is. Where it declares nothing,
-the values the class declares for the member itself are the pattern: the first
-element of them, and failing that the first element the member holds now. A
-member that has neither is a member the editor has nothing to copy for, and it
-says so rather than inventing a value that the application never mentioned.
+**A new element is copied and never invented**, from one of three places,
+every one of them the application's. Where the class declares that every
+element of a list or every value of a dict is a configuration object, the
+declaration says which class to make one of, and one of that class holding its
+own declared values is what a new element is. Where it declares nothing, the
+values the class declares for the member itself are the pattern: the first
+element of them, and failing that the first element the member holds now. And
+where no value at all says, the declared type of the member does, which
+`_typed_element` is: `list[str]` says that an element of that list is text,
+and the empty text is the one value of that kind that says no more than which
+kind it is. It is asked last because a value the application wrote says more
+about what belongs in that list than its kind does. A member that has none of
+the three is a member the editor has nothing to copy for, and it says so
+rather than inventing a value that the application never mentioned.
 
 **What cannot be done is said and not left to be discovered.** A dict whose
 keys are the ones its class declares cannot gain or lose one at all —
@@ -2905,9 +2911,11 @@ what an element of a list its class declares empty would be.
 
 The values that the class of the configuration declares.
 
-They are what a new element of an ordinary list is copied from, and they
-are empty for a class the editor could not construct at all, which costs
-that configuration the offer and nothing else.
+They are one of the three places a new element of an ordinary list is
+copied from, and they are empty for a class the editor could not construct
+at all. That costs such a configuration this one place and nothing else: a
+list that already holds an element, or whose member the class annotated, is
+offered one all the same.
 
 <a id="edit_cfg_json.elements.TreeFacts.made"></a>
 

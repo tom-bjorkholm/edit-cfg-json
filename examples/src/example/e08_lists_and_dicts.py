@@ -4,12 +4,11 @@
 Every example before this one has a configuration of plain values: a member is
 one name and one value, and one row of the editor shows it. That is not what
 real configurations look like. A member is very often a list of things or a
-dict of settings, and until now the editor said so and no more — the row read
-`<not editable yet: list>`, which was honest and not much use.
+dict of settings, and one row and one field could not show either of them.
 
-This example is where that changes. Ordinary JSON structure inside a
-configuration is now a tree of rows, and every value at the bottom of it is
-edited in a field of its own.
+This example is where the shape stops being flat. Ordinary JSON structure
+inside a configuration is a tree of rows, and every value at the bottom of it
+is edited in a field of its own.
 
 ## What a tree of rows looks like
 

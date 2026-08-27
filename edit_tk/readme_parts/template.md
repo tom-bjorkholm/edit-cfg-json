@@ -2,7 +2,7 @@
 
 {{include: three_packages.md}}
 
-{{include: alpha_status.md}}
+{{include: project_status.md}}
 
 {{include: purpose.md}}
 

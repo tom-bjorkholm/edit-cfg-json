@@ -128,6 +128,15 @@ a dict opens a small dialog for the key, because nothing but the person
 configuring the application knows what a new entry is called. A container that
 can be given nothing gets no `Add` at all and says why below itself instead.
 
+**The same two controls give a value to a member that holds none**, and take
+it away again. A member its class allows to hold nothing has two states rather
+than a text in a field: while it holds a value it is an ordinary field offering
+`Del`, and while it holds nothing its row says so where the value would be, has
+no field, and offers `Add`. A declared place that holds one nested
+configuration object or none is the same thing one step up, saying which class
+is missing while it holds none. That is what tells an empty text apart from no
+value at all, in either direction.
+
 **Beside the class on the row of a nested object is what that object is on its
 own**: *valid on its own*, or *refused on its own* with the member it was about
 saying why below itself. A list or a dict of such objects says what the objects
