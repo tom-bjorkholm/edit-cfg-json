@@ -201,7 +201,8 @@ version. Record which one, because the next step's fast iteration with
 | M5 Release readiness | 15 to 17 | Closing keeps what was not saved, files are not overwritten unannounced, and first release is documented, classified and published | done |
 | First release 0.0.2 | release on PyPI.org | [https://pypi.org/project/edit-cfg-json/](https://pypi.org/project/edit-cfg-json/) | done |
 | Second release 0.0.4 | 18 to 21 | Release 0.0.4 | done |
-| Third release 0.1.0 | 22 to 28 | Release 0.1.0 | not yet released |
+| Third release 0.1.0 | 22 to 28 | Release 0.1.0 | done |
+| Fourth release 0.2.0 | none | Release 0.2.0, the paths that `config-as-json` 1.7 reports | done |
 
 ## 3. Steps 29 onwards, as named steps
 
