@@ -270,8 +270,8 @@ def test_find_the_whole_path(capsys: pytest.CaptureFixture[str]) -> None:
     A part of a path is enough by default, so the name of a member reaches the
     member and every value inside it. The whole path singles one of them out.
     """
-    assert 'find ports.http: 1 of 1' in _dump(capsys, '--find', 'ports.http',
-                                              '--find-whole')
+    found = _dump(capsys, '--find', 'ports[http]', '--find-whole')
+    assert 'find ports[http]: 1 of 1' in found
     assert 'find ports: 1 of 1' in _dump(capsys, '--find', 'ports',
                                          '--find-whole')
 

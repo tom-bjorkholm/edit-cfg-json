@@ -265,13 +265,14 @@ class AppConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the configuration with its default values."""
         self.name: str = 'nightly'
         self.workers: int = 4
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the rules this application has for its own values."""
@@ -292,6 +293,15 @@ class derived from `Config` has to have one, and `return []` is what a class
 with no rules of its own answers. The editor has no rules at all — it hands
 the values to your class and reports what your class says about them, so this
 is where the rule that refuses 500 workers lives.
+
+`member_name` is the fourth of the keyword arguments `config_as_json`
+expects, and passing it on is what makes a diagnostic about a value inside a
+nested object name the whole path to that value, such as
+`outputs[1].width`. It is `None` for the configuration itself, which is a
+member of nothing. A class written before that argument existed is
+constructed without it and warns that it should be changed, in the editor
+exactly as in your own program; the editor needs nothing else of you for
+this.
 
 Three notes on reading the programs below.
 

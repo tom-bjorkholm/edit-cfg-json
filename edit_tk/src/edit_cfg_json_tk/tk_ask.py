@@ -174,8 +174,7 @@ def asked_key(row: core.MemberRow) -> Optional[str]:
     held = row.value if isinstance(row.value, dict) else {}
     while True:
         named = simpledialog.askstring(
-            ADD_KEY_TITLE,
-            ADD_KEY_PROMPT.format(name=core.path_text(row.path)))
+            ADD_KEY_TITLE, ADD_KEY_PROMPT.format(name=row.full_name))
         if not named:
             return None
         if named not in held:

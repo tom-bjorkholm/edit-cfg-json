@@ -77,7 +77,7 @@ from edit_cfg_json.loader import ConfigSource
 from edit_cfg_json.member_types import node_types
 from edit_cfg_json.placing import new_object
 from edit_cfg_json.tree import ConfigNode, by_key_nestings, member_nestings, \
-    member_values, owner_path, path_text, unchecked_members
+    member_values, owner_path, unchecked_members
 
 BUILD_ERRORS = (AttributeError, KeyError, TypeError, ValueError)
 """Every way in which constructing a configuration class can fail.
@@ -858,14 +858,14 @@ def kept_order(count: int, without: int) -> list[int]:
 
 
 def checked_key(offer: ElementOffer, value: JsonType, key: str,
-                path: ConfigPath) -> None:
+                name: str) -> None:
     """Refuse a key that cannot name the new element of one container.
 
     Args:
         offer: What that container offers, which says whether it is keyed.
         value: Value of the container as it is now.
         key: Name that the new entry was asked to have.
-        path: Path of the container, for the message.
+        name: What the container is called, for the message.
 
     Raises:
         ValueError: A list was given a key, a dict was given none, or the key
@@ -875,24 +875,24 @@ def checked_key(offer: ElementOffer, value: JsonType, key: str,
     """
     if not offer.keyed:
         if key:
-            raise ValueError(KEY_UNWANTED.format(name=path_text(path)))
+            raise ValueError(KEY_UNWANTED.format(name=name))
         return
     if not key:
-        raise ValueError(KEY_NEEDED.format(name=path_text(path)))
+        raise ValueError(KEY_NEEDED.format(name=name))
     if isinstance(value, dict) and key in value:
-        raise ValueError(KEY_TAKEN.format(name=path_text(path), key=key))
+        raise ValueError(KEY_TAKEN.format(name=name, key=key))
 
 
-def refused(offered: bool, form: str, path: ConfigPath) -> None:
+def refused(offered: bool, form: str, name: str) -> None:
     """Raise the refusal of one change that a node does not offer.
 
     Args:
         offered: Whether the node offers it after all.
         form: Form of the message that says it does not.
-        path: Path of the node that was asked.
+        name: What the node that was asked is called.
 
     Raises:
         ValueError: The node does not offer that change.
     """
     if not offered:
-        raise ValueError(form.format(name=path_text(path)))
+        raise ValueError(form.format(name=name))

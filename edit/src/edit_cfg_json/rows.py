@@ -30,7 +30,7 @@ from edit_cfg_json.leaf_value import LeafType, NO_VALUE_TEXT, leaf_kind, \
 from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.tree import ConfigNode, NO_OBJECT_FORM, child_values, \
     config_nodes, container_text, flat_values, is_container, omitted_paths, \
-    ordered_names
+    ordered_names, path_text
 from edit_cfg_json.validation import SubtreeAnswer
 
 NOT_A_MEMBER = ''
@@ -56,6 +56,16 @@ class MemberRow(NamedTuple):
     dictionary entry. It is the same path that the description mapping names
     a member by, so a description of every element of a list is written with
     the `'['` step and reaches each of them.
+    """
+
+    full_name: str
+    """What this node is called where a person reads or types its path.
+
+    It is the path written as `config_as_json` names a configuration value in
+    every diagnostic, so that the editor and the application call one value
+    the same thing: `outputs[1].kind` where `name` is `kind`. Writing it needs
+    to know which nodes are configuration objects, which is why a row carries
+    it rather than every place that shows one working it out again.
     """
 
     value: JsonType
@@ -309,7 +319,11 @@ class MemberRow(NamedTuple):
 
     @property
     def name(self) -> str:
-        """Return the name of the node, the last step of its path."""
+        """Return the name of the node, the last step of its path.
+
+        It is what the row is labelled with, where what holds the node says
+        where it is. `full_name` is what names it on its own.
+        """
         return self.path[-1]
 
     @property
@@ -585,7 +599,7 @@ def _row_of(path: ConfigPath, value: JsonType, context: RowContext,
     declared = context.types.get(path, LeafType())
     was = previous.get(path)
     return MemberRow(
-        path=path, value=value,
+        path=path, full_name=path_text(path, context.nodes), value=value,
         original=value if was is None else was.original,
         children=_children_of(path=path, value=value, node=node),
         config_type=None if node is None else node.config_type,

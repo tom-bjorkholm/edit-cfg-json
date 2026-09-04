@@ -47,7 +47,7 @@ be liftable on its own. Two things to check before you publish any of it:
 | **row** | One line of the editor: a name, a value, and whatever is true of that value. |
 | **container** | A member that holds several things — a list or a dict. Each thing in it is a row of its own. |
 | **object** | A group of members with a name and rules of its own, shown as one row with its members as the rows below it. |
-| **path** | How a value inside a container is named, with dots between the steps: `outputs.0.width` is the `width` of the first element of `outputs`. |
+| **path** | How a value inside a container is named: a member of an object comes after a dot and a value inside a list or a dict comes in brackets, so `outputs[1].width` is the `width` of the second element of `outputs`. It is the same notation the application itself uses when it says what is wrong with a value. |
 | **the file** | The configuration file the editor reads and writes. Your application decides what it is called. |
 
 ---
@@ -386,7 +386,7 @@ and the editor explains it.
 
 | Tick | Ticked to start | What it does |
 | --- | --- | --- |
-| `path` | yes | Look in the name. It is the whole path, so `ports.http` finds that one value and `ports` finds the member and everything in it. |
+| `path` | yes | Look in the name. It is the whole path, so `ports[http]` finds that one value and `ports` finds the member and everything in it. |
 | `value` | yes | Look in the value, which is the text the field shows. Rows with no value of their own are not looked in. |
 | `Aa` | no | Match upper and lower case exactly. Off, `WIDTH` finds `width`. |
 | `==` | no | The text has to be the whole name or the whole value, not a part of it. |
@@ -418,7 +418,7 @@ therefore has three states, not two:
 | `validation: not validated` | Nothing has been asked since these values last changed. It is not a complaint. |
 | `validation: valid` | The application accepts these values. |
 | `validation: invalid` | The application refuses them, for a reason that is about no single member. The reason is on the lines below. |
-| `validation: invalid, see outputs.0.width, retries` | The application refuses them, and each named member says why below itself. |
+| `validation: invalid, see outputs[1].width, retries` | The application refuses them, and each named member says why below itself. |
 
 **Where a refusal is written**: at the member it is about, under that
 member's own description, in a colour of its own. What is about no single
@@ -901,7 +901,7 @@ and the editor explains it.
 
 | Tick | Ticked to start | What it does |
 | --- | --- | --- |
-| `path` | yes | Look in the name. It is the whole path, so `ports.http` finds that one value and `ports` finds the member and everything in it. |
+| `path` | yes | Look in the name. It is the whole path, so `ports[http]` finds that one value and `ports` finds the member and everything in it. |
 | `value` | yes | Look in the value, which is the text the field shows. Rows with no value of their own are not looked in. |
 | `Aa` | no | Match upper and lower case exactly. Off, `WIDTH` finds `width`. |
 | `==` | no | The text has to be the whole name or the whole value, not a part of it. |
@@ -933,7 +933,7 @@ therefore has three states, not two:
 | `validation: not validated` | Nothing has been asked since these values last changed. It is not a complaint. |
 | `validation: valid` | The application accepts these values. |
 | `validation: invalid` | The application refuses them, for a reason that is about no single member. The reason is on the lines below. |
-| `validation: invalid, see outputs.0.width, retries` | The application refuses them, and each named member says why below itself. |
+| `validation: invalid, see outputs[1].width, retries` | The application refuses them, and each named member says why below itself. |
 
 **Where a refusal is written**: at the member it is about, under that
 member's own description, in a colour of its own. What is about no single

@@ -107,13 +107,16 @@ it. Their labels are short and each of them says the rest in a tooltip.
 
 Looking in the *path* is why `--find ports` reaches `ports` and both values
 inside it: a part of a path is enough, and the path of every value inside a
-member begins with the name of that member. It is also the notation the verdict
-line names a refused member in, so what you have just read is what you can
-type. Looking in the *value* is what finds `html` without knowing where it is.
+member begins with the name of that member. What is looked in is the path as
+the editor writes it, which is the notation the verdict line names a refused
+member in, so what you have just read is what you can type. A value inside a
+dict is `ports[http]` there, and the quotes below are what keeps the shell
+from reading the brackets as a file name pattern. Looking in the *value* is
+what finds `html` without knowing where it is.
 
 ````sh
 cd examples/src/example
-python3 e08_lists_and_dicts.py --ui dump --find ports.http --find-whole
+python3 e08_lists_and_dicts.py --ui dump --find 'ports[http]' --find-whole
 python3 e08_lists_and_dicts.py --ui dump --find HTML --find-in value
 python3 e08_lists_and_dicts.py --ui dump --find HTML --find-in value \
     --find-case
@@ -234,13 +237,17 @@ class ContainerConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the configuration with its default values.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration, so that a diagnostic about a value inside it
+                names the whole path. None for the top level itself.
         """
         # One plain member first, so that a tree of rows can be seen beside a
         # row that is only a row. Everything after it is a container.
@@ -257,7 +264,7 @@ class ContainerConfig(Config):
                                        for index in range(LABEL_COUNT)]
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the validators of the containers of this configuration.

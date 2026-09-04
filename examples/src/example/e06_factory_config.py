@@ -92,11 +92,17 @@ class TeamConfig(Config):
     loader.
     """
 
+    # The four keyword arguments are the constructor shape that
+    # `config_as_json` documents, and the argument of the application is the
+    # fifth. A class the editor can construct on its own has one fewer, and
+    # is what every example but this one and example 7 shows.
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def __init__(self, known_teams: Sequence[str],
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the configuration with the teams that exist.
 
         Args:
@@ -107,6 +113,9 @@ class TeamConfig(Config):
             from_json_filename: Optional path to a JSON file to read.
             auto_ch_hook: Hook notified about what reading an older file did.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration, so that a diagnostic about a value inside it
+                names the whole path. None for the top level itself.
         """
         self.team: str = known_teams[0]
         self.head_count: int = 3
@@ -117,7 +126,8 @@ class TeamConfig(Config):
         self._known_teams: tuple[str, ...] = tuple(known_teams)
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the one rule, which only the application could have written.

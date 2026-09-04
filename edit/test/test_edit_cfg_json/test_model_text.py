@@ -230,7 +230,8 @@ def test_verdict_before_save() -> None:
                           ('  spaced  ', '  spaced  '), ('42', '42')])
 def test_row_value_text(value: JsonType, expected: str) -> None:
     """Test a string shows as itself and every other scalar as its JSON."""
-    row = MemberRow(path=('member',), value=value, original=value)
+    row = MemberRow(path=('member',), full_name='member', value=value,
+                    original=value)
     assert row_value_text(row) == expected
 
 
@@ -238,7 +239,8 @@ def test_row_value_text(value: JsonType, expected: str) -> None:
                          [('typed', 'typed'), (7, '7'), ('', '')])
 def test_edited_value_text(value: JsonType, expected: str) -> None:
     """Test an edited member shows what it holds now, not what it held."""
-    row = MemberRow(path=('member',), value=value, original=42)
+    row = MemberRow(path=('member',), full_name='member', value=value,
+                    original=42)
     assert row_value_text(row) == expected
 
 
@@ -257,8 +259,9 @@ def test_edited_value_text(value: JsonType, expected: str) -> None:
 def test_row_marks(value: JsonType, rewritten: bool, filled: bool,
                    expected: str) -> None:
     """Test the marks of a member are shown together when several apply."""
-    row = MemberRow(path=('member',), value=value, original=42,
-                    changed_by_validator=rewritten, filled_from_default=filled)
+    row = MemberRow(path=('member',), full_name='member', value=value,
+                    original=42, changed_by_validator=rewritten,
+                    filled_from_default=filled)
     assert row_marks(row) == expected
 
 
@@ -601,8 +604,9 @@ def test_row_subtree_text(state: Optional[bool], expected: str) -> None:
     an answer, and a line saying so under every object would be a line of the
     window spent on nothing.
     """
-    row = MemberRow(path=('inner',), value={}, original={}, children=(),
-                    config_type=DocumentedCfg, subtree_valid=state)
+    row = MemberRow(path=('inner',), full_name='inner', value={}, original={},
+                    children=(), config_type=DocumentedCfg,
+                    subtree_valid=state)
     assert row_subtree_text(row) == expected
 
 
@@ -616,8 +620,8 @@ def test_row_inside_text(state: Optional[bool], expected: str) -> None:
     themselves, and the words have to say so: a folded container shows none of
     the objects that the answer is really about.
     """
-    row = MemberRow(path=('outputs',), value=[], original=[], children=(),
-                    subtree_valid=state)
+    row = MemberRow(path=('outputs',), full_name='outputs', value=[],
+                    original=[], children=(), subtree_valid=state)
     assert row_subtree_text(row) == expected
 
 
@@ -634,8 +638,8 @@ def test_row_is_object(config_type: Optional[type[Config]],
     member holding no object has no object to ask, which is the case with a
     class and no children.
     """
-    row = MemberRow(path=('inner',), value={}, original={}, children=children,
-                    config_type=config_type)
+    row = MemberRow(path=('inner',), full_name='inner', value={}, original={},
+                    children=children, config_type=config_type)
     assert row.is_object is is_object
 
 
@@ -652,7 +656,8 @@ def test_refused_path_named() -> None:
     model = EditModel(KeyedEnumCfg())
     model.set_text(path=('shades', 'colour'), text='PURPLE')
     model.validate()
-    assert 'validation: invalid, see shades.colour' in model_as_text(model)
+    assert 'validation: invalid, see shades[colour]' in \
+        model_as_text(model)
 
 
 def test_described_element() -> None:

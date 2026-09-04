@@ -191,13 +191,17 @@ class ToolConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the configuration with its default values.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration, so that a diagnostic about a value inside it
+                names the whole path. None for the top level itself.
         """
         self.report_folder: str = '/var/lib/tool/reports'
         self.verbose: bool = False
@@ -208,7 +212,7 @@ class ToolConfig(Config):
         self.editor: SettingsConfig = SettingsConfig()
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def nested_configs(self) -> NestedConfigs:
         """Return the one member of this class that holds a nested object.

@@ -15,6 +15,7 @@ from collections.abc import Callable, Mapping
 from config_as_json import Config, ConfigPath, JsonType
 import pytest
 from edit_cfg_json.validation import validate_buffer
+from .old_style_cfg import OLD_STYLE_MESSAGE, OldStyleCfg
 from .sample_cfg import HIGHEST, REFUSAL_MESSAGE, SUM_LIMIT, \
     TOO_LARGE_MESSAGE, AllowedCfg, EnumCfg, ExtraArgCfg, FlatCfg, HexCfg, \
     IntEnumCfg, ListCfg, OmitCfg, RangeCfg, RefuseCfg, RewriteCfg, RulesCfg, \
@@ -137,6 +138,26 @@ def test_rule_about_both() -> None:
     assert TOO_LARGE_MESSAGE.format(total=2 * HIGHEST) in \
         outcome.verdict.diagnostics
     assert 2 * HIGHEST > SUM_LIMIT
+
+
+# The library warns about the step this uses, which is the whole point of
+# it, and the warning is not this test's finding but its fixture.
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_old_style_step() -> None:
+    """Test a step written before paths existed is applied all the same.
+
+    Such a step takes no path, so the walk of the plan has to leave the path
+    out where it calls it, and the library answers whether it takes one. A
+    step called with an argument it does not take raises `TypeError`, which
+    the editor reports as a buffer that is no configuration, so this is the
+    difference between a rule the user is told about and a whole
+    configuration wrongly refused.
+    """
+    outcome = validate_buffer(config=OldStyleCfg(),
+                              members={'first': 1, 'second': 2})
+    assert not outcome.verdict.valid
+    assert OLD_STYLE_MESSAGE in outcome.verdict.diagnostics
+    assert not outcome.verdict.refused
 
 
 def test_silent_refusal_told() -> None:

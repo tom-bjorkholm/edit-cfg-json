@@ -115,7 +115,8 @@ python3 e10_config_containers.py --ui dump \
 ````
 
 That object says *refused on its own*, every other object says *valid on its
-own*, and the verdict line names `reports_by_id.audit.max_rows`.
+own*, and the verdict line names `reports_by_id[audit].max_rows`, which is
+the notation `config_as_json` names a configuration value by.
 
 ## A rule about all of them belongs to the class holding them
 
@@ -216,19 +217,26 @@ class ReportOutputConfig(Config):
     declaration in `CourseReportsConfig` below.
     """
 
-    # The three keyword arguments below are the constructor that
+    # The four keyword arguments below are the constructor that
     # `config_as_json` builds a nested object with, whether that object is a
     # member, an element of a list or a value of a dict. It is the same
     # contract in all three cases, which is why one class covers all of them.
+    # The last of them is the path that this object is reached by, such as
+    # `every_report[1]`, and passing it on is what makes a refusal from
+    # inside this object say which report it is about.
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize one report with its default values.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration, so that a diagnostic about a value inside it
+                names the whole path. None for the top level itself.
         """
         # Three members, shown in this order because this is the order they
         # are assigned in. Three is also what keeps the dict of two reports
@@ -238,7 +246,7 @@ class ReportOutputConfig(Config):
         self.max_rows: int = 1000
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the one rule that every report of this example obeys.
@@ -293,8 +301,8 @@ class ReportsDiffer(WholeConfigValidator):
     over the list and the dict together.
     """
 
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
+    def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str] = None) -> None:
         """Refuse two reports that would be written to one file.
 
         Args:
@@ -302,10 +310,14 @@ class ReportsDiffer(WholeConfigValidator):
                 every report comparable at all.
             stderr_file: Stream that the refusal is written to before it is
                 raised, which is the contract every validator here follows.
+            member_name: Path for reaching that object from the top level
+                configuration, unused because this refusal is about no
+                member of it.
 
         Raises:
             InvalidConfiguration: Two reports name the same file.
         """
+        _ = member_name
         assert isinstance(config, CourseReportsConfig)
         names = [report.file_name for report in config.every_report()]
         repeated = sorted(name for name in set(names) if names.count(name) > 1)
@@ -358,13 +370,17 @@ class CourseReportsConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the course reports with their default values.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration, so that a diagnostic about a value inside it
+                names the whole path. None for the top level itself.
         """
         # One plain member first, so that an ordinary row can be seen beside
         # the two containers of objects.
@@ -378,7 +394,7 @@ class CourseReportsConfig(Config):
             _reports_by_id(stderr_file)
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def every_report(self) -> list[ReportOutputConfig]:
         """Return every report of this export, however it is held.

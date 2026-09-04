@@ -345,9 +345,14 @@ class _ParsedKeys(Exception):
         super().__init__(RECORDED)
 
 
+# The parameters are the ones of `Config.check_key_match`, which is what
+# this stands in for, so there is no choice about how many there are.
+# pylint: disable-next=too-many-arguments
 def _record_keys(expected_keys: list[str], j_keys: list[str],
                  ok_to_use_defaults: bool, stderr_file: TextIO,
-                 allowed_missing_keys: Optional[list[str]] = None) -> None:
+                 allowed_missing_keys: Optional[list[str]] = None, *,
+                 member_name: Optional[str] = None,
+                 dict_keys: bool = False) -> None:
     """Record the keys of one parse, and stop that parse there.
 
     This stands in for `Config.check_key_match` on the probe below, so the
@@ -355,6 +360,11 @@ def _record_keys(expected_keys: list[str], j_keys: list[str],
     `Config.parse_json` calls it. There is no object among them for the same
     reason as in `validation`: an attribute of an object is not a bound method,
     and the real method is a static one in any case.
+
+    Only the check of the members is stood in for. The keys of a dict member
+    are checked by the same method called on the class, which an attribute of
+    one object does not reach, so the keys that arrive here are always the
+    keys of the configuration itself.
 
     Args:
         expected_keys: The members that the configuration class declares.
@@ -365,11 +375,17 @@ def _record_keys(expected_keys: list[str], j_keys: list[str],
             nothing writes nothing to.
         allowed_missing_keys: Keys that may be missing whatever the policy is,
             which a check that refuses nothing has no use for either.
+        member_name: Path of the object whose keys these are, which the real
+            method names a missing key below. It is the whole configuration
+            here, because only the top level check is stood in for.
+        dict_keys: Whether the keys are keys of a plain dictionary, which
+            these never are for the same reason.
 
     Raises:
         _ParsedKeys: Always, carrying the two sets of keys.
     """
-    _ = (ok_to_use_defaults, stderr_file, allowed_missing_keys)
+    _ = (ok_to_use_defaults, stderr_file, allowed_missing_keys, member_name,
+         dict_keys)
     raise _ParsedKeys(declared=expected_keys, held=j_keys)
 
 

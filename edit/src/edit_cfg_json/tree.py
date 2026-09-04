@@ -56,11 +56,12 @@ which is a different thing from a member that has both.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Container, Iterable, Iterator, Mapping, Sequence
 from typing import NamedTuple, Optional, TextIO
 import json
+import re
 from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
-    ConfigPath, JsonType
+    ConfigPath, JsonType, member_path
 
 EVERY_ELEMENT = '['
 """The path step that means every list element or dictionary value here.
@@ -72,12 +73,28 @@ nesting declaration says every element of a list is a configuration object
 with.
 """
 
-PATH_SEPARATOR = '.'
-"""What separates the steps of a path where a path is written as text.
+INDEX_OPEN = '['
+"""What comes before the index or the key of a step written as text.
 
 A path is a tuple everywhere inside the editor. It becomes text where a person
 has to read it or type it, which is the line that names the members a
 validation pass refused and the command line of the example programs.
+
+The notation is the one `config_as_json` names a configuration value by in
+every diagnostic it prints, so that the editor and the application call one
+value the same thing: a value inside a list or a dict comes in brackets, and
+a member of a configuration object comes after a dot. The dot is
+`config_as_json.member_path`, which is where that half of the notation lives.
+"""
+
+INDEX_CLOSE = ']'
+"""What comes after it."""
+
+PATH_STEPS = re.compile(r'\[([^]]*)]|([^.\[]+)')
+"""Every step of a path written as text, each as a key and then a name.
+
+One of the two groups matches and the other is empty, which is how a step
+written in brackets is told from one written after a dot.
 """
 
 ELEMENTS_FORM = '{count} elements'
@@ -117,33 +134,76 @@ each is eighteen rows and not three.
 """
 
 
-def path_text(path: ConfigPath) -> str:
+def _step_text(text: str, step: str, indexed: bool) -> str:
+    """Return one path written as text with one more step of it in it.
+
+    Args:
+        text: The path of what holds the step, empty for the top level.
+        step: The step to add.
+        indexed: Whether the step indexes a list or a dict rather than
+            naming a member of a configuration object.
+
+    Returns:
+        The path of that step, written as text.
+    """
+    if indexed:
+        return f'{text}{INDEX_OPEN}{step}{INDEX_CLOSE}'
+    return member_path(text or None, step)
+
+
+def path_text(path: ConfigPath, objects: Container[ConfigPath] = ()) -> str:
     """Return one path as the text that a person reads and types.
+
+    It is written as `config_as_json` writes it, which is what makes the
+    editor and the application name one configuration value the same way. A
+    step that names a member of a configuration object comes after a dot, and
+    a step that indexes a list or a dict comes in brackets, so which of the
+    two a step is depends on what holds it rather than on the step itself.
+
+    That is what the paths of the configuration objects are needed for.
+    `config_nodes` answers with them, and `MemberRow.full_name` is this
+    already worked out for every node the editor shows. A configuration with
+    no nested object at all has none of them, which the default says.
 
     Args:
         path: Path that addresses one node of the tree.
+        objects: Path of every node that holds a configuration object of its
+            own, whose members are named after a dot.
 
     Returns:
-        The steps of that path, separated by dots.
+        The steps of that path, written as text, such as `outputs[1].kind`.
     """
-    return PATH_SEPARATOR.join(path)
+    text = ''
+    for depth, step in enumerate(path):
+        text = _step_text(text=text, step=step,
+                          indexed=depth > 0 and path[:depth] not in objects)
+    return text
 
 
 def text_path(text: str) -> ConfigPath:
     """Return the path that one piece of text addresses.
 
-    This is the inverse of `path_text`, and it is why a dictionary key that
-    holds a dot cannot be addressed as text. Such a key is edited in the
-    editor like any other; it is only the writing of its path that this
-    cannot express.
+    This is the inverse of `path_text`, and it needs to know nothing about
+    the configuration: the brackets say which steps index a container. A dot
+    before a step is read as a step separator as well, so the dotted form
+    that a path had before the brackets addresses the same node wherever no
+    dictionary key holds a dot. That is deliberate: a shell reads brackets as
+    a file name pattern unless they are quoted, and a command line naming a
+    node is where a path is typed.
+
+    A dictionary key holding a closing bracket is what this cannot address.
+    Such a key is edited in the editor like any other; it is only the writing
+    of its path that this cannot express, which is the same thing
+    `config_as_json` says about the paths it prints.
 
     Args:
-        text: Path written with a dot between its steps.
+        text: Path written as `path_text` writes it, or with a dot before
+            every step.
 
     Returns:
         The path that text stands for.
     """
-    return tuple(text.split(PATH_SEPARATOR))
+    return tuple(key or name for key, name in PATH_STEPS.findall(text))
 
 
 def member_values(config: Config, stderr_file: TextIO) -> dict[str, JsonType]:

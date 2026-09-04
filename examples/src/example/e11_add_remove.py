@@ -389,13 +389,17 @@ class StageConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize one stage with its default values.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration, so that a diagnostic about a value inside it
+                names the whole path. None for the top level itself.
         """
         # These three values are what a new stage holds when the editor adds
         # one, because a new element of a `LIST_ELEMENT` member is one object
@@ -405,7 +409,7 @@ class StageConfig(Config):
         self.minutes: int = 10
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the one rule that every stage of this example obeys."""
@@ -422,19 +426,23 @@ class RunnerConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize one runner with its default values.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration, so that a diagnostic about a value inside it
+                names the whole path. None for the top level itself.
         """
         self.host: str = 'localhost'
         self.parallel: int = 1
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the one rule that every runner of this example obeys."""
@@ -544,13 +552,17 @@ class PipelineConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the pipeline with its default values.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration, so that a diagnostic about a value inside it
+                names the whole path. None for the top level itself.
         """
         self.pipeline_name: str = 'nightly'
         # A list of configuration objects: the declaration below says what an
@@ -594,7 +606,7 @@ class PipelineConfig(Config):
         self._unchecked_dicts = ['labels']
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def every_stage(self) -> list[StageConfig]:
         """Return every stage of this pipeline, however it is held.

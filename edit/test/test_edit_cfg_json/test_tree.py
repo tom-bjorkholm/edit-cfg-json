@@ -18,11 +18,48 @@ from .sample_cfg import FlatCfg, OmitCfg
 
 
 @pytest.mark.parametrize('path, text', [(('name',), 'name'),
-                                        (('tags', '0'), 'tags.0'),
-                                        (('a', 'b', 'c'), 'a.b.c')])
+                                        (('tags', '0'), 'tags[0]'),
+                                        (('a', 'b', 'c'), 'a[b][c]'),
+                                        (('limits', 'a.b'), 'limits[a.b]'),
+                                        (('tags', '['), 'tags[[]'),
+                                        ((), '')])
 def test_path_text(path: ConfigPath, text: str) -> None:
-    """Test a path is written with a dot between its steps."""
+    """Test a step inside a container is written in brackets.
+
+    Nothing here holds a configuration object of its own, so every step
+    below the first indexes a list or a dict. The notation is the one
+    `config_as_json` names a configuration value by.
+    """
     assert path_text(path) == text
+    assert text_path(text) == path
+
+
+@pytest.mark.parametrize('path, text',
+                         [(('section', 'kind'), 'section.kind'),
+                          (('outputs', '1', 'kind'), 'outputs[1].kind'),
+                          (('reports', 'audit', 'rows'),
+                           'reports[audit].rows')])
+def test_object_path_text(path: ConfigPath, text: str) -> None:
+    """Test a member of a configuration object is written after a dot.
+
+    Which of the two notations a step is written in depends on what holds
+    it, so the paths of the objects are what says it.
+    """
+    objects = {(), ('section',), ('outputs', '1'), ('reports', 'audit')}
+    assert path_text(path, objects) == text
+    assert text_path(text) == path
+
+
+@pytest.mark.parametrize('text, path',
+                         [('ports.http', ('ports', 'http')),
+                          ('outputs.1.kind', ('outputs', '1', 'kind'))])
+def test_dotted_text_path(text: str, path: ConfigPath) -> None:
+    """Test the dotted form of a path addresses the same node.
+
+    A shell reads brackets as a file name pattern unless they are quoted, and
+    a command line naming a node is where a path is typed, so the form a path
+    had before the brackets is still read.
+    """
     assert text_path(text) == path
 
 

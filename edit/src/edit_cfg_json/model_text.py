@@ -576,18 +576,39 @@ def _row_as_text(model: EditModel, row: MemberRow) -> str:
     return '\n'.join(lines)
 
 
-def _state_line(verdict: ValidationVerdict) -> str:
+def _refused_names(model: EditModel, verdict: ValidationVerdict) -> str:
+    """Return what to call each of the nodes that were refused.
+
+    The rows say which nodes are configuration objects, which is what writing
+    a path needs to know. A refused node that has no row at all is named all
+    the same, because a line that left one out would say that fewer values
+    have to be corrected than there are.
+
+    Args:
+        model: Model whose rows the refused nodes are nodes of.
+        verdict: What the last validation pass found.
+
+    Returns:
+        The name of every refused node, separated by commas.
+    """
+    objects = frozenset(row.path for row in model.rows
+                        if row.config_type is not None)
+    return ', '.join(path_text(path, objects) for path in verdict.refused)
+
+
+def _state_line(model: EditModel, verdict: ValidationVerdict) -> str:
     """Return the one line that says what the application made of a buffer.
 
     Args:
+        model: Model whose validation state is reported.
         verdict: What the last validation pass found.
 
     Returns:
         The state of the buffer, naming the nodes that were refused.
     """
     if verdict.refused:
-        return REFUSED_FORM.format(
-            names=', '.join(path_text(path) for path in verdict.refused))
+        return REFUSED_FORM.format(names=_refused_names(model=model,
+                                                        verdict=verdict))
     state = VALID_STATE if verdict.valid else INVALID_STATE
     return VERDICT_FORM.format(state=state)
 
@@ -612,7 +633,8 @@ def verdict_text(model: EditModel) -> str:
     verdict = model.verdict
     if verdict is None:
         return VERDICT_FORM.format(state=UNKNOWN_STATE)
-    lines = [_state_line(verdict), verdict.diagnostics.strip()]
+    lines = [_state_line(model=model, verdict=verdict),
+             verdict.diagnostics.strip()]
     return '\n'.join(line for line in lines if line)
 
 

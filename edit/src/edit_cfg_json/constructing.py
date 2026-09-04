@@ -44,6 +44,16 @@ STREAM_NAME = 'stderr_file'
 FILE_NAME = 'from_json_filename'
 """Name of the constructor parameter that names a file to read."""
 
+MEMBER_NAME = 'member_name'
+"""Name of the constructor parameter that says where the object is.
+
+It is the path for reaching a nested configuration object from the top level
+one, and nothing is ever passed under it but `None`: what is constructed here
+is the whole configuration and is a member of nothing. It is passed all the
+same, because a class that declares the parameter without a default of its
+own has to be given one.
+"""
+
 JSON_TEXT_NAMES = ('from_json_data_text', 'from_json_text')
 """Every name a configuration class gives its JSON text parameter.
 
@@ -80,6 +90,8 @@ def _arguments(factory: Callable[..., Config],
         arguments[STREAM_NAME] = stream
     if FILE_NAME in parameters:
         arguments[FILE_NAME] = None
+    if MEMBER_NAME in parameters:
+        arguments[MEMBER_NAME] = None
     text_name = next((name for name in JSON_TEXT_NAMES if name in parameters),
                      None)
     if text_name is not None:
@@ -118,9 +130,14 @@ def built_config(factory: Callable[..., Config], *, stream: TextIO) -> Config:
     return factory(**_arguments(factory=factory, stream=stream))
 
 
+# One argument per independent thing about the parse: the object, the text,
+# where the diagnostics go, the one method to stand in for, and where the
+# object is. Every one after the text is a keyword.
+# pylint: disable-next=too-many-arguments
 def parsed_config(config: Config, text: str, *, stream: TextIO,
                   replace: str = '',
-                  method: Optional[Callable[..., object]] = None) -> Config:
+                  method: Optional[Callable[..., object]] = None,
+                  member_name: Optional[str] = None) -> Config:
     """Return a copy of one configuration object holding one JSON text.
 
     This is how an edit buffer becomes a configuration object. The copy is what
@@ -149,6 +166,10 @@ def parsed_config(config: Config, text: str, *, stream: TextIO,
         method: What to replace that method with, None to replace nothing. It
             is called as the method is called and without the object, because
             an attribute of the object is not a bound method.
+        member_name: Path for reaching this object from the top level
+            configuration, so that what the class says about a value names
+            the whole path to it. None for the whole configuration, which is
+            a member of nothing.
 
     Returns:
         A copy of that configuration object holding the values of the text.
@@ -163,5 +184,6 @@ def parsed_config(config: Config, text: str, *, stream: TextIO,
     parsed = deepcopy(config)
     if method is not None:
         setattr(parsed, replace, method)
-    parsed.parse_json(from_json_text=text, stderr_file=stream)
+    parsed.parse_json(from_json_text=text, stderr_file=stream,
+                      member_name=member_name)
     return parsed

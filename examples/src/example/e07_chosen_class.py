@@ -148,7 +148,8 @@ class CadConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the configuration of one mode.
 
         Args:
@@ -156,13 +157,23 @@ class CadConfig(Config):
             from_json_filename: Optional path to a JSON file to read.
             auto_ch_hook: Hook notified about what reading an older file did.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration, so that a diagnostic about a value inside it
+                names the whole path. None for the top level itself.
         """
+        # The constructor shape that `config_as_json` documents is the same
+        # in every configuration class, so two examples declaring it are two
+        # examples with the same lines in them. Writing it out is what each
+        # example here is for, which is why this is suppressed rather than
+        # shared with example 6.
+        # pylint: disable=duplicate-code
         self.mode: str = self.OWN_MODE
         self.project_name: str = 'demo-part'
         self.grid_size_mm: float = FINEST_MODEL_GRID
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the rules of this mode, one of which the subclass says.

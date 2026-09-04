@@ -481,9 +481,19 @@ class LowNotHigh(WholeConfigValidator):
     rather than at one of the rows below it.
     """
 
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
-        """Refuse an object whose low value is above its high value."""
+    def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str] = None) -> None:
+        """Refuse an object whose low value is above its high value.
+
+        Args:
+            config: The configuration object that this rule is about.
+            stderr_file: Stream that the refusal is written to before it is
+                raised.
+            member_name: Path for reaching that object from the top level
+                configuration, unused because this refusal is about no
+                member of it.
+        """
+        _ = member_name
         low = getattr(config, 'low', 0)
         high = getattr(config, 'high', 0)
         if low > high:
@@ -515,9 +525,19 @@ class WidthNotLow(WholeConfigValidator):
     it is a perfectly good configuration on its own.
     """
 
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
-        """Refuse a configuration whose two objects agree on one number."""
+    def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str] = None) -> None:
+        """Refuse a configuration whose two objects agree on one number.
+
+        Args:
+            config: The configuration object that this rule is about.
+            stderr_file: Stream that the refusal is written to before it is
+                raised.
+            member_name: Path for reaching that object from the top level
+                configuration, unused because this refusal is about no
+                member of it.
+        """
+        _ = member_name
         width = getattr(config, 'ranged').width
         if width == getattr(config, 'ordered').low:
             _refuse(CROSS_REFUSAL.format(width=width), stderr_file)
@@ -833,12 +853,13 @@ class ExtraInnerCfg(SampleCfg):
 
     def __init__(self, home: str, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Take the extra argument and then declare and apply the rest."""
         self.home: str = home
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def declare_members(self) -> None:
         """Assign the one member that the constructor did not."""

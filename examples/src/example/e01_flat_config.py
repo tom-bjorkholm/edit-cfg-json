@@ -318,18 +318,24 @@ class FlatConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the configuration with its default values.
 
-        The three keyword arguments are the ones that `config_as_json`
+        The four keyword arguments are the ones that `config_as_json`
         expects of a configuration class. Keeping to them is what lets the
         editor construct the class itself, which is how it validates: the
-        buffer is written as JSON text and handed to this constructor.
+        buffer is written as JSON text and handed to this constructor. The
+        last of them says where a nested object is, and is `None` for a
+        configuration that is nested in nothing, as this one is.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration, so that a diagnostic about a value inside it
+                names the whole path. None for the top level itself.
         """
         # The members are assigned before super().__init__() is called.
         # These assignments are both the schema and the default values, and
@@ -342,7 +348,7 @@ class FlatConfig(Config):
         self.answer: int = 42
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the validators that refuse and the one that rewrites.

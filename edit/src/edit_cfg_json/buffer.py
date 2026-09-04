@@ -423,8 +423,10 @@ class EditBuffer:
                 unwanted or one that dict already holds.
         """
         row = self._rows[path]
-        refused(offered=row.offer.extend, form=NOT_EXTENDABLE, path=path)
-        checked_key(offer=row.offer, value=row.value, key=key, path=path)
+        refused(offered=row.offer.extend, form=NOT_EXTENDABLE,
+                name=row.full_name)
+        checked_key(offer=row.offer, value=row.value, key=key,
+                    name=row.full_name)
         object_added(config=config, path=path, key=key, stream=StringIO())
         made = grown(value=row.value, key=key, template=row.offer.template) \
             if row.foldable else deepcopy(row.offer.template)
@@ -449,7 +451,8 @@ class EditBuffer:
             ValueError: That node is not one that can be removed.
         """
         row = self._rows[path]
-        refused(offered=row.offer.remove, form=NOT_REMOVABLE, path=path)
+        refused(offered=row.offer.remove, form=NOT_REMOVABLE,
+                name=row.full_name)
         object_removed(config=config, path=path)
         if row.offer.cleared:
             self._restructured(config=config, path=path, value=None, moved={})
@@ -476,7 +479,7 @@ class EditBuffer:
         """
         row = self._rows[path]
         refused(offered=row.offer.later if later else row.offer.earlier,
-                form=NOT_MOVABLE, path=path)
+                form=NOT_MOVABLE, name=row.full_name)
         object_moved(config=config, path=path, later=later)
         held = self._rows[path[:-1]]
         order = swapped(value=held.value, index=int(path[-1]), later=later)

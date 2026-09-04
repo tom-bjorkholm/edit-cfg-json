@@ -726,7 +726,7 @@ class ModelPanel(Widget):
             row: Node that is about to be given an entry.
         """
         cancel = self._model.settings.actions.cancel
-        name = core.path_text(row.path)
+        name = row.full_name
         prompt = ASK_KEY_PROMPT.format(name=name) if not cancel \
             else ASK_KEY_LEAVE.format(name=name, key=cancel[0])
 

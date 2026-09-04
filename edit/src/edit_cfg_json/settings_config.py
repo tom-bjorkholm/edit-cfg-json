@@ -138,7 +138,8 @@ class _ActionKeys(MemberValidator):  # pylint: disable=too-few-public-methods
 
         Args:
             config: The configuration object that owns the member.
-            member_name: Name of the member, which is `actions`.
+            member_name: What a diagnostic calls the member, which is
+                the path ending in `actions`.
             member_value: What the file or the edit buffer holds for it, whose
                 keys and values were checked by the validator before this one.
             stderr_file: Stream used for user-facing diagnostics.
@@ -167,7 +168,8 @@ def _built_actions(actions: Mapping[str, list[str]], member_name: str,
 
     Args:
         actions: The combinations of every action, by the name of that action.
-        member_name: Name of the member, which a refusal names.
+        member_name: What a refusal calls the member, which is the
+            whole path for reaching it.
         stderr_file: Stream used for user-facing diagnostics.
 
     Returns:
@@ -225,7 +227,8 @@ class _NamesAFile(MemberValidator):  # pylint: disable=too-few-public-methods
 
         Args:
             config: The configuration object that owns the member.
-            member_name: Name of the member being validated.
+            member_name: What a diagnostic calls the member, which is
+                the whole path for reaching it.
             member_value: What the file or the edit buffer holds for it, whose
                 type was checked by the validator before this one.
             stderr_file: Stream used for user-facing diagnostics.
@@ -259,7 +262,8 @@ class _WithDot(MemberValidator):  # pylint: disable=too-few-public-methods
 
         Args:
             config: The configuration object that owns the member.
-            member_name: Name of the member being validated.
+            member_name: What a diagnostic calls the member, which is
+                the whole path for reaching it.
             member_value: The extension, which names a file by now.
             stderr_file: Stream used for user-facing diagnostics.
 
@@ -324,7 +328,8 @@ class SettingsConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Declare every setting of the editor, and read the file there is.
 
         The declared values are read from `Settings` and `ActionSettings`
@@ -335,6 +340,10 @@ class SettingsConfig(Config):
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching these settings from the top level
+                configuration, so that what is said about one setting names
+                the whole path to it. None for a settings file of its own,
+                where these settings are the whole configuration.
         """
         declared = Settings()
         self.actions: dict[str, list[str]] = declared_actions()
@@ -346,7 +355,7 @@ class SettingsConfig(Config):
         self.confirm_overwrite: bool = declared.confirm_overwrite
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     def _get_read_old_config(self) -> ReadOldConfiguration:
         """Return how a settings file of an earlier release is read.

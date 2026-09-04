@@ -47,12 +47,13 @@ class SampleCfg(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Declare the members of the subclass and then apply the JSON."""
         self.declare_members()
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def declare_members(self) -> None:
         """Assign the configuration members and their default values."""
@@ -388,9 +389,19 @@ class TooLarge(WholeConfigValidator):  # pylint: disable=too-few-public-methods
     sum of two members is not one of them.
     """
 
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
-        """Refuse a configuration whose two numbers add up to too much."""
+    def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str] = None) -> None:
+        """Refuse a configuration whose two numbers add up to too much.
+
+        Args:
+            config: The configuration object that this rule is about.
+            stderr_file: Stream that the refusal is written to before it is
+                raised.
+            member_name: Path for reaching that object from the top level
+                configuration, unused because this refusal is about no
+                member of it.
+        """
+        _ = member_name
         total = getattr(config, 'first', 0) + getattr(config, 'second', 0)
         if total > SUM_LIMIT:
             message = TOO_LARGE_MESSAGE.format(total=total)
@@ -514,7 +525,8 @@ class HookCfg(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Record the hook that was given and then apply the JSON.
 
         The hook is recorded under a private name, so that it does not
@@ -526,7 +538,8 @@ class HookCfg(Config):
         self.answer: int = 42
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def hook_given(self) -> Optional[ConfigAutoChangeHook]:
         """Return the hook this object was constructed with, if any."""
@@ -592,13 +605,14 @@ class AltNameCfg(Config):
 
     def __init__(self, from_json_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Declare the members and then apply the JSON under the other name."""
         self.name: str = 'other name'
         self.answer: int = 5
         super().__init__(from_json_data_text=from_json_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return no extra validation steps."""
@@ -775,12 +789,13 @@ class ExtraArgCfg(SampleCfg):
 
     def __init__(self, home: str, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Take the extra argument and then apply the JSON."""
         self.home: str = home
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def declare_members(self) -> None:
         """Declare nothing, because the constructor did it already.

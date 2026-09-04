@@ -26,7 +26,9 @@
   * [find\_report](#edit_cfg_json.finding.find_report)
 * [edit\_cfg\_json.tree](#edit_cfg_json.tree)
   * [EVERY\_ELEMENT](#edit_cfg_json.tree.EVERY_ELEMENT)
-  * [PATH\_SEPARATOR](#edit_cfg_json.tree.PATH_SEPARATOR)
+  * [INDEX\_OPEN](#edit_cfg_json.tree.INDEX_OPEN)
+  * [INDEX\_CLOSE](#edit_cfg_json.tree.INDEX_CLOSE)
+  * [PATH\_STEPS](#edit_cfg_json.tree.PATH_STEPS)
   * [ELEMENTS\_FORM](#edit_cfg_json.tree.ELEMENTS_FORM)
   * [ELEMENT\_FORM](#edit_cfg_json.tree.ELEMENT_FORM)
   * [ENTRIES\_FORM](#edit_cfg_json.tree.ENTRIES_FORM)
@@ -486,6 +488,7 @@
   * [NOT\_A\_MEMBER](#edit_cfg_json.rows.NOT_A_MEMBER)
   * [MemberRow](#edit_cfg_json.rows.MemberRow)
     * [path](#edit_cfg_json.rows.MemberRow.path)
+    * [full\_name](#edit_cfg_json.rows.MemberRow.full_name)
     * [value](#edit_cfg_json.rows.MemberRow.value)
     * [original](#edit_cfg_json.rows.MemberRow.original)
     * [children](#edit_cfg_json.rows.MemberRow.children)
@@ -533,6 +536,7 @@
 * [edit\_cfg\_json.constructing](#edit_cfg_json.constructing)
   * [STREAM\_NAME](#edit_cfg_json.constructing.STREAM_NAME)
   * [FILE\_NAME](#edit_cfg_json.constructing.FILE_NAME)
+  * [MEMBER\_NAME](#edit_cfg_json.constructing.MEMBER_NAME)
   * [JSON\_TEXT\_NAMES](#edit_cfg_json.constructing.JSON_TEXT_NAMES)
   * [built\_config](#edit_cfg_json.constructing.built_config)
   * [parsed\_config](#edit_cfg_json.constructing.parsed_config)
@@ -945,15 +949,36 @@ is what one description reaches every element of a list with, and what one
 nesting declaration says every element of a list is a configuration object
 with.
 
-<a id="edit_cfg_json.tree.PATH_SEPARATOR"></a>
+<a id="edit_cfg_json.tree.INDEX_OPEN"></a>
 
-#### PATH\_SEPARATOR
+#### INDEX\_OPEN
 
-What separates the steps of a path where a path is written as text.
+What comes before the index or the key of a step written as text.
 
 A path is a tuple everywhere inside the editor. It becomes text where a person
 has to read it or type it, which is the line that names the members a
 validation pass refused and the command line of the example programs.
+
+The notation is the one `config_as_json` names a configuration value by in
+every diagnostic it prints, so that the editor and the application call one
+value the same thing: a value inside a list or a dict comes in brackets, and
+a member of a configuration object comes after a dot. The dot is
+`config_as_json.member_path`, which is where that half of the notation lives.
+
+<a id="edit_cfg_json.tree.INDEX_CLOSE"></a>
+
+#### INDEX\_CLOSE
+
+What comes after it.
+
+<a id="edit_cfg_json.tree.PATH_STEPS"></a>
+
+#### PATH\_STEPS
+
+Every step of a path written as text, each as a key and then a name.
+
+One of the two groups matches and the other is empty, which is how a step
+written in brackets is told from one written after a dot.
 
 <a id="edit_cfg_json.tree.ELEMENTS_FORM"></a>
 
@@ -1012,19 +1037,32 @@ each is eighteen rows and not three.
 #### path\_text
 
 ```python
-def path_text(path: ConfigPath) -> str
+def path_text(path: ConfigPath, objects: Container[ConfigPath] = ()) -> str
 ```
 
 Return one path as the text that a person reads and types.
 
+It is written as `config_as_json` writes it, which is what makes the
+editor and the application name one configuration value the same way. A
+step that names a member of a configuration object comes after a dot, and
+a step that indexes a list or a dict comes in brackets, so which of the
+two a step is depends on what holds it rather than on the step itself.
+
+That is what the paths of the configuration objects are needed for.
+`config_nodes` answers with them, and `MemberRow.full_name` is this
+already worked out for every node the editor shows. A configuration with
+no nested object at all has none of them, which the default says.
+
 **Arguments**:
 
 - `path` - Path that addresses one node of the tree.
+- `objects` - Path of every node that holds a configuration object of its
+  own, whose members are named after a dot.
   
 
 **Returns**:
 
-  The steps of that path, separated by dots.
+  The steps of that path, written as text, such as `outputs[1].kind`.
 
 <a id="edit_cfg_json.tree.text_path"></a>
 
@@ -1036,14 +1074,23 @@ def text_path(text: str) -> ConfigPath
 
 Return the path that one piece of text addresses.
 
-This is the inverse of `path_text`, and it is why a dictionary key that
-holds a dot cannot be addressed as text. Such a key is edited in the
-editor like any other; it is only the writing of its path that this
-cannot express.
+This is the inverse of `path_text`, and it needs to know nothing about
+the configuration: the brackets say which steps index a container. A dot
+before a step is read as a step separator as well, so the dotted form
+that a path had before the brackets addresses the same node wherever no
+dictionary key holds a dot. That is deliberate: a shell reads brackets as
+a file name pattern unless they are quoted, and a command line naming a
+node is where a path is typed.
+
+A dictionary key holding a closing bracket is what this cannot address.
+Such a key is edited in the editor like any other; it is only the writing
+of its path that this cannot express, which is the same thing
+`config_as_json` says about the paths it prints.
 
 **Arguments**:
 
-- `text` - Path written with a dot between its steps.
+- `text` - Path written as `path_text` writes it, or with a dot before
+  every step.
   
 
 **Returns**:
@@ -3124,7 +3171,7 @@ Return the order of one list with one element taken out of it.
 
 ```python
 def checked_key(offer: ElementOffer, value: JsonType, key: str,
-                path: ConfigPath) -> None
+                name: str) -> None
 ```
 
 Refuse a key that cannot name the new element of one container.
@@ -3134,7 +3181,7 @@ Refuse a key that cannot name the new element of one container.
 - `offer` - What that container offers, which says whether it is keyed.
 - `value` - Value of the container as it is now.
 - `key` - Name that the new entry was asked to have.
-- `path` - Path of the container, for the message.
+- `name` - What the container is called, for the message.
   
 
 **Raises**:
@@ -3149,7 +3196,7 @@ Refuse a key that cannot name the new element of one container.
 #### refused
 
 ```python
-def refused(offered: bool, form: str, path: ConfigPath) -> None
+def refused(offered: bool, form: str, name: str) -> None
 ```
 
 Raise the refusal of one change that a node does not offer.
@@ -3158,7 +3205,7 @@ Raise the refusal of one change that a node does not offer.
 
 - `offered` - Whether the node offers it after all.
 - `form` - Form of the message that says it does not.
-- `path` - Path of the node that was asked.
+- `name` - What the node that was asked is called.
   
 
 **Raises**:
@@ -4585,10 +4632,13 @@ class ConfigLoader(Protocol)
 
 Construct the application's configuration object for the editor.
 
-This is `config_as_json.ConfigFactory` plus the one parameter it lacks, so
-a factory an application already has is nearly one of these. The one that
-is added is the thing a load has to be told and a construction does not:
-whether the declared defaults may fill in what the file leaves out.
+This is `config_as_json.ConfigFactory` with one parameter added and one
+left out, so a factory an application already has is nearly one of these.
+The one that is added is the thing a load has to be told and a
+construction does not: whether the declared defaults may fill in what the
+file leaves out. The one left out is `member_name`, which says where a
+nested object is, because what a loader is asked for is the whole
+configuration and that is a member of nothing.
 
 It is checkable at runtime because a program of this library is told the
 name of one on a command line, and a name that turns out to be something
@@ -6469,7 +6519,8 @@ setting whatever the file held.
 ```python
 def __init__(from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
-             stderr_file: TextIO = sys.stderr) -> None
+             stderr_file: TextIO = sys.stderr,
+             member_name: Optional[str] = None) -> None
 ```
 
 Declare every setting of the editor, and read the file there is.
@@ -6483,6 +6534,10 @@ stated once and the two cannot come to disagree.
 - `from_json_data_text` - Optional JSON text to parse directly.
 - `from_json_filename` - Optional path to a JSON file to read.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Path for reaching these settings from the top level
+  configuration, so that what is said about one setting names
+  the whole path to it. None for a settings file of its own,
+  where these settings are the whole configuration.
 
 <a id="edit_cfg_json.settings_config.SettingsConfig.as_settings"></a>
 
@@ -8626,6 +8681,18 @@ dictionary entry. It is the same path that the description mapping names
 a member by, so a description of every element of a list is written with
 the `'['` step and reaches each of them.
 
+<a id="edit_cfg_json.rows.MemberRow.full_name"></a>
+
+#### full\_name
+
+What this node is called where a person reads or types its path.
+
+It is the path written as `config_as_json` names a configuration value in
+every diagnostic, so that the editor and the application call one value
+the same thing: `outputs[1].kind` where `name` is `kind`. Writing it needs
+to know which nodes are configuration objects, which is why a row carries
+it rather than every place that shows one working it out again.
+
 <a id="edit_cfg_json.rows.MemberRow.value"></a>
 
 #### value
@@ -8921,6 +8988,9 @@ def name() -> str
 ```
 
 Return the name of the node, the last step of its path.
+
+It is what the row is labelled with, where what holds the node says
+where it is. `full_name` is what names it on its own.
 
 <a id="edit_cfg_json.rows.MemberRow.depth"></a>
 
@@ -9340,6 +9410,18 @@ Name of the constructor parameter that takes the diagnostics stream.
 
 Name of the constructor parameter that names a file to read.
 
+<a id="edit_cfg_json.constructing.MEMBER_NAME"></a>
+
+#### MEMBER\_NAME
+
+Name of the constructor parameter that says where the object is.
+
+It is the path for reaching a nested configuration object from the top level
+one, and nothing is ever passed under it but `None`: what is constructed here
+is the whole configuration and is a member of nothing. It is passed all the
+same, because a class that declares the parameter without a default of its
+own has to be given one.
+
 <a id="edit_cfg_json.constructing.JSON_TEXT_NAMES"></a>
 
 #### JSON\_TEXT\_NAMES
@@ -9404,7 +9486,8 @@ def parsed_config(config: Config,
                   *,
                   stream: TextIO,
                   replace: str = '',
-                  method: Optional[Callable[..., object]] = None) -> Config
+                  method: Optional[Callable[..., object]] = None,
+                  member_name: Optional[str] = None) -> Config
 ```
 
 Return a copy of one configuration object holding one JSON text.
@@ -9436,6 +9519,10 @@ that are not callable.
 - `method` - What to replace that method with, None to replace nothing. It
   is called as the method is called and without the object, because
   an attribute of the object is not a bound method.
+- `member_name` - Path for reaching this object from the top level
+  configuration, so that what the class says about a value names
+  the whole path to it. None for the whole configuration, which is
+  a member of nothing.
   
 
 **Returns**:
@@ -10012,6 +10099,14 @@ buffer to the object that owns it is what reaches them, and it answers the
 other question a nested object raises as well — whether it is a configuration
 on its own, which is what its row says while the whole configuration is
 refused for a reason that is about something else entirely.
+
+**Every pass is told where it is.** `config_as_json` names a configuration
+value by the whole path from the top level down to it, and it is told that
+path as the `member_name` of the operation. So a pass over one nested object
+is given the path of that object, and what the application says about a value
+inside it names the value the same way the application's own reading of its
+own file would. That is also what the walk of the plan passes to each
+validator, since it is running the very steps the real pass runs.
 
 <a id="edit_cfg_json.validation.BUFFER_ERRORS"></a>
 

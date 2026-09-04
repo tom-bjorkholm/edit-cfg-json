@@ -103,11 +103,11 @@ def test_whole_path_looked_in() -> None:
     reaches the entry and the two values inside it.
     """
     model = EditModel(TreeCfg())
-    assert _matches(model, 'groups.red') == [('groups', 'red'),
-                                             ('groups', 'red', '0'),
-                                             ('groups', 'red', '1')]
-    assert _matches(model, 'red.') == [('groups', 'red', '0'),
-                                       ('groups', 'red', '1')]
+    assert _matches(model, 'groups[red]') == [('groups', 'red'),
+                                              ('groups', 'red', '0'),
+                                              ('groups', 'red', '1')]
+    assert _matches(model, 'red][') == [('groups', 'red', '0'),
+                                        ('groups', 'red', '1')]
 
 
 def test_found_in_value() -> None:
@@ -143,7 +143,7 @@ def test_whole_matched() -> None:
     """Test the whole of a path or a value has to match once asked for."""
     model = EditModel(TreeCfg())
     whole = FindOptions(whole=True)
-    assert _matches(model, 'groups.red', whole) == [('groups', 'red')]
+    assert _matches(model, 'groups[red]', whole) == [('groups', 'red')]
     assert _matches(model, 'red', whole) == []
     assert _matches(model, 'groups', whole) == [('groups',)]
 

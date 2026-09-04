@@ -20,7 +20,6 @@ from collections.abc import Mapping, Sequence
 from typing import NamedTuple, Optional
 from config_as_json import ConfigPath
 from edit_cfg_json.rows import MemberRow
-from edit_cfg_json.tree import path_text
 
 
 class FindOptions(NamedTuple):
@@ -158,7 +157,7 @@ def _texts_of(row: MemberRow, options: FindOptions) -> list[str]:
     Returns:
         The texts to compare with, empty for a node that has none of them.
     """
-    texts = [path_text(row.path)] if options.in_path else []
+    texts = [row.full_name] if options.in_path else []
     if options.in_value and row.editable:
         texts.append(row.value_text)
     return texts

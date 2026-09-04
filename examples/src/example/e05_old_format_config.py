@@ -146,7 +146,8 @@ class OldFormatConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the configuration with its default values.
 
         Args:
@@ -159,6 +160,9 @@ class OldFormatConfig(Config):
                 parameter is reported on exactly as well, which is what
                 `NoHookConfig` below is here to show.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration, so that a diagnostic about a value inside it
+                names the whole path. None for the top level itself.
         """
         self.format_version: int = CURRENT_FORMAT
         self.report_name: str = 'daily-summary'
@@ -166,7 +170,8 @@ class OldFormatConfig(Config):
         self.refresh_seconds: int = 300
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def _get_read_old_config(self) -> ReadOldConfiguration:
         """Return the rules that turn an older file into a current one."""
@@ -203,7 +208,7 @@ class NoHookConfig(OldFormatConfig):
     nowhere to put a hook.
 
     That is on purpose, and it is what most configuration classes look like:
-    the three keyword arguments that `config_as_json` documents, and no more.
+    the four keyword arguments that `config_as_json` documents, and no more.
     Such a class is edited exactly as well **and reported on exactly as
     fully**, because `Config` gives it a hook of its own and the editor reads
     that one. Nothing an application has to opt into is needed for any of this.
@@ -211,13 +216,17 @@ class NoHookConfig(OldFormatConfig):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the configuration, with no hook to be given.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration, so that a diagnostic about a value inside it
+                names the whole path. None for the top level itself.
         """
         # Leaving the hook out here used to be what made this class the one
         # that could not report the older keys of a file. It no longer costs
@@ -225,7 +234,7 @@ class NoHookConfig(OldFormatConfig):
         # what shows that.
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
 
 def main(args: Optional[list[str]] = None) -> None:

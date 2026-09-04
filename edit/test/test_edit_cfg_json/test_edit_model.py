@@ -349,7 +349,8 @@ def test_rows_are_a_snapshot() -> None:
                           ({'key': 1}, False), ([], False), ({}, False)])
 def test_row_editable(value: JsonType, editable: bool) -> None:
     """Test which kinds of JSON value a row reports as editable."""
-    row = MemberRow(path=('member',), value=value, original=value)
+    row = MemberRow(path=('member',), full_name='member', value=value,
+                    original=value)
     assert row.editable is editable
 
 
@@ -359,7 +360,8 @@ def test_row_editable(value: JsonType, editable: bool) -> None:
                           (None, False), (['a'], False), ({'a': 1}, False)])
 def test_row_is_text(value: JsonType, is_text: bool) -> None:
     """Test which kinds of member a row reports as holding text."""
-    row = MemberRow(path=('member',), value=value, original=value)
+    row = MemberRow(path=('member',), full_name='member', value=value,
+                    original=value)
     assert row.is_text is is_text
 
 
@@ -369,19 +371,21 @@ def test_row_is_text(value: JsonType, is_text: bool) -> None:
                           ('', None, True), (None, None, False)])
 def test_row_edited(value: JsonType, original: JsonType, edited: bool) -> None:
     """Test a row is edited when it would be written to the file anew."""
-    row = MemberRow(path=('member',), value=value, original=original)
+    row = MemberRow(path=('member',), full_name='member', value=value,
+                    original=original)
     assert row.edited is edited
 
 
 def test_row_name_is_last() -> None:
     """Test the name of a member is the last step of its path."""
-    row = MemberRow(path=('outer', 'inner'), value=1, original=1)
+    row = MemberRow(path=('outer', 'inner'), full_name='outer[inner]', value=1,
+                    original=1)
     assert row.name == 'inner'
 
 
 def test_row_flags_start_off() -> None:
     """Test the flags that later steps set are off in a new row."""
-    row = MemberRow(path=('member',), value=1, original=1)
+    row = MemberRow(path=('member',), full_name='member', value=1, original=1)
     assert not row.changed_by_validator
     assert not row.filled_from_default
     assert row.description == ''

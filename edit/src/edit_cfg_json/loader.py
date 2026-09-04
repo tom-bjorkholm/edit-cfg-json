@@ -62,10 +62,13 @@ becomes a refusal like any other.
 class ConfigLoader(Protocol):  # pylint: disable=too-few-public-methods
     """Construct the application's configuration object for the editor.
 
-    This is `config_as_json.ConfigFactory` plus the one parameter it lacks, so
-    a factory an application already has is nearly one of these. The one that
-    is added is the thing a load has to be told and a construction does not:
-    whether the declared defaults may fill in what the file leaves out.
+    This is `config_as_json.ConfigFactory` with one parameter added and one
+    left out, so a factory an application already has is nearly one of these.
+    The one that is added is the thing a load has to be told and a
+    construction does not: whether the declared defaults may fill in what the
+    file leaves out. The one left out is `member_name`, which says where a
+    nested object is, because what a loader is asked for is the whole
+    configuration and that is a member of nothing.
 
     It is checkable at runtime because a program of this library is told the
     name of one on a command line, and a name that turns out to be something

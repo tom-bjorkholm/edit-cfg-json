@@ -48,12 +48,21 @@ an example's editing really happens; making the same edit from a command line
 is what lets it be reached without a display. A member the user changed is
 marked, so the edit is visible even when the new value looks like the old one.
 
-A value inside a list or a dict is named by the whole path to it, with a dot
-between the steps: `--set retry_delays.0=3` and `--set ports.http=8080`. A
-member of the configuration has one step and is written as its own name,
-which is what every example before the lists and dicts one does. The one
-thing this notation cannot address is a dictionary key that holds a dot; such
-a key is edited in the editor like any other.
+A value inside a list or a dict is named by the whole path to it. A member of
+the configuration has one step and is written as its own name, which is what
+every example before the lists and dicts one does.
+
+The editor writes a path the way `config_as_json` writes one, which is the
+notation the verdict line and the search field use: a member of a nested
+object comes after a dot and a value inside a list or a dict comes in
+brackets, as in `retry_delays[0]` and `outputs[1].width`. A path is read back
+here in that notation, and a dot before a step is read as a step separator
+too, so `--set 'retry_delays[0]=3'` and `--set retry_delays.0=3` mean the
+same thing. Both are here because a shell would treat the brackets as a file
+name pattern unless they are quoted, and because a copied path is what a user
+has to hand. Only the bracket notation can address a dictionary key that
+holds a dot; a key holding a closing bracket cannot be addressed either way,
+and is edited in the editor like any other.
 
 `--fold PATH` folds one list or dict away, or opens it again if it is folded
 already, in the same way that pressing its control in a window does.
@@ -344,11 +353,13 @@ def _set_member(parser: argparse.ArgumentParser, model: EditModel, name: str,
     """Edit one value of the buffer, or say why it cannot be edited.
 
     The model is addressed by the path of a node, and a value inside a list
-    or a dict is named by the whole path to it, with a dot between the steps:
-    `retry_delays.0` is the first element of that list and `ports.http` is
-    that key of that dict. A member of the configuration is one step and is
-    therefore written as its own name, exactly as it was before there were
-    lists and dicts to address.
+    or a dict is named by the whole path to it: `retry_delays[0]` is the
+    first element of that list and `ports[http]` is that key of that dict,
+    which is the notation the editor writes. A dot before a step is read as
+    a step separator as well, so `retry_delays.0` addresses the same
+    element. A member of the configuration is one step and is therefore
+    written as its own name, exactly as it was before there were lists and
+    dicts to address.
 
     The model tells the two failures apart, and so does this: a name that
     addresses nothing at all is a different mistake from one that addresses

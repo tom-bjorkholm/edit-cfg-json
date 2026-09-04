@@ -22,6 +22,14 @@ buffer to the object that owns it is what reaches them, and it answers the
 other question a nested object raises as well — whether it is a configuration
 on its own, which is what its row says while the whole configuration is
 refused for a reason that is about something else entirely.
+
+**Every pass is told where it is.** `config_as_json` names a configuration
+value by the whole path from the top level down to it, and it is told that
+path as the `member_name` of the operation. So a pass over one nested object
+is given the path of that object, and what the application says about a value
+inside it names the value the same way the application's own reading of its
+own file would. That is also what the walk of the plan passes to each
+validator, since it is running the very steps the real pass runs.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -33,12 +41,20 @@ from types import MappingProxyType
 from typing import NamedTuple, Optional, TextIO
 import json
 from config_as_json import Config, ConfigPath, JsonType, \
-    MemberValidationStep, MemberValidator, ValidationPlan, ValidationStep
+    MemberValidationStep, MemberValidator, ValidationPlan, ValidationStep, \
+    member_path
+# The one implementation of whether a callable of the application takes the
+# path, and of the warning about one that does not. It is protected rather
+# than public API of `config_as_json`, and it is read for the same reason
+# `tree` reads the protected members of a configuration object: nothing else
+# answers the question, and a second implementation here could disagree with
+# the library about which callable is out of date.
+from config_as_json._deprecated_support import use_member_name
 from edit_cfg_json.constructing import parsed_config
 from edit_cfg_json.converting import convert_member, node_converters, \
     refusal_text
 from edit_cfg_json.tree import ConfigNode, config_nodes, file_values, \
-    flat_values, omitted_paths
+    flat_values, omitted_paths, path_text
 
 BUFFER_ERRORS = (KeyError, TypeError, ValueError)
 """Every way in which a configuration class refuses an edit buffer.
@@ -209,7 +225,8 @@ def _no_plan(stderr_file: TextIO) -> ValidationPlan:
     return []
 
 
-def _probe(config: Config, members: dict[str, JsonType]) -> Optional[Config]:
+def _probe(config: Config, members: dict[str, JsonType],
+           member_name: Optional[str]) -> Optional[Config]:
     """Return the buffer in an object that has not been validated.
 
     A configuration object normally cannot hold a buffer without being
@@ -234,6 +251,8 @@ def _probe(config: Config, members: dict[str, JsonType]) -> Optional[Config]:
         config: Configuration object of this session. It is not modified.
         members: The buffer as a file of this configuration would hold it,
             which is what `file_values` answers with.
+        member_name: Path of the object this buffer belongs to, None for the
+            whole configuration.
 
     Returns:
         An object holding the buffer, or None when the buffer is not a
@@ -241,7 +260,8 @@ def _probe(config: Config, members: dict[str, JsonType]) -> Optional[Config]:
     """
     try:
         return parsed_config(config, json.dumps(members), stream=StringIO(),
-                             replace=PLAN_METHOD, method=_no_plan)
+                             replace=PLAN_METHOD, method=_no_plan,
+                             member_name=member_name)
     except BUFFER_ERRORS:
         return None
 
@@ -277,7 +297,7 @@ def _unconverted(config: Config, members: dict[str, JsonType],
 
 
 def _attribute_member(validator: MemberValidator, probe: Config, name: str,
-                      refused: dict[ConfigPath, str]) -> None:
+                      refused: dict[ConfigPath, str], reported: str) -> None:
     """Run one validator over one member, keeping what it refused.
 
     The value the validator returns is stored back into the member, because
@@ -287,12 +307,15 @@ def _attribute_member(validator: MemberValidator, probe: Config, name: str,
     Args:
         validator: Validator to run.
         probe: Configuration object holding the buffer. It is modified.
-        name: Name of the member to validate.
+        name: Name of the member to validate, which is the attribute of the
+            object and the name that reads and writes it.
         refused: What each member has been refused for so far, added to.
+        reported: What a diagnostic about that member calls it, which is the
+            whole path to it and is what the real pass gives a validator.
     """
     captured = StringIO()
     try:
-        value = validator.validate_member(config=probe, member_name=name,
+        value = validator.validate_member(config=probe, member_name=reported,
                                           member_value=getattr(probe, name),
                                           stderr_file=captured)
     except BUFFER_ERRORS as error:
@@ -302,7 +325,8 @@ def _attribute_member(validator: MemberValidator, probe: Config, name: str,
 
 
 def _attribute_step(step: MemberValidationStep, probe: Config,
-                    refused: dict[ConfigPath, str]) -> None:
+                    refused: dict[ConfigPath, str],
+                    member_name: Optional[str]) -> None:
     """Run one member validator over each of the members that step names.
 
     A member that has already been refused is left alone, so that what is
@@ -313,34 +337,49 @@ def _attribute_step(step: MemberValidationStep, probe: Config,
         step: Validation step to apply.
         probe: Configuration object holding the buffer. It is modified.
         refused: What each member has been refused for so far, added to.
+        member_name: Path of the object being walked, None for the whole
+            configuration. Each member of it is named below that path.
     """
     for name in step.member_names:
         if not hasattr(probe, name) or (name,) in refused:
             continue
         _attribute_member(validator=step.validator, probe=probe, name=name,
-                          refused=refused)
+                          refused=refused,
+                          reported=member_path(member_name, name))
 
 
-def _step_refusal(step: ValidationStep, probe: Config) -> str:
+def _step_refusal(step: ValidationStep, probe: Config,
+                  member_name: Optional[str]) -> str:
     """Return what one step that is about no single member refused, if any.
+
+    The step is told where it is exactly as `config_as_json` tells it, which
+    means asking whether it takes that argument at all: a step written before
+    paths existed is applied without it and warns that it should be changed,
+    and the library has the one implementation of both halves of that.
 
     Args:
         step: Validation step to apply.
         probe: Configuration object holding the buffer. It is modified, as a
             whole-configuration validator is free to modify one.
+        member_name: Path of the object being walked, None for the whole
+            configuration.
 
     Returns:
         What that step said when it refused, and nothing when it did not.
     """
     captured = StringIO()
+    takes_path = use_member_name(step.apply, stacklevel=2)
     try:
-        step.apply(probe, captured)
+        if takes_path:
+            step.apply(probe, captured, member_name=member_name)
+        else:
+            step.apply(probe, captured)
     except BUFFER_ERRORS as error:
         return _told(captured=captured.getvalue(), error=error)
     return ''
 
 
-def _plan_failures(probe: Config) -> Attribution:
+def _plan_failures(probe: Config, member_name: Optional[str]) -> Attribution:
     """Walk the validation plan far enough to say which members are refused.
 
     `Config.validate()` stops at the first step that refuses, so the pass
@@ -356,6 +395,8 @@ def _plan_failures(probe: Config) -> Attribution:
     `MemberValidationStep.member_names` and `MemberValidationStep.validator`,
     both of which are public, so an application's own `MemberValidator`
     subclass is attributed exactly as the ones `config_as_json` ships are.
+    Each of them is told what the real pass tells it, which is the whole path
+    to the member and not its local name.
 
     The plan is asked of the class and not of the object, because it is the
     object that has no plan: what was replaced on it is the very method that
@@ -367,6 +408,8 @@ def _plan_failures(probe: Config) -> Attribution:
         probe: Configuration object holding the buffer, not yet validated. It
             is modified: a member validator returns the value that is stored
             back into the member, exactly as the real pass stores it.
+        member_name: Path of the object being walked, None for the whole
+            configuration.
 
     Returns:
         What each member was refused for, and what could not be attributed to
@@ -376,36 +419,45 @@ def _plan_failures(probe: Config) -> Attribution:
     plan = type(probe).get_validation_plan(probe, stderr_file=StringIO())
     for step in plan:
         if isinstance(step, MemberValidationStep):
-            _attribute_step(step=step, probe=probe, refused=refused)
+            _attribute_step(step=step, probe=probe, refused=refused,
+                            member_name=member_name)
             continue
         if refused:
             break
-        remaining = _step_refusal(step=step, probe=probe)
+        remaining = _step_refusal(step=step, probe=probe,
+                                  member_name=member_name)
         if remaining:
             return Attribution(refused=refused, remaining=remaining)
     return Attribution(refused=refused, remaining='')
 
 
-def _attribution(config: Config, members: dict[str, JsonType]) -> Attribution:
+def _attribution(config: Config, members: dict[str, JsonType],
+                 member_name: Optional[str]) -> Attribution:
     """Return what the validators of one refused buffer were about.
 
     Args:
         config: Configuration object of this session. It is not modified.
         members: The buffer as a file of this configuration would hold it.
+        member_name: Path of the object the buffer belongs to, None for the
+            whole configuration.
 
     Returns:
         What each member was refused for, and what could not be attributed.
         Both are empty when the buffer is not a configuration of this class
         at all, which is a refusal about no member and no value.
     """
-    probe = _probe(config=config, members=members)
+    probe = _probe(config=config, members=members, member_name=member_name)
     if probe is None:
         return Attribution(refused={}, remaining='')
-    return _plan_failures(probe)
+    return _plan_failures(probe=probe, member_name=member_name)
 
 
+# One argument per thing the refusal is about: the object, the buffer, what
+# the class said about it, how it said it, and where the object is.
+# pylint: disable-next=too-many-arguments
 def _refused_verdict(config: Config, members: dict[str, JsonType],
-                     captured: str, error: Exception) -> ValidationVerdict:
+                     captured: str, error: Exception,
+                     member_name: Optional[str]) -> ValidationVerdict:
     """Return the verdict of a pass that the configuration class refused.
 
     What the class printed is kept only when nothing at all could be
@@ -420,11 +472,14 @@ def _refused_verdict(config: Config, members: dict[str, JsonType],
         members: The buffer as a file of this configuration would hold it.
         captured: What the refused parse wrote to its stream.
         error: The failure that the parse reported.
+        member_name: Path of the object the buffer belongs to, None for the
+            whole configuration.
 
     Returns:
         A verdict saying that the buffer is not a configuration, and why.
     """
-    found = _attribution(config=config, members=members)
+    found = _attribution(config=config, members=members,
+                         member_name=member_name)
     if found.refused or found.remaining:
         return ValidationVerdict(valid=False, diagnostics=found.remaining,
                                  refused=found.refused)
@@ -438,7 +493,8 @@ def _no_pass(verdict: ValidationVerdict) -> ValidationPass:
 
 
 def _single_pass(config: Config, members: dict[str, JsonType],
-                 bool_nodes: frozenset[ConfigPath]) -> ValidationPass:
+                 bool_nodes: frozenset[ConfigPath],
+                 member_name: Optional[str] = None) -> ValidationPass:
     """Validate one edit buffer by applying it to a candidate configuration.
 
     The buffer is applied to a copy of the configuration object with
@@ -480,6 +536,10 @@ def _single_pass(config: Config, members: dict[str, JsonType],
         members: The edit buffer, as one JSON space value per member.
         bool_nodes: Path of every node that holds true or false, which is the
             type information the buffer holds and these values do not.
+        member_name: Path of the object the buffer belongs to, None for the
+            whole configuration. It is what the class names a value of the
+            buffer by, so a pass over one nested object says where that
+            object is and not only which of its members is meant.
 
     Returns:
         What the pass found, and the members of the configuration object it
@@ -495,13 +555,14 @@ def _single_pass(config: Config, members: dict[str, JsonType],
                           omitted=omitted_paths(config_nodes(config)))
     try:
         candidate = parsed_config(config, json.dumps(written),
-                                  stream=diagnostics)
+                                  stream=diagnostics, member_name=member_name)
         validated = json.loads(
-            candidate.as_json_string(stderr_file=diagnostics))
+            candidate.as_json_string(stderr_file=diagnostics,
+                                     member_name=member_name))
     except BUFFER_ERRORS as error:
         return _no_pass(_refused_verdict(config=config, members=written,
                                          captured=diagnostics.getvalue(),
-                                         error=error))
+                                         error=error, member_name=member_name))
     assert isinstance(validated, dict)
     accepted = ValidationVerdict(valid=True,
                                  diagnostics=diagnostics.getvalue())
@@ -583,9 +644,13 @@ def _inside(bool_nodes: frozenset[ConfigPath],
                      if node[:len(path)] == path)
 
 
-def _record_subtree(path: ConfigPath, node: ConfigNode, value: JsonType,
+# One argument per fact about the object being asked: where it is in the
+# tree, what is there, what the buffer holds for it, what has been found out
+# so far, and the two things the pass over it has to be told.
+# pylint: disable-next=too-many-arguments
+def _record_subtree(path: ConfigPath, *, node: ConfigNode, value: JsonType,
                     answers: dict[ConfigPath, SubtreeAnswer],
-                    bool_nodes: frozenset[ConfigPath]) -> None:
+                    bool_nodes: frozenset[ConfigPath], name: str) -> None:
     """Ask one nested object about its own part of the buffer.
 
     Args:
@@ -595,6 +660,8 @@ def _record_subtree(path: ConfigPath, node: ConfigNode, value: JsonType,
         answers: What the objects inside it said, which this adds to.
         bool_nodes: Path of every node of the whole tree that holds true or
             false.
+        name: What the object is called, which is what it names a value of
+            its own below.
     """
     if node.config is None or not isinstance(value, dict):
         return
@@ -603,7 +670,8 @@ def _record_subtree(path: ConfigPath, node: ConfigNode, value: JsonType,
         return
     verdict = _single_pass(config=node.config, members=value,
                            bool_nodes=_inside(bool_nodes=bool_nodes,
-                                              path=path)).verdict
+                                              path=path),
+                           member_name=name).verdict
     if verdict.valid:
         answers[path] = SubtreeAnswer(valid=True)
         return
@@ -649,7 +717,8 @@ def subtree_answers(config: Config, members: dict[str, JsonType],
     answers: dict[ConfigPath, SubtreeAnswer] = {}
     for path in _deepest_first(nodes=nodes, inside=inside):
         _record_subtree(path=path, node=nodes[path], value=values.get(path),
-                        answers=answers, bool_nodes=bool_nodes)
+                        answers=answers, bool_nodes=bool_nodes,
+                        name=path_text(path, nodes))
     return answers
 
 

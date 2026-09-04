@@ -418,7 +418,7 @@ def test_stub_scrolls(stub_tk: None) -> None:
     stub_find_var().set('ports')
     assert canvas.moved == []
     canvas.view = (0.5, 0.6)
-    stub_find_var().set('ports.http')
+    stub_find_var().set('ports[http]')
     assert canvas.moved == [0.0]
 
 

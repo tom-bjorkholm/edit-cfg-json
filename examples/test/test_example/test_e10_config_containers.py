@@ -199,7 +199,8 @@ def test_own_rule_per_object(capsys: pytest.CaptureFixture[str]) -> None:
                     f'reports_by_id.audit.max_rows={FEWEST_ROWS - 1}')
     assert f'    audit: {REPORT_CLASS} (edited){OWN_REFUSED}' in printed
     assert f'    summary: {REPORT_CLASS}{OWN_VALID}' in printed
-    assert 'validation: invalid, see reports_by_id.audit.max_rows' in printed
+    assert 'validation: invalid, see reports_by_id[audit].max_rows' \
+        in printed
     assert f'is less than minimum {FEWEST_ROWS}' in printed
 
 

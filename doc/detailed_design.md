@@ -974,10 +974,10 @@ fold state (section 4.9).
 what a person looking for a member wants without being asked: the path *and*
 the value, the case ignored, and a part of one of them enough.
 
-- The **path** is the whole path and not the name alone, so `ports.http` finds
-  that one value and `ports` finds the member and everything in it. It is also
-  the notation the verdict names a refused node in (section 6.5), so what a
-  user has just read is what they can type.
+- The **path** is the whole path and not the name alone, so `ports[http]`
+  finds that one value and `ports` finds the member and everything in it. It
+  is also the notation the verdict names a refused node in (section 6.5), so
+  what a user has just read is what they can type.
 - The **value** is the text the field shows. Only a node that has a value of
   its own is looked in for one: a list, a dict and a nested configuration
   object each have their value on the rows below them.
@@ -1336,6 +1336,21 @@ application validators work identically. `validate_member` receives the whole
 `config` object and may inspect other members, so a complete candidate must be
 built first: individual fields cannot be validated in isolation.
 
+**Each validator is told what the real pass tells it.** The `member_name` a
+member validator receives is the whole path to the member and not its local
+name, so the sentence it prints is the sentence the application's own reading
+of its own file would have printed. The walk therefore joins the local name
+onto the path of the object being walked with `config_as_json.member_path`,
+and the pass over one nested object (section 6.2) is given the path of that
+object. A step about no single member is told the same path, and whether it
+takes the argument at all is asked of
+`config_as_json._deprecated_support.use_member_name`: a step of an
+application written before paths existed is applied without it, exactly as
+the library applies it. Asking is not optional politeness. Calling such a
+step with the argument raises `TypeError`, which this editor reports as a
+buffer that is no configuration, so the user would be told that these values
+cannot be saved when there is nothing wrong with them.
+
 **The candidate this needs cannot be held the ordinary way.**
 `Config.parse_json()` ends in `validate()`, which raises at the first step that
 refuses, so the object that could say which member was refused is exactly the
@@ -1390,6 +1405,20 @@ fit a window (section 4.6).
 inside a list or a dict is a node of its own and two of them can share a name:
 a dictionary key called `cpu` must not be told what the application said about
 a member of that name.
+
+**A path is written the way `config_as_json` writes one**: a member of a
+configuration object comes after a dot and a value inside a list or a dict
+comes in brackets, so `outputs[1].width` is the `width` of the second element
+of `outputs`. Which of the two notations a step takes therefore depends on
+what holds it rather than on the step, and `path_text` is given the paths that
+hold a configuration object to answer it; `MemberRow.full_name` is that answer
+worked out once per node. The editor writes it this way because the
+application writes it this way: the sentence the user reads beside a member is
+usually the application's own, and one naming `outputs[1].width` beside a line
+naming `outputs.1.width` would be two names for one value. `text_path` is the
+inverse, which is what the command line of the example programs takes; a
+dictionary key holding a closing bracket is what it cannot express, as
+`config_as_json` says of its own paths.
 
 **What a member validator refused is about the whole member**, because the
 whole member is what it is given: `validate_member` receives one member name,

@@ -642,6 +642,35 @@ def test_refused_once_deep() -> None:
     assert row_at(model, ('outer',)).subtree_valid is False
 
 
+def test_deep_refusal_named() -> None:
+    """Test a refusal from inside an object names the whole path to it.
+
+    The object is asked about its own part of the buffer, and it is told
+    where it is while it is asked, so the sentence it prints names the value
+    the way the application's own reading of its own file would.
+    """
+    model = EditModel(DeepSubtreeCfg())
+    model.set_text(path=('outer', 'ranged', 'width'), text=TOO_WIDE)
+    verdict = model.validate()
+    assert 'outer.ranged.width' in verdict.refused[('outer', 'ranged',
+                                                    'width')]
+
+
+def test_element_named() -> None:
+    """Test an object inside a list is named by its index in brackets.
+
+    Every element of the list is the same class with the same members, so a
+    refusal naming only the member would leave the user to guess which
+    element of the list it is about.
+    """
+    model = EditModel(RangedObjectsCfg())
+    model.set_text(path=('outputs', '1', 'width'), text=TOO_WIDE)
+    verdict = model.validate()
+    assert 'outputs[1].width' in verdict.refused[('outputs', '1', 'width')]
+    assert row_at(model, ('outputs', '1', 'width')).full_name == \
+        'outputs[1].width'
+
+
 def test_own_state_in_dump() -> None:
     """Test the text rendering says what each object is on its own."""
     model = EditModel(SubtreeCfg())
