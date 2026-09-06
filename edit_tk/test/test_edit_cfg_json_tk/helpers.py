@@ -183,6 +183,17 @@ that is about the scrolling says that only a part is in view instead.
 STUB_CANVAS_ITEM = 7
 """Identifier that the stub gives the one item it is asked to create."""
 
+TOUCHPAD = '<TouchpadScroll>'
+"""The event that reports a touchpad, which only Tk 9 and later know.
+
+It is what a Mac reports for every device that scrolls in pixels rather than
+in turns, so it is what the editor really scrolls by there, and a Tk that has
+never heard of it leaves the editor that one binding short.
+"""
+
+PROBE_TAG = 'edit_cfg_json_probe'
+"""Bind tag that is used to ask Tk whether it accepts an event at all."""
+
 
 BORN_TAGS = ('widget', 'FakeWidget', 'all')
 """The bind tags a stub widget is born with.
@@ -835,6 +846,28 @@ def stub_keys() -> dict[str, Callable[..., object]]:
     """
     assert FakeWidget.tag_bindings
     return list(FakeWidget.tag_bindings.values())[-1]
+
+
+def touchpad_known(parent: tkinter.Misc) -> bool:
+    """Return whether this Tk knows the event that a touchpad reports.
+
+    It is asked by binding it and taking the binding away again, rather than
+    by reading a version number, because what the editor needs to know is
+    exactly whether this interpreter accepts the sequence. A tag of this
+    question's own is used, so that nothing the editor bound is touched.
+
+    Args:
+        parent: Widget to reach the Tcl interpreter through.
+
+    Returns:
+        Whether the editor could bind the touchpad in this interpreter.
+    """
+    try:
+        parent.bind_class(PROBE_TAG, TOUCHPAD, lambda *event: 'break')
+    except tkinter.TclError:
+        return False
+    parent.unbind_class(PROBE_TAG, TOUCHPAD)
+    return True
 
 
 def real_ticks(widget: tkinter.Misc) -> list[bool]:

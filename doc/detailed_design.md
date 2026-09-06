@@ -1904,6 +1904,24 @@ under the pointer, which is usually a field or a label inside the body rather
 than the canvas that scrolls, so binding the canvas alone would leave the wheel
 working over the empty parts and nowhere else.
 
+**A touchpad is reported as an event of its own.** Tk 9 sends
+`<TouchpadScroll>` rather than `<MouseWheel>` for every device that scrolls in
+pixels instead of turns, which on a Mac is a trackpad and a Magic Mouse and so
+is most of the scrolling there. Both events are bound. A Tk 8 has never heard
+of the touchpad and refuses the sequence, which leaves the editor bound to the
+wheel and to the rest, in the same way as a key combination that an
+application named and Tk will not take. Binding only the wheel left the
+scrolling working while the pointer was over the scrollbar, whose own bindings
+know that event, and nowhere else — which is the one place a user is least
+likely to try it.
+
+**What a touchpad reports has to become a fraction**, because a canvas scrolls
+in tenths of its height and in pages and in nothing smaller. The pixels of the
+gesture are the fraction of the body that they are, and the view is moved by
+that, which is the same arithmetic Tk itself does for a scrollbar. Scrolling a
+tenth of a window per report instead would be the whole configuration in a
+moment, since a gesture is reported many times a second.
+
 **Where the tag goes in each list is `Settings.priority_keys`.** Tk offers the
 tags of a widget in the order they are in and a handler that answers `break`
 stops the walk, so the tag first is the editor before the widget with the

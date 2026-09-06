@@ -73,6 +73,41 @@ def _wheel_step(event: 'tkinter.Event[tkinter.Misc]') -> int:
     return -1 if event.delta > 0 else 1
 
 
+def _touch_step(event: 'tkinter.Event[tkinter.Misc]') -> int:
+    """Return how far one report from a touchpad scrolls the body.
+
+    A touchpad reports both directions at once, packed into the one number
+    that an event has room for: sideways in the high half and up and down in
+    the low half, each of them a signed 16 bit number. Only up and down is
+    read, because the body does not scroll sideways.
+
+    The sign is turned around, because the gesture says which way the body
+    goes while scrolling says which way the view goes.
+
+    Args:
+        event: The touchpad event that Tk reported.
+
+    Returns:
+        How far to scroll the body, in pixels.
+    """
+    upright = event.delta & 0xffff
+    return -(upright - 0x10000 if upright >= 0x8000 else upright)
+
+
+def _scrolled_height(canvas: tkinter.Canvas) -> int:
+    """Return the height in pixels of everything that can be scrolled to.
+
+    Args:
+        canvas: Canvas that holds the scrolling part of the editor.
+
+    Returns:
+        The height of what is on the canvas, or zero while there is nothing
+        on it to measure.
+    """
+    region = canvas.bbox('all')
+    return region[3] - region[1] if region else 0
+
+
 def _scroll_by(canvas: tkinter.Canvas, step: Optional[int]
                ) -> Callable[..., str]:
     """Return the callback that one turn of the mouse wheel runs.
@@ -96,6 +131,33 @@ def _scroll_by(canvas: tkinter.Canvas, step: Optional[int]
     return scroll
 
 
+def _scroll_precisely(canvas: tkinter.Canvas) -> Callable[..., str]:
+    """Return the callback that one report from a touchpad runs.
+
+    A canvas scrolls in tenths of its height and in pages and in nothing
+    smaller, so the pixels of the gesture are turned into the fraction of
+    everything there is to scroll that they are, and the view is moved by
+    that. Scrolling a tenth of a window per report would be the whole
+    configuration in a moment, because a gesture is reported many times a
+    second, and it is the same arithmetic as the one Tk does for a scrollbar.
+
+    Args:
+        canvas: Canvas that holds the scrolling part of the editor.
+
+    Returns:
+        A callback that Tk can bind, which stops the event from being handled
+        a second time by whatever else the window is bound to.
+    """
+    def scroll(*event: 'tkinter.Event[tkinter.Misc]') -> str:
+        """Scroll the body by the pixels that the gesture reported."""
+        height = _scrolled_height(canvas)
+        if height > 0:
+            moved = _touch_step(event[0]) / height
+            canvas.yview_moveto(canvas.yview()[0] + moved)
+        return 'break'
+    return scroll
+
+
 def _bind_wheel(scope: KeyScope, canvas: tkinter.Canvas) -> None:
     """Let the mouse wheel scroll the body, however it is reported.
 
@@ -106,6 +168,14 @@ def _bind_wheel(scope: KeyScope, canvas: tkinter.Canvas) -> None:
     editor mounted in a window it shares would otherwise claim the wheel of a
     whole application.
 
+    **A touchpad is reported as an event of its own**, and that is what a Mac
+    reports. Tk 9 sends `<TouchpadScroll>` rather than `<MouseWheel>` for
+    every device that reports pixels instead of turns, so an editor that knew
+    only the wheel scrolled while the pointer was over the scrollbar, whose
+    own bindings know that event, and nowhere else. Tk 8 has no such event and
+    refuses to bind it, which leaves that one binding out and the rest as
+    they were.
+
     Args:
         scope: The part of the window this editor reaches.
         canvas: Canvas that holds the scrolling part of the editor.
@@ -113,6 +183,7 @@ def _bind_wheel(scope: KeyScope, canvas: tkinter.Canvas) -> None:
     for sequence, step in (('<MouseWheel>', None), ('<Button-4>', -1),
                            ('<Button-5>', 1)):
         scope.bind_event(sequence, _scroll_by(canvas=canvas, step=step))
+    scope.bind_event('<TouchpadScroll>', _scroll_precisely(canvas))
 
 
 def _fit_body(canvas: tkinter.Canvas,

@@ -13,23 +13,20 @@ from edit_cfg_json import ActionSettings, EditModel, Settings
 from edit_cfg_json_tk import edit as tk_edit
 from edit_cfg_json_tk.tk_editor import CLOSE_TEXT, EditorWidgets, SAVE_TEXT
 from example.e01_flat_config import FlatConfig
-from .helpers import FakeVar, FakeWidget, answer_question, real_fields, \
-    real_press, retype, stub_editor, stub_keys, stub_press, stub_texts, \
-    written
+from .helpers import FakeVar, FakeWidget, TOUCHPAD, answer_question, \
+    real_fields, real_press, retype, stub_editor, stub_keys, stub_press, \
+    stub_texts, touchpad_known, written
 
-WHEEL_SEQUENCES = ('<MouseWheel>', '<Button-4>', '<Button-5>')
-"""The sequences that the editor binds so that the wheel scrolls the body.
+WHEEL_SEQUENCES = ('<MouseWheel>', '<Button-4>', '<Button-5>', TOUCHPAD)
+"""The sequences that the editor binds so that a scroll reaches the body.
 
 They are in the scope of the editor beside the keys of the actions, because a
-wheel event goes to the widget under the pointer and the pointer is usually
-over a field.
-"""
+scrolling event goes to the widget under the pointer and the pointer is
+usually over a field.
 
-REAL_WHEEL_SEQUENCES = ('<MouseWheel>', '<Button-4>', '<Button-5>')
-"""What real Tk calls those same three sequences.
-
-They are the same, unlike the keys of the actions, which real Tk reports with
-a `Key` in them.
+Real Tk calls them the same, unlike the keys of the actions, which it reports
+with a `Key` in them. What differs there is that a Tk too old for a touchpad
+refuses the last of them, which is what `touchpad_known` is asked about.
 """
 
 
@@ -65,14 +62,23 @@ def test_stub_default_keys(stub_tk: None) -> None:
 
 
 def test_real_default_keys(root_or_skip: tkinter.Tk) -> None:
-    """Test real Tk accepts every sequence the stubbed test expects."""
+    """Test real Tk accepts every sequence the stubbed test expects.
+
+    All but one of them, that is: a Tk too old to know what a touchpad
+    reports refuses that sequence, and the editor is then bound to everything
+    else rather than not opened.
+
+    Args:
+        root_or_skip: The fixture that yields a real withdrawn Tk window.
+    """
     EditorWidgets(parent=root_or_skip, model=EditModel(FlatConfig()))
-    assert real_keys(root_or_skip) == {'<Control-Key-q>', '<Control-Key-r>',
-                                       '<Key-F5>', '<Control-Key-s>',
-                                       '<Control-Shift-Key-S>', '<Key-F12>',
-                                       '<Key-F1>', '<Control-Key-g>',
-                                       '<Control-Key-f>', '<Key-F3>',
-                                       *REAL_WHEEL_SEQUENCES}
+    expected = {'<Control-Key-q>', '<Control-Key-r>', '<Key-F5>',
+                '<Control-Key-s>', '<Control-Shift-Key-S>', '<Key-F12>',
+                '<Key-F1>', '<Control-Key-g>', '<Control-Key-f>', '<Key-F3>',
+                *WHEEL_SEQUENCES}
+    if not touchpad_known(root_or_skip):
+        expected.remove(TOUCHPAD)
+    assert real_keys(root_or_skip) == expected
 
 
 def test_stub_key_saves(stub_tk: None, tmp_path: Path) -> None:

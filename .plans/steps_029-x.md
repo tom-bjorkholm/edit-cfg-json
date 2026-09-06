@@ -209,7 +209,62 @@ version. Record which one, because the next step's fast iteration with
 Each of these is detailed just before it is started. What is fixed now is
 the order, the observable outcome and the main risk.
 
-### Step 29 - Raw JSON for a subtree the editor cannot show
+### Step 29 - Pull-down selection of enum and bool values
+
+When the type of an attribute have a well defined set of possible
+values that we know from type discovered by introspection we shall
+offer the user to select the value instead of typing the value.
+This is the case for bool, and for enums.
+
+The end user shall be able to switch between typing in a text field
+and pull-down selection of values for enums, in a way similar to how
+the end user shows and hides the explanations. The initial state
+(text field or pull-down) shall be defined in Settings, with the
+default value in settings as pull-down.
+
+### Step 30 - The launcher the name `edit-cfg-json` is kept for
+
+Section 8.1 of the design is headed "planned, not implemented": an
+`edit_cfg_json.ui` entry-point group would let backends register themselves for
+discovery, which is what `--ui auto` needs. Section 8.3 keeps the command name
+`edit-cfg-json` free for the launcher that picks the editor the machine can
+run, and step 16B freed that name and said the logic for choosing "may be added
+in a later step". This is that step: both editor packages register themselves,
+the core installs the launcher it has never installed a program for, and a
+machine with no display or without `textual` gets the editor it can actually
+run, with a refusal and an exit code of its own where it can run none.
+
+`edit-cfg-json` takes an optional command line switch `--ui` with possible
+arguments `tk`, `textual` and `dump`. If the switch `--ui` is missing
+and the Tk is available and `edit-cfg-json-tk` is installed, then
+`edit-cfg-json-tk` is started. If `edit-cfg-json-tk` cannot be started
+and `edit-cfg-json-textual` is installed, then `edit-cfg-json-textual`
+is started. If neither of these 2 can be started an error message
+explaining this shall be printed. `DumpEditor` is never started when
+switch `--ui` is missing. Other possible future editors (like a Qt editor)
+are started if neither `edit-cfg-json-tk` nor `edit-cfg-json-textual`
+can be started when `--ui` is missing.
+
+### Step 31 - Selectable dark mode
+
+Up until now the `edit-cfg-json-tk` has only had a hard coded light mode.
+Add to the Settings an enum value that selects between light mode and
+dark mode for the Tk UI.
+
+Add also 2 configuration sets as sub-configurations under Settings
+that specify the individual colors of all UI parts as optional Tk hex colors.
+Each color that is specified as None, shall use the Tk default color for
+kind of UI element.
+
+There shall be `config_as_json.Config` derived configuration for selecting
+between light and dark mode and for selecting color of individual UI element
+types. Use `Optional[config_as_json.HexadecimalNumber]` for the individaul
+UI element type colors.
+
+Evaluate to which extent the Tk UI mode settings and colors can also
+be applied to the textual UI.
+
+### Step 32 - Raw JSON for a subtree the editor cannot show
 
 Step 25's early idea included a raw JSON editing surface for a sub-object whose
 class nothing says anything about, and step 25 found that the case it was
@@ -227,14 +282,7 @@ belong to any second way of editing the same thing — which of the two wins
 while both are open, and what a validation pass does to text the user is half
 way through typing — and they are the reason this is late rather than cheap.
 
-### Step 30 - Pull-down selection of enum and bool values
-
-When the type of an attribute have a well defined set of possible
-values that we know from type discovered by introspection we should
-offer the user to select the value instead of typing the value.
-This is the case for bool, and for enums.
-
-### Step 31 — The program asks for what the command line left out
+### Step 33 — The program asks for what the command line left out
 
 A wizard: the program opens with no location, no class name and no files,
 and asks for them in the toolkit it was started in. What has been chosen,
@@ -253,28 +301,16 @@ makes implementing the wizards simpler.
 Alternatively, consider if we should use the menubar and menu items like
 File - Open. (Using the menubar may feel very natural in the Tk version.)
 
-### Step 32 - The launcher the name `edit-cfg-json` is kept for
-
-Section 8.1 of the design is headed "planned, not implemented": an
-`edit_cfg_json.ui` entry-point group would let backends register themselves for
-discovery, which is what `--ui=auto` needs. Section 8.3 keeps the command name
-`edit-cfg-json` free for the launcher that picks the editor the machine can
-run, and step 16B freed that name and said the logic for choosing "may be added
-in a later step". This is that step: both editor packages register themselves,
-the core installs the launcher it has never installed a program for, and a
-machine with no display or without `textual` gets the editor it can actually
-run, with a refusal and an exit code of its own where it can run none.
-
 ## 4. Relative effort of the steps still to build
 
 The relative effort of the remaining steps is listed in effort order.
 
 | Step | Effort | What the number is mostly |
 | --- | --- | --- |
-| 32 The launcher | 4 | Little logic, spread over all three packages: an entry-point group, a script the core has never installed, discovery, and what a machine that can run neither editor is told. |
-| 30 Pull-down for enum and bool | 6 | A second kind of field in both backends, touching every rule written for the first: write on change, focus loss, the rebuild after a pass, and the marks. |
-| 29 Raw JSON for a subtree | 8 | An editing surface the editor does not have at all yet, in both backends, and two rules about a second way of editing one thing. |
-| 31 The wizard | 10 | Two toolkits' dialogs and file choosers, two bridge libraries to weigh against the menubar alternative, and no headless test worth much. |
+| 30 The launcher | 4 | Little logic, spread over all three packages: an entry-point group, a script the core has never installed, discovery, and what a machine that can run neither editor is told. |
+| 29 Pull-down for enum and bool | 6 | A second kind of field in both backends, touching every rule written for the first: write on change, focus loss, the rebuild after a pass, and the marks. |
+| 32 Raw JSON for a subtree | 8 | An editing surface the editor does not have at all yet, in both backends, and two rules about a second way of editing one thing. |
+| 33 The wizard | 10 | Two toolkits' dialogs and file choosers, two bridge libraries to weigh against the menubar alternative, and no headless test worth much. |
 
 ## 5. Open questions recorded, not answered
 

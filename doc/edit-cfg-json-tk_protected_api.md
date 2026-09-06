@@ -162,7 +162,10 @@
   * [BODY\_HEIGHT](#edit_cfg_json_tk.scrolling.BODY_HEIGHT)
   * [BODY\_WIDTH](#edit_cfg_json_tk.scrolling.BODY_WIDTH)
   * [\_wheel\_step](#edit_cfg_json_tk.scrolling._wheel_step)
+  * [\_touch\_step](#edit_cfg_json_tk.scrolling._touch_step)
+  * [\_scrolled\_height](#edit_cfg_json_tk.scrolling._scrolled_height)
   * [\_scroll\_by](#edit_cfg_json_tk.scrolling._scroll_by)
+  * [\_scroll\_precisely](#edit_cfg_json_tk.scrolling._scroll_precisely)
   * [\_bind\_wheel](#edit_cfg_json_tk.scrolling._bind_wheel)
   * [\_fit\_body](#edit_cfg_json_tk.scrolling._fit_body)
   * [\_fit\_width](#edit_cfg_json_tk.scrolling._fit_width)
@@ -2505,6 +2508,53 @@ follow.
 
   How far to scroll the body, in lines.
 
+<a id="edit_cfg_json_tk.scrolling._touch_step"></a>
+
+#### \_touch\_step
+
+```python
+def _touch_step(event: 'tkinter.Event[tkinter.Misc]') -> int
+```
+
+Return how far one report from a touchpad scrolls the body.
+
+A touchpad reports both directions at once, packed into the one number
+that an event has room for: sideways in the high half and up and down in
+the low half, each of them a signed 16 bit number. Only up and down is
+read, because the body does not scroll sideways.
+
+The sign is turned around, because the gesture says which way the body
+goes while scrolling says which way the view goes.
+
+**Arguments**:
+
+- `event` - The touchpad event that Tk reported.
+  
+
+**Returns**:
+
+  How far to scroll the body, in pixels.
+
+<a id="edit_cfg_json_tk.scrolling._scrolled_height"></a>
+
+#### \_scrolled\_height
+
+```python
+def _scrolled_height(canvas: tkinter.Canvas) -> int
+```
+
+Return the height in pixels of everything that can be scrolled to.
+
+**Arguments**:
+
+- `canvas` - Canvas that holds the scrolling part of the editor.
+  
+
+**Returns**:
+
+  The height of what is on the canvas, or zero while there is nothing
+  on it to measure.
+
 <a id="edit_cfg_json_tk.scrolling._scroll_by"></a>
 
 #### \_scroll\_by
@@ -2530,6 +2580,33 @@ Return the callback that one turn of the mouse wheel runs.
   A callback that Tk can bind, which stops the event from being handled
   a second time by whatever else the window is bound to.
 
+<a id="edit_cfg_json_tk.scrolling._scroll_precisely"></a>
+
+#### \_scroll\_precisely
+
+```python
+def _scroll_precisely(canvas: tkinter.Canvas) -> Callable[..., str]
+```
+
+Return the callback that one report from a touchpad runs.
+
+A canvas scrolls in tenths of its height and in pages and in nothing
+smaller, so the pixels of the gesture are turned into the fraction of
+everything there is to scroll that they are, and the view is moved by
+that. Scrolling a tenth of a window per report would be the whole
+configuration in a moment, because a gesture is reported many times a
+second, and it is the same arithmetic as the one Tk does for a scrollbar.
+
+**Arguments**:
+
+- `canvas` - Canvas that holds the scrolling part of the editor.
+  
+
+**Returns**:
+
+  A callback that Tk can bind, which stops the event from being handled
+  a second time by whatever else the window is bound to.
+
 <a id="edit_cfg_json_tk.scrolling._bind_wheel"></a>
 
 #### \_bind\_wheel
@@ -2546,6 +2623,14 @@ and the pointer is usually over a field or a label inside the body. That
 is the same scope the keys are bound in, and for the same reason: an
 editor mounted in a window it shares would otherwise claim the wheel of a
 whole application.
+
+**A touchpad is reported as an event of its own**, and that is what a Mac
+reports. Tk 9 sends `<TouchpadScroll>` rather than `<MouseWheel>` for
+every device that reports pixels instead of turns, so an editor that knew
+only the wheel scrolled while the pointer was over the scrollbar, whose
+own bindings know that event, and nowhere else. Tk 8 has no such event and
+refuses to bind it, which leaves that one binding out and the rest as
+they were.
 
 **Arguments**:
 
