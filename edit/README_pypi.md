@@ -342,10 +342,10 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 2122 passed, 3 deselected in 119s (0:01:59)
+- Test result: 2121 passed, 1 skipped, 3 deselected in 135s (0:02:15)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
 - Built version(s): 0.3.0
-- Build and test using Python 3.14.7
+- Build and test using Python 3.12.10
