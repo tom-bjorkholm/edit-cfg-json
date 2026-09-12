@@ -1,9 +1,8 @@
 ## Project status
 
-**The Alpha period is over.** From version 0.1.0 the three packages follow
-semantic versioning: a public name is not removed, and what it means is not
-changed, without a major version. That applies to the core and to both
-backends.
+The three packages follow semantic versioning: a public name is not
+removed, and what it means is not changed, without a major version.
+That applies to the core and to both backends.
 
 ### What is public
 

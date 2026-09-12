@@ -29,10 +29,9 @@ is used, and it pulls in the core itself.
 
 ## Project status
 
-**The Alpha period is over.** From version 0.1.0 the three packages follow
-semantic versioning: a public name is not removed, and what it means is not
-changed, without a major version. That applies to the core and to both
-backends.
+The three packages follow semantic versioning: a public name is not
+removed, and what it means is not changed, without a major version.
+That applies to the core and to both backends.
 
 ### What is public
 
@@ -348,5 +347,5 @@ file included in the distribution.
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
-- Built version(s): 0.2.1
+- Built version(s): 0.3.0
 - Build and test using Python 3.14.7
