@@ -476,6 +476,13 @@ is rarely what an application that chose to embed wants.
 built and everything inside it. Your own keys, everywhere else in that window,
 are untouched.
 
+**The size of your window stays yours.** Nothing in the editor scrolls
+sideways, so there is a size below which its rows and its buttons are cut off
+by the edge, and `EditorWidgets.least_size` is that size. A window the editor
+opened for itself is not allowed below it; yours is untouched, because the
+editor never touches a window it did not create. Ask it for that size and pass
+it to `minsize` if you want your window to behave the same way.
+
 **`panel.close()` is your own way out**, for a menu entry or a button of your
 own. It asks about anything unsaved, in the same words the editor's own Close
 uses; pass `close(ask_about_unsaved=False)` when your application is already
@@ -883,8 +890,15 @@ your validators will never be handed a name that is no member of your enum or
 a value that is neither true nor false from one. The field is where a value is
 typed, and switching back to the pull-downs is what answers for what was
 typed: a beginning that only one of the values has becomes that value, and
-anything else leaves the member holding the first value it takes, which the
-editor tells the user about.
+anything else is given the value it most likely meant, which the editor tells
+the user about. Most likely meant is four questions asked in this order — the
+one value that a changed, added or dropped character turns the text into; the
+first of the values it is the beginning of; the first of the values it is the
+beginning of once a character is allowed to be wrong; and failing all three
+the first value the member takes. So where your enum has `ELECTRIC`,
+`MECHANIC` and `MECHATRONIC` in it, both `MEC` and `MEK` reach `MECHANIC`.
+Nothing of this is a validator and none of it can produce a value that is not
+one of the ones your own type declares.
 
 One thing is worth knowing if your application writes into the model between
 building it and showing it, which `EditModel.set_text` allows: such a value is

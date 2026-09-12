@@ -22,7 +22,7 @@ deselected by the build and run by hand with `pytest -m focus_sensitive`.
 
 import tkinter
 import pytest
-from edit_cfg_json import EditModel, Emphasis
+from edit_cfg_json import EditModel, Emphasis, Settings
 from edit_cfg_json_tk.tk_editor import EditorWidgets, EXPLAIN_TEXT, \
     VALIDATE_TEXT
 from edit_cfg_json_tk.tk_look import EMPHASIS_COLOURS
@@ -99,10 +99,17 @@ def test_real_leaving_field() -> None:
     see: Tk delivers a focus event to a window that is on the screen and to
     no other, so a withdrawn window can neither be given the focus nor be
     told that it has lost it.
+
+    The editor is opened with the values typed rather than chosen, because a
+    field is what loses the focus: a member whose values the editor knows the
+    whole of has a pull-down on the screen instead, and its field is there but
+    is not shown, which is a widget no focus reaches.
     """
     window = tkinter.Tk()
+    typed = Settings(choose_values=False)
     try:
-        widgets = EditorWidgets(parent=window, model=EditModel(EnumConfig()))
+        widgets = EditorWidgets(parent=window,
+                                model=EditModel(EnumConfig(), settings=typed))
         window.update()
         fields = real_fields(window)
         fields[0].focus_force()

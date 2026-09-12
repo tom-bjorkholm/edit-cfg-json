@@ -21,7 +21,7 @@ from io import StringIO
 from typing import NamedTuple, Optional, TextIO
 from config_as_json import Config, ConfigPath, JsonType
 from edit_cfg_json.converting import convert_member, matched_choice, \
-    replaced_text
+    nearest_choice, replaced_text
 from edit_cfg_json.descriptions import Descriptions
 from edit_cfg_json.elements import NOT_EXTENDABLE, NOT_MOVABLE, \
     NOT_REMOVABLE, checked_key, grown, kept_order, moved_paths, refused, \
@@ -277,7 +277,7 @@ class EditBuffer:
         has to become one of them before any pull-down is shown. What each
         text means is `matched_choice`, which is the reading a field losing
         the focus is answered by, and a text that means none of them is given
-        the first value that member takes.
+        the value `nearest_choice` says it most likely meant.
 
         Doing this again changes nothing, which is what lets it be done
         wherever a pull-down is about to be shown as well as when the user
@@ -296,10 +296,10 @@ class EditBuffer:
                                     choices=row.choices,
                                     is_bool_member=row.is_bool)
             if not wanted:
+                wanted = nearest_choice(text=row.value_text,
+                                        choices=row.choices)
                 told.append(replaced_text(name=row.full_name,
-                                          text=row.value_text,
-                                          value=row.choices[0]))
-                wanted = row.choices[0]
+                                          text=row.value_text, value=wanted))
             edited |= self.set_text(path=path, text=wanted)
         return ChoiceReport(message='\n'.join(told), edited=edited)
 

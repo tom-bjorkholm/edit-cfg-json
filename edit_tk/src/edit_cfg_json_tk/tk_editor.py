@@ -270,6 +270,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         # reaches for after editing. It is created second, so that the widgets
         # of the editor are still created in the order they are read in.
         fixed = tkinter.Frame(parent)
+        self._fixed = fixed
         fixed.pack(side='bottom', fill='x')
         self._scrolling.area.pack(side='top', fill='both', expand=True)
         body = self._scrolling.body
@@ -324,6 +325,38 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         """
         if may_close(self._model):
             self._close()
+
+    @property
+    def least_size(self) -> tuple[int, int]:
+        """Return the size below which something of the editor is hidden.
+
+        **Nothing here scrolls sideways**, so the width is the width the whole
+        editor asks for. A member row is one line holding a name, a value and
+        what is said about that value, and a line like that cannot wrap; the
+        controls below are laid out on one line each as well, so the Close
+        button is the first thing a narrower window takes off the edge. The
+        width the body is laid out for is `BODY_WIDTH`, which is said rather
+        than measured for the reason that constant gives.
+
+        **The height is the part that does not scroll and nothing more**,
+        because everything above it is reached by scrolling: a short window is
+        a window showing fewer values at a time, which is what the scrolling
+        is there for.
+
+        Tk works out what a widget asks for while it is idle, so this asks it
+        to do that first: the answer is wanted before the window is shown,
+        which is before anything has been idle.
+
+        It is an answer and not an instruction, because the editor never
+        touches a window it did not create. The backend that owns its window
+        asks this and sets the minimum on it, and an application that mounts
+        these widgets in a window of its own decides for itself what that
+        window allows.
+        """
+        self._fixed.update_idletasks()
+        return (max(self._scrolling.area.winfo_reqwidth(),
+                    self._fixed.winfo_reqwidth()),
+                self._fixed.winfo_reqheight())
 
     @property
     def label_text(self) -> str:

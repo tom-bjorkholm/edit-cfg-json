@@ -115,13 +115,27 @@ has, since a field losing the focus is not something a printout has to lose.
 
 Press **F4** again with `ELECT` still in the field, and the third thing this
 example is about happens: a pull-down holds one of the values its member
-takes, and `ELECT` is none of them, so the member is given the first value it
-takes and a dialog says so. Do the same with `MECH` in the field and nothing
+takes, and `ELECT` is none of them, so the member is given the value it most
+likely meant and a dialog says so. Here that is `ELECTRICAL`, because `ELECT`
+is the beginning of two of the three names and the first of those two is
+taken. Do the same with `MECH` in the field and nothing
 is said at all — in *this* enum that beginning means exactly one name, so it
 is simply completed, which is what a validation pass would have done with it
 anyway. Which beginnings are enough is a fact about the names an enum happens
 to have: an enum with `MECHANICAL` and `MECHATRONICS` in it would make `MECH`
 the ambiguous one and `ELECT` irrelevant.
+
+Mistype one character and the same thing happens, which is the whole of why
+the editor does not simply take the first of the three names. `ELEKTRONIC` in
+the field becomes `ELECTRONIC` on the next **F4**, because one character
+changed is all that separates the two and no other name is that near it.
+`ELEKT` becomes `ELECTRICAL`, because once one character is allowed to be
+wrong it is the beginning of two of the names again, and the first of those
+two is taken. Only a text that is near none of them — and an empty field —
+leaves the member holding `MECHANICAL`, the first value it takes. A dialog
+says so in every one of these cases, because the class itself refuses all of
+them: what the editor assumes is that the name was typed as it was meant, and,
+failing that, that one character came out wrong. It never assumes both.
 
 The same example started with the fields instead of the pull-downs is what
 `--type-values` is for, which stands in for an application that answered

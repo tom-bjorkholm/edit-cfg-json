@@ -269,11 +269,24 @@ Typing one of these values is forgiving:
 **A pull-down only ever offers the values of its member, and one of them is
 always selected.** There is no empty entry in the list and no way to leave one
 of these members holding something else. So switching back to the pull-downs
-while a field holds a half-typed name has to settle it: a beginning that can
-only be one value simply becomes that value, and anything else — a beginning
-that fits two of the names, a word that is none of them, or a field you
-emptied — leaves the member holding **the first value it takes**. The editor
-tells you so in a dialog naming every member it did that to.
+while a field holds a half-typed name has to settle it. A beginning that can
+only be one value simply becomes that value. Anything else is read as
+generously as it can be: the editor assumes you typed what you meant, and,
+where that fits none of the values, that one character came out wrong.
+
+- A text that one changed, added or dropped character turns into exactly one
+  of the values becomes that value, so `MECHANIK` becomes `MECHANIC`.
+- Failing that, the values your text is the beginning of, where there are any:
+  the first of them. `MEC` becomes `MECHANIC` where the values are
+  `ELECTRIC`, `MECHANIC` and `MECHATRONIC`, because it is the beginning of
+  those two and `MECHANIC` is the first of them.
+- Failing that, the same once one character is allowed to be wrong, so `MEK`
+  becomes `MECHANIC` among those three as well.
+- A text near none of them, and a field you emptied, leave the member holding
+  **the first value it takes**.
+
+The editor says which value it picked, in a dialog naming every member
+it did that to.
 
 ## 1.6 A member that may hold nothing
 
@@ -804,12 +817,24 @@ Typing one of these values is forgiving:
 **A pull-down only ever offers the values of its member, and one of them is
 always selected.** There is no empty entry in the list and no way to leave one
 of these members holding something else. So switching back to the pull-downs
-while a field holds a half-typed name has to settle it: a beginning that can
-only be one value simply becomes that value, and anything else — a beginning
-that fits two of the names, a word that is none of them, or a field you
-emptied — leaves the member holding **the first value it takes**. The editor
-tells you so on a screen naming every member it did that to; press `Enter` or
-the control on it to go back to editing.
+while a field holds a half-typed name has to settle it. A beginning that can
+only be one value simply becomes that value. Anything else is read as
+generously as it can be: the editor assumes you typed what you meant, and,
+where that fits none of the values, that one character came out wrong.
+
+- A text that one changed, added or dropped character turns into exactly one
+  of the values becomes that value, so `MECHANIK` becomes `MECHANIC`.
+- Failing that, the values your text is the beginning of, where there are any:
+  the first of them. `MEC` becomes `MECHANIC` where the values are
+  `ELECTRIC`, `MECHANIC` and `MECHATRONIC`, because it is the beginning of
+  those two and `MECHANIC` is the first of them.
+- Failing that, the same once one character is allowed to be wrong, so `MEK`
+  becomes `MECHANIC` among those three as well.
+- A text near none of them, and a field you emptied, leave the member holding
+  **the first value it takes**.
+
+The editor says which value it picked, on a screen naming every member it
+did that to; press `Enter` or the control on it to go back to editing.
 
 ## 2.6 A member that may hold nothing
 

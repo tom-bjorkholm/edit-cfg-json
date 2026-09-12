@@ -262,6 +262,10 @@
   * [convert\_member](#edit_cfg_json.converting.convert_member)
   * [\_converted\_bool](#edit_cfg_json.converting._converted_bool)
   * [matched\_choice](#edit_cfg_json.converting.matched_choice)
+  * [nearest\_choice](#edit_cfg_json.converting.nearest_choice)
+  * [\_one\_edit\_apart](#edit_cfg_json.converting._one_edit_apart)
+  * [\_starts\_near](#edit_cfg_json.converting._starts_near)
+  * [\_shared\_start](#edit_cfg_json.converting._shared_start)
   * [replaced\_text](#edit_cfg_json.converting.replaced_text)
   * [refusal\_text](#edit_cfg_json.converting.refusal_text)
 * [edit\_cfg\_json.dump](#edit_cfg_json.dump)
@@ -4833,6 +4837,13 @@ is `matched_choice`, and it is here rather than beside the values themselves
 for the reason above: the reading of a name is the conversion the class
 declared and never a rule of this editor.
 
+What a text the class itself refuses most likely meant is a different question
+and `nearest_choice` is a different answer, which runs no converter and asks
+the class nothing. It is the editor allowing for one mistyped character in a
+text it has to make a value of anyway, so it is the one reading here that is a
+rule of this editor, and it is kept apart from the reading above for exactly
+that reason.
+
 <a id="edit_cfg_json.converting.CONVERSION_ERRORS"></a>
 
 #### CONVERSION\_ERRORS
@@ -4858,9 +4869,11 @@ What is said about a text that had to make way for a value.
 
 A pull-down offers the values its member takes and nothing else, and holds one
 of them at every moment, so a text that means none of them has to become one
-of them. The member is given the first value it takes, and this is the sentence
-that says what became of what was there — which the editor owes the user,
-because it is the one change of the buffer that the user did not make.
+of them. The member is given the value `nearest_choice` says it most likely
+meant, and this is the sentence that says what became of what was there —
+which the editor owes the user, because it is the one change of the buffer
+that the user did not make, and because the value it was given is the editor
+reading a mistyped text rather than the class reading a name.
 
 <a id="edit_cfg_json.converting.CLEARED_FORM"></a>
 
@@ -5060,6 +5073,121 @@ value of every text that means one of the two words.
 
   The value it means, as text, and an empty text where it means none of
   them or more than one of them.
+
+<a id="edit_cfg_json.converting.nearest_choice"></a>
+
+#### nearest\_choice
+
+```python
+def nearest_choice(text: str, choices: Sequence[str]) -> str
+```
+
+Return which value one text that means none of them most likely meant.
+
+It is asked where `matched_choice` answered with nothing, which is a text
+the class itself refuses, and what it does is assume the user typed what
+they meant and then allow for one mistyped character. Four questions in
+this order, and the first of them that answers decides:
+
+- Is there exactly one value that **one character change** turns the text
+into? Changing a character is changing what it is, adding one or
+dropping one, which are the three ways one is mistyped.
+- Do the values the text is **the beginning of** narrow it down? The first
+of them is taken, which is why `MEC` means `MECHANIC` where the values
+are `ELECTRIC`, `MECHANIC` and `MECHATRONIC`: it begins two of them and
+the first of those two is taken.
+- Do they narrow it down **once one character is changed**? That is why
+`MEK` means `MECHANIC` among those same three values.
+- Nothing of the above, so the **first value the member takes**, which is
+the answer this had before it had any of the others.
+
+The case is ignored throughout, as it is ignored by the reading that was
+asked first, and the space around the text is not part of what was typed.
+
+**Arguments**:
+
+- `text` - What the field of that member held.
+- `choices` - The values that member takes, as the text of each of them,
+  which is never empty for a member that has a set of values.
+  
+
+**Returns**:
+
+  The value it most likely meant, and an empty text only where that
+  member takes no values at all.
+
+<a id="edit_cfg_json.converting._one_edit_apart"></a>
+
+#### \_one\_edit\_apart
+
+```python
+def _one_edit_apart(typed: str, name: str) -> bool
+```
+
+Return whether one character change turns one text into another.
+
+What the two texts do not share is then one character of each of them at
+most, so what they begin with in common and what the rest of them ends
+with in common is the whole of what decides it. The longer of the two
+says how much is left over, which is one character for a change of any of
+the three kinds and none at all for two texts that are the same text.
+
+**Arguments**:
+
+- `typed` - What was typed, in the case the comparison is made in.
+- `name` - The value to compare it with, in that same case.
+  
+
+**Returns**:
+
+  Whether one change of one character is all that separates them.
+
+<a id="edit_cfg_json.converting._starts_near"></a>
+
+#### \_starts\_near
+
+```python
+def _starts_near(typed: str, name: str) -> bool
+```
+
+Return whether one character change makes one text begin another.
+
+How long a beginning is worth trying is decided by the text itself: one
+character change makes a text as long as itself, one shorter or one
+longer, so those are the three beginnings of the name there is any point
+in comparing it with.
+
+**Arguments**:
+
+- `typed` - What was typed, in the case the comparison is made in.
+- `name` - The value whose beginnings to compare it with, in that case.
+  
+
+**Returns**:
+
+  Whether one change of one character makes it a beginning of that
+  value.
+
+<a id="edit_cfg_json.converting._shared_start"></a>
+
+#### \_shared\_start
+
+```python
+def _shared_start(text: str, other: str) -> int
+```
+
+Return how many characters two texts begin with in common.
+
+**Arguments**:
+
+- `text` - One of the two texts.
+- `other` - The other of them.
+  
+
+**Returns**:
+
+  How many characters they have in common from the beginning, which is
+  none for two texts that begin differently and for an empty text.
 
 <a id="edit_cfg_json.converting.replaced_text"></a>
 
@@ -6890,7 +7018,7 @@ holds one of them at every moment, so a text that means none of them
 has to become one of them before any pull-down is shown. What each
 text means is `matched_choice`, which is the reading a field losing
 the focus is answered by, and a text that means none of them is given
-the first value that member takes.
+the value `nearest_choice` says it most likely meant.
 
 Doing this again changes nothing, which is what lets it be done
 wherever a pull-down is about to be shown as well as when the user
@@ -11354,9 +11482,11 @@ them has to become one before any pull-down is shown. Which value a
 text means is the reading a field losing the focus is answered by: a
 beginning that only one member of that enum has is that member, and
 the case is ignored. A text that means none of them, an empty field
-among them, leaves the member holding the first value it takes, and
-that is the one change of the buffer which the user did not make and
-therefore has to be told about.
+among them, leaves the member holding the value `nearest_choice` says
+it most likely meant, which allows for one mistyped character and ends
+at the first value that member takes, and that is the one change of
+the buffer which the user did not make and therefore has to be told
+about.
 
 Nothing happens at all while the values are typed, which is what lets
 a backend ask for this wherever it is about to show a pull-down as

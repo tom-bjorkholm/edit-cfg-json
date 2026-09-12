@@ -197,8 +197,10 @@ def test_replaced_told() -> None:
     """Test a screen says what switching to the pull-downs replaced.
 
     A pull-down shows one of the values its member takes, so a text meaning
-    none of them is replaced by the first value that member takes, and the
-    user is told because it is the one change they did not make.
+    none of them is replaced by the value it most likely meant, and the user
+    is told because it is the one change they did not make. `ELECT` is the
+    beginning of two of these three names, so it means the first of those two
+    and not the first name of all.
     """
     async def run() -> tuple[str, str, str]:
         model = EditModel(EnumConfig())
@@ -220,7 +222,7 @@ def test_replaced_told() -> None:
     said, held, left = asyncio.run(run())
     assert 'ELECT' in said
     assert 'needed' in said
-    assert held == ENUM_NAMES[0]
+    assert held == ENUM_NAMES[1]
     assert left == ModelScreen.__name__
 
 

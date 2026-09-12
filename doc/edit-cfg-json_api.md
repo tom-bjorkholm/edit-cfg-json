@@ -207,6 +207,7 @@
   * [node\_converters](#edit_cfg_json.converting.node_converters)
   * [convert\_member](#edit_cfg_json.converting.convert_member)
   * [matched\_choice](#edit_cfg_json.converting.matched_choice)
+  * [nearest\_choice](#edit_cfg_json.converting.nearest_choice)
   * [replaced\_text](#edit_cfg_json.converting.replaced_text)
   * [refusal\_text](#edit_cfg_json.converting.refusal_text)
 * [edit\_cfg\_json.dump](#edit_cfg_json.dump)
@@ -3603,6 +3604,13 @@ is `matched_choice`, and it is here rather than beside the values themselves
 for the reason above: the reading of a name is the conversion the class
 declared and never a rule of this editor.
 
+What a text the class itself refuses most likely meant is a different question
+and `nearest_choice` is a different answer, which runs no converter and asks
+the class nothing. It is the editor allowing for one mistyped character in a
+text it has to make a value of anyway, so it is the one reading here that is a
+rule of this editor, and it is kept apart from the reading above for exactly
+that reason.
+
 <a id="edit_cfg_json.converting.CONVERSION_ERRORS"></a>
 
 #### CONVERSION\_ERRORS
@@ -3628,9 +3636,11 @@ What is said about a text that had to make way for a value.
 
 A pull-down offers the values its member takes and nothing else, and holds one
 of them at every moment, so a text that means none of them has to become one
-of them. The member is given the first value it takes, and this is the sentence
-that says what became of what was there — which the editor owes the user,
-because it is the one change of the buffer that the user did not make.
+of them. The member is given the value `nearest_choice` says it most likely
+meant, and this is the sentence that says what became of what was there —
+which the editor owes the user, because it is the one change of the buffer
+that the user did not make, and because the value it was given is the editor
+reading a mistyped text rather than the class reading a name.
 
 <a id="edit_cfg_json.converting.CLEARED_FORM"></a>
 
@@ -3810,6 +3820,48 @@ value of every text that means one of the two words.
 
   The value it means, as text, and an empty text where it means none of
   them or more than one of them.
+
+<a id="edit_cfg_json.converting.nearest_choice"></a>
+
+#### nearest\_choice
+
+```python
+def nearest_choice(text: str, choices: Sequence[str]) -> str
+```
+
+Return which value one text that means none of them most likely meant.
+
+It is asked where `matched_choice` answered with nothing, which is a text
+the class itself refuses, and what it does is assume the user typed what
+they meant and then allow for one mistyped character. Four questions in
+this order, and the first of them that answers decides:
+
+- Is there exactly one value that **one character change** turns the text
+into? Changing a character is changing what it is, adding one or
+dropping one, which are the three ways one is mistyped.
+- Do the values the text is **the beginning of** narrow it down? The first
+of them is taken, which is why `MEC` means `MECHANIC` where the values
+are `ELECTRIC`, `MECHANIC` and `MECHATRONIC`: it begins two of them and
+the first of those two is taken.
+- Do they narrow it down **once one character is changed**? That is why
+`MEK` means `MECHANIC` among those same three values.
+- Nothing of the above, so the **first value the member takes**, which is
+the answer this had before it had any of the others.
+
+The case is ignored throughout, as it is ignored by the reading that was
+asked first, and the space around the text is not part of what was typed.
+
+**Arguments**:
+
+- `text` - What the field of that member held.
+- `choices` - The values that member takes, as the text of each of them,
+  which is never empty for a member that has a set of values.
+  
+
+**Returns**:
+
+  The value it most likely meant, and an empty text only where that
+  member takes no values at all.
 
 <a id="edit_cfg_json.converting.replaced_text"></a>
 
@@ -5223,7 +5275,7 @@ holds one of them at every moment, so a text that means none of them
 has to become one of them before any pull-down is shown. What each
 text means is `matched_choice`, which is the reading a field losing
 the focus is answered by, and a text that means none of them is given
-the first value that member takes.
+the value `nearest_choice` says it most likely meant.
 
 Doing this again changes nothing, which is what lets it be done
 wherever a pull-down is about to be shown as well as when the user
@@ -8340,9 +8392,11 @@ them has to become one before any pull-down is shown. Which value a
 text means is the reading a field losing the focus is answered by: a
 beginning that only one member of that enum has is that member, and
 the case is ignored. A text that means none of them, an empty field
-among them, leaves the member holding the first value it takes, and
-that is the one change of the buffer which the user did not make and
-therefore has to be told about.
+among them, leaves the member holding the value `nearest_choice` says
+it most likely meant, which allows for one mistyped character and ends
+at the first value that member takes, and that is the one change of
+the buffer which the user did not make and therefore has to be told
+about.
 
 Nothing happens at all while the values are typed, which is what lets
 a backend ask for this wherever it is about to show a pull-down as

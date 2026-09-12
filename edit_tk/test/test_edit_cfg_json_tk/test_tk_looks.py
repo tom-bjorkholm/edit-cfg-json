@@ -27,12 +27,13 @@ from .stubs import FakeWidget, STUB_BODY_HEIGHT
 WHEEL_UP = -1
 """How far one turn of the wheel away from the user scrolls the body."""
 
-SETTLED_TICKS = [*FindOptions(), True]
+SETTLED_TICKS = [*FindOptions(), True, True]
 """What every tick-box of a settled window is, in creation order.
 
 The four of the search come first and are what `FindOptions` declares, so a
-default that moves moves this with it, and the explain toggle is the last of
-them and is ticked while the explanations are showing.
+default that moves moves this with it. The two toggles of the button row come
+after them in the order that row builds them: the explanations, which are
+showing, and the pull-downs, which the editor opens with.
 """
 
 
@@ -371,11 +372,20 @@ def test_shown_window_fits() -> None:
     Tk lays out the widgets inside a frame only once the window is mapped, so
     a withdrawn window cannot answer either question. It is deselected by the
     build and run by hand with `pytest -m focus_sensitive`.
+
+    The narrowest of the three sizes is the one the editor says it needs
+    rather than a width written down here, because that is the promise it
+    makes: `TkEditor` stops a window it owns being made smaller than
+    `least_size`, and what this asks is that nothing is cut off anywhere that
+    promise reaches. A width written down here would instead be a promise this
+    test made up, and one more control in the button row would break it — as
+    one more did.
     """
     window = tkinter.Tk()
     try:
-        EditorWidgets(parent=window, model=_described_model())
-        for size in ('', '900x260', '500x600'):
+        widgets = EditorWidgets(parent=window, model=_described_model())
+        narrowest = f'{widgets.least_size[0]}x600'
+        for size in ('', '900x260', narrowest):
             if size:
                 window.geometry(size)
             window.update_idletasks()

@@ -26,6 +26,13 @@ one value means*, which is what a pull-down of those values has to know. That
 is `matched_choice`, and it is here rather than beside the values themselves
 for the reason above: the reading of a name is the conversion the class
 declared and never a rule of this editor.
+
+What a text the class itself refuses most likely meant is a different question
+and `nearest_choice` is a different answer, which runs no converter and asks
+the class nothing. It is the editor allowing for one mistyped character in a
+text it has to make a value of anyway, so it is the one reading here that is a
+rule of this editor, and it is kept apart from the reading above for exactly
+that reason.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -60,9 +67,11 @@ REPLACED_FORM = ('{name}: {text} is no value this member takes, so it has '
 
 A pull-down offers the values its member takes and nothing else, and holds one
 of them at every moment, so a text that means none of them has to become one
-of them. The member is given the first value it takes, and this is the sentence
-that says what became of what was there — which the editor owes the user,
-because it is the one change of the buffer that the user did not make.
+of them. The member is given the value `nearest_choice` says it most likely
+meant, and this is the sentence that says what became of what was there —
+which the editor owes the user, because it is the one change of the buffer
+that the user did not make, and because the value it was given is the editor
+reading a mistyped text rather than the class reading a name.
 """
 
 CLEARED_FORM = ('{name}: an empty field is no value this member takes, so '
@@ -243,6 +252,108 @@ def matched_choice(converter: Optional[ParseConverter], value: JsonType,
         return ''
     name = converted.value.name
     return name if name in choices else ''
+
+
+def nearest_choice(text: str, choices: Sequence[str]) -> str:
+    """Return which value one text that means none of them most likely meant.
+
+    It is asked where `matched_choice` answered with nothing, which is a text
+    the class itself refuses, and what it does is assume the user typed what
+    they meant and then allow for one mistyped character. Four questions in
+    this order, and the first of them that answers decides:
+
+    - Is there exactly one value that **one character change** turns the text
+      into? Changing a character is changing what it is, adding one or
+      dropping one, which are the three ways one is mistyped.
+    - Do the values the text is **the beginning of** narrow it down? The first
+      of them is taken, which is why `MEC` means `MECHANIC` where the values
+      are `ELECTRIC`, `MECHANIC` and `MECHATRONIC`: it begins two of them and
+      the first of those two is taken.
+    - Do they narrow it down **once one character is changed**? That is why
+      `MEK` means `MECHANIC` among those same three values.
+    - Nothing of the above, so the **first value the member takes**, which is
+      the answer this had before it had any of the others.
+
+    The case is ignored throughout, as it is ignored by the reading that was
+    asked first, and the space around the text is not part of what was typed.
+
+    Args:
+        text: What the field of that member held.
+        choices: The values that member takes, as the text of each of them,
+            which is never empty for a member that has a set of values.
+
+    Returns:
+        The value it most likely meant, and an empty text only where that
+        member takes no values at all.
+    """
+    typed = text.strip().lower()
+    corrected = [name for name in choices
+                 if _one_edit_apart(typed, name.lower())]
+    ranked = (corrected if len(corrected) == 1 else [],
+              [name for name in choices if name.lower().startswith(typed)],
+              [name for name in choices if _starts_near(typed, name.lower())],
+              list(choices))
+    return next((names[0] for names in ranked if names), '')
+
+
+def _one_edit_apart(typed: str, name: str) -> bool:
+    """Return whether one character change turns one text into another.
+
+    What the two texts do not share is then one character of each of them at
+    most, so what they begin with in common and what the rest of them ends
+    with in common is the whole of what decides it. The longer of the two
+    says how much is left over, which is one character for a change of any of
+    the three kinds and none at all for two texts that are the same text.
+
+    Args:
+        typed: What was typed, in the case the comparison is made in.
+        name: The value to compare it with, in that same case.
+
+    Returns:
+        Whether one change of one character is all that separates them.
+    """
+    same = _shared_start(typed, name)
+    tail = _shared_start(typed[same:][::-1], name[same:][::-1])
+    return max(len(typed), len(name)) - same - tail <= 1
+
+
+def _starts_near(typed: str, name: str) -> bool:
+    """Return whether one character change makes one text begin another.
+
+    How long a beginning is worth trying is decided by the text itself: one
+    character change makes a text as long as itself, one shorter or one
+    longer, so those are the three beginnings of the name there is any point
+    in comparing it with.
+
+    Args:
+        typed: What was typed, in the case the comparison is made in.
+        name: The value whose beginnings to compare it with, in that case.
+
+    Returns:
+        Whether one change of one character makes it a beginning of that
+        value.
+    """
+    cuts = range(max(0, len(typed) - 1), len(typed) + 2)
+    return any(_one_edit_apart(typed, name[:cut]) for cut in cuts)
+
+
+def _shared_start(text: str, other: str) -> int:
+    """Return how many characters two texts begin with in common.
+
+    Args:
+        text: One of the two texts.
+        other: The other of them.
+
+    Returns:
+        How many characters they have in common from the beginning, which is
+        none for two texts that begin differently and for an empty text.
+    """
+    same = 0
+    for one, another in zip(text, other):
+        if one != another:
+            break
+        same += 1
+    return same
 
 
 def replaced_text(name: str, text: str, value: str) -> str:

@@ -158,8 +158,10 @@ def test_stub_replaced_told(stub_tk: None,
     """Test the user is told what switching to the pull-downs replaced.
 
     A pull-down shows one of the values its member takes, so a text meaning
-    none of them is replaced by the first value that member takes, and that
-    is the one change of the buffer the user did not make.
+    none of them is replaced by the value it most likely meant, and that is
+    the one change of the buffer the user did not make. `ELECT` is the
+    beginning of two of these three names, so it means the first of those
+    two and not the first name of all.
     """
     _ = stub_tk
     told = told_replaced(monkeypatch)
@@ -170,8 +172,8 @@ def test_stub_replaced_told(stub_tk: None,
     stub_press(CHOOSE_TEXT)
     assert len(told) == 1
     assert 'ELECT' in told[0]
-    assert model.rows[0].value == ENUM_NAMES[0]
-    assert stub_fields()[0].get() == ENUM_NAMES[0]
+    assert model.rows[0].value == ENUM_NAMES[1]
+    assert stub_fields()[0].get() == ENUM_NAMES[1]
 
 
 def test_stub_completed(stub_tk: None,

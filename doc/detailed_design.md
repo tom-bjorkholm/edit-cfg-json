@@ -706,6 +706,18 @@ that this amounts to. Three constraints of the Tk side, none of them obvious:
   editor that is a paragraph follows the width it is given; the mark of a
   member is the one that does not, because it belongs beside its field on one
   line, and a narrow window squeezes the field rather than the mark.
+- **A window can be made too small for the editor, so the one the editor owns
+  is not allowed to be.** Nothing here scrolls sideways, and the line above
+  says why a narrow window loses text rather than wrapping it: a member row is
+  a name, a value and what is said about that value on one line, and the
+  controls below are one line each, the last of which is the Close button.
+  `EditorWidgets.least_size` is what the editor asks for in width and what the
+  controls alone need in height — the height is theirs because everything above
+  them is reached by scrolling — and `TkEditor` sets that as the minimum of the
+  window it created. It is set there and not by the widgets for the reason the
+  close button of that window is: the editor never touches a window it did not
+  create, so an application that mounts the editor in a window of its own is
+  told the size and decides for itself what its window allows.
 
 Textual needs none of those three: it wraps, it shrinks, and its footer is
 docked. What it needs instead is that **everything on a row is a compact
@@ -1073,10 +1085,38 @@ fact about the enum the application declared and about nothing else. Such a
 text is completed and nothing is said about it, because the row already says
 the value differs from the file and the same completion is what a validation
 pass would have made. A text that means none of them, or more than one of
-them, and the empty text of a cleared field, leave the member holding the
-**first value it takes**; that is the one change of the buffer the user did not
-make, so the editor says so, in words the core owns and a dialog or a screen
-that each backend puts, which is the shape of sections 7.2 and 7.3.
+them, and the empty text of a cleared field, are answered by `nearest_choice`
+instead; that is the one change of the buffer the user did not make, so the
+editor says so, in words the core owns and a dialog or a screen that each
+backend puts, which is the shape of sections 7.2 and 7.3.
+
+**What such a text most likely meant is four questions**, and the first of them
+that answers decides. `nearest_choice` is where they are asked, and it runs no
+converter and asks the class nothing: reading a text the class has already
+refused is a different question from reading a name, and it is the one reading
+here that is a rule of this editor, which is why it is kept apart from the one
+above. The two assumptions behind the order are that the user typed what they
+meant, and that where that finds nothing a single character was mistyped.
+
+- Is there exactly one value that **one character change** turns the text into?
+  Changing a character is changing what it is, adding one or dropping one,
+  which are the three ways one is mistyped. Two values equally near the text
+  are no answer at all, and the question moves on.
+- Do the values the text is **the beginning of** narrow it down? The first of
+  them is taken, so `MEC` means `MECHANIC` where the values are `ELECTRIC`,
+  `MECHANIC` and `MECHATRONIC`: it begins two of them, and the first of those
+  two is what it means.
+- Do they narrow it down **once one character is changed**? That is why `MEK`
+  means `MECHANIC` among those same three values.
+- None of the above, so the **first value the member takes**, which is the
+  whole of what this was before the three questions above it.
+
+The case is ignored throughout, as it is by the reading asked before them, and
+the space around the text is not part of what was typed. All four are
+announced, because in every one of them the class itself refuses what the user
+typed and the value is the editor's reading of a mistake rather than a
+completion the class would have made — which is what keeps a silent change
+meaning *your text really does name this value*.
 
 **The settling is asked for wherever a pull-down is about to be shown**, and
 not only when the user switches. While the values are typed it does nothing at

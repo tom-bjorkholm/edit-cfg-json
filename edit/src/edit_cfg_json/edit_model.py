@@ -251,9 +251,11 @@ class EditModel:
         text means is the reading a field losing the focus is answered by: a
         beginning that only one member of that enum has is that member, and
         the case is ignored. A text that means none of them, an empty field
-        among them, leaves the member holding the first value it takes, and
-        that is the one change of the buffer which the user did not make and
-        therefore has to be told about.
+        among them, leaves the member holding the value `nearest_choice` says
+        it most likely meant, which allows for one mistyped character and ends
+        at the first value that member takes, and that is the one change of
+        the buffer which the user did not make and therefore has to be told
+        about.
 
         Nothing happens at all while the values are typed, which is what lets
         a backend ask for this wherever it is about to show a pull-down as

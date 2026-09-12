@@ -240,6 +240,13 @@ class TkEditor:  # pylint: disable=too-few-public-methods
         asking. It is set on this window and on no other: the editor never
         touches a window it did not create.
 
+        The window is also stopped from being made smaller than the editor
+        needs, which is `EditorWidgets.least_size`: the controls that stay on
+        the screen are laid out on one line each, so a narrower window would
+        take the last of them off the edge, and the Close button is the last
+        of them. That is set here and not by the widgets for the same reason
+        as the close button above.
+
         This is for an application that has no Tk of its own yet, because a
         second `tkinter.Tk` is a second Tcl interpreter and nothing can be
         shared between the two. An application that already runs Tk gets the
@@ -253,6 +260,7 @@ class TkEditor:  # pylint: disable=too-few-public-methods
         window.title(model.config_type_name)
         self._widgets = EditorWidgets(parent=window, model=model)
         window.protocol('WM_DELETE_WINDOW', self._widgets.close_editor)
+        window.minsize(*self._widgets.least_size)
         window.mainloop()
 
 

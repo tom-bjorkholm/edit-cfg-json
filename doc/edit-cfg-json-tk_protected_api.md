@@ -39,6 +39,7 @@
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.EditorWidgets.__init__)
     * [release\_keys](#edit_cfg_json_tk.tk_editor.EditorWidgets.release_keys)
     * [close\_editor](#edit_cfg_json_tk.tk_editor.EditorWidgets.close_editor)
+    * [least\_size](#edit_cfg_json_tk.tk_editor.EditorWidgets.least_size)
     * [label\_text](#edit_cfg_json_tk.tk_editor.EditorWidgets.label_text)
     * [verdict\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.verdict_text_shown)
     * [save\_text\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.save_text_shown)
@@ -653,6 +654,40 @@ them is what keeps any of them from becoming that.
 
 What closing itself does is what the caller said it does, which is
 destroying the window for a caller that owns one.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets.least_size"></a>
+
+#### least\_size
+
+```python
+@property
+def least_size() -> tuple[int, int]
+```
+
+Return the size below which something of the editor is hidden.
+
+**Nothing here scrolls sideways**, so the width is the width the whole
+editor asks for. A member row is one line holding a name, a value and
+what is said about that value, and a line like that cannot wrap; the
+controls below are laid out on one line each as well, so the Close
+button is the first thing a narrower window takes off the edge. The
+width the body is laid out for is `BODY_WIDTH`, which is said rather
+than measured for the reason that constant gives.
+
+**The height is the part that does not scroll and nothing more**,
+because everything above it is reached by scrolling: a short window is
+a window showing fewer values at a time, which is what the scrolling
+is there for.
+
+Tk works out what a widget asks for while it is idle, so this asks it
+to do that first: the answer is wanted before the window is shown,
+which is before anything has been idle.
+
+It is an answer and not an instruction, because the editor never
+touches a window it did not create. The backend that owns its window
+asks this and sets the minimum on it, and an application that mounts
+these widgets in a window of its own decides for itself what that
+window allows.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets.label_text"></a>
 
@@ -3132,6 +3167,13 @@ the editor does, so that the one way out that is not a widget of the
 editor cannot be the one way out that drops the changes without
 asking. It is set on this window and on no other: the editor never
 touches a window it did not create.
+
+The window is also stopped from being made smaller than the editor
+needs, which is `EditorWidgets.least_size`: the controls that stay on
+the screen are laid out on one line each, so a narrower window would
+take the last of them off the edge, and the Close button is the last
+of them. That is set here and not by the widgets for the same reason
+as the close button above.
 
 This is for an application that has no Tk of its own yet, because a
 second `tkinter.Tk` is a second Tcl interpreter and nothing can be

@@ -392,7 +392,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 2082 passed, 3 deselected in 80s (0:01:20)
+- Test result: 2096 passed, 3 deselected in 105s (0:01:45)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

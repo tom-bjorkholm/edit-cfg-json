@@ -2,8 +2,9 @@
 
 ## Where everything is
 
-Steps 1 to 28 are implemented and committed, step 23 with the corrections its
-review asked for, and step 29 is implemented and awaiting its review. Steps 1 to 9 are written up in
+Steps 1 to 29 are implemented and committed, step 23 with the corrections its
+review asked for, and step 29B is implemented and awaiting its review. Steps 1
+to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md), steps 10 to 21 in
 [steps_010-021_done.md](steps_010-021_done.md) and steps 22 to 28 in
 [steps_022-028_done.md](steps_022-028_done.md). The steps still to build are in
@@ -106,6 +107,9 @@ the plan says only *when* that decision gets built.
   whose values the editor knows the whole of offered as a pull-down of them,
   one switch for all of them, and the first value it takes given to a text
   that means none.
+- [Step 29B](#step-29b---the-value-a-mistyped-name-is-given) — the first value
+  it takes kept as the last resort it should have been, with the value a
+  mistyped or unfinished name most likely meant put in front of it.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -207,7 +211,7 @@ version. Record which one, because the next step's fast iteration with
 | Second release 0.0.4 | 18 to 21 | Release 0.0.4 | done |
 | Third release 0.1.0 | 22 to 28 | Release 0.1.0 | done |
 | Fourth release 0.2.0 | none | Release 0.2.0, the paths that `config-as-json` 1.7 reports | done |
-| Fifth release | 29 onwards | in progress | step 29 implemented, awaiting review |
+| Fifth release | 29 onwards | in progress | step 29 committed, step 29B awaiting review |
 
 ## 3. Steps 29 onwards, as named steps
 
@@ -348,6 +352,116 @@ The public names it settled:
   of that example is a current-format file by definition, and the old-format
   file beside it now differs by three actions and one member rather than by
   two actions.
+
+### Step 29B - The value a mistyped name is given
+
+Status: **Implemented, committed.**
+
+Step 29 left a text that means none of a member's values holding the **first
+value it takes**, which is right as a last resort and blunt as the only rule: a
+user who had typed most of a name got the name at the top of the list. This
+step puts three questions in front of that one and changes nothing else about
+the pull-downs. The two assumptions behind them are that the name was typed as
+it was meant, and, failing that, that one character came out wrong.
+
+**Observable outcome.** `e02_enum_config.py --ui tk` with `ELECT` in the
+`needed` field and `F4` pressed now holds `ELECTRICAL` where it held
+`MECHANICAL`, and the same dialog says so: `ELECT` is the beginning of two of
+the three names and the first of those two is taken. `ELEKTRONIC` becomes
+`ELECTRONIC`, which is one character changed away from exactly one name.
+`ELEKT` becomes `ELECTRICAL`, a beginning of two names once one character is
+allowed to be wrong. A text near none of them, and an empty field, still leave
+`MECHANICAL`. `e12_backup_files.py --ui tk` shows the same for a member holding
+true or false, where `falze` becomes `false` where it became `true`.
+
+**What it decided.** Four things.
+
+- **What a refused text most likely meant is a different question from what a
+  name means**, so it is a function of its own. `matched_choice` runs the
+  converter the class declared and answers what the class says the text is;
+  `nearest_choice` runs no converter and asks the class nothing, because it is
+  the editor reading a text the class has already refused. Keeping them apart
+  is what keeps a silent change meaning *your text really does name this
+  value*: everything the second one answers is announced, the near misses
+  among them.
+- **One character is one character changed, added or dropped**, which are the
+  three ways one is mistyped, and never two of them at once. A transposition is
+  two changes, so the rule asked first never answers one — but the rules about
+  beginnings answer some of them anyway, because dropping one of the two
+  swapped characters can leave a beginning of the name. `fales` reaches `false`
+  that way and `flase` does not reach it at all, which is the one place where
+  what the rules correct is hard to predict from the outside. Loosening them
+  until it was predictable would make every other answer less so, and the field
+  is still there for a name the editor guessed wrong.
+- **A whole name is worth more than a beginning**, so the changed character is
+  asked about before the beginnings are. `LO` among `LOWEST`, `LOW` and `HIGH`
+  is therefore `LOW` — one character short of that whole name — and not
+  `LOWEST`, which it is equally the beginning of. Two values equally near the
+  text answer nothing and the question moves on, so nothing is ever picked
+  between two candidates by anything but the order the class declares them in.
+- **Where a rule narrows the values down without naming one, the first of what
+  it narrowed to is taken**, which is the rule of step 29 applied to a subset
+  rather than to all of them. That is the whole of `MEC` meaning `MECHANIC`
+  where the values are `ELECTRIC`, `MECHANIC` and `MECHATRONIC`.
+
+**Core.** `converting` gained `nearest_choice` and the three small comparisons
+it asks, and `buffer.choose_values` asks it where it used `choices[0]`. No
+backend changed at all and no public name of any of them did, which is what
+says this is a rule the core owns: the two backend tests that had to change did
+so only in the value they expect from typing `ELECT`.
+
+| Name | Kind |
+| --- | --- |
+| `nearest_choice` | the value a text the class refuses most likely meant |
+| `EditorWidgets.least_size` | the size below which something of it is hidden |
+
+**What building it found.**
+
+- **The four rules are one measure asked four ways.** How many characters of
+  the typed text differ from the beginning of a name decides all of them, and
+  that measure is what the two texts begin with in common plus what the rest of
+  them ends with in common — the same comparison for a character changed, one
+  added and one dropped, with no alignment to decide and no table to fill in.
+  The first draft had a rule per case and was longer than the docstring that
+  explains it.
+- **A one-character text makes the third rule match every value**, because
+  every name begins with a character that one change reaches. It is harmless —
+  the answer is then the first value, which is what the fourth rule says
+  anyway — but it is worth knowing that the third rule stops narrowing anything
+  down at that length.
+- **The empty field is answered by the second rule and not by the last one.**
+  It is the beginning of every name, so it narrows nothing down and the first
+  value is taken, which is exactly what step 29 did with it and what its own
+  sentence in `CLEARED_FORM` still says.
+
+**What the review found.** All three tests that
+`./run_focus_sensitive_tests.py` runs were failing, and none of the three was
+about this step: they are the tests no build runs, so step 29 broke them and
+nothing said so until they were run by hand.
+
+- **Two were the step 29 widgets, said twice.** `SETTLED_TICKS` did not know
+  about the `Choose values` tick-box, and `test_real_leaving_field` asked a
+  field to lose the focus in an editor that now opens with pull-downs, where
+  that field exists but is not on the screen and no focus reaches it. It opens
+  with the values typed instead, which is what a field losing the focus needs.
+- **The third was a real one, and the fix is a rule the design was missing.**
+  The `Choose values` tick-box made the button row ask for 555 pixels where it
+  had asked for about 430, and the test squeezed the window to 500 and required
+  that nothing was cut off — so `Close` went off the edge. Nothing in this
+  backend scrolls sideways and a member row cannot wrap, so there is a width
+  below which the editor loses text, and no window was ever stopped from
+  reaching it. `EditorWidgets.least_size` answers what that size is, `TkEditor`
+  sets it as the minimum of the window it owns, and the test now shrinks to the
+  size the editor says it needs rather than to a width of its own invention —
+  which is what let one more control break it. Section 4.6 of the design has
+  the rule as its fourth constraint.
+- **A stale `./venv` is what makes these tests crash rather than fail.** They
+  import the installed packages, so running them after editing the source and
+  before `./run_build.py` aborted the first test on a name that existed only in
+  the source, and the Tk window it had already built was destroyed under it —
+  which segfaulted the next test when it reached `mainloop()`. Build first, and
+  where one of the three does fail, run them one at a time so that an aborted
+  test cannot take the next one down with it.
 
 ### Step 30 - The launcher the name `edit-cfg-json` is kept for
 

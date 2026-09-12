@@ -15,7 +15,7 @@ nothing about the editor.
 from config_as_json import ConfigPath
 import pytest
 from edit_cfg_json import EditModel, Settings, row_chooses
-from edit_cfg_json.converting import matched_choice
+from edit_cfg_json.converting import matched_choice, nearest_choice
 from edit_cfg_json.settings_config import SettingsConfig
 from .container_cfg import FlagTreeCfg, KeyedEnumCfg, TreeCfg
 from .model_helpers import row_at
@@ -288,3 +288,81 @@ def test_verdict_kept() -> None:
     model.toggle_choices()
     assert model.settle_choices() == ''
     assert model.verdict is not None
+
+
+NEAR_NAMES = ('ELECTRIC', 'MECHANIC', 'MECHATRONIC')
+"""Three names that every rule of the near match can be tried on.
+
+Two of them begin alike, so a text can be the beginning of two names without
+being the beginning of all of them, and they are long enough for a text to be
+one mistyped character away from exactly one of them.
+"""
+
+NEAREST = [('MECHANIK', 'MECHANIC'), ('MECANIC', 'MECHANIC'),
+           ('MECHHANIC', 'MECHANIC'), ('ELEKTRIC', 'ELECTRIC'),
+           ('MEC', 'MECHANIC'), ('MEK', 'MECHANIC'),
+           ('  mec  ', 'MECHANIC'), ('', 'ELECTRIC'), ('QUARTZ', 'ELECTRIC')]
+"""What each text that names no value at all most likely meant.
+
+The first four are one mistyped character away from one name, which is a
+character changed, one dropped and one added, and they are the rule that is
+asked first. `MEC` is the beginning of two names and `MEK` is the beginning of
+those same two once a character is changed, and the first of the two is what
+each of them means. The empty text is the beginning of every name, and a text
+that is near none of them leaves the first name of all, which is where this
+ends.
+"""
+
+
+@pytest.mark.parametrize('text, expected', NEAREST)
+def test_nearest_choice(text: str, expected: str) -> None:
+    """Test which value a text that means none of them most likely meant."""
+    assert nearest_choice(text=text, choices=NEAR_NAMES) == expected
+
+
+def test_nearest_two_alike() -> None:
+    """Test a change of one character that fits two names picks neither.
+
+    The rule asked first is about the text meaning *one* name, so two names
+    that are equally near it are no answer at all, and the question moves on
+    to the names the text narrows down, where the first of them is taken.
+    """
+    assert nearest_choice(text='LOUP', choices=('LOUD', 'LOUT')) == 'LOUD'
+
+
+NEARBY = [('LOWEXT', 'LOWEST'), ('LO', 'LOW'), ('ZZZ', 'LOWEST')]
+"""What each text of that int enum member is given, and it is told about.
+
+`LOWEXT` is one mistyped character away from one name. `LO` is the beginning
+of two of them and one character short of being a whole name, which is the
+rule asked first and therefore `LOW`. `ZZZ` is near none of them and leaves
+the first name of all.
+"""
+
+
+@pytest.mark.parametrize('text, expected', NEARBY)
+def test_nearby_reported(text: str, expected: str) -> None:
+    """Test a text near a value is given it, and the user is told."""
+    model = EditModel(IntEnumCfg())
+    model.toggle_choices()
+    model.set_text(('level',), text)
+    model.toggle_choices()
+    message = model.settle_choices()
+    assert row_at(model, ('level',)).value == expected
+    assert 'level' in message and expected in message
+
+
+def test_mistyped_bool() -> None:
+    """Test a mistyped word is given the word it was meant to be.
+
+    A member holding true or false has the two words as the values it takes,
+    so one mistyped character is answered for it exactly as it is for the name
+    of an enum member, and the member ends up holding the value the user was
+    typing rather than the first of the two.
+    """
+    model = EditModel(FlagCfg())
+    model.toggle_choices()
+    model.set_text(('checked',), 'falze')
+    model.toggle_choices()
+    assert 'checked' in model.settle_choices()
+    assert row_at(model, ('checked',)).value is False
