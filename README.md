@@ -189,10 +189,10 @@ browsed through `reports/index.html`.
 
 ## Test summary
 
-- Test result: 2121 passed, 1 skipped, 3 deselected in 135s (0:02:15)
+- Test result: 2121 passed, 1 skipped, 3 deselected in 125s (0:02:05)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
 - Built version(s): 0.3.0
-- Build and test using Python 3.12.10
+- Build and test using Python 3.13.15
