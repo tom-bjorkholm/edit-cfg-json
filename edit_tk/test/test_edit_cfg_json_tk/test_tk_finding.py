@@ -14,17 +14,23 @@ focus is the exception, because a withdrawn window has none to give.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Callable
 import tkinter
 import pytest
+from config_as_json import Config
 from edit_cfg_json import EditModel, FIND_OPTION_HELP, FindOptions
-from edit_cfg_json_tk.tk_editor import EditorWidgets
+from edit_cfg_json_tk.tk_editor import CHOOSE_TEXT, EditorWidgets
 from edit_cfg_json_tk.tk_find import FIND_FIELD_NAME, FIND_LABEL_TEXT, \
     FIND_NEXT_TEXT, FIND_TICK_LABELS
+from edit_cfg_json_tk.tk_look import MEMBER_CHOICE_NAME, MEMBER_FIELD_NAME
 from edit_cfg_json_tk.tk_tooltip import TOOLTIP_WIDTH
 from example.e01_flat_config import FlatConfig
+from example.e02_enum_config import EnumConfig
 from example.e08_lists_and_dicts import ContainerConfig
-from .helpers import find_field, real_press, real_texts, real_tick, retype, \
-    stub_editor, stub_find_var, stub_flag, stub_keys, stub_press, stub_texts
+from example.e12_backup_files import ArchiveConfig
+from .helpers import find_field, real_choosers, real_press, real_texts, \
+    real_tick, retype, stub_editor, stub_find_var, stub_flag, stub_keys, \
+    stub_press, stub_texts
 from .stubs import FakeCanvas, FakeWidget, WHOLE_VIEW
 
 PATH_TICK, VALUE_TICK, CASE_TICK, WHOLE_TICK = FIND_TICK_LABELS
@@ -478,3 +484,55 @@ def test_real_tick_again(root_or_skip: tkinter.Tk) -> None:
     assert not real_tick(root_or_skip, PATH_TICK)
     assert 'find ports: no member matches' in \
         real_texts(root_or_skip, packed_only=True)
+
+
+REACHED_WAYS = [(EnumConfig, 'needed', False, MEMBER_CHOICE_NAME),
+                (EnumConfig, 'needed', True, MEMBER_FIELD_NAME),
+                (ArchiveConfig, 'compress', False, MEMBER_CHOICE_NAME),
+                (ArchiveConfig, 'compress', True, MEMBER_FIELD_NAME),
+                (ArchiveConfig, 'archive_folder', False, MEMBER_FIELD_NAME)]
+"""One case per way a search can land on a member that is edited.
+
+A member whose values the editor knows the whole of has both ways beside each
+other and a member whose values it does not has only the field, and the user
+switches the whole editor between the two. So the three cases are the
+pull-down being what is on the window, the field being what is on the window
+for the same member, and a member that never had a pull-down at all — the last
+one while the pull-downs are shown, which is where the editor could most
+easily reach for a widget that is not there. The enum example and the example
+with one member holding true or false are both here, because the two kinds of
+member get their values from different places in the core.
+"""
+
+
+@pytest.mark.parametrize('config_type, member, typed, reached', REACHED_WAYS)
+def test_stub_way_reached(stub_tk: None, config_type: Callable[[], Config],
+                          member: str, typed: bool, reached: str) -> None:
+    """Test the search puts the cursor in the way of editing that is shown.
+
+    A widget that is out of the layout is one the user cannot see, so the
+    cursor going there would be a cursor nowhere.
+    """
+    _ = stub_tk
+    stub_editor(EditModel(config_type()))
+    if typed:
+        stub_press(CHOOSE_TEXT)
+    stub_find_var().set(member)
+    stub_keys()[NEXT_KEY]()
+    assert FakeWidget.focused[-1].options.get('name') == reached
+
+
+def test_real_chooser_opens(root_or_skip: tkinter.Tk) -> None:
+    """Test a pull-down the search reached is one the keyboard can open.
+
+    Tk opens a menu button that has the focus when the space bar is pressed,
+    and it does that through the bind tag of the widget class. The editor puts
+    a tag of its own in front of that list, so what this asks is that it was
+    put in front of the tags rather than in place of them: a pull-down that
+    lost its class tag would be one a user who found it by searching could
+    look at and not open.
+    """
+    EditorWidgets(parent=root_or_skip, model=EditModel(EnumConfig()))
+    pull_down = real_choosers(root_or_skip)[0]
+    assert 'Menubutton' in pull_down.bindtags()
+    assert '<Key-space>' in root_or_skip.bind_class('Menubutton')

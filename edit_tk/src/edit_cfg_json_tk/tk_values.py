@@ -93,11 +93,12 @@ class ValueWidgets:
                             choices=row.choices, width=LEAST_FIELD_WIDTH)
 
     @property
-    def reached(self) -> tkinter.Misc:
+    def reached(self) -> tkinter.Widget:
         """Return the widget that a search gives the keyboard focus to.
 
         It is whichever of the two is on the window, because a widget that is
-        out of the layout is one the user cannot see and cannot type in.
+        out of the layout is one the user cannot see and cannot type in. A
+        node with no pull-down is its field, which is the only way it has.
         """
         if self._chooser is not None and self._model.choices_shown:
             return self._chooser
@@ -106,18 +107,16 @@ class ValueWidgets:
     def show_way(self) -> None:
         """Put the way of editing this value that the model asks for now.
 
-        The one that is not being used is taken out of the layout rather than
+        It is the one a search would reach, because being on the window is
+        exactly what makes a widget the one a search reaches. The other one,
+        where there is another, is taken out of the layout rather than
         destroyed, so that a field the user was typing into still holds what
-        they typed when they switch back to it. A node with no pull-down has
-        nothing to do here: its field is the only way of editing it and stays
-        where it was put.
+        they typed when they switch back to it.
         """
-        if self._chooser is None:
-            return
-        chosen = self._model.choices_shown
-        shown, hidden = (self._chooser, self._entry) if chosen \
-            else (self._entry, self._chooser)
-        hidden.pack_forget()
+        shown = self.reached
+        if self._chooser is not None:
+            hidden = self._entry if shown is self._chooser else self._chooser
+            hidden.pack_forget()
         shown.pack(fill='x', expand=True)
 
     def show_value(self, text: str) -> None:

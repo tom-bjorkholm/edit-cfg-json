@@ -3562,13 +3562,14 @@ Return the pull-down of one node, for a node that has values.
 
 ```python
 @property
-def reached() -> tkinter.Misc
+def reached() -> tkinter.Widget
 ```
 
 Return the widget that a search gives the keyboard focus to.
 
 It is whichever of the two is on the window, because a widget that is
-out of the layout is one the user cannot see and cannot type in.
+out of the layout is one the user cannot see and cannot type in. A
+node with no pull-down is its field, which is the only way it has.
 
 <a id="edit_cfg_json_tk.tk_values.ValueWidgets.show_way"></a>
 
@@ -3580,11 +3581,11 @@ def show_way() -> None
 
 Put the way of editing this value that the model asks for now.
 
-The one that is not being used is taken out of the layout rather than
+It is the one a search would reach, because being on the window is
+exactly what makes a widget the one a search reaches. The other one,
+where there is another, is taken out of the layout rather than
 destroyed, so that a field the user was typing into still holds what
-they typed when they switch back to it. A node with no pull-down has
-nothing to do here: its field is the only way of editing it and stays
-where it was put.
+they typed when they switch back to it.
 
 <a id="edit_cfg_json_tk.tk_values.ValueWidgets.show_value"></a>
 

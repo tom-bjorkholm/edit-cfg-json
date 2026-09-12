@@ -10,7 +10,10 @@ view and putting the cursor in it.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Callable
 import asyncio
+import pytest
+from config_as_json import Config
 from textual.containers import Vertical
 from textual.widgets import Button, Checkbox, Input, Static
 from edit_cfg_json import ActionSettings, EditModel, FIND_OPTION_HELP, \
@@ -19,12 +22,14 @@ from edit_cfg_json_textual.textual_editor import EditorApp
 from edit_cfg_json_textual.textual_find import FIND_NEXT_TEXT, \
     FIND_TICK_LABELS
 from edit_cfg_json_textual.textual_look import FIND_ID, FIND_LINE_ID, \
-    FIND_NEXT_ID, FIND_TICK_IDS, member_id, value_id
+    FIND_NEXT_ID, FIND_TICK_IDS, choice_id, member_id, value_id
 from edit_cfg_json_textual.textual_words import FIND_COMMAND, \
     FIND_NEXT_COMMAND
 from example.e01_flat_config import FlatConfig
+from example.e02_enum_config import EnumConfig
 from example.e08_lists_and_dicts import ContainerConfig
-from .helpers import ROOMY_SIZE, index_of, mark_of, panel_of
+from example.e12_backup_files import ArchiveConfig
+from .helpers import CHOOSE_KEY, ROOMY_SIZE, index_of, mark_of, panel_of
 
 FIND_KEY = ActionSettings().find[0]
 """Key that puts the cursor in the field a search is typed into."""
@@ -352,3 +357,63 @@ def test_palette_offers() -> None:
     names = asyncio.run(_palette_names())
     assert FIND_COMMAND in names
     assert FIND_NEXT_COMMAND in names
+
+
+REACHED_WAYS = [(EnumConfig, 'needed', False, True),
+                (EnumConfig, 'needed', True, False),
+                (ArchiveConfig, 'compress', False, True),
+                (ArchiveConfig, 'compress', True, False),
+                (ArchiveConfig, 'archive_folder', False, False)]
+"""One case per way a search can land on a member that is edited.
+
+A member whose values the editor knows the whole of has both ways beside each
+other and a member whose values it does not has only the field, and the user
+switches the whole editor between the two. So the three cases are the
+pull-down being what is on the screen, the field being what is on the screen
+for the same member, and a member that never had a pull-down at all — the last
+one while the pull-downs are shown, which is where the editor could most
+easily reach for a widget that is not there. The enum example and the example
+with one member holding true or false are both here, because the two kinds of
+member get their values from different places in the core.
+"""
+
+
+async def _reached_way(config_type: Callable[[], Config], member: str,
+                       typed: bool) -> tuple[object, int]:
+    """Look for one member and report what the cursor ended up in.
+
+    Args:
+        config_type: Class of the configuration being edited.
+        member: Name of the member to look for.
+        typed: Whether the user asked for the values to be typed first.
+
+    Returns:
+        What has the cursor, and the place of that member among the rows.
+    """
+    app = EditorApp(EditModel(config_type()))
+    async with app.run_test(size=ROOMY_SIZE) as pilot:
+        if typed:
+            await pilot.press(CHOOSE_KEY)
+            await pilot.pause()
+        await _typed(app, member)
+        await pilot.pause()
+        await pilot.press(FIND_KEY)
+        await pilot.pause()
+        await pilot.press(NEXT_KEY)
+        await pilot.pause()
+        focused = app.focused
+        return (None if focused is None else focused.id,
+                index_of(app, member))
+
+
+@pytest.mark.parametrize('config_type, member, typed, chosen', REACHED_WAYS)
+def test_way_reached(config_type: Callable[[], Config], member: str,
+                     typed: bool, chosen: bool) -> None:
+    """Test the search puts the cursor in the way of editing that is shown.
+
+    A widget that is hidden is one the user cannot see, and Textual will not
+    give it the focus in any case, so the cursor going there would be a cursor
+    nowhere.
+    """
+    focused, index = asyncio.run(_reached_way(config_type, member, typed))
+    assert focused == (choice_id(index) if chosen else value_id(index))
