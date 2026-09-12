@@ -294,6 +294,11 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
                              'is.')
     parser.add_argument('--toggle-fold', action='count', default=0,
                         help='Press the fold key. Repeatable, as a key is.')
+    parser.add_argument('--type-values', action='store_true',
+                        help='Open with the values of a member holding true '
+                             'or false, or an enum member, in a field to '
+                             'type in rather than in a pull-down of the '
+                             'values it takes.')
     parser.add_argument('--fold', action='append', dest='folds',
                         metavar='PATH',
                         help='Fold or open one list or dict. Repeatable.')
@@ -575,7 +580,9 @@ def _settings(parser: argparse.ArgumentParser, parsed: argparse.Namespace,
                                  given=given.actions),
             file_extension=parsed.extension or given.file_extension,
             extension_enforced=(parsed.enforce_extension
-                                or given.extension_enforced))
+                                or given.extension_enforced),
+            choose_values=(not parsed.type_values
+                           and given.choose_values))
     except ValueError as error:
         # `parser.error` writes the message and ends the process, so nothing
         # below this runs when the extension is text that names none.

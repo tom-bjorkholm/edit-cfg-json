@@ -200,6 +200,13 @@ under one toggle, together with the sentence saying why a container cannot be
 given an element, because a user who knows this configuration by heart wants
 the lines back. What the application *refused* is never under it.
 
+The same reading of the type is what says which values a member takes where
+they are a set the editor knows the whole of, which is a member holding true
+or false and one holding an enum. `MemberRow.choices` is those values, and a
+backend offers them to be chosen from rather than typed while
+`EditModel.choices_shown` says so; that is one answer for the whole editor,
+switched by the user and opened as `Settings.choose_values` asks.
+
 ### Reading the input file
 
 `load_config` reads the file itself rather than taking an already loaded
@@ -336,7 +343,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 2024 passed, 3 deselected in 77s (0:01:17)
+- Test result: 2082 passed, 3 deselected in 80s (0:01:20)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

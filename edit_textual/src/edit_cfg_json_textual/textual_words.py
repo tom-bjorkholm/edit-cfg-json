@@ -2,8 +2,9 @@
 """What this backend calls the actions of the editor, and what it asks.
 
 The names a footer and a command palette give each action, what the palette
-says each of them does, and the words of the one question this backend puts in
-a field of its own. They are here rather than in the modules that build the
+says each of them does, the words of the one question this backend puts in a
+field of its own, and the words of the one thing it tells rather than asks.
+They are here rather than in the modules that build the
 widgets, for the same reason the identifiers and the sizes are in
 `textual_look`: they are what one has to read to know what the editor says, and
 two of them are read by two modules — the panel binds the keys and names them,
@@ -62,6 +63,33 @@ SAVE_AS_HELP = 'Choose the file to write, and write it'
 
 EXPLAIN_HELP = 'Show or hide what the application says about these values'
 """What the command palette says the explain entry does."""
+
+CHOOSE_COMMAND = 'Choose values'
+"""What the choose action is called while the values are typed."""
+
+TYPE_COMMAND = 'Type values'
+"""What it is called while they are chosen from a pull-down.
+
+The name says what the next press does, exactly as the explain action above
+is named, and for the same reason. The Tk backend answers the same question
+with a tick-box.
+"""
+
+CHOOSE_HELP = ('Switch between typing a value and choosing one of the '
+               'values a member takes')
+"""What the command palette says the choose entry does."""
+
+REPLACED_PROMPT = 'Values that had to be replaced:'
+"""What the screen that says what choosing the values did begins with."""
+
+REPLACED_LABEL = 'Go on editing'
+"""Label of the control that leaves that screen.
+
+It says what happens next rather than agreeing to anything, in the same way
+as the controls that answer the two questions: there is nothing to decide
+here, because a pull-down cannot show a text that means no value of its
+member and the member has already been given one.
+"""
 
 FOLD_COMMAND = 'Fold all'
 """What the fold action is called while at least one container is open."""

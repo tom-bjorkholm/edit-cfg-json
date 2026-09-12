@@ -637,6 +637,9 @@ text, true in both states. Textual has a footer of key bindings and no button
 row, so its action is *renamed* — "Explain" while they are hidden, "Hide
 explanation" while they are shown — and the same name reaches its palette.
 
+The switch between typing a value and choosing one (section 4.11) is the same
+shape of action, for the same reasons, and is shown the same two ways.
+
 ### 4.5 Telling the kinds of text apart
 
 Once the explanations are on the screen, most of what is there is not the
@@ -1013,6 +1016,87 @@ reaches none.
 **The four are session state and not `Settings`.** They are what the user is
 doing now, not what the application knows and the editor cannot find out, which
 is the line section 9.6 draws.
+
+### 4.11 Choosing a value instead of typing it
+
+Two kinds of member hold one of a set of values that the editor knows the whole
+of, and it knows it from the type and not from anything the application said. A
+member holding true or false takes the two words of section 4.2, and a member
+whose class declares a parse converter into an enum takes the names of that
+enum. Such a member is **offered those values to be chosen from** rather than
+left to a user who has to remember how a name is spelled.
+
+`MemberRow.choices` is what a node takes, and it is read from what the row
+already carries: `is_bool` for the two words and the converter for the enum,
+which is the same reading `enum_text` makes for the line that lists the names
+below the row. One reading, so the list offered and the list written cannot
+come to disagree. Every other node answers with no values at all, which is what
+says that its value is typed: text and a number hold anything of their kind,
+and a converter of the application's own says nothing about which values there
+are.
+
+**It is still a field underneath, and the user switches between the two.** What
+the file holds is the text of a name, so the pull-down and the field are two
+ways of making one edit, and which of them is on the screen is *one answer for
+the whole editor* — the rule that section 4.4 states for the explanations, for
+the same reason. `EditModel.choices_shown` is that answer and
+`toggle_choices()` is the switch, and the action is shaped like the explain
+action in both backends: a tick-box in the Tk button row, and a renamed action
+in the Textual footer and palette.
+
+**Which of the two the editor opens in is the application's**, as
+`Settings.choose_values`, and choosing is the default: a member whose values are
+known is one nobody should have to spell. That answer is read until the user
+gives one of their own and never afterwards, which is a third thing a settings
+callable can change beside the two of section 9.4: the key combinations are read
+once and the file names at every save, and this one is read until it is
+overruled.
+
+**A pull-down offers the values its member takes and nothing else, and one of
+them is selected at every moment.** There is no unselected state, no blank line
+among the values, and no way for the user to reach either: a member holding an
+enum takes the members of that enum, a member holding true or false takes those
+two words, and an editor that offered anything else would be offering to write
+what the class cannot read back. Both backends are built to that rule rather
+than left to a toolkit default: Tk's menu lists the values and nothing else,
+and Textual's control is declared with `allow_blank=False`, which takes its
+unselected state away and with it the blank line it would otherwise list.
+
+**Nothing the user does can put a member outside those values while a pull-down
+is shown**, because typing happens in the field and switching to the pull-downs
+is the moment that answers for what was typed. That moment is
+`settle_choices()`, and it is a third one beside a field losing the focus and a
+validation pass. What each text means is `matched_choice`, which runs the
+converter the class declared: the case is ignored, and a beginning that only
+one member of *that* enum has is that member — which beginnings those are is a
+fact about the enum the application declared and about nothing else. Such a
+text is completed and nothing is said about it, because the row already says
+the value differs from the file and the same completion is what a validation
+pass would have made. A text that means none of them, or more than one of
+them, and the empty text of a cleared field, leave the member holding the
+**first value it takes**; that is the one change of the buffer the user did not
+make, so the editor says so, in words the core owns and a dialog or a screen
+that each backend puts, which is the shape of sections 7.2 and 7.3.
+
+**The settling is asked for wherever a pull-down is about to be shown**, and
+not only when the user switches. While the values are typed it does nothing at
+all, and while they are chosen every such member already holds one of its own
+values, so it is a question rather than a change: each backend asks it where it
+builds the widgets of the rows, and that is what makes the rule above hold by
+construction rather than by the widgets tolerating a state they should never be
+in. What it guards against is not a user: it is an application that wrote into
+the model between building it and showing it, which `EditModel.set_text` allows
+and the examples do for `--set`. A value that really was replaced drops the
+verdict, for the ordinary reason that a verdict is about the values that were
+there when it was reached.
+
+**A file the editor opened cannot hold such a value in the first place.** The
+application hands the editor a `config_as_json.Config` object, and a file whose
+enum member is no member of that enum or whose boolean is neither true nor
+false is a file that class refuses to parse; the load then fails and there is
+nothing to edit (section 5.2). So the values the editor starts from are members
+and booleans already, and the only thing that has ever been able to make one of
+them anything else is a field being typed in.
 
 ## 5. Loading
 
@@ -2211,6 +2295,7 @@ class ActionSettings:
     fold: tuple[str, ...] = ('f2', 'ctrl+t')
     find: tuple[str, ...] = ('ctrl+f',)
     find_next: tuple[str, ...] = ('f3',)
+    choose: tuple[str, ...] = ('f4',)
 
 
 @dataclass(frozen=True)
@@ -2222,6 +2307,7 @@ class Settings:
     backup_count: int = 1
     priority_keys: bool = True
     confirm_overwrite: bool = True
+    choose_values: bool = True
 ```
 
 One attribute per action rather than a mapping keyed by an action enum. The
@@ -2250,6 +2336,13 @@ everywhere and is therefore not the editor's to spend (section 9.7).
 encodes a control letter as a single byte has nowhere to put the shift, so the
 combination would arrive as `ctrl+f` and the fold key would run the search.
 
+`choose` has `f4` alone, the function key beside the three above it, because
+the four actions are the same kind of thing: each of them decides how the
+configuration is put on the screen rather than what it holds. It has no second
+key for the reason `find_next` has none: of the control letters, a field claims
+most and the actions above claim the rest, and an action without a second key
+still has the tick-box of one backend and the command palette of the other.
+
 The three file attributes make the same point: three defaults, and an
 application that says nothing gets what the editor would have chosen anyway.
 What they say is section 7.3's; that they are here is because only an
@@ -2267,6 +2360,12 @@ part of the window the editor is in. It is the one attribute that only an
 answer from an empty tuple in `ActionSettings`: that one takes a key away from
 the editor altogether, and this one leaves the editor the key it did not get
 first.
+
+`choose_values` is the state the editor **opens** in and not the state it stays
+in, which is what makes it a setting rather than session state: the user
+switches between the two whenever they like, and this says nothing once they
+have. True is the default, because a member whose values the editor knows the
+whole of is a member nobody should have to spell (section 4.11).
 
 ### 9.2 Key combinations
 
@@ -2346,6 +2445,10 @@ looks:
   afterwards. Tk binds to the window when the widgets are created.
 - **The file name settings are read at every save** and at every choice of a
   destination, so a later answer does take effect there immediately.
+- **`choose_values` is read until the user overrules it**, which is a third
+  answer between the two above: it says which way the editor opens, so a later
+  answer takes effect while nobody has switched and never afterwards
+  (section 4.11).
 - **The gain that matters is neither.** It is that an application need not have
   its settings ready at the moment it calls. Under embedding (section 8) the
   model may be built long before the editor is shown.
@@ -2449,7 +2552,8 @@ file of the home folder that says something else (section 8.3.5).
 ### 9.10 Changing the settings file format costs a compatibility rule
 
 **An action added to `ActionSettings` is a change of this library's own file
-format**, and so is any other change to what `SettingsConfig` declares.
+format**, and so is a setting added to `Settings` and any other change to what
+`SettingsConfig` declares.
 `config_as_json` matches the keys of a dict member against the ones the class
 declares while the file is parsed, before any validator of that class is asked
 anything, and it does so whatever policy the load was given. So every settings
@@ -2467,19 +2571,25 @@ section 5.3 already makes visible for an application's own classes. Three
 things hold for those rules.
 
 - **Only a difference a released version really wrote belongs in them.**
-  `ADDED_ACTIONS` names the actions no released version ever put in a file.
-  Supplying an action that has always existed would accept a file no version
-  ever produced, and would hide a key that somebody removed by hand.
-- **What is supplied is read from `ActionSettings` and not written again**, for
-  the same reason the declared values of the class are (section 9.8): the
-  default of a setting is stated once.
+  `ADDED_ACTIONS` names the actions no released version ever put in a file and
+  `ADDED_SETTINGS` names the members none of them held. Supplying something
+  that has always existed would accept a file no version ever produced, and
+  would hide a key or a setting that somebody removed by hand.
+- **A member added to the class needs the same rule as an action**, and for the
+  neighbouring reason: a member `SettingsConfig` declares has to be there at
+  all, and it is asked for whatever policy the parse was given, because a
+  nested configuration object is read whole. `ADDED_SETTINGS` is to a member
+  what `ADDED_ACTIONS` is to a key of `actions`.
+- **What is supplied is read from `Settings` and `ActionSettings` and not
+  written again**, for the same reason the declared values of the class are
+  (section 9.8): the default of a setting is stated once.
 - **They are the declarative rules and nothing else.** A missing-value path
   creates the members above it, so a file with no `actions` at all is given one
-  holding those two entries. That is harmless, and deliberately not guarded
+  holding those entries. That is harmless, and deliberately not guarded
   against: a settings file is written by `--edit-settings` saving one, which
   writes every member and every action, so a file without that member is not a
   file any version wrote. Such a file is still refused, because the key check
-  then asks for the seven actions the two rules say nothing about.
+  then asks for the actions the rules say nothing about.
 
 **A run that needed such a rule says so.** `load_settings` names the file the
 lookup used and asks for it to be opened with `--edit-settings` and saved,

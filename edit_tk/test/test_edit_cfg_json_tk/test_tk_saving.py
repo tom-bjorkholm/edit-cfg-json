@@ -13,8 +13,9 @@ from edit_cfg_json_tk import edit as tk_edit
 from edit_cfg_json_tk.tk_ask import ALL_FILES
 from edit_cfg_json_tk.tk_editor import EditorWidgets, SAVE_AS_TEXT, SAVE_TEXT
 from example.e01_flat_config import FlatConfig
-from .helpers import FakeVar, NO_FILE_TEXT, answer_question, real_fields, \
+from .helpers import NO_FILE_TEXT, answer_question, real_fields, \
     real_press, retype, stub_editor, stub_press, written
+from .stubs import FakeVar
 
 
 def _answer_dialog(monkeypatch: pytest.MonkeyPatch, answer: str) -> list[int]:

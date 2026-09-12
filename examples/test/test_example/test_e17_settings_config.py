@@ -34,7 +34,12 @@ DATA_NAME = 'e17_tool.json'
 """Input file of this example, which holds a whole settings block."""
 
 OLD_DATA_NAME = 'e17_tool_old.json'
-"""The same file as a release before `find` and `find_next` wrote it."""
+"""The same file as a release before the added settings wrote it.
+
+It holds neither `find`, `find_next` nor `choose` among its actions, and no
+`choose_values` member at all, which are the four things `SettingsConfig`
+declares rules for reading an older file by.
+"""
 
 NESTED_ROW = 'editor: SettingsConfig'
 """What the row of the member holding the settings of the editor says."""
@@ -200,16 +205,18 @@ def test_opens_in_textual(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_older_block_opens(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a settings block written before the find actions still opens.
 
-    An action added to the editor is a change of this file format, because the
-    keys of the `actions` member are matched against the ones the class
-    declares whatever policy the parse was given. Without the rules that
+    Anything added to the settings of the editor is a change of this file
+    format, because the keys of the `actions` member are matched against the
+    ones the class declares and a member it declares has to be there at all,
+    both of them whatever policy the parse was given. Without the rules that
     `SettingsConfig` declares for an older file, this whole application would
-    refuse to start over two keys of the editor it embeds.
+    refuse to start over the keys and the settings of the editor it embeds.
     """
     shown = _dump(capsys, '-i', data_file(OLD_DATA_NAME), '--fold', 'editor',
                   '--fold', 'editor.actions')
     assert 'find: 1 element' in shown
     assert 'find_next: 1 element' in shown
+    assert 'choose: 1 element' in shown
     assert 'older format' in shown
 
 
@@ -224,4 +231,6 @@ def test_older_block_settings() -> None:
     settings = from_file.editor.as_settings()
     assert settings.actions.find == Settings().actions.find
     assert settings.actions.find_next == Settings().actions.find_next
+    assert settings.actions.choose == Settings().actions.choose
+    assert settings.choose_values == Settings().choose_values
     assert settings.actions.save == ('ctrl+w',)

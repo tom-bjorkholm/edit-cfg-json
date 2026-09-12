@@ -18,8 +18,8 @@ import tkinter
 import pytest
 from edit_cfg_json_tk.scrolling import bring_into_view, scrolling_body
 from edit_cfg_json_tk.tk_scope import KeyScope
-from .helpers import FakeWidget, STUB_BODY_HEIGHT, TOUCHPAD, \
-    touchpad_known
+from .helpers import touchpad_known
+from .stubs import FakeWidget, STUB_BODY_HEIGHT, TOUCHPAD
 
 WHEEL_UP = -1
 """How far the body scrolls for one turn of the wheel away from the user."""

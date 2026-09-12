@@ -73,6 +73,13 @@ the refused save above refusable. Example 1 is where a flat configuration is
 really taught, example 3 is where the descriptions are, and examples 8 to 11
 are where the shapes a real configuration has are.
 
+The true-or-false member is worth one look while it is here. `compress` opens
+as a pull-down of `true` and `false`, because those are the whole of what it
+takes and the editor knows it from the type; **F4** turns it into a field to
+type in, where any beginning of either word is that word. The two members
+beside it stay fields whatever F4 says, because text and a number can hold
+anything of their kind and there is no list of values to offer.
+
 The file name extension is in `FILE_SETTINGS` too, and it is example 1 that
 teaches what it does. It is here because an application that has an opinion
 about what its files are called usually has one about how they are looked

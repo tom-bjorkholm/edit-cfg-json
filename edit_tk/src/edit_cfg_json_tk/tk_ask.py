@@ -10,6 +10,11 @@ end. Keeping them together is also what makes it plain that this backend asks
 the toolkit for all four of its questions, where the Textual one has to build a
 screen for them.
 
+One thing here is told rather than asked, which is what switching to a
+pull-down had to replace. It is here because it is a dialog of the toolkit
+like the four above it, and because what it says is the core's in exactly the
+same way.
+
 Nothing here decides *whether* a question is asked. Which file to write is
 asked where the model has no destination, what a new entry is called where
 `edit_cfg_json.MemberRow.offer` says a key is needed, whether a file may be
@@ -46,6 +51,9 @@ CLOSE_TITLE = 'Close the editor'
 
 OVERWRITE_TITLE = 'Overwrite the file'
 """Title of the dialog that asks whether an existing file may be written."""
+
+REPLACED_TITLE = 'Values that had to be replaced'
+"""Title of the dialog that says what choosing the values did."""
 
 
 def _file_types(settings: core.Settings) -> list[tuple[str, str]]:
@@ -153,6 +161,23 @@ def may_overwrite(model: core.EditModel) -> bool:
     question = core.overwrite_question(model)
     return not question or _answered_yes(title=OVERWRITE_TITLE,
                                          question=question)
+
+
+def tell_replaced(message: str) -> None:
+    """Say what giving the members a value they take had to replace.
+
+    This is the one thing here that is told rather than asked: there is
+    nothing to decide, because a pull-down cannot show a text that means no
+    value of its member and the member has already been given one. It is a
+    dialog all the same, because it is the one change of the buffer that the
+    user did not make and a line among the values would be read after the
+    values it is about.
+
+    Args:
+        message: What the core says has to be told, one sentence per member.
+            It is never empty: nothing is said where nothing was replaced.
+    """
+    messagebox.showwarning(title=REPLACED_TITLE, message=message)
 
 
 def asked_key(row: core.MemberRow) -> Optional[str]:

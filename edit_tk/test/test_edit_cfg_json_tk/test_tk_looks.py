@@ -19,9 +19,10 @@ from edit_cfg_json_tk.tk_editor import EditorWidgets, EXPLAIN_TEXT
 from edit_cfg_json_tk.tk_look import EMPHASIS_COLOURS, FIELD_BACKGROUND, \
     FIELD_FOREGROUND, LEAST_WRAP_WIDTH
 from example.e01_flat_config import FlatConfig
-from .helpers import ABOUT_NAME, DESCRIPTIONS, FakeWidget, FILLED_REPORT, \
+from .helpers import ABOUT_NAME, DESCRIPTIONS, FILLED_REPORT, \
     FLAT_DOCSTRING, FLAT_SUMMARY, real_press, real_ticks, stub_editor, \
-    stub_keys, stub_press, STUB_BODY_HEIGHT, TEXT_KIND
+    stub_keys, stub_press, TEXT_KIND
+from .stubs import FakeWidget, STUB_BODY_HEIGHT
 
 WHEEL_UP = -1
 """How far one turn of the wheel away from the user scrolls the body."""

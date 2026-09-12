@@ -23,9 +23,9 @@ from edit_cfg_json_tk.tk_find import FIND_FIELD_NAME, FIND_LABEL_TEXT, \
 from edit_cfg_json_tk.tk_tooltip import TOOLTIP_WIDTH
 from example.e01_flat_config import FlatConfig
 from example.e08_lists_and_dicts import ContainerConfig
-from .helpers import FakeCanvas, FakeWidget, WHOLE_VIEW, find_field, \
-    real_press, real_texts, real_tick, retype, stub_editor, stub_find_var, \
-    stub_flag, stub_keys, stub_press, stub_texts
+from .helpers import find_field, real_press, real_texts, real_tick, retype, \
+    stub_editor, stub_find_var, stub_flag, stub_keys, stub_press, stub_texts
+from .stubs import FakeCanvas, FakeWidget, WHOLE_VIEW
 
 PATH_TICK, VALUE_TICK, CASE_TICK, WHOLE_TICK = FIND_TICK_LABELS
 """The label of each control that says where a search looks."""

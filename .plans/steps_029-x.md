@@ -3,7 +3,7 @@
 ## Where everything is
 
 Steps 1 to 28 are implemented and committed, step 23 with the corrections its
-review asked for. Steps 1 to 9 are written up in
+review asked for, and step 29 is implemented and awaiting its review. Steps 1 to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md), steps 10 to 21 in
 [steps_010-021_done.md](steps_010-021_done.md) and steps 22 to 28 in
 [steps_022-028_done.md](steps_022-028_done.md). The steps still to build are in
@@ -102,6 +102,10 @@ the plan says only *when* that decision gets built.
 - [Step 28][s28] — which dicts can be given an entry became a question about
   where a dict sits rather than about which member it belongs to, which is
   what the check that refuses one actually asks.
+- [Step 29](#step-29---pull-down-selection-of-enum-and-bool-values) — a member
+  whose values the editor knows the whole of offered as a pull-down of them,
+  one switch for all of them, and the first value it takes given to a text
+  that means none.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -203,6 +207,7 @@ version. Record which one, because the next step's fast iteration with
 | Second release 0.0.4 | 18 to 21 | Release 0.0.4 | done |
 | Third release 0.1.0 | 22 to 28 | Release 0.1.0 | done |
 | Fourth release 0.2.0 | none | Release 0.2.0, the paths that `config-as-json` 1.7 reports | done |
+| Fifth release | 29 onwards | in progress | step 29 implemented, awaiting review |
 
 ## 3. Steps 29 onwards, as named steps
 
@@ -210,6 +215,8 @@ Each of these is detailed just before it is started. What is fixed now is
 the order, the observable outcome and the main risk.
 
 ### Step 29 - Pull-down selection of enum and bool values
+
+Status: **Implemented, committed.**
 
 When the type of an attribute have a well defined set of possible
 values that we know from type discovered by introspection we shall
@@ -222,7 +229,129 @@ the end user shows and hides the explanations. The initial state
 (text field or pull-down) shall be defined in Settings, with the
 default value in settings as pull-down.
 
+**Observable outcome.** `e02_enum_config.py --ui tk` and `--ui textual` open
+with both enum members as a pull-down of `MECHANICAL`, `ELECTRICAL`,
+`ELECTRONIC` where they were fields; `F4`, or the new `Choose values` tick-box
+in the window, turns them back into fields; and `F4` again with `ELECT` in a
+field replaces it with `MECHANICAL` and says so in a dialog, where `MECH` is
+completed silently because it is the beginning of exactly one member name of
+*that* enum. `--type-values` opens the same example the other way
+round. `e12_backup_files.py --ui tk` shows the same thing for a member holding
+true or false, and `e17_settings_config.py --ui tk -i ../../data/e17_tool.json`
+shows the four true-or-false settings of the editor as pull-downs, one of
+which is the setting that says which way the editor opens.
+
+**What it decided.** Six things.
+
+- **The values are read from what the row already carries**, so
+  `MemberRow.choices` is a property and not something the buffer computes:
+  `is_bool` for the two words of step 22, and `descriptions.enum_names` for
+  the names of an enum, which is the reading `enum_text` already made for the
+  line that lists them below the row. One reading, so the list offered and the
+  list written cannot come to disagree.
+- **One answer for the whole editor, switched by the user**, which is the
+  explain toggle of section 4.4 applied to a second question, with the
+  tick-box of one backend and the renamed action of the other. What the
+  application decides is only which way the editor *opens*, as
+  `Settings.choose_values`, and that answer is read until the user gives one
+  of their own — a third thing a settings callable can change, beside the keys
+  read once and the file names read at every save.
+- **A pull-down offers the values its member takes and nothing else, and holds
+  one of them at every moment.** There is no unselected state, no blank line
+  among the values and no way for the user to reach either: a member holding an
+  enum takes the members of that enum, one holding true or false takes those
+  two words, and offering anything else would be offering to write what the
+  class cannot read back. Tk's menu lists the values alone, and Textual's
+  control is declared `allow_blank=False`, which takes its unselected state
+  away and with it the blank line it would otherwise list.
+- **Switching to a pull-down is a third moment at which a member's text is
+  answered for**, beside a field losing the focus and a validation pass,
+  because typing is what the field is for and the pull-down has to hold a
+  value its member takes. `matched_choice` runs the converter the class
+  declared: the case is ignored and a beginning that only one member of *that*
+  enum has is that member, which is a fact about the enum the application
+  declared and about no other. Such a text is completed with nothing said about
+  it; a text meaning none of them, or more than one, leaves the member holding
+  the first value it takes, and the user is told in a dialog because it is the
+  one change of the buffer they did not make.
+- **The rule holds by construction and not by tolerant widgets.** Each backend
+  asks `settle_choices()` where it builds the widgets of its rows, which is
+  what makes every pull-down be *made* holding one of its own values. It does
+  nothing while the values are typed and nothing a second time, so it is a
+  question rather than a change: what it guards against is an application that
+  wrote into the model between building it and showing it, which
+  `EditModel.set_text` allows and the examples do for `--set`.
+- **The Tk pull-down and the Tk field share one variable.** A menu entry writes
+  the value that was picked into the variable it is given, so the callback that
+  writes the model is the one the field already had and picking a value is the
+  same edit as typing one. It is built from the `Menubutton` and `Menu` that
+  `tkinter.OptionMenu` is, which is plain Tk rather than `ttk` and keeps every
+  widget of this backend configurable with `background` and `foreground` — what
+  step 31 will need.
+
+**Core.** `leaf_value` gained `BOOL_NAMES` beside `BOOL_CHOICES`,
+`descriptions` gained `enum_names`, `rows` gained `MemberRow.choices`,
+`converting` gained `matched_choice` and the words of a replaced text, `buffer`
+gained `choose_values`, `edit_model` gained the state, the switch and
+`settle_choices`, and `model_text` gained `row_chooses`. `Settings` gained
+`choose_values` and `ActionSettings` gained `choose`, which `SettingsConfig`
+mirrors and `ADDED_ACTIONS` and the new `ADDED_SETTINGS` make an older settings
+file readable past.
+
+The public names it settled:
+
+| Name | Kind |
+| --- | --- |
+| `Settings.choose_values` | which way the editor opens |
+| `ActionSettings.choose` | keys that switch, `('f4',)` |
+| `SettingsConfig.choose_values` | the same setting, written in a file |
+| `ADDED_SETTINGS` | members no released version wrote into a file |
+| `MemberRow.choices` | the values this node takes |
+| `EditModel.choices_shown` | whether they are chosen rather than typed |
+| `EditModel.toggle_choices` | the switch |
+| `EditModel.settle_choices` | give every such member a value it takes |
+| `row_chooses` | whether this node is chosen from rather than typed into |
+
+**What building it found.**
+
+- **The review found the whole of this step's worst mistake in one place.**
+  The first version left Textual's control at its default `allow_blank=True`
+  and used its unselected state for a member whose text was none of its values,
+  which put a blank line into the list of every enum and let the user pick it.
+  It was built to tolerate a state the editor should simply not have, and the
+  one path that produced that state — an application writing into the model
+  before the editor is shown — is closed by settling where the widgets are
+  built. `allow_blank=False` now takes the state and the blank line away
+  together, and `Select.NULL` appears nowhere in this package.
+- **`tkinter.OptionMenu` cannot be given a Tk name before Python 3.14.** Its
+  `__init__` passes only its own options to the widget, and the `name` keyword
+  was added to those in 3.14 alone, so a 3.12 build failed with *unknown option
+  -name*. The pull-down is built from the `Menubutton` and the `Menu` that
+  class is, which is ten lines, keeps the widget name that tells it from its
+  field, and works on all three supported versions.
+- **Two modules had to be split**, both of which were one step from too long
+  before this one: `tk_editor` gave up the two ways of editing one value to a
+  new `tk_values`, and `textual_panel` gave up the widgets of one member row
+  and what they show to a new `textual_member`. The Tk test helpers went the
+  same way, with the stand-ins moving to a `stubs` module of their own.
+  `textual_panel` is still within a hundred lines of the limit, and the next
+  step that touches it will have to split the actions of the panel from the
+  widgets of it.
+- **`rows_shape` does not track the values a node takes**, and one exotic case
+  can therefore leave a row without the pull-down it has become entitled to: a
+  member with no annotation the editor can read, whose value changes kind
+  across a save, in a session that stays open. Nothing wrong is shown and no
+  wrong value can be written — the row simply keeps its field until the editor
+  is opened again — so the public shape of `rows_shape` was left as it is.
+- **`e17_tool.json` had to gain the new action and the new setting.** A
+  settings block inside another configuration is read whole, so the data file
+  of that example is a current-format file by definition, and the old-format
+  file beside it now differs by three actions and one member rather than by
+  two actions.
+
 ### Step 30 - The launcher the name `edit-cfg-json` is kept for
+
+Status: **Not started.**
 
 Section 8.1 of the design is headed "planned, not implemented": an
 `edit_cfg_json.ui` entry-point group would let backends register themselves for
@@ -234,16 +363,35 @@ the core installs the launcher it has never installed a program for, and a
 machine with no display or without `textual` gets the editor it can actually
 run, with a refusal and an exit code of its own where it can run none.
 
+When the backends register (or are discovered) they each provide a named tuple
+or frozen dataclass describing them. This named tuple has members for:
+
+- priority: an integer that is 0 or greater. DumpEditor has priority 0,
+  textual priority 5 and Tk priority 10.
+- the string that specifies the value this editor uses for the argument of
+  the `--ui` switch.
+- a callable `Callable[[], bool]` that determines if this editor can run
+  in this context. (This includes checking if dependencies are installed,
+  if a stdout/stdin are attched to a terminal, ...)
+- a callable to start the editor.
+
 `edit-cfg-json` takes an optional command line switch `--ui` with possible
-arguments `tk`, `textual` and `dump`. If the switch `--ui` is missing
-and the Tk is available and `edit-cfg-json-tk` is installed, then
-`edit-cfg-json-tk` is started. If `edit-cfg-json-tk` cannot be started
-and `edit-cfg-json-textual` is installed, then `edit-cfg-json-textual`
-is started. If neither of these 2 can be started an error message
-explaining this shall be printed. `DumpEditor` is never started when
-switch `--ui` is missing. Other possible future editors (like a Qt editor)
-are started if neither `edit-cfg-json-tk` nor `edit-cfg-json-textual`
-can be started when `--ui` is missing.
+arguments determined by the registered/discovered backends. (Member from the
+named tuple they provide at registration/discovery).
+If the switch `--ui` is missing the backends are probed if they can run in
+order, starting with the highest priority. When the first backend answers
+that it can run, it is started and no other backend is probed.
+However, backends whith priority 0 are never probed and are never started
+unless explictly requested as the argument of the `--ui` command line switch.
+
+Other possible future editors (like a Qt editor) can register or be discovered
+just as the backends provided by this repo. The programmer of a backend
+determines which priority to report for that backend.
+
+The Settings and configuration file gains a `dict[str, int]` that can be
+used to override the priorities the backend report at registration/discovery.
+It is a dict from `--ui` argument string to priority.
+The default Settings has an empty dict for this priority override.
 
 ### Step 31 - Selectable dark mode
 
@@ -308,7 +456,6 @@ The relative effort of the remaining steps is listed in effort order.
 | Step | Effort | What the number is mostly |
 | --- | --- | --- |
 | 30 The launcher | 4 | Little logic, spread over all three packages: an entry-point group, a script the core has never installed, discovery, and what a machine that can run neither editor is told. |
-| 29 Pull-down for enum and bool | 6 | A second kind of field in both backends, touching every rule written for the first: write on change, focus loss, the rebuild after a pass, and the marks. |
 | 32 Raw JSON for a subtree | 8 | An editing surface the editor does not have at all yet, in both backends, and two rules about a second way of editing one thing. |
 | 33 The wizard | 10 | Two toolkits' dialogs and file choosers, two bridge libraries to weigh against the menubar alternative, and no headless test worth much. |
 

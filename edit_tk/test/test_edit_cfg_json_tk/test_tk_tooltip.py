@@ -19,7 +19,7 @@ test here.
 from typing import cast
 import tkinter
 from edit_cfg_json_tk.tk_tooltip import Tooltip
-from .helpers import FakeWidget
+from .stubs import FakeWidget
 
 TIP_TEXT = 'What this control is for, in a sentence.'
 """What the tooltip of these tests says."""

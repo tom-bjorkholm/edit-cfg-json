@@ -228,8 +228,9 @@ The window holds the label of the configuration, what the class says about
 itself, what reading the input file did, and then one row per node of the
 configuration. Below those, in a part of the window that does not scroll, are
 the search, the validation verdict, the saving line, and the buttons:
-Validate, Save, Save as..., a tick-box for Explain, a button that folds or
-opens every container, and Close. Every one of them has a key as well:
+Validate, Save, Save as..., a tick-box for Explain, a tick-box for Choose
+values, a button that folds or opens every container, and Close. Every one of
+them has a key as well:
 
 | Key | What it does |
 | --- | --- |
@@ -240,6 +241,7 @@ opens every container, and Close. Every one of them has a key as well:
 | `f2`, or `ctrl+t` | Fold all, or unfold all |
 | `ctrl+f` | Find |
 | `f3` | Find next |
+| `f4` | Choose values, or type them |
 | `ctrl+q` | Close |
 
 Those are the defaults of `edit_cfg_json.ActionSettings`, and an application
@@ -317,6 +319,17 @@ docstring. It is a tick-box rather than a button, because a button saying
 Explain beside explanations that are already there would be offering something
 that has been done.
 
+**Choose values** offers a member whose values the editor knows the whole of
+as a pull-down of those values instead of as a field: a member holding true or
+false, and one whose class declares a parse converter into an enum. The menu
+lists those values and nothing else, and one of them is selected at every
+moment. The editor opens with the pull-downs, which
+`edit_cfg_json.Settings.choose_values` is what an application says otherwise
+in, and the tick-box turns all of them into fields and back. Switching to the
+pull-downs is what answers for what was typed into a field: a beginning that
+only one of the values has becomes that value, and anything else leaves the
+member holding the first value it takes and says so in a dialog.
+
 **A configuration bigger than the window** is scrolled through rather than cut
 off: the rows are on a canvas that scrolls while the verdict, the saving line
 and the buttons stay where they are, and every paragraph wraps to the width
@@ -379,7 +392,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 2024 passed, 3 deselected in 77s (0:01:17)
+- Test result: 2082 passed, 3 deselected in 80s (0:01:20)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

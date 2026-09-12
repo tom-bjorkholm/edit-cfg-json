@@ -9,6 +9,10 @@ serving every question of that shape, because two screens differing in a
 prompt would be the same code twice and the questions would then be free to
 drift apart in how they behave.
 
+A third shape asks nothing and is read: what switching to a pull-down had to
+replace. It is here because it is a modal screen of exactly the same kind, and
+because the editor has to turn its own actions off while any of them is up.
+
 A question is a screen of its own rather than a field or a row in the editor,
 because it is asked, answered and gone: something that was always there would
 be one more thing to read in every session, for a question that is asked once
@@ -34,6 +38,8 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label
 from edit_cfg_json_textual.textual_look import ANSWER_CLASS, ASK_BOX_ID, \
     QUESTION_CSS, TYPE_MARK, bind_action
+from edit_cfg_json_textual.textual_words import REPLACED_LABEL, \
+    REPLACED_PROMPT
 
 CANCEL_COMMAND = 'Cancel'
 """Name of the action that leaves a question of the editor unanswered."""
@@ -43,6 +49,9 @@ YES_ID = 'answer-yes'
 
 NO_ID = 'answer-no'
 """Identifier of the control that answers it with no."""
+
+TOLD_ID = 'answer-told'
+"""Identifier of the control that leaves a screen which asks nothing."""
 
 DISCARD_LABEL = 'Discard'
 """Label of the control that drops the changes and closes the editor."""
@@ -206,7 +215,59 @@ class ConfirmScreen(ModalScreen[bool]):
         self.dismiss(False)
 
 
-QUESTION_SCREENS = (AskScreen, ConfirmScreen)
+class TellScreen(ModalScreen[None]):
+    """Say one thing that has happened, with one control that leaves it.
+
+    It is the one screen here that tells rather than asks: switching to a
+    pull-down gives a member whose text means no value of it the first value
+    it takes, and there is nothing to decide about that once it has happened.
+    It is a screen all the same, and for the reason the two above it are: it
+    is read, acted on and gone, and a line among the values would be read
+    after the values it is about.
+    """
+
+    DEFAULT_CSS: ClassVar[str] = QUESTION_CSS.replace(TYPE_MARK, 'TellScreen')
+    """How this screen is laid out, which is how the two above it are."""
+
+    AUTO_FOCUS: ClassVar[str] = f'#{TOLD_ID}'
+    """The control that the screen opens with, which is its only one."""
+
+    def __init__(self, message: str, cancel_keys: Sequence[str]) -> None:
+        """Say it, with the keys that leave the screen.
+
+        Args:
+            message: What has happened, as the user reads it.
+            cancel_keys: Key combinations that leave the screen, which is all
+                that leaving it can mean, empty when the application gave it
+                none.
+        """
+        super().__init__()
+        self._message = message
+        bind_action(self._bindings, keys=tuple(cancel_keys), action='leave',
+                    description=CANCEL_COMMAND)
+
+    def compose(self) -> ComposeResult:
+        """Create what is being said and the control that leaves it."""
+        with Vertical(id=ASK_BOX_ID):
+            yield Label(f'{REPLACED_PROMPT}\n{self._message}')
+            with Horizontal(classes=ANSWER_CLASS):
+                yield Button(REPLACED_LABEL, id=TOLD_ID)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Leave the screen, which is all the one control does.
+
+        The message is stopped here because the editor underneath reads every
+        press for a control of a row, and this is not one.
+        """
+        event.stop()
+        self.dismiss(None)
+
+    def action_leave(self) -> None:
+        """Leave the screen, which is what its control does as well."""
+        self.dismiss(None)
+
+
+QUESTION_SCREENS = (AskScreen, ConfirmScreen, TellScreen)
 """The screens on which this backend asks the user something.
 
 The editor turns its own actions off while one of them is up, because Textual

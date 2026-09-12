@@ -16,6 +16,8 @@ dark mode.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Sequence
+from functools import partial
 from typing import Optional
 import tkinter
 import edit_cfg_json as core
@@ -125,6 +127,15 @@ FIELD_BORDER = '#9aa5b1'
 """Colour of the line around a field the user can edit."""
 
 
+MEMBER_CHOICE_NAME = 'choice'
+"""Tk name of the pull-down that offers the values of one member.
+
+It says which kind of widget this is, for the reason the name below it does,
+and it is what tells the pull-down of a member from the field of the same
+member: the two share one variable and are on the same line, and exactly one
+of them is in the layout.
+"""
+
 MEMBER_FIELD_NAME = 'field'
 """Tk name of a field that holds the value of one member.
 
@@ -170,6 +181,59 @@ def edit_field(parent: tkinter.Misc, text: tkinter.StringVar, width: int,
                          insertbackground=FIELD_FOREGROUND,
                          highlightbackground=FIELD_BORDER,
                          highlightthickness=1)
+
+
+def choice_field(parent: tkinter.Misc, text: tkinter.StringVar,
+                 choices: Sequence[str], width: int) -> tkinter.Menubutton:
+    """Return the pull-down that offers the values one member takes.
+
+    It is given the same variable as the field of that member, which is what
+    makes the two ways of editing one member one edit: the pull-down writes
+    the value the user picked into that variable, and the callback which
+    writes the variable into the model is already there.
+
+    It is a menu button with a menu on it, which is what `tkinter.OptionMenu`
+    is, and it is built here rather than taken from there for one reason: that
+    class passes only its own options on, so the Tk **name** of the widget
+    cannot be given to it before Python 3.14 and this library supports 3.12.
+    The name is what tells the pull-down of a member from its field, so it is
+    worth the ten lines. What is gained beside it is that the width and the
+    alignment are said where every other widget of this backend says them.
+
+    It is coloured as the field is and left aligned as the field is, because
+    the two stand in the same column of the same line and one of them is
+    always the one showing the value. Tk centres the label of a menu button of
+    its own accord, which would make the values of two members below each
+    other begin in different columns.
+
+    It is not packed here, for the reason the field is not: which of the two
+    is in the layout is what the editor decides afresh whenever the user
+    switches between typing and choosing.
+
+    Args:
+        parent: Widget that becomes the parent of the created pull-down.
+        text: Variable that holds what the pull-down shows, which is the
+            variable of the field of the same member.
+        choices: The values that member takes, which are what it offers. It
+            is never empty: a member with no such values has no pull-down.
+        width: Width in characters that the pull-down asks for, which is the
+            width its field asks for.
+
+    Returns:
+        A pull-down of those values, showing that variable.
+    """
+    pull_down = tkinter.Menubutton(parent, name=MEMBER_CHOICE_NAME,
+                                   textvariable=text, indicatoron=True,
+                                   anchor='w', width=width, relief='flat',
+                                   borderwidth=2, highlightthickness=1,
+                                   background=FIELD_BACKGROUND,
+                                   foreground=FIELD_FOREGROUND,
+                                   highlightbackground=FIELD_BORDER)
+    menu = tkinter.Menu(pull_down, tearoff=0)
+    for value in choices:
+        menu.add_command(label=value, command=partial(text.set, value))
+    pull_down.config(menu=menu)
+    return pull_down
 
 
 def shown_text(parent: tkinter.Misc, text: str,

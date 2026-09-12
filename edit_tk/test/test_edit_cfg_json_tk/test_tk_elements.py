@@ -25,8 +25,9 @@ from edit_cfg_json_tk.tk_elements import ADD_TEXT, EARLIER_TEXT, LATER_TEXT, \
     REMOVE_TEXT
 from example.e11_add_remove import PipelineConfig
 from example.e18_declared_types import ReportConfig
-from .helpers import FakeWidget, real_buttons, real_fields, \
-    real_press, retype, stub_editor, stub_field_widgets
+from .helpers import real_buttons, real_fields, real_press, retype, \
+    stub_editor, stub_field_widgets
+from .stubs import FakeWidget
 
 NEW_KEY = 'nightly'
 """Key that the stubbed question about a new entry answers with."""

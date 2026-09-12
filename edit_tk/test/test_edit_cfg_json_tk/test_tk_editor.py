@@ -15,10 +15,11 @@ from edit_cfg_json_tk import TkEditor
 from edit_cfg_json_tk.tk_editor import EditorWidgets, VALIDATE_TEXT
 from example.e01_flat_config import FlatConfig
 from .helpers import EXPECTED_FIELDS, EXPECTED_LABELS, EXPECTED_LOADED, \
-    FakeVar, FakeWidget, FILLED_REPORT, LOAD_MESSAGE, model_value, \
-    real_fields, real_press, real_texts, REFUSED_VERDICT, retype, \
-    REWRITTEN_MARK, stub_editor, stub_field_widgets, stub_fields, \
-    stub_press, stub_texts, UNKNOWN_VERDICT, VALID_VERDICT
+    FILLED_REPORT, LOAD_MESSAGE, model_value, real_fields, real_press, \
+    real_texts, REFUSED_VERDICT, retype, REWRITTEN_MARK, stub_editor, \
+    stub_field_widgets, stub_fields, stub_press, stub_texts, \
+    UNKNOWN_VERDICT, VALID_VERDICT
+from .stubs import FakeVar, FakeWidget
 
 LOAD_REASON = 'read from the older key count'
 """What the model of the test below says the load did to one member.

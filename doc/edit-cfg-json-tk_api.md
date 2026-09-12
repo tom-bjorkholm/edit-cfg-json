@@ -10,6 +10,7 @@
   * [SAVE\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_TEXT)
   * [SAVE\_AS\_TEXT](#edit_cfg_json_tk.tk_editor.SAVE_AS_TEXT)
   * [EXPLAIN\_TEXT](#edit_cfg_json_tk.tk_editor.EXPLAIN_TEXT)
+  * [CHOOSE\_TEXT](#edit_cfg_json_tk.tk_editor.CHOOSE_TEXT)
   * [FOLD\_ALL\_TEXT](#edit_cfg_json_tk.tk_editor.FOLD_ALL_TEXT)
   * [OPEN\_ALL\_TEXT](#edit_cfg_json_tk.tk_editor.OPEN_ALL_TEXT)
   * [FOLD\_SHUT\_TEXT](#edit_cfg_json_tk.tk_editor.FOLD_SHUT_TEXT)
@@ -21,11 +22,9 @@
     * [verdict](#edit_cfg_json_tk.tk_editor.StateWidgets.verdict)
     * [saving](#edit_cfg_json_tk.tk_editor.StateWidgets.saving)
     * [explained](#edit_cfg_json_tk.tk_editor.StateWidgets.explained)
+    * [chosen](#edit_cfg_json_tk.tk_editor.StateWidgets.chosen)
     * [folding](#edit_cfg_json_tk.tk_editor.StateWidgets.folding)
     * [finding](#edit_cfg_json_tk.tk_editor.StateWidgets.finding)
-  * [ValueField](#edit_cfg_json_tk.tk_editor.ValueField)
-    * [text](#edit_cfg_json_tk.tk_editor.ValueField.text)
-    * [entry](#edit_cfg_json_tk.tk_editor.ValueField.entry)
   * [RowWidgets](#edit_cfg_json_tk.tk_editor.RowWidgets)
     * [frame](#edit_cfg_json_tk.tk_editor.RowWidgets.frame)
     * [fold](#edit_cfg_json_tk.tk_editor.RowWidgets.fold)
@@ -88,8 +87,10 @@
   * [FIELD\_BACKGROUND](#edit_cfg_json_tk.tk_look.FIELD_BACKGROUND)
   * [FIELD\_FOREGROUND](#edit_cfg_json_tk.tk_look.FIELD_FOREGROUND)
   * [FIELD\_BORDER](#edit_cfg_json_tk.tk_look.FIELD_BORDER)
+  * [MEMBER\_CHOICE\_NAME](#edit_cfg_json_tk.tk_look.MEMBER_CHOICE_NAME)
   * [MEMBER\_FIELD\_NAME](#edit_cfg_json_tk.tk_look.MEMBER_FIELD_NAME)
   * [edit\_field](#edit_cfg_json_tk.tk_look.edit_field)
+  * [choice\_field](#edit_cfg_json_tk.tk_look.choice_field)
   * [shown\_text](#edit_cfg_json_tk.tk_look.shown_text)
   * [told](#edit_cfg_json_tk.tk_look.told)
   * [show\_emphasis](#edit_cfg_json_tk.tk_look.show_emphasis)
@@ -130,6 +131,12 @@
     * [bind\_event](#edit_cfg_json_tk.tk_scope.KeyScope.bind_event)
     * [reach](#edit_cfg_json_tk.tk_scope.KeyScope.reach)
     * [release](#edit_cfg_json_tk.tk_scope.KeyScope.release)
+* [edit\_cfg\_json\_tk.tk\_values](#edit_cfg_json_tk.tk_values)
+  * [ValueWidgets](#edit_cfg_json_tk.tk_values.ValueWidgets)
+    * [\_\_init\_\_](#edit_cfg_json_tk.tk_values.ValueWidgets.__init__)
+    * [reached](#edit_cfg_json_tk.tk_values.ValueWidgets.reached)
+    * [show\_way](#edit_cfg_json_tk.tk_values.ValueWidgets.show_way)
+    * [show\_value](#edit_cfg_json_tk.tk_values.ValueWidgets.show_value)
 * [edit\_cfg\_json\_tk.tk\_ask](#edit_cfg_json_tk.tk_ask)
   * [SAVE\_AS\_TITLE](#edit_cfg_json_tk.tk_ask.SAVE_AS_TITLE)
   * [CONFIG\_FILES](#edit_cfg_json_tk.tk_ask.CONFIG_FILES)
@@ -138,9 +145,11 @@
   * [ADD\_KEY\_PROMPT](#edit_cfg_json_tk.tk_ask.ADD_KEY_PROMPT)
   * [CLOSE\_TITLE](#edit_cfg_json_tk.tk_ask.CLOSE_TITLE)
   * [OVERWRITE\_TITLE](#edit_cfg_json_tk.tk_ask.OVERWRITE_TITLE)
+  * [REPLACED\_TITLE](#edit_cfg_json_tk.tk_ask.REPLACED_TITLE)
   * [asked\_file](#edit_cfg_json_tk.tk_ask.asked_file)
   * [may\_close](#edit_cfg_json_tk.tk_ask.may_close)
   * [may\_overwrite](#edit_cfg_json_tk.tk_ask.may_overwrite)
+  * [tell\_replaced](#edit_cfg_json_tk.tk_ask.tell_replaced)
   * [asked\_key](#edit_cfg_json_tk.tk_ask.asked_key)
 
 <a id="edit_cfg_json_tk.tk_version"></a>
@@ -243,6 +252,16 @@ The tick says which of the two states the editor is in, so one text is true in
 both. The Textual backend has no button row to put one in and renames its own
 action instead.
 
+<a id="edit_cfg_json_tk.tk_editor.CHOOSE_TEXT"></a>
+
+#### CHOOSE\_TEXT
+
+Text of the tick-box that switches between typing and choosing.
+
+A tick-box for the reason the one beside it is one: the action is a toggle,
+and one text is true in both of its states. The Textual backend has no button
+row to put one in and renames its own action instead.
+
 <a id="edit_cfg_json_tk.tk_editor.FOLD_ALL_TEXT"></a>
 
 #### FOLD\_ALL\_TEXT
@@ -340,6 +359,16 @@ The variable is what a `Checkbutton` shows its state through, and it has
 to be kept for as long as the tick-box lives: a `tkinter.Variable` unsets
 its Tcl variable when it is collected.
 
+<a id="edit_cfg_json_tk.tk_editor.StateWidgets.chosen"></a>
+
+#### chosen
+
+Whether the tick-box of the pull-downs is ticked.
+
+It is kept for as long as that tick-box lives, for the reason the variable
+above it is: a `tkinter.Variable` unsets its Tcl variable when it is
+collected.
+
 <a id="edit_cfg_json_tk.tk_editor.StateWidgets.folding"></a>
 
 #### folding
@@ -355,32 +384,6 @@ not there.
 #### finding
 
 The search: its field, its four controls and its line.
-
-<a id="edit_cfg_json_tk.tk_editor.ValueField"></a>
-
-## ValueField Objects
-
-```python
-class ValueField(NamedTuple)
-```
-
-The field of one editable node, and the variable it shows.
-
-Both are kept because both are used: the variable is what the text is
-written into and read from, and the widget is what a search gives the
-keyboard focus to.
-
-<a id="edit_cfg_json_tk.tk_editor.ValueField.text"></a>
-
-#### text
-
-The variable that holds what the field shows.
-
-<a id="edit_cfg_json_tk.tk_editor.ValueField.entry"></a>
-
-#### entry
-
-The widget that the user types into.
 
 <a id="edit_cfg_json_tk.tk_editor.RowWidgets"></a>
 
@@ -412,7 +415,7 @@ The control that folds this container, None for a node with none.
 
 #### field
 
-The field of an editable node, and None for every other node.
+The ways of editing a node, and None for a node with none of them.
 
 <a id="edit_cfg_json_tk.tk_editor.RowWidgets.mark"></a>
 
@@ -1140,6 +1143,17 @@ put white text on a light field.
 
 Colour of the line around a field the user can edit.
 
+<a id="edit_cfg_json_tk.tk_look.MEMBER_CHOICE_NAME"></a>
+
+#### MEMBER\_CHOICE\_NAME
+
+Tk name of the pull-down that offers the values of one member.
+
+It says which kind of widget this is, for the reason the name below it does,
+and it is what tells the pull-down of a member from the field of the same
+member: the two share one variable and are on the same line, and exactly one
+of them is in the layout.
+
 <a id="edit_cfg_json_tk.tk_look.MEMBER_FIELD_NAME"></a>
 
 #### MEMBER\_FIELD\_NAME
@@ -1191,6 +1205,55 @@ the other with the controls that say where a search looks.
 **Returns**:
 
   A field showing that variable.
+
+<a id="edit_cfg_json_tk.tk_look.choice_field"></a>
+
+#### choice\_field
+
+```python
+def choice_field(parent: tkinter.Misc, text: tkinter.StringVar,
+                 choices: Sequence[str], width: int) -> tkinter.Menubutton
+```
+
+Return the pull-down that offers the values one member takes.
+
+It is given the same variable as the field of that member, which is what
+makes the two ways of editing one member one edit: the pull-down writes
+the value the user picked into that variable, and the callback which
+writes the variable into the model is already there.
+
+It is a menu button with a menu on it, which is what `tkinter.OptionMenu`
+is, and it is built here rather than taken from there for one reason: that
+class passes only its own options on, so the Tk **name** of the widget
+cannot be given to it before Python 3.14 and this library supports 3.12.
+The name is what tells the pull-down of a member from its field, so it is
+worth the ten lines. What is gained beside it is that the width and the
+alignment are said where every other widget of this backend says them.
+
+It is coloured as the field is and left aligned as the field is, because
+the two stand in the same column of the same line and one of them is
+always the one showing the value. Tk centres the label of a menu button of
+its own accord, which would make the values of two members below each
+other begin in different columns.
+
+It is not packed here, for the reason the field is not: which of the two
+is in the layout is what the editor decides afresh whenever the user
+switches between typing and choosing.
+
+**Arguments**:
+
+- `parent` - Widget that becomes the parent of the created pull-down.
+- `text` - Variable that holds what the pull-down shows, which is the
+  variable of the field of the same member.
+- `choices` - The values that member takes, which are what it offers. It
+  is never empty: a member with no such values has no pull-down.
+- `width` - Width in characters that the pull-down asks for, which is the
+  width its field asks for.
+  
+
+**Returns**:
+
+  A pull-down of those values, showing that variable.
 
 <a id="edit_cfg_json_tk.tk_look.shown_text"></a>
 
@@ -1928,6 +1991,123 @@ carried it, so an editor that was closed would otherwise leave its
 callbacks — and the model they hold — behind for as long as the
 application runs.
 
+<a id="edit_cfg_json_tk.tk_values"></a>
+
+# edit\_cfg\_json\_tk.tk\_values
+
+The two ways of editing one value, and the one that is on the window.
+
+A value the editor can edit is typed into a field, and a value whose whole set
+the editor knows is picked from a pull-down of that set instead. Which of the
+two is on the window is one answer for the whole editor, which the user
+switches and the model holds, so every node has both widgets and shows one of
+them.
+
+Both of them show one `tkinter.StringVar`, which is what makes them two ways of
+making the same edit rather than two things to keep in step: the pull-down
+writes the value that was picked into that variable, and the callback which
+writes the variable into the model is the one the field already had.
+
+It is a module of its own because it is a piece of window with a life of its
+own — two widgets, a variable, and the rule about which of them is shown — and
+because `tk_editor` is the module of this backend that is nearest to being too
+long to read.
+
+<a id="edit_cfg_json_tk.tk_values.ValueWidgets"></a>
+
+## ValueWidgets Objects
+
+```python
+class ValueWidgets()
+```
+
+The ways of editing the value of one node, below one line of it.
+
+This is a class rather than a function because the variable has to be
+kept: a `tkinter.StringVar` unsets its Tcl variable when it is collected,
+and the field it belongs to would then lose both its text and the callback
+that writes it into the model.
+
+The widgets are inside an area of their own on the line of the node, so
+that showing one of them and hiding the other cannot move the value out of
+the column it belongs in: Tk packs a widget after the ones that are already
+there, so a widget that came back at the end of the line would land after
+the marks of its own member.
+
+<a id="edit_cfg_json_tk.tk_values.ValueWidgets.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(parent: tkinter.Misc, row: core.MemberRow, model: core.EditModel,
+             changed: Callable[[], None]) -> None
+```
+
+Create the field of one node, and its pull-down where it has one.
+
+The variable is given the area as its master, so that it is created in
+the same Tcl interpreter as the widgets that show it. A variable
+constructed without one is created in the first interpreter of the
+process instead, which is the wrong one as soon as the editor is not
+the only Tk in the application: the widgets would then show nothing
+and the callback below would never run.
+
+**Arguments**:
+
+- `parent` - Line of the node that is being shown.
+- `row` - Node whose value these widgets edit.
+- `model` - Model that the edits are written into.
+- `changed` - What to do once an edit has reached the model, which is
+  to show what the model says about it now.
+
+<a id="edit_cfg_json_tk.tk_values.ValueWidgets.reached"></a>
+
+#### reached
+
+```python
+@property
+def reached() -> tkinter.Misc
+```
+
+Return the widget that a search gives the keyboard focus to.
+
+It is whichever of the two is on the window, because a widget that is
+out of the layout is one the user cannot see and cannot type in.
+
+<a id="edit_cfg_json_tk.tk_values.ValueWidgets.show_way"></a>
+
+#### show\_way
+
+```python
+def show_way() -> None
+```
+
+Put the way of editing this value that the model asks for now.
+
+The one that is not being used is taken out of the layout rather than
+destroyed, so that a field the user was typing into still holds what
+they typed when they switch back to it. A node with no pull-down has
+nothing to do here: its field is the only way of editing it and stays
+where it was put.
+
+<a id="edit_cfg_json_tk.tk_values.ValueWidgets.show_value"></a>
+
+#### show\_value
+
+```python
+def show_value(text: str) -> None
+```
+
+Write the text that the model holds for this node.
+
+Writing the text that is already there is not an edit, which is what
+lets this be done after a validation pass without undoing the marks
+that the pass has just set.
+
+**Arguments**:
+
+- `text` - Value of this node as the model holds it now.
+
 <a id="edit_cfg_json_tk.tk_ask"></a>
 
 # edit\_cfg\_json\_tk.tk\_ask
@@ -1942,6 +2122,11 @@ backend was made: one module of a thousand lines is one nobody reads to the
 end. Keeping them together is also what makes it plain that this backend asks
 the toolkit for all four of its questions, where the Textual one has to build a
 screen for them.
+
+One thing here is told rather than asked, which is what switching to a
+pull-down had to replace. It is here because it is a dialog of the toolkit
+like the four above it, and because what it says is the core's in exactly the
+same way.
 
 Nothing here decides *whether* a question is asked. Which file to write is
 asked where the model has no destination, what a new entry is called where
@@ -1992,6 +2177,12 @@ Title of the dialog that asks whether the changes may be dropped.
 #### OVERWRITE\_TITLE
 
 Title of the dialog that asks whether an existing file may be written.
+
+<a id="edit_cfg_json_tk.tk_ask.REPLACED_TITLE"></a>
+
+#### REPLACED\_TITLE
+
+Title of the dialog that says what choosing the values did.
 
 <a id="edit_cfg_json_tk.tk_ask.asked_file"></a>
 
@@ -2070,6 +2261,28 @@ not would be exactly what the core owning the question exists to prevent.
 
   Whether the file may be written, which is always so where saving
   overwrites nothing that this session did not write itself.
+
+<a id="edit_cfg_json_tk.tk_ask.tell_replaced"></a>
+
+#### tell\_replaced
+
+```python
+def tell_replaced(message: str) -> None
+```
+
+Say what giving the members a value they take had to replace.
+
+This is the one thing here that is told rather than asked: there is
+nothing to decide, because a pull-down cannot show a text that means no
+value of its member and the member has already been given one. It is a
+dialog all the same, because it is the one change of the buffer that the
+user did not make and a line among the values would be read after the
+values it is about.
+
+**Arguments**:
+
+- `message` - What the core says has to be told, one sentence per member.
+  It is never empty: nothing is said where nothing was replaced.
 
 <a id="edit_cfg_json_tk.tk_ask.asked_key"></a>
 

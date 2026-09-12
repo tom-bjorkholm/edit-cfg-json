@@ -20,12 +20,19 @@ Which class declared it is a question of its own once there are nested
 configuration objects, and `node_converters` is where it is answered: a nested
 object parses its own JSON, so what is inside it is answered by its own class
 and not by the class above it.
+
+Running the converter is also what answers *which of the values a member takes
+one value means*, which is what a pull-down of those values has to know. That
+is `matched_choice`, and it is here rather than beside the values themselves
+for the reason above: the reading of a name is the conversion the class
+declared and never a rule of this editor.
 """
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
 from collections.abc import Mapping, Sequence
+from enum import Enum
 from typing import NamedTuple, Optional
 from config_as_json import Config, ConfigPath, JsonType, ParseConverter
 from edit_cfg_json.leaf_value import BOOL_CHOICES, value_as_text
@@ -45,6 +52,25 @@ assertion that the enum converter begins with.
 one of the failures a validation pass catches: it says that the configuration
 class is incomplete, which is a defect of the application that no edit of the
 buffer can put right.
+"""
+
+REPLACED_FORM = ('{name}: {text} is no value this member takes, so it has '
+                 'been given {value}.')
+"""What is said about a text that had to make way for a value.
+
+A pull-down offers the values its member takes and nothing else, and holds one
+of them at every moment, so a text that means none of them has to become one
+of them. The member is given the first value it takes, and this is the sentence
+that says what became of what was there — which the editor owes the user,
+because it is the one change of the buffer that the user did not make.
+"""
+
+CLEARED_FORM = ('{name}: an empty field is no value this member takes, so '
+                'it has been given {value}.')
+"""The same for a member whose field held nothing at all.
+
+It is a form of its own because the sentence above it would name the text and
+there is none, leaving a gap where the reader is looking for what was there.
 """
 
 NOT_A_BOOL_FORM = '{text} is not one of: {words}'
@@ -180,6 +206,59 @@ def _converted_bool(value: JsonType, is_bool_member: bool) -> Converted:
     said = NOT_A_BOOL_FORM.format(text=value_as_text(value),
                                   words=BOOL_CHOICES)
     return Converted(value=value, message=said)
+
+
+def matched_choice(converter: Optional[ParseConverter], value: JsonType,
+                   choices: Sequence[str],
+                   is_bool_member: bool = False) -> str:
+    """Return which of the values one member takes its value means.
+
+    A value that is already one of them means itself. Anything else is handed
+    to the conversion that the class declared, which is the same reading that
+    a field losing the focus is answered by: `config_as_json` accepts the name
+    of a member of that enum in any case, and accepts a beginning that only
+    one member of that enum has. Which beginnings those are is a fact about
+    the enum the application declared and about nothing else: a beginning that
+    names one member of one enum names two of another. A member holding true
+    or false needs no conversion, because `text_as_value` has already made the
+    value of every text that means one of the two words.
+
+    Args:
+        converter: How the text of this member becomes a value, or None for a
+            member that holds what the file holds.
+        value: JSON space value that the buffer holds for that member.
+        choices: The values that member takes, as the text of each of them.
+        is_bool_member: Whether this member holds true or false.
+
+    Returns:
+        The value it means, as text, and an empty text where it means none of
+        them or more than one of them.
+    """
+    text = value_as_text(value)
+    if text in choices:
+        return text
+    converted = convert_member(converter=converter, value=value,
+                               is_bool_member=is_bool_member)
+    if converted.message or not isinstance(converted.value, Enum):
+        return ''
+    name = converted.value.name
+    return name if name in choices else ''
+
+
+def replaced_text(name: str, text: str, value: str) -> str:
+    """Return what is said about one text that a value was put in place of.
+
+    Args:
+        name: What the member is called on its own, which is the whole path
+            for reaching it.
+        text: What the field of that member held.
+        value: The value it has been given instead.
+
+    Returns:
+        The sentence the user is shown about that member.
+    """
+    form = REPLACED_FORM if text else CLEARED_FORM
+    return form.format(name=name, text=text, value=value)
 
 
 def refusal_text(error: Exception) -> str:

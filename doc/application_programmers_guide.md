@@ -819,6 +819,7 @@ Every action of the editor has an attribute of its own on
 | `fold` | `f2`, `ctrl+t` |
 | `find` | `ctrl+f` |
 | `find_next` | `f3` |
+| `choose` | `f4` |
 
 ```python
 from edit_cfg_json import ActionSettings, Settings
@@ -851,6 +852,44 @@ your users a Close of your own with `close()`.
 is the editor before the widget that has the focus. `False` is the other way
 round, for an application whose own widget inside the editor's area has
 already taken one of these combinations.
+
+## 4.2.1 How a value with a known set of values is edited
+
+A member holding `bool` and a member whose `parse_converters()` names an
+`Enum` hold one of a set of values that the editor reads from the type, so
+the editor offers those values to be chosen from rather than leaving the user
+to spell one. It is still a field underneath, and the user switches between
+the two with the `choose` action above.
+
+```python
+from edit_cfg_json import Settings
+
+SETTINGS = Settings(choose_values=False)
+```
+
+| Setting | Default | What it says |
+| --- | --- | --- |
+| `choose_values` | `True` | Whether such a member **opens** as a pull-down of those values rather than as a field to type in. |
+
+It says how the editor opens and nothing more: the user switches whenever
+they like, and this answer is not asked again once they have. You need do
+nothing at all to get it — the editor reads the type of the member, not
+anything you declare — and `False` is for an application whose users would
+rather type.
+
+**A pull-down offers the values of that member and nothing else, and holds one
+of them at every moment.** There is no unselected state and no blank entry, so
+your validators will never be handed a name that is no member of your enum or
+a value that is neither true nor false from one. The field is where a value is
+typed, and switching back to the pull-downs is what answers for what was
+typed: a beginning that only one of the values has becomes that value, and
+anything else leaves the member holding the first value it takes, which the
+editor tells the user about.
+
+One thing is worth knowing if your application writes into the model between
+building it and showing it, which `EditModel.set_text` allows: such a value is
+settled the same way when the editor builds its widgets, silently, because
+there was no user action to attribute it to.
 
 ## 4.3 The files a save writes
 
@@ -933,7 +972,8 @@ hold every key. A settings **file** of its own need name only what it changes.
 again at each point where an answer is used. What that is really for is an
 application that has not got its settings ready at the moment it builds the
 editor — key combinations are read once, when a backend builds its bindings,
-and the file name settings at every save.
+the file name settings at every save, and `choose_values` until the user
+switches for themselves.
 
 ## 4.5 Testing an application that embeds the editor
 

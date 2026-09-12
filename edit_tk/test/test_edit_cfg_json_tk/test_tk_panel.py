@@ -18,8 +18,9 @@ from edit_cfg_json import Settings
 from edit_cfg_json_tk import TkEditorPanel
 from edit_cfg_json_tk.tk_scope import TAG_PREFIX
 from example.e01_flat_config import FlatConfig
-from .helpers import FakeVar, FakeWidget, answer_question, real_fields, \
-    real_press, retype, stub_keys, stub_press, stub_tags
+from .helpers import answer_question, real_fields, real_press, retype, \
+    stub_keys, stub_press, stub_tags
+from .stubs import FakeVar, FakeWidget
 from .test_tk_keys import real_keys
 
 CLOSE_TEXT = 'Close'

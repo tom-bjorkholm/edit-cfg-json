@@ -197,6 +197,8 @@
   * [write\_config](#edit_cfg_json.saving.write_config)
 * [edit\_cfg\_json.converting](#edit_cfg_json.converting)
   * [CONVERSION\_ERRORS](#edit_cfg_json.converting.CONVERSION_ERRORS)
+  * [REPLACED\_FORM](#edit_cfg_json.converting.REPLACED_FORM)
+  * [CLEARED\_FORM](#edit_cfg_json.converting.CLEARED_FORM)
   * [NOT\_A\_BOOL\_FORM](#edit_cfg_json.converting.NOT_A_BOOL_FORM)
   * [Converted](#edit_cfg_json.converting.Converted)
     * [value](#edit_cfg_json.converting.Converted.value)
@@ -204,6 +206,8 @@
   * [member\_converters](#edit_cfg_json.converting.member_converters)
   * [node\_converters](#edit_cfg_json.converting.node_converters)
   * [convert\_member](#edit_cfg_json.converting.convert_member)
+  * [matched\_choice](#edit_cfg_json.converting.matched_choice)
+  * [replaced\_text](#edit_cfg_json.converting.replaced_text)
   * [refusal\_text](#edit_cfg_json.converting.refusal_text)
 * [edit\_cfg\_json.dump](#edit_cfg_json.dump)
   * [PROGRAM](#edit_cfg_json.dump.PROGRAM)
@@ -235,6 +239,7 @@
   * [NO\_KIND](#edit_cfg_json.leaf_value.NO_KIND)
   * [NO\_VALUE\_TEXT](#edit_cfg_json.leaf_value.NO_VALUE_TEXT)
   * [BOOL\_WORDS](#edit_cfg_json.leaf_value.BOOL_WORDS)
+  * [BOOL\_NAMES](#edit_cfg_json.leaf_value.BOOL_NAMES)
   * [BOOL\_CHOICES](#edit_cfg_json.leaf_value.BOOL_CHOICES)
   * [LeafType](#edit_cfg_json.leaf_value.LeafType)
     * [kind](#edit_cfg_json.leaf_value.LeafType.kind)
@@ -264,6 +269,9 @@
 * [edit\_cfg\_json.buffer](#edit_cfg_json.buffer)
   * [NOT\_EDITABLE\_ERROR](#edit_cfg_json.buffer.NOT_EDITABLE_ERROR)
   * [NOT\_A\_CONTAINER](#edit_cfg_json.buffer.NOT_A_CONTAINER)
+  * [ChoiceReport](#edit_cfg_json.buffer.ChoiceReport)
+    * [message](#edit_cfg_json.buffer.ChoiceReport.message)
+    * [edited](#edit_cfg_json.buffer.ChoiceReport.edited)
   * [EditBuffer](#edit_cfg_json.buffer.EditBuffer)
     * [\_\_init\_\_](#edit_cfg_json.buffer.EditBuffer.__init__)
     * [report](#edit_cfg_json.buffer.EditBuffer.report)
@@ -275,6 +283,7 @@
     * [set\_text](#edit_cfg_json.buffer.EditBuffer.set_text)
     * [check\_field](#edit_cfg_json.buffer.EditBuffer.check_field)
     * [check\_all](#edit_cfg_json.buffer.EditBuffer.check_all)
+    * [choose\_values](#edit_cfg_json.buffer.EditBuffer.choose_values)
     * [toggle\_fold](#edit_cfg_json.buffer.EditBuffer.toggle_fold)
     * [toggle\_fold\_all](#edit_cfg_json.buffer.EditBuffer.toggle_fold_all)
     * [open\_all](#edit_cfg_json.buffer.EditBuffer.open_all)
@@ -327,6 +336,7 @@
     * [fold](#edit_cfg_json.settings.ActionSettings.fold)
     * [find](#edit_cfg_json.settings.ActionSettings.find)
     * [find\_next](#edit_cfg_json.settings.ActionSettings.find_next)
+    * [choose](#edit_cfg_json.settings.ActionSettings.choose)
   * [Settings](#edit_cfg_json.settings.Settings)
     * [actions](#edit_cfg_json.settings.Settings.actions)
     * [file\_extension](#edit_cfg_json.settings.Settings.file_extension)
@@ -335,6 +345,7 @@
     * [backup\_count](#edit_cfg_json.settings.Settings.backup_count)
     * [priority\_keys](#edit_cfg_json.settings.Settings.priority_keys)
     * [confirm\_overwrite](#edit_cfg_json.settings.Settings.confirm_overwrite)
+    * [choose\_values](#edit_cfg_json.settings.Settings.choose_values)
   * [current\_settings](#edit_cfg_json.settings.current_settings)
   * [CheckedFile](#edit_cfg_json.settings.CheckedFile)
     * [name](#edit_cfg_json.settings.CheckedFile.name)
@@ -370,6 +381,7 @@
   * [REFUSED\_KEYS](#edit_cfg_json.settings_config.REFUSED_KEYS)
   * [declared\_actions](#edit_cfg_json.settings_config.declared_actions)
   * [ADDED\_ACTIONS](#edit_cfg_json.settings_config.ADDED_ACTIONS)
+  * [ADDED\_SETTINGS](#edit_cfg_json.settings_config.ADDED_SETTINGS)
   * [SettingsConfig](#edit_cfg_json.settings_config.SettingsConfig)
     * [\_\_init\_\_](#edit_cfg_json.settings_config.SettingsConfig.__init__)
     * [as\_settings](#edit_cfg_json.settings_config.SettingsConfig.as_settings)
@@ -414,6 +426,7 @@
   * [docstring\_text](#edit_cfg_json.model_text.docstring_text)
   * [row\_describes](#edit_cfg_json.model_text.row_describes)
   * [row\_description](#edit_cfg_json.model_text.row_description)
+  * [row\_chooses](#edit_cfg_json.model_text.row_chooses)
   * [row\_validates](#edit_cfg_json.model_text.row_validates)
   * [row\_subtree\_text](#edit_cfg_json.model_text.row_subtree_text)
   * [row\_fold\_text](#edit_cfg_json.model_text.row_fold_text)
@@ -459,6 +472,9 @@
     * [docstring](#edit_cfg_json.edit_model.EditModel.docstring)
     * [explanations\_shown](#edit_cfg_json.edit_model.EditModel.explanations_shown)
     * [toggle\_explanations](#edit_cfg_json.edit_model.EditModel.toggle_explanations)
+    * [choices\_shown](#edit_cfg_json.edit_model.EditModel.choices_shown)
+    * [toggle\_choices](#edit_cfg_json.edit_model.EditModel.toggle_choices)
+    * [settle\_choices](#edit_cfg_json.edit_model.EditModel.settle_choices)
     * [toggle\_fold](#edit_cfg_json.edit_model.EditModel.toggle_fold)
     * [toggle\_fold\_all](#edit_cfg_json.edit_model.EditModel.toggle_fold_all)
     * [open\_all](#edit_cfg_json.edit_model.EditModel.open_all)
@@ -516,6 +532,7 @@
     * [kind](#edit_cfg_json.rows.MemberRow.kind)
     * [is\_text](#edit_cfg_json.rows.MemberRow.is_text)
     * [is\_bool](#edit_cfg_json.rows.MemberRow.is_bool)
+    * [choices](#edit_cfg_json.rows.MemberRow.choices)
     * [edited](#edit_cfg_json.rows.MemberRow.edited)
     * [value\_text](#edit_cfg_json.rows.MemberRow.value_text)
   * [RowContext](#edit_cfg_json.rows.RowContext)
@@ -547,6 +564,7 @@
   * [path\_description](#edit_cfg_json.descriptions.path_description)
   * [class\_docstring](#edit_cfg_json.descriptions.class_docstring)
   * [class\_summary](#edit_cfg_json.descriptions.class_summary)
+  * [enum\_names](#edit_cfg_json.descriptions.enum_names)
   * [enum\_text](#edit_cfg_json.descriptions.enum_text)
   * [MemberFacts](#edit_cfg_json.descriptions.MemberFacts)
     * [value](#edit_cfg_json.descriptions.MemberFacts.value)
@@ -3579,6 +3597,12 @@ configuration objects, and `node_converters` is where it is answered: a nested
 object parses its own JSON, so what is inside it is answered by its own class
 and not by the class above it.
 
+Running the converter is also what answers *which of the values a member takes
+one value means*, which is what a pull-down of those values has to know. That
+is `matched_choice`, and it is here rather than beside the values themselves
+for the reason above: the reading of a name is the conversion the class
+declared and never a rule of this editor.
+
 <a id="edit_cfg_json.converting.CONVERSION_ERRORS"></a>
 
 #### CONVERSION\_ERRORS
@@ -3595,6 +3619,27 @@ assertion that the enum converter begins with.
 one of the failures a validation pass catches: it says that the configuration
 class is incomplete, which is a defect of the application that no edit of the
 buffer can put right.
+
+<a id="edit_cfg_json.converting.REPLACED_FORM"></a>
+
+#### REPLACED\_FORM
+
+What is said about a text that had to make way for a value.
+
+A pull-down offers the values its member takes and nothing else, and holds one
+of them at every moment, so a text that means none of them has to become one
+of them. The member is given the first value it takes, and this is the sentence
+that says what became of what was there — which the editor owes the user,
+because it is the one change of the buffer that the user did not make.
+
+<a id="edit_cfg_json.converting.CLEARED_FORM"></a>
+
+#### CLEARED\_FORM
+
+The same for a member whose field held nothing at all.
+
+It is a form of its own because the sentence above it would name the text and
+there is none, leaving a gap where the reader is looking for what was there.
 
 <a id="edit_cfg_json.converting.NOT_A_BOOL_FORM"></a>
 
@@ -3728,6 +3773,65 @@ member is.
 **Returns**:
 
   The value the configuration would hold, or the reason it would not.
+
+<a id="edit_cfg_json.converting.matched_choice"></a>
+
+#### matched\_choice
+
+```python
+def matched_choice(converter: Optional[ParseConverter],
+                   value: JsonType,
+                   choices: Sequence[str],
+                   is_bool_member: bool = False) -> str
+```
+
+Return which of the values one member takes its value means.
+
+A value that is already one of them means itself. Anything else is handed
+to the conversion that the class declared, which is the same reading that
+a field losing the focus is answered by: `config_as_json` accepts the name
+of a member of that enum in any case, and accepts a beginning that only
+one member of that enum has. Which beginnings those are is a fact about
+the enum the application declared and about nothing else: a beginning that
+names one member of one enum names two of another. A member holding true
+or false needs no conversion, because `text_as_value` has already made the
+value of every text that means one of the two words.
+
+**Arguments**:
+
+- `converter` - How the text of this member becomes a value, or None for a
+  member that holds what the file holds.
+- `value` - JSON space value that the buffer holds for that member.
+- `choices` - The values that member takes, as the text of each of them.
+- `is_bool_member` - Whether this member holds true or false.
+  
+
+**Returns**:
+
+  The value it means, as text, and an empty text where it means none of
+  them or more than one of them.
+
+<a id="edit_cfg_json.converting.replaced_text"></a>
+
+#### replaced\_text
+
+```python
+def replaced_text(name: str, text: str, value: str) -> str
+```
+
+Return what is said about one text that a value was put in place of.
+
+**Arguments**:
+
+- `name` - What the member is called on its own, which is the whole path
+  for reaching it.
+- `text` - What the field of that member held.
+- `value` - The value it has been given instead.
+  
+
+**Returns**:
+
+  The sentence the user is shown about that member.
 
 <a id="edit_cfg_json.converting.refusal_text"></a>
 
@@ -4255,6 +4359,17 @@ They are the JSON notation of the two values, which is what the file holds and
 what the user therefore types. Nothing else means one of them: `yes` and `1`
 are values of other kinds, and a member that holds one of those is a member of
 another kind.
+
+<a id="edit_cfg_json.leaf_value.BOOL_NAMES"></a>
+
+#### BOOL\_NAMES
+
+The two words on their own, in the order they are asked in.
+
+It is what a member holding true or false is offered as the values it takes,
+where a member holding an enum is offered the names of that enum. The order
+is the one above, so that the first value such a member can be given is
+`true`.
 
 <a id="edit_cfg_json.leaf_value.BOOL_CHOICES"></a>
 
@@ -4864,6 +4979,36 @@ state is asked for with a control and never typed.
 
 Message of the error raised when a node that holds none is folded.
 
+<a id="edit_cfg_json.buffer.ChoiceReport"></a>
+
+## ChoiceReport Objects
+
+```python
+class ChoiceReport(NamedTuple)
+```
+
+What giving every member a value it takes did to the buffer.
+
+<a id="edit_cfg_json.buffer.ChoiceReport.message"></a>
+
+#### message
+
+What the user has to be told, empty when there is nothing.
+
+It names every member whose text meant no value of it, one sentence per
+member, because a switch that had to be made twice to be read twice would
+be worse than one that says everything it did.
+
+<a id="edit_cfg_json.buffer.ChoiceReport.edited"></a>
+
+#### edited
+
+Whether any value of the buffer is now a different value.
+
+A completed name is an edit as much as a replaced text is, and both of
+them leave a verdict and a save that were reached before them saying
+nothing true about the buffer.
+
 <a id="edit_cfg_json.buffer.EditBuffer"></a>
 
 ## EditBuffer Objects
@@ -5062,6 +5207,32 @@ def check_all() -> None
 ```
 
 Report every node whose text means no value of that node.
+
+<a id="edit_cfg_json.buffer.EditBuffer.choose_values"></a>
+
+#### choose\_values
+
+```python
+def choose_values() -> ChoiceReport
+```
+
+Give every node that has a set of values one of those values.
+
+A pull-down offers the values its member takes and nothing else, and
+holds one of them at every moment, so a text that means none of them
+has to become one of them before any pull-down is shown. What each
+text means is `matched_choice`, which is the reading a field losing
+the focus is answered by, and a text that means none of them is given
+the first value that member takes.
+
+Doing this again changes nothing, which is what lets it be done
+wherever a pull-down is about to be shown as well as when the user
+asks for the values to be chosen.
+
+**Returns**:
+
+  What the user has to be told about it, and whether the buffer
+  holds a different value than before.
 
 <a id="edit_cfg_json.buffer.EditBuffer.toggle_fold"></a>
 
@@ -5926,6 +6097,21 @@ is the whole tuple rather than the second of two because the control
 letters a field does not claim are spoken for, and because the button and
 the command palette entry are what an action without its key still has.
 
+<a id="edit_cfg_json.settings.ActionSettings.choose"></a>
+
+#### choose
+
+Keys that switch between typing a value and choosing one.
+
+`f4` because it is the function key beside the three above it, and the
+four actions are the same kind of thing: each of them decides how the
+configuration is put on the screen rather than what it holds.
+
+It is the whole tuple rather than the first of two, for the reason
+`find_next` is: of the control letters, a field claims most and the
+actions above claim the rest, and an action without a second key still has
+the tick-box of one backend and the command palette of the other.
+
 <a id="edit_cfg_json.settings.Settings"></a>
 
 ## Settings Objects
@@ -6037,6 +6223,23 @@ The two interactive editors put the question. A backend that prints once
 and returns has nobody to answer it and writes what it was asked to write,
 which is the same answer such a backend gives to the question about
 closing.
+
+<a id="edit_cfg_json.settings.Settings.choose_values"></a>
+
+#### choose\_values
+
+Whether a member with a set of values opens as a pull-down.
+
+A member holding true or false and one holding an enum member are the two
+whose values the editor knows the whole of, and this is how they are
+shown until the user says otherwise: the values offered to be chosen
+from, so that nobody has to remember how a name is spelled. False opens
+them as fields instead, for a user who would rather type.
+
+It is the state the editor *opens* in and not the state it stays in. The
+user switches between the two whenever they like, and this says nothing
+once they have, exactly as the editor opens with the explanations shown
+and says nothing about them once they have been hidden.
 
 <a id="edit_cfg_json.settings.current_settings"></a>
 
@@ -6446,6 +6649,12 @@ over a key of the editor it embeds. `ADDED_ACTIONS` is what those files are
 read by, and section 9.10 of `doc/detailed_design.md` is what says that an
 action added later belongs in it.
 
+**A setting added to `Settings` is one as well**, for the neighbouring reason:
+a member this class declares and a file does not hold is refused whatever
+policy the parse was given, because a nested configuration object is read
+whole. `ADDED_SETTINGS` is the same rule for a member that `ADDED_ACTIONS` is
+for a key of `actions`.
+
 <a id="edit_cfg_json.settings_config.UNKNOWN_ACTION"></a>
 
 #### UNKNOWN\_ACTION
@@ -6492,6 +6701,18 @@ and only an action added after a release belongs here. An action that has
 always been here is named by every file that any released version wrote, so
 supplying that one would accept a file no version ever produced, and would put
 a key back that somebody had deliberately taken out.
+
+<a id="edit_cfg_json.settings_config.ADDED_SETTINGS"></a>
+
+#### ADDED\_SETTINGS
+
+Settings that previous released versions did not write into a file.
+
+They are to a member of this class what `ADDED_ACTIONS` is to a key of its
+`actions` member, and they are needed for the same reason: a settings file of
+an earlier release does not hold them, and a member this class declares and
+the file leaves out is refused whatever policy the parse was given. Only a
+member added after a release belongs here.
 
 <a id="edit_cfg_json.settings_config.SettingsConfig"></a>
 
@@ -7066,6 +7287,37 @@ with the rest.
 
   What is said below that node, empty while it is not being shown or
   when there is nothing to say about it.
+
+<a id="edit_cfg_json.model_text.row_chooses"></a>
+
+#### row\_chooses
+
+```python
+def row_chooses(row: MemberRow) -> bool
+```
+
+Return whether one node holds a value that can be chosen from a list.
+
+A backend asks this before it creates the control that offers those
+values, by the same rule as `row_describes`: a control that could never
+hold anything is a piece of the window spent on nothing. Whether that
+control is the one being shown is `EditModel.choices_shown`, which is one
+answer for the whole editor.
+
+A member holding true or false and one holding an enum member can. A node
+the editor cannot edit at all cannot, whatever its type says, because
+there is no value of it to change: a list, a dict, a nested configuration
+object and a member holding nothing are each reached some other way.
+
+**Arguments**:
+
+- `row` - Node to ask about.
+  
+
+**Returns**:
+
+  Whether the values of that node are a set the editor knows the whole
+  of.
 
 <a id="edit_cfg_json.model_text.row_validates"></a>
 
@@ -8031,6 +8283,77 @@ def toggle_explanations() -> None
 ```
 
 Show the explanatory text if it is hidden, and hide it if not.
+
+<a id="edit_cfg_json.edit_model.EditModel.choices_shown"></a>
+
+#### choices\_shown
+
+```python
+@property
+def choices_shown() -> bool
+```
+
+Return whether a value with a known set is chosen, not typed.
+
+The two members that have such a set are one holding true or false and
+one holding an enum member, and `MemberRow.choices` is what they take.
+What this answers is whether those are offered to be chosen from or
+typed into, for all of them at once: one answer and not one per
+member, exactly as there is one answer about the explanations.
+
+It belongs to the model rather than to a backend for that same reason,
+and the application says which of the two the editor opens in, as
+`Settings.choose_values`. That answer is read until the user gives one
+of their own and never again afterwards: a settings callable is asked
+again at each point of use, and the point of use of this one is over
+as soon as somebody has switched.
+
+<a id="edit_cfg_json.edit_model.EditModel.toggle_choices"></a>
+
+#### toggle\_choices
+
+```python
+def toggle_choices() -> None
+```
+
+Choose the values if they are typed, and type them if not.
+
+Switching to choosing is not the whole of what has to happen: a
+pull-down shows one of the values its member takes, and a member whose
+text means none of them has to be given one. That is
+`settle_choices`, which is asked for separately because a backend has
+to say what it did.
+
+<a id="edit_cfg_json.edit_model.EditModel.settle_choices"></a>
+
+#### settle\_choices
+
+```python
+def settle_choices() -> str
+```
+
+Give every member with a set of values one of those values.
+
+A pull-down offers the values its member takes and nothing else, and
+it holds one of them at every moment, so a text that means none of
+them has to become one before any pull-down is shown. Which value a
+text means is the reading a field losing the focus is answered by: a
+beginning that only one member of that enum has is that member, and
+the case is ignored. A text that means none of them, an empty field
+among them, leaves the member holding the first value it takes, and
+that is the one change of the buffer which the user did not make and
+therefore has to be told about.
+
+Nothing happens at all while the values are typed, which is what lets
+a backend ask for this wherever it is about to show a pull-down as
+well as when the user asks for the values to be chosen. Asking twice
+changes nothing either, so a backend that asks before it builds its
+widgets is asking a question and not making a change.
+
+**Returns**:
+
+  What the user has to be told, one sentence per member whose text
+  was replaced, and an empty text when nothing was.
 
 <a id="edit_cfg_json.edit_model.EditModel.toggle_fold"></a>
 
@@ -9131,6 +9454,27 @@ any beginning of either of them is one of them and anything else is
 neither. A node whose kind nothing says is not one of these: nothing
 is known, so nothing is refused.
 
+<a id="edit_cfg_json.rows.MemberRow.choices"></a>
+
+#### choices
+
+```python
+@property
+def choices() -> tuple[str, ...]
+```
+
+Return the values this node takes, where they are a known set.
+
+Two kinds of node have one. A member holding true or false takes the
+two words and nothing else, and a member whose class declares a parse
+converter into an enum takes the names of that enum. Both are read
+from what this row already carries, so the values offered to be chosen
+from and the names listed below the row cannot come to differ.
+
+Every other node answers with no values at all, which is what says
+that its value is typed rather than chosen: text, a number and a
+member whose kind nothing says can hold anything of their kind.
+
 <a id="edit_cfg_json.rows.MemberRow.edited"></a>
 
 #### edited
@@ -9674,6 +10018,35 @@ so they are not kept.
 **Returns**:
 
   The summary of that class, and an empty text when it has no docstring.
+
+<a id="edit_cfg_json.descriptions.enum_names"></a>
+
+#### enum\_names
+
+```python
+def enum_names(converter: Optional[ParseConverter]) -> tuple[str, ...]
+```
+
+Return the names one member accepts, empty for one holding no enum.
+
+They are the values such a member takes, so they are both what is listed
+below the row and what the row offers to be chosen from. Reading them once
+here is what keeps the two from listing different names.
+
+The names the enum class declares, in the order it declares them, which is
+the order the class was written in and therefore the order somebody
+choosing between them expects. An alias is among them, exactly as it is in
+what the description lists: it is a name the member accepts.
+
+**Arguments**:
+
+- `converter` - How the text of this member becomes a value, or None for a
+  member that holds what the file holds.
+  
+
+**Returns**:
+
+  The names of that enum, and no names at all for every other member.
 
 <a id="edit_cfg_json.descriptions.enum_text"></a>
 

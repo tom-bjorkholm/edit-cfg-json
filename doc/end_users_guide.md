@@ -96,7 +96,8 @@ would write.
 | find report: 1 of 3                                                 |
 | validation: not validated                                           |
 | save to: /home/me/report.cfg                                        |
-| [Validate] [Save] [Save as...] [x] Explain [Fold all] [Close]       |
+| [Validate] [Save] [Save as...] [x] Explain [x] Choose values        |
+| [Fold all] [Close]                                                  |
 +---------------------------------------------------------------------+
 ```
 
@@ -118,7 +119,7 @@ Reading from the top:
 | The line under it | Where the search has got to. It is not there until you search for something. |
 | `validation:` | What the application makes of these values. See [1.10](#110-checking-the-values). |
 | `save to:` | Where a save would write, or what the last save did. See [1.11](#111-saving). |
-| The buttons | Validate, Save, Save as..., Explain, Fold all, Close. |
+| The buttons | Validate, Save, Save as..., Explain, Choose values, Fold all, Close. |
 
 Where the editor has a window of its own, that window is named after the
 configuration being edited.
@@ -231,25 +232,48 @@ only asked when you validate or save.
 
 Three kinds of value are worth knowing about.
 
-**True or false.** Type any beginning of `true` or of `false`, in any case:
-`t`, `TR`, `false` all work. The whole word appears in the field the next
-time the editor refreshes it. Anything that means neither is refused below
-the member, in these words:
+**True or false**, and **one of a fixed set of names**, are the two the editor
+knows the whole of, so it offers you those values to pick from rather than
+leaving you to spell one. Those members open as a pull-down:
 
 ```
-    verbose           [yes            ]
-        yes is not one of: true, false
+    verbose           [ true       v ]
+    interval          [ DAILY      v ]
 ```
 
-**One of a fixed set of names.** Type the name. The case does not matter and
-any beginning that can only be one of them is enough, so `dai` is `DAILY`.
-The name is checked **when you leave the field**, not while you are typing —
-a name is not a name yet halfway through. What is refused is said below the
-member.
+**Everything else** is a field, because text and a number can hold anything of
+their kind. If a member takes a number and you type letters, nothing happens
+until you validate, and the refusal then says so at that member.
 
-**Everything else** is taken as it is. If a member takes a number and you
-type letters, nothing happens until you validate, and the refusal then says
-so at that member.
+## 1.5.1 Typing one of those values instead of picking it
+
+**Choose values** turns every pull-down back into a field and back again, all
+of them at once, in the same way as the Explain tick-box beside it. In a
+terminal it is the **Choose values** entry of the bottom bar and of the
+command palette, renamed to **Type values** while the pull-downs are there.
+`F4` does it either way.
+
+Typing one of these values is forgiving:
+
+- **True or false.** Any beginning of `true` or of `false`, in any case: `t`,
+  `TR`, `false` all work. Anything that means neither is refused below the
+  member, as `yes is not one of: true, false`.
+- **One of a fixed set of names.** The case does not matter, and a beginning
+  that can only be one of the names in *this* member's set is enough. Whether
+  a particular beginning is enough depends on that set: where the names are
+  `DAILY`, `WEEKLY` and `MONTHLY`, `d` is already `DAILY`; where they are
+  `DAILY` and `DAILY_DIGEST`, it is neither. The name is checked **when you
+  leave the field**, not while you are typing — a name is not a name yet
+  halfway through. What is refused is said below the member.
+
+**A pull-down only ever offers the values of its member, and one of them is
+always selected.** There is no empty entry in the list and no way to leave one
+of these members holding something else. So switching back to the pull-downs
+while a field holds a half-typed name has to settle it: a beginning that can
+only be one value simply becomes that value, and anything else — a beginning
+that fits two of the names, a word that is none of them, or a field you
+emptied — leaves the member holding **the first value it takes**. The editor
+tells you so in a dialog naming every member it did that to.
 
 ## 1.6 A member that may hold nothing
 
@@ -514,6 +538,7 @@ the editor something else. The buttons always work, whatever the keys are.
 | Fold or unfold everything | `F2`, `Ctrl+T` | the **Fold all** / **Unfold all** button |
 | Find | `Ctrl+F` | clicking in the search field |
 | Find next | `F3` | the `►` button |
+| Pick a value or type it | `F4` | the **Choose values** tick-box |
 | Close | `Ctrl+Q` | the **Close** button |
 
 The keys work while you are typing in a field, so `Ctrl+S` in the middle of a
@@ -593,7 +618,7 @@ would write.
 | validation: not validated                                           |
 | save to: /home/me/report.cfg                                        |
 +---------------------------------------------------------------------+
-| ^s Save  ^r Validate  f1 Explain  f2 Fold all  ^f Find  ^q Close    |
+| ^s Save  ^r Validate  f1 Explain  f4 Type values  ^f Find  ^q Close |
 +---------------------------------------------------------------------+
 ```
 
@@ -740,25 +765,51 @@ only asked when you validate or save.
 
 Three kinds of value are worth knowing about.
 
-**True or false.** Type any beginning of `true` or of `false`, in any case:
-`t`, `TR`, `false` all work. The whole word appears in the field the next
-time the editor refreshes it. Anything that means neither is refused below
-the member, in these words:
+**True or false**, and **one of a fixed set of names**, are the two the editor
+knows the whole of, so it offers you those values to pick from rather than
+leaving you to spell one. Those members open as a pull-down: move to it with
+`Tab` and press `Enter` to open the list, `Up` and `Down` to move in it and
+`Enter` to take one.
 
 ```
-    verbose           [yes            ]
-        yes is not one of: true, false
+    verbose           [ true       v ]
+    interval          [ DAILY      v ]
 ```
 
-**One of a fixed set of names.** Type the name. The case does not matter and
-any beginning that can only be one of them is enough, so `dai` is `DAILY`.
-The name is checked **when you leave the field**, not while you are typing —
-a name is not a name yet halfway through. What is refused is said below the
-member.
+**Everything else** is a field, because text and a number can hold anything of
+their kind. If a member takes a number and you type letters, nothing happens
+until you validate, and the refusal then says so at that member.
 
-**Everything else** is taken as it is. If a member takes a number and you
-type letters, nothing happens until you validate, and the refusal then says
-so at that member.
+## 2.5.1 Typing one of those values instead of picking it
+
+**Choose values** turns every pull-down back into a field and back again, all
+of them at once, in the same way as **Explain** beside it in the bottom bar.
+The bar says what the next press will do: **Type values** while the pull-downs
+are there and **Choose values** while the fields are. `F4` is the key, and the
+command palette has the same entry.
+
+Typing one of these values is forgiving:
+
+- **True or false.** Any beginning of `true` or of `false`, in any case: `t`,
+  `TR`, `false` all work. Anything that means neither is refused below the
+  member, as `yes is not one of: true, false`.
+- **One of a fixed set of names.** The case does not matter, and a beginning
+  that can only be one of the names in *this* member's set is enough. Whether
+  a particular beginning is enough depends on that set: where the names are
+  `DAILY`, `WEEKLY` and `MONTHLY`, `d` is already `DAILY`; where they are
+  `DAILY` and `DAILY_DIGEST`, it is neither. The name is checked **when you
+  leave the field**, not while you are typing — a name is not a name yet
+  halfway through. What is refused is said below the member.
+
+**A pull-down only ever offers the values of its member, and one of them is
+always selected.** There is no empty entry in the list and no way to leave one
+of these members holding something else. So switching back to the pull-downs
+while a field holds a half-typed name has to settle it: a beginning that can
+only be one value simply becomes that value, and anything else — a beginning
+that fits two of the names, a word that is none of them, or a field you
+emptied — leaves the member holding **the first value it takes**. The editor
+tells you so on a screen naming every member it did that to; press `Enter` or
+the control on it to go back to editing.
 
 ## 2.6 A member that may hold nothing
 
@@ -1046,6 +1097,7 @@ the editor something else.
 | Fold all / Unfold all | `F2`, `Ctrl+T` | Fold every list and dict away, or open every one of them |
 | Find | `Ctrl+F` | Type into the field that looks for a member |
 | Find next | `F3` | Go to the next member that the search reaches |
+| Choose values / Type values | `F4` | Switch between typing a value and choosing one of the values a member takes |
 | Close | `Ctrl+Q` | End the editing session |
 | Cancel | `escape` | Leave a question without answering it |
 
@@ -1056,8 +1108,8 @@ without being named.
 bottom bar is too narrow to show, and lets you run any action without
 remembering its key. It is the terminal's own palette — `Ctrl+P` unless your
 application says otherwise — and the editor's entries in it are named exactly
-as the bar names them, so **Explain** and **Fold all** read there as what the
-next press will do too.
+as the bar names them, so **Explain**, **Fold all** and **Choose values** read
+there as what the next press will do too.
 
 The keys work while you are typing in a field, so `Ctrl+S` in the middle of a
 field means Save. They are active while the cursor is inside the editor: if
@@ -1118,6 +1170,7 @@ Either way, the answers are the same and they are named the same.
 | `backup_count` | How many of those are kept. Above one they are numbered from `_1`, which is the one overwritten last, and each save pushes the rest one number further back until the oldest falls off the end. | `1`, which is one kept file with no number. |
 | `confirm_overwrite` | Whether the editor asks before writing over a file this session did not write. | `true`, which is the answer that loses nothing. |
 | `priority_keys` | Whether the editor is offered a key before the field the cursor is in. | `true`, so pressing Save while typing means Save. |
+| `choose_values` | Whether a member whose values the editor knows the whole of — true or false, and one of a fixed set of names — **opens** as a pull-down of those values. See [1.5](#15-changing-a-value) and [2.5](#25-changing-a-value). | `true`. Either way you switch between the two whenever you like, so this says only how the editor opens. |
 
 ## 3.2 What a settings file looks like
 
@@ -1129,13 +1182,14 @@ it leaves out keeps the answer the editor would have chosen anyway.
  "file_extension": ".cfg",
  "extension_enforced": true,
  "backup_suffix": ".old",
- "backup_count": 3}
+ "backup_count": 3,
+ "choose_values": false}
 ```
 
 The names of the actions are these, and no others:
 
 `quit`, `validate`, `save`, `save_as`, `cancel`, `explain`, `fold`, `find`,
-`find_next`.
+`find_next`, `choose`.
 
 Each holds a **list** of key combinations, and every one of them runs that
 action. The first is the one that gets named in the terminal editor's bottom
@@ -1181,10 +1235,10 @@ else.
 
 ## 3.4 A settings file from an older version
 
-The editor gains an action from time to time, and a settings file written
-before it existed does not mention it. Such a file is still read: the editor
-falls back on the compatibility rules for a file of an earlier version, uses
-it, and says so, naming the file and adding that a future version may stop
+The editor gains an action or a setting from time to time, and a settings file
+written before it existed does not mention it. Such a file is still read: the
+editor falls back on the compatibility rules for a file of an earlier version,
+uses it, and says so, naming the file and adding that a future version may stop
 accepting it.
 
 The fix it asks for is to open that file in the editor and save it again,

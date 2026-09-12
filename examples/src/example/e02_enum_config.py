@@ -36,13 +36,21 @@ is how the name reaches the file anyway.
 
 ## What that means in the editor
 
-An enum is edited in an ordinary text field, because what the file holds is
-the text of a member name and that is what the buffer holds too. The editor
-does not need a field of its own for it, and it does not need to be told that
-the member is an enum either: `parse_converters()` above already says so, and
-the editor reads it there.
+An enum member is one of a set of values that the editor knows the whole of,
+so the editor **offers those values to be chosen** rather than leaving the
+user to remember how a name is spelled. It does not need to be told that the
+member is an enum: `parse_converters()` above already says so, and the editor
+reads it there.
 
-Two things follow from reading it, and both are visible below.
+It is still a text field underneath, because what the file holds is the text
+of a member name and that is what the buffer holds too. Which of the two is on
+the screen is one answer for the whole editor: **F4** switches between them,
+and `Settings.choose_values` says which the editor opens in. That is what
+`--type-values` below asks for, and it is the same shape of action as the one
+that shows and hides the explanations.
+
+Three things follow from reading `parse_converters()`, and all three are
+visible below.
 
 - **The member explains itself**, with no description mapping anywhere in
   this example. The enum class is a type, so it says what it is in its own
@@ -55,6 +63,12 @@ Two things follow from reading it, and both are visible below.
   `ELECT is not one of: MECHANICAL, ELECTRICAL, ELECTRONIC`, beside the field
   that holds `ELECT`. Nothing is invented and nothing is reworded — that
   sentence is the one `config_as_json` raises.
+- **The pull-down offers exactly the three names and nothing else**, in the
+  order the enum class declares them, which is the same order the line under
+  the member lists them in. The two come from one reading of the enum class,
+  so they cannot come to disagree. There is no empty entry in the list and no
+  unselected state: an enum member is one of these three, so those three are
+  the whole of what the control can offer or hold.
 
 What makes the field more than free text after that is still the validation
 pass: it hands the buffer to `EnumConfig` exactly as a file would be handed
@@ -80,8 +94,8 @@ to type it. The editor therefore asks the question when the user **leaves the
 field**, and not on every key, because a field that complained about every
 half typed name would be complaining about nothing.
 
-Run this example in one of the two editors, and leaving the field is the
-thing to try, because it is what asks the question:
+Run this example in one of the two editors, and both members open as a
+pull-down of the three names:
 
 ````sh
 python3 examples/src/example/e02_enum_config.py --ui tk
@@ -92,11 +106,30 @@ Inside this repository, use the virtual environment that the build creates,
 because that is where the three packages are installed:
 `./venv/bin/python3 examples/src/example/e02_enum_config.py --ui tk`.
 
-Type `ELECT` into `needed` and move to the other field: the refusal appears
-below that member, and typing the rest of the name takes it away again,
-because what a conversion said is kept until that member is edited again.
-That is the half of this example that only an editor has, since a field
-losing the focus is not something a printout has to lose.
+Press **F4**, or untick **Choose values** in the window, and the same two
+members become fields to type in. Type `ELECT` into `needed` and move to the
+other field: the refusal appears below that member, and typing the rest of the
+name takes it away again, because what a conversion said is kept until that
+member is edited again. That is the half of this example that only an editor
+has, since a field losing the focus is not something a printout has to lose.
+
+Press **F4** again with `ELECT` still in the field, and the third thing this
+example is about happens: a pull-down holds one of the values its member
+takes, and `ELECT` is none of them, so the member is given the first value it
+takes and a dialog says so. Do the same with `MECH` in the field and nothing
+is said at all — in *this* enum that beginning means exactly one name, so it
+is simply completed, which is what a validation pass would have done with it
+anyway. Which beginnings are enough is a fact about the names an enum happens
+to have: an enum with `MECHANICAL` and `MECHATRONICS` in it would make `MECH`
+the ambiguous one and `ELECT` irrelevant.
+
+The same example started with the fields instead of the pull-downs is what
+`--type-values` is for, which stands in for an application that answered
+`Settings(choose_values=False)`:
+
+````sh
+python3 examples/src/example/e02_enum_config.py --ui tk --type-values
+````
 
 `--ui dump` is the very limited non-interactive user interface, and it prints
 the model once. The four below make the same edits a user would type, and show

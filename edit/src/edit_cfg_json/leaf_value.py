@@ -87,7 +87,16 @@ are values of other kinds, and a member that holds one of those is a member of
 another kind.
 """
 
-BOOL_CHOICES = ', '.join(word for word, _ in BOOL_WORDS)
+BOOL_NAMES: tuple[str, ...] = tuple(word for word, _ in BOOL_WORDS)
+"""The two words on their own, in the order they are asked in.
+
+It is what a member holding true or false is offered as the values it takes,
+where a member holding an enum is offered the names of that enum. The order
+is the one above, so that the first value such a member can be given is
+`true`.
+"""
+
+BOOL_CHOICES = ', '.join(BOOL_NAMES)
 """The two words as they are listed to the user, in the order asked."""
 
 

@@ -18,9 +18,10 @@ of them and fold one of them away.
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from io import StringIO
-from typing import Optional, TextIO
+from typing import NamedTuple, Optional, TextIO
 from config_as_json import Config, ConfigPath, JsonType
-from edit_cfg_json.converting import convert_member
+from edit_cfg_json.converting import convert_member, matched_choice, \
+    replaced_text
 from edit_cfg_json.descriptions import Descriptions
 from edit_cfg_json.elements import NOT_EXTENDABLE, NOT_MOVABLE, \
     NOT_REMOVABLE, checked_key, grown, kept_order, moved_paths, refused, \
@@ -46,6 +47,26 @@ state is asked for with a control and never typed.
 
 NOT_A_CONTAINER = 'Member {name} is not a list or a dict.'
 """Message of the error raised when a node that holds none is folded."""
+
+
+class ChoiceReport(NamedTuple):
+    """What giving every member a value it takes did to the buffer."""
+
+    message: str
+    """What the user has to be told, empty when there is nothing.
+
+    It names every member whose text meant no value of it, one sentence per
+    member, because a switch that had to be made twice to be read twice would
+    be worse than one that says everything it did.
+    """
+
+    edited: bool
+    """Whether any value of the buffer is now a different value.
+
+    A completed name is an edit as much as a replaced text is, and both of
+    them leave a verdict and a save that were reached before them saying
+    nothing true about the buffer.
+    """
 
 
 def _swapped_order(count: int, index: int, later: bool) -> list[int]:
@@ -247,6 +268,40 @@ class EditBuffer:
         """Report every node whose text means no value of that node."""
         for path in tuple(self._rows):
             self.check_field(path)
+
+    def choose_values(self) -> ChoiceReport:
+        """Give every node that has a set of values one of those values.
+
+        A pull-down offers the values its member takes and nothing else, and
+        holds one of them at every moment, so a text that means none of them
+        has to become one of them before any pull-down is shown. What each
+        text means is `matched_choice`, which is the reading a field losing
+        the focus is answered by, and a text that means none of them is given
+        the first value that member takes.
+
+        Doing this again changes nothing, which is what lets it be done
+        wherever a pull-down is about to be shown as well as when the user
+        asks for the values to be chosen.
+
+        Returns:
+            What the user has to be told about it, and whether the buffer
+            holds a different value than before.
+        """
+        told: list[str] = []
+        edited = False
+        for path, row in tuple(self._rows.items()):
+            if not row.choices or not row.editable:
+                continue
+            wanted = matched_choice(converter=row.converter, value=row.value,
+                                    choices=row.choices,
+                                    is_bool_member=row.is_bool)
+            if not wanted:
+                told.append(replaced_text(name=row.full_name,
+                                          text=row.value_text,
+                                          value=row.choices[0]))
+                wanted = row.choices[0]
+            edited |= self.set_text(path=path, text=wanted)
+        return ChoiceReport(message='\n'.join(told), edited=edited)
 
     def toggle_fold(self, path: ConfigPath) -> None:
         """Fold one container away, or open it again.

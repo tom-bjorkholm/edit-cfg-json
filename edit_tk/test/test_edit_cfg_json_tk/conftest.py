@@ -7,15 +7,17 @@
 from collections.abc import Iterator
 import tkinter
 import pytest
-from .helpers import FakeFlag, FakeVar, FakeWidget
+from .stubs import FakeFlag, FakeVar, FakeWidget
 
 STUBBED_WIDGETS = ('Frame', 'Label', 'Button', 'Checkbutton', 'Entry',
-                   'Canvas', 'Scrollbar', 'Toplevel')
+                   'Canvas', 'Scrollbar', 'Toplevel', 'Menubutton', 'Menu')
 """Every Tkinter widget class that the stubbed tests replace.
 
 One stub stands in for all of them, because what those tests are about is
 which widgets the editor creates, what they show and what they are told to do,
-and none of that differs between the classes.
+and none of that differs between the classes. The pull-down of a member is a
+menu button with a menu on it, so the values it offers are recorded by the
+`add_command` of the stub rather than as options of a widget.
 """
 
 

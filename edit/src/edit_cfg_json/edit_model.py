@@ -151,6 +151,7 @@ class EditModel:
         self._settings = settings
         self._saving = SaveState(out_file=out_file)
         self._explained = True
+        self._chosen: Optional[bool] = None
 
     @property
     def _config_type(self) -> type[Config]:
@@ -208,6 +209,68 @@ class EditModel:
     def toggle_explanations(self) -> None:
         """Show the explanatory text if it is hidden, and hide it if not."""
         self._explained = not self._explained
+
+    @property
+    def choices_shown(self) -> bool:
+        """Return whether a value with a known set is chosen, not typed.
+
+        The two members that have such a set are one holding true or false and
+        one holding an enum member, and `MemberRow.choices` is what they take.
+        What this answers is whether those are offered to be chosen from or
+        typed into, for all of them at once: one answer and not one per
+        member, exactly as there is one answer about the explanations.
+
+        It belongs to the model rather than to a backend for that same reason,
+        and the application says which of the two the editor opens in, as
+        `Settings.choose_values`. That answer is read until the user gives one
+        of their own and never again afterwards: a settings callable is asked
+        again at each point of use, and the point of use of this one is over
+        as soon as somebody has switched.
+        """
+        if self._chosen is None:
+            return self.settings.choose_values
+        return self._chosen
+
+    def toggle_choices(self) -> None:
+        """Choose the values if they are typed, and type them if not.
+
+        Switching to choosing is not the whole of what has to happen: a
+        pull-down shows one of the values its member takes, and a member whose
+        text means none of them has to be given one. That is
+        `settle_choices`, which is asked for separately because a backend has
+        to say what it did.
+        """
+        self._chosen = not self.choices_shown
+
+    def settle_choices(self) -> str:
+        """Give every member with a set of values one of those values.
+
+        A pull-down offers the values its member takes and nothing else, and
+        it holds one of them at every moment, so a text that means none of
+        them has to become one before any pull-down is shown. Which value a
+        text means is the reading a field losing the focus is answered by: a
+        beginning that only one member of that enum has is that member, and
+        the case is ignored. A text that means none of them, an empty field
+        among them, leaves the member holding the first value it takes, and
+        that is the one change of the buffer which the user did not make and
+        therefore has to be told about.
+
+        Nothing happens at all while the values are typed, which is what lets
+        a backend ask for this wherever it is about to show a pull-down as
+        well as when the user asks for the values to be chosen. Asking twice
+        changes nothing either, so a backend that asks before it builds its
+        widgets is asking a question and not making a change.
+
+        Returns:
+            What the user has to be told, one sentence per member whose text
+            was replaced, and an empty text when nothing was.
+        """
+        if not self.choices_shown:
+            return ''
+        report = self._buffer.choose_values()
+        if report.edited:
+            self._changed()
+        return report.message
 
     def toggle_fold(self, path: ConfigPath) -> None:
         """Fold one container away, or open it again.

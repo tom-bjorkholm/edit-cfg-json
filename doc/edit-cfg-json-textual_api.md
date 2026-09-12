@@ -20,6 +20,7 @@
   * [CANCEL\_COMMAND](#edit_cfg_json_textual.textual_ask.CANCEL_COMMAND)
   * [YES\_ID](#edit_cfg_json_textual.textual_ask.YES_ID)
   * [NO\_ID](#edit_cfg_json_textual.textual_ask.NO_ID)
+  * [TOLD\_ID](#edit_cfg_json_textual.textual_ask.TOLD_ID)
   * [DISCARD\_LABEL](#edit_cfg_json_textual.textual_ask.DISCARD_LABEL)
   * [KEEP\_LABEL](#edit_cfg_json_textual.textual_ask.KEEP_LABEL)
   * [OVERWRITE\_LABEL](#edit_cfg_json_textual.textual_ask.OVERWRITE_LABEL)
@@ -39,6 +40,13 @@
     * [compose](#edit_cfg_json_textual.textual_ask.ConfirmScreen.compose)
     * [on\_button\_pressed](#edit_cfg_json_textual.textual_ask.ConfirmScreen.on_button_pressed)
     * [action\_leave](#edit_cfg_json_textual.textual_ask.ConfirmScreen.action_leave)
+  * [TellScreen](#edit_cfg_json_textual.textual_ask.TellScreen)
+    * [DEFAULT\_CSS](#edit_cfg_json_textual.textual_ask.TellScreen.DEFAULT_CSS)
+    * [AUTO\_FOCUS](#edit_cfg_json_textual.textual_ask.TellScreen.AUTO_FOCUS)
+    * [\_\_init\_\_](#edit_cfg_json_textual.textual_ask.TellScreen.__init__)
+    * [compose](#edit_cfg_json_textual.textual_ask.TellScreen.compose)
+    * [on\_button\_pressed](#edit_cfg_json_textual.textual_ask.TellScreen.on_button_pressed)
+    * [action\_leave](#edit_cfg_json_textual.textual_ask.TellScreen.action_leave)
   * [QUESTION\_SCREENS](#edit_cfg_json_textual.textual_ask.QUESTION_SCREENS)
 * [edit\_cfg\_json\_textual.textual\_version](#edit_cfg_json_textual.textual_version)
   * [MAIN\_PACKAGE](#edit_cfg_json_textual.textual_version.MAIN_PACKAGE)
@@ -57,6 +65,7 @@
   * [edit](#edit_cfg_json_textual.textual_editor.edit)
 * [edit\_cfg\_json\_textual.textual\_look](#edit_cfg_json_textual.textual_look)
   * [VALUE\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.VALUE_ID_PREFIX)
+  * [CHOICE\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.CHOICE_ID_PREFIX)
   * [MARK\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.MARK_ID_PREFIX)
   * [SUBTREE\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.SUBTREE_ID_PREFIX)
   * [DESCRIPTION\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.DESCRIPTION_ID_PREFIX)
@@ -106,6 +115,7 @@
   * [PANEL\_CSS](#edit_cfg_json_textual.textual_look.PANEL_CSS)
   * [QUESTION\_CSS](#edit_cfg_json_textual.textual_look.QUESTION_CSS)
   * [value\_id](#edit_cfg_json_textual.textual_look.value_id)
+  * [choice\_id](#edit_cfg_json_textual.textual_look.choice_id)
   * [mark\_id](#edit_cfg_json_textual.textual_look.mark_id)
   * [subtree\_id](#edit_cfg_json_textual.textual_look.subtree_id)
   * [description\_id](#edit_cfg_json_textual.textual_look.description_id)
@@ -143,12 +153,14 @@
     * [compose](#edit_cfg_json_textual.textual_panel.ModelPanel.compose)
     * [command\_entries](#edit_cfg_json_textual.textual_panel.ModelPanel.command_entries)
     * [on\_input\_changed](#edit_cfg_json_textual.textual_panel.ModelPanel.on_input_changed)
+    * [on\_select\_changed](#edit_cfg_json_textual.textual_panel.ModelPanel.on_select_changed)
     * [on\_input\_blurred](#edit_cfg_json_textual.textual_panel.ModelPanel.on_input_blurred)
     * [action\_close](#edit_cfg_json_textual.textual_panel.ModelPanel.action_close)
     * [close](#edit_cfg_json_textual.textual_panel.ModelPanel.close)
     * [action\_validate](#edit_cfg_json_textual.textual_panel.ModelPanel.action_validate)
     * [action\_save](#edit_cfg_json_textual.textual_panel.ModelPanel.action_save)
     * [action\_explain](#edit_cfg_json_textual.textual_panel.ModelPanel.action_explain)
+    * [action\_choose](#edit_cfg_json_textual.textual_panel.ModelPanel.action_choose)
     * [action\_fold](#edit_cfg_json_textual.textual_panel.ModelPanel.action_fold)
     * [action\_find](#edit_cfg_json_textual.textual_panel.ModelPanel.action_find)
     * [action\_find\_next](#edit_cfg_json_textual.textual_panel.ModelPanel.action_find_next)
@@ -170,6 +182,18 @@
     * [on\_input\_blurred](#edit_cfg_json_textual.textual_find.FindRow.on_input_blurred)
     * [on\_checkbox\_changed](#edit_cfg_json_textual.textual_find.FindRow.on_checkbox_changed)
     * [on\_button\_pressed](#edit_cfg_json_textual.textual_find.FindRow.on_button_pressed)
+* [edit\_cfg\_json\_textual.textual\_member](#edit_cfg_json_textual.textual_member)
+  * [value\_widgets](#edit_cfg_json_textual.textual_member.value_widgets)
+  * [show\_way](#edit_cfg_json_textual.textual_member.show_way)
+  * [show\_chosen](#edit_cfg_json_textual.textual_member.show_chosen)
+  * [element\_widgets](#edit_cfg_json_textual.textual_member.element_widgets)
+  * [fold\_widget](#edit_cfg_json_textual.textual_member.fold_widget)
+  * [subtree\_widgets](#edit_cfg_json_textual.textual_member.subtree_widgets)
+  * [description\_widgets](#edit_cfg_json_textual.textual_member.description_widgets)
+  * [diagnostic\_widget](#edit_cfg_json_textual.textual_member.diagnostic_widget)
+  * [show\_subtrees](#edit_cfg_json_textual.textual_member.show_subtrees)
+  * [show\_descriptions](#edit_cfg_json_textual.textual_member.show_descriptions)
+  * [show\_diagnostics](#edit_cfg_json_textual.textual_member.show_diagnostics)
 * [edit\_cfg\_json\_textual.textual\_words](#edit_cfg_json_textual.textual_words)
   * [CLOSE\_COMMAND](#edit_cfg_json_textual.textual_words.CLOSE_COMMAND)
   * [VALIDATE\_COMMAND](#edit_cfg_json_textual.textual_words.VALIDATE_COMMAND)
@@ -181,6 +205,11 @@
   * [SAVE\_HELP](#edit_cfg_json_textual.textual_words.SAVE_HELP)
   * [SAVE\_AS\_HELP](#edit_cfg_json_textual.textual_words.SAVE_AS_HELP)
   * [EXPLAIN\_HELP](#edit_cfg_json_textual.textual_words.EXPLAIN_HELP)
+  * [CHOOSE\_COMMAND](#edit_cfg_json_textual.textual_words.CHOOSE_COMMAND)
+  * [TYPE\_COMMAND](#edit_cfg_json_textual.textual_words.TYPE_COMMAND)
+  * [CHOOSE\_HELP](#edit_cfg_json_textual.textual_words.CHOOSE_HELP)
+  * [REPLACED\_PROMPT](#edit_cfg_json_textual.textual_words.REPLACED_PROMPT)
+  * [REPLACED\_LABEL](#edit_cfg_json_textual.textual_words.REPLACED_LABEL)
   * [FOLD\_COMMAND](#edit_cfg_json_textual.textual_words.FOLD_COMMAND)
   * [OPEN\_COMMAND](#edit_cfg_json_textual.textual_words.OPEN_COMMAND)
   * [FOLD\_HELP](#edit_cfg_json_textual.textual_words.FOLD_HELP)
@@ -379,6 +408,10 @@ serving every question of that shape, because two screens differing in a
 prompt would be the same code twice and the questions would then be free to
 drift apart in how they behave.
 
+A third shape asks nothing and is read: what switching to a pull-down had to
+replace. It is here because it is a modal screen of exactly the same kind, and
+because the editor has to turn its own actions off while any of them is up.
+
 A question is a screen of its own rather than a field or a row in the editor,
 because it is asked, answered and gone: something that was always there would
 be one more thing to read in every session, for a question that is asked once
@@ -409,6 +442,12 @@ Identifier of the control that answers a question with yes.
 #### NO\_ID
 
 Identifier of the control that answers it with no.
+
+<a id="edit_cfg_json_textual.textual_ask.TOLD_ID"></a>
+
+#### TOLD\_ID
+
+Identifier of the control that leaves a screen which asks nothing.
 
 <a id="edit_cfg_json_textual.textual_ask.DISCARD_LABEL"></a>
 
@@ -636,6 +675,85 @@ def action_leave() -> None
 ```
 
 Leave the screen, which is the same as changing nothing.
+
+<a id="edit_cfg_json_textual.textual_ask.TellScreen"></a>
+
+## TellScreen Objects
+
+```python
+class TellScreen(ModalScreen[None])
+```
+
+Say one thing that has happened, with one control that leaves it.
+
+It is the one screen here that tells rather than asks: switching to a
+pull-down gives a member whose text means no value of it the first value
+it takes, and there is nothing to decide about that once it has happened.
+It is a screen all the same, and for the reason the two above it are: it
+is read, acted on and gone, and a line among the values would be read
+after the values it is about.
+
+<a id="edit_cfg_json_textual.textual_ask.TellScreen.DEFAULT_CSS"></a>
+
+#### DEFAULT\_CSS
+
+How this screen is laid out, which is how the two above it are.
+
+<a id="edit_cfg_json_textual.textual_ask.TellScreen.AUTO_FOCUS"></a>
+
+#### AUTO\_FOCUS
+
+The control that the screen opens with, which is its only one.
+
+<a id="edit_cfg_json_textual.textual_ask.TellScreen.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(message: str, cancel_keys: Sequence[str]) -> None
+```
+
+Say it, with the keys that leave the screen.
+
+**Arguments**:
+
+- `message` - What has happened, as the user reads it.
+- `cancel_keys` - Key combinations that leave the screen, which is all
+  that leaving it can mean, empty when the application gave it
+  none.
+
+<a id="edit_cfg_json_textual.textual_ask.TellScreen.compose"></a>
+
+#### compose
+
+```python
+def compose() -> ComposeResult
+```
+
+Create what is being said and the control that leaves it.
+
+<a id="edit_cfg_json_textual.textual_ask.TellScreen.on_button_pressed"></a>
+
+#### on\_button\_pressed
+
+```python
+def on_button_pressed(event: Button.Pressed) -> None
+```
+
+Leave the screen, which is all the one control does.
+
+The message is stopped here because the editor underneath reads every
+press for a control of a row, and this is not one.
+
+<a id="edit_cfg_json_textual.textual_ask.TellScreen.action_leave"></a>
+
+#### action\_leave
+
+```python
+def action_leave() -> None
+```
+
+Leave the screen, which is what its control does as well.
 
 <a id="edit_cfg_json_textual.textual_ask.QUESTION_SCREENS"></a>
 
@@ -930,6 +1048,15 @@ Every identifier of a node is that prefix and the place of the node among the
 rows, and not the name of the node: two values inside two different dicts can
 have one name, and a path holds whatever a dictionary key holds, which is not
 always something Textual accepts as an identifier.
+
+<a id="edit_cfg_json_textual.textual_look.CHOICE_ID_PREFIX"></a>
+
+#### CHOICE\_ID\_PREFIX
+
+Prefix of the identifier of the pull-down of one node.
+
+A node whose values are a set the editor knows the whole of has both this and
+the field above, and exactly one of the two is on the screen.
 
 <a id="edit_cfg_json_textual.textual_look.MARK_ID_PREFIX"></a>
 
@@ -1307,6 +1434,13 @@ where they are there and cannot be seen. The value therefore takes what is
 left over and the marks take what they need, which is the opposite way round
 from the default and the only way round that shows both.
 
+A pull-down is told its height for a neighbouring reason. It is a container
+holding the control and the list of values it opens, so it is as tall as it
+needs to be of its own accord, and the row it is on is one cell: one that grew
+would push the rows below it down without showing anything more. The list it
+opens is laid over those rows rather than between them, which is what a
+pull-down does everywhere and is why saying this costs nothing.
+
 It is the style sheet of the widget that holds the editor and not of an
 application, because an application that mounts that widget in a window of its
 own has a style sheet of its own and would not have this one. Textual scopes
@@ -1341,6 +1475,16 @@ def value_id(index: int) -> str
 ```
 
 Return the identifier of the widget that shows one node value.
+
+<a id="edit_cfg_json_textual.textual_look.choice_id"></a>
+
+#### choice\_id
+
+```python
+def choice_id(index: int) -> str
+```
+
+Return the identifier of the pull-down of one node.
 
 <a id="edit_cfg_json_textual.textual_look.mark_id"></a>
 
@@ -1977,6 +2121,23 @@ A field posts this message when it is given its initial value as
 well, which the model handles by treating a set that changes no text
 as no edit at all.
 
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.on_select_changed"></a>
+
+#### on\_select\_changed
+
+```python
+def on_select_changed(event: Select.Changed) -> None
+```
+
+Write the value that was picked from one pull-down into the model.
+
+A pull-down posts this message when it is given its initial value as
+well, which the model handles by treating a set that changes no text
+as no edit at all.
+
+Every value it can post is one of the ones that member takes, because
+that is all a pull-down offers and it has no unselected state.
+
 <a id="edit_cfg_json_textual.textual_panel.ModelPanel.on_input_blurred"></a>
 
 #### on\_input\_blurred
@@ -2084,6 +2245,19 @@ Show or hide what the application says about these values.
 The action is renamed as well, because what it is called says what the
 next press will do: "Explain" beside explanations that are already
 there would read as an offer to do something that has been done.
+
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.action_choose"></a>
+
+#### action\_choose
+
+```python
+def action_choose() -> None
+```
+
+Switch between typing the values and choosing them.
+
+The action is renamed as well, for the reason the explain action is:
+what it is called says what the next press will do.
 
 <a id="edit_cfg_json_textual.textual_panel.ModelPanel.action_fold"></a>
 
@@ -2381,6 +2555,293 @@ Go to the next node the search reaches.
 The message is stopped for the same reason the others are: the editor
 underneath reads every press for a control of a row, and this is none.
 
+<a id="edit_cfg_json_textual.textual_member"></a>
+
+# edit\_cfg\_json\_textual.textual\_member
+
+The widgets that one member of the configuration owns, and what they show.
+
+One row of the editor is a line holding the value of a node and what has
+happened to it, and below that what the node is for and what is wrong with it.
+This is where those widgets are made and where each of them is shown again
+once the model says something else.
+
+The value is the part of a row with two shapes. A value the editor can edit is
+typed into a field, and a value whose whole set the editor knows is picked from
+a pull-down of that set instead; both widgets are made and one of them is on
+the screen, because a field the user was typing into should still hold what
+they typed when they switch back to it.
+
+**A pull-down offers the values its member takes and nothing else**, and one
+of them is selected at every moment. There is no unselected state, no blank
+line among the values and no way to put a member into either: what a member
+holding an enum takes is the members of that enum, and what a member holding
+true or false takes is those two words.
+
+Nothing here holds any state. Which node each widget belongs to is the panel's,
+because the panel is what every message about a widget arrives at, and this is
+a module of functions so that `textual_panel` stays short enough to read.
+
+<a id="edit_cfg_json_textual.textual_member.value_widgets"></a>
+
+#### value\_widgets
+
+```python
+def value_widgets(index: int, row: core.MemberRow,
+                  chosen: bool) -> ComposeResult
+```
+
+Create the ways of editing the value of one node.
+
+A node that the model cannot edit gets a widget that only shows text,
+because there is nothing the user could do to it: a list, a dict and a
+nested configuration object are each edited through the rows below them,
+and a declared member that holds no object holds no text either.
+
+A node whose values are a set the editor knows the whole of gets a
+pull-down of those values as well as a field, and `show_way` is what puts
+one of the two on the screen.
+
+**Arguments**:
+
+- `index` - Place of the node among the rows.
+- `row` - Node to create the widgets for.
+- `chosen` - Whether the values are being chosen rather than typed.
+  
+
+**Returns**:
+
+  One widget for a node the model cannot edit, and a field and perhaps
+  a pull-down for every other node.
+
+<a id="edit_cfg_json_textual.textual_member.show_way"></a>
+
+#### show\_way
+
+```python
+def show_way(field: Input, chooser: 'Select[str]', chosen: bool) -> None
+```
+
+Put the way of editing one value that the model asks for now.
+
+The one that is not being used is hidden rather than taken off the screen,
+so that a field the user was typing into still holds what they typed when
+they switch back to it.
+
+**Arguments**:
+
+- `field` - The field of that node.
+- `chooser` - The pull-down of that node.
+- `chosen` - Whether the values are being chosen rather than typed.
+
+<a id="edit_cfg_json_textual.textual_member.show_chosen"></a>
+
+#### show\_chosen
+
+```python
+def show_chosen(chooser: 'Select[str]', row: core.MemberRow) -> None
+```
+
+Show the value one pull-down holds, as the model holds it now.
+
+The value is always one of the ones the pull-down offers, because the
+model is asked to settle the values before a pull-down is made and a
+pull-down offers nothing else.
+
+**Arguments**:
+
+- `chooser` - The pull-down of that node.
+- `row` - Node whose value is being shown, as the model holds it now.
+
+<a id="edit_cfg_json_textual.textual_member.element_widgets"></a>
+
+#### element\_widgets
+
+```python
+def element_widgets(index: int, row: core.MemberRow) -> ComposeResult
+```
+
+Create the controls that change how many elements one node holds.
+
+They are at the end of the line, after the value and the marks, so a node
+that offers none of them costs the values no width at all. That is what
+makes four of them affordable where the one control that folds a container
+has to keep a column clear on every row.
+
+**Arguments**:
+
+- `index` - Place of the node among the rows.
+- `row` - Node to create the controls for.
+  
+
+**Returns**:
+
+  The controls that node offers, and none at all for one that offers
+  none, which is most nodes of most configurations.
+
+<a id="edit_cfg_json_textual.textual_member.fold_widget"></a>
+
+#### fold\_widget
+
+```python
+def fold_widget(index: int, row: core.MemberRow,
+                foldable: bool) -> Optional[Widget]
+```
+
+Return the control that folds one container, or an empty space.
+
+A node that holds nothing gets a widget of the same width rather than no
+widget at all, so that the names of a container and of a value beside it
+begin in the same column. A configuration with nothing to fold anywhere
+gets no column at all, because a column that could never hold anything is
+width taken from the values for nothing.
+
+**Arguments**:
+
+- `index` - Place of the node among the rows.
+- `row` - Node to create the control for.
+- `foldable` - Whether this configuration has anything to fold at all.
+  
+
+**Returns**:
+
+  A button for a container, a label for every other node of a
+  configuration that has one, and None for one that has none.
+
+<a id="edit_cfg_json_textual.textual_member.subtree_widgets"></a>
+
+#### subtree\_widgets
+
+```python
+def subtree_widgets(index: int, row: core.MemberRow) -> ComposeResult
+```
+
+Create the widget that says what one object is on its own.
+
+A node that is no configuration object gets none, by the same rule as the
+description below the row: a widget that could never hold anything is a
+piece of the screen spent on nothing.
+
+**Arguments**:
+
+- `index` - Place of the node among the rows.
+- `row` - Node to create the widget for.
+  
+
+**Returns**:
+
+  One widget for a nested configuration object, and none at all for
+  every other node.
+
+<a id="edit_cfg_json_textual.textual_member.description_widgets"></a>
+
+#### description\_widgets
+
+```python
+def description_widgets(model: core.EditModel, index: int,
+                        row: core.MemberRow) -> ComposeResult
+```
+
+Create the widget that says what one node is for, if anything.
+
+A node that nothing can ever be said about gets no widget, because there
+is nothing that could ever appear in it. Whether anything can be is asked
+of the core, because the description the row carries is not the whole of
+what is said below a nested configuration object.
+
+A widget that is created starts out shown or hidden as the model says,
+which is not the same as shown: a model can have been told to hide the
+explanations before the editor was started.
+
+**Arguments**:
+
+- `model` - Model that says how much is being explained.
+- `index` - Place of the node among the rows.
+- `row` - Node to describe.
+  
+
+**Returns**:
+
+  One widget for a node something can be said about, and none at all
+  for every other node.
+
+<a id="edit_cfg_json_textual.textual_member.diagnostic_widget"></a>
+
+#### diagnostic\_widget
+
+```python
+def diagnostic_widget(model: core.EditModel, index: int,
+                      row: core.MemberRow) -> Static
+```
+
+Return the widget that says what is wrong with one node.
+
+Every node gets one, unlike the description above it: any node can be
+refused, so there is no node for which this could never say anything. It
+starts out hidden unless the model already has something to say about that
+node, which it has when a model that has been validated already reaches
+this backend.
+
+**Arguments**:
+
+- `model` - Model that says what is wrong with the node.
+- `index` - Place of the node among the rows.
+- `row` - Node to create the widget for.
+  
+
+**Returns**:
+
+  The widget that says what is wrong with that node.
+
+<a id="edit_cfg_json_textual.textual_member.show_subtrees"></a>
+
+#### show\_subtrees
+
+```python
+def show_subtrees(panel: Widget, model: core.EditModel) -> None
+```
+
+Say what each nested object is on its own, as the model says now.
+
+It is shown after folding as well as after a validation pass, because
+folding a nested object is one of the moments the model asks that object
+about itself.
+
+**Arguments**:
+
+- `panel` - Widget that the rows were built below.
+- `model` - Model that says what each object amounts to now.
+
+<a id="edit_cfg_json_textual.textual_member.show_descriptions"></a>
+
+#### show\_descriptions
+
+```python
+def show_descriptions(panel: Widget, model: core.EditModel) -> None
+```
+
+Show what belongs below every node, as the model says it now.
+
+**Arguments**:
+
+- `panel` - Widget that the rows were built below.
+- `model` - Model that says how much is being explained.
+
+<a id="edit_cfg_json_textual.textual_member.show_diagnostics"></a>
+
+#### show\_diagnostics
+
+```python
+def show_diagnostics(panel: Widget, model: core.EditModel) -> None
+```
+
+Show what is wrong with every node, as the model says it now.
+
+**Arguments**:
+
+- `panel` - Widget that the rows were built below.
+- `model` - Model that says what is wrong with each node.
+
 <a id="edit_cfg_json_textual.textual_words"></a>
 
 # edit\_cfg\_json\_textual.textual\_words
@@ -2388,8 +2849,9 @@ underneath reads every press for a control of a row, and this is none.
 What this backend calls the actions of the editor, and what it asks.
 
 The names a footer and a command palette give each action, what the palette
-says each of them does, and the words of the one question this backend puts in
-a field of its own. They are here rather than in the modules that build the
+says each of them does, the words of the one question this backend puts in a
+field of its own, and the words of the one thing it tells rather than asks.
+They are here rather than in the modules that build the
 widgets, for the same reason the identifiers and the sizes are in
 `textual_look`: they are what one has to read to know what the editor says, and
 two of them are read by two modules — the panel binds the keys and names them,
@@ -2468,6 +2930,45 @@ What the command palette says the save as entry does.
 #### EXPLAIN\_HELP
 
 What the command palette says the explain entry does.
+
+<a id="edit_cfg_json_textual.textual_words.CHOOSE_COMMAND"></a>
+
+#### CHOOSE\_COMMAND
+
+What the choose action is called while the values are typed.
+
+<a id="edit_cfg_json_textual.textual_words.TYPE_COMMAND"></a>
+
+#### TYPE\_COMMAND
+
+What it is called while they are chosen from a pull-down.
+
+The name says what the next press does, exactly as the explain action above
+is named, and for the same reason. The Tk backend answers the same question
+with a tick-box.
+
+<a id="edit_cfg_json_textual.textual_words.CHOOSE_HELP"></a>
+
+#### CHOOSE\_HELP
+
+What the command palette says the choose entry does.
+
+<a id="edit_cfg_json_textual.textual_words.REPLACED_PROMPT"></a>
+
+#### REPLACED\_PROMPT
+
+What the screen that says what choosing the values did begins with.
+
+<a id="edit_cfg_json_textual.textual_words.REPLACED_LABEL"></a>
+
+#### REPLACED\_LABEL
+
+Label of the control that leaves that screen.
+
+It says what happens next rather than agreeing to anything, in the same way
+as the controls that answer the two questions: there is nothing to decide
+here, because a pull-down cannot show a text that means no value of its
+member and the member has already been given one.
 
 <a id="edit_cfg_json_textual.textual_words.FOLD_COMMAND"></a>
 

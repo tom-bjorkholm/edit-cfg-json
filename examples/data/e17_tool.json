@@ -4,6 +4,9 @@
             "cancel": [
                 "escape"
             ],
+            "choose": [
+                "f4"
+            ],
             "explain": [
                 "f1",
                 "ctrl+g"
@@ -35,6 +38,7 @@
         },
         "backup_count": 3,
         "backup_suffix": ".old",
+        "choose_values": true,
         "confirm_overwrite": true,
         "extension_enforced": false,
         "file_extension": ".cfg",

@@ -23,10 +23,10 @@ from typing import NamedTuple, Optional
 from config_as_json import Config, ConfigPath, JsonType, ParseConverter
 from edit_cfg_json.converting import node_converters
 from edit_cfg_json.descriptions import Descriptions, MemberFacts, \
-    member_description
+    enum_names, member_description
 from edit_cfg_json.elements import ElementOffer, element_offers, tree_facts
-from edit_cfg_json.leaf_value import LeafType, NO_VALUE_TEXT, leaf_kind, \
-    value_as_text, values_differ
+from edit_cfg_json.leaf_value import BOOL_NAMES, LeafType, NO_VALUE_TEXT, \
+    leaf_kind, value_as_text, values_differ
 from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.tree import ConfigNode, NO_OBJECT_FORM, child_values, \
     config_nodes, container_text, flat_values, is_container, omitted_paths, \
@@ -425,6 +425,24 @@ class MemberRow(NamedTuple):
         is known, so nothing is refused.
         """
         return self.kind is bool
+
+    @property
+    def choices(self) -> tuple[str, ...]:
+        """Return the values this node takes, where they are a known set.
+
+        Two kinds of node have one. A member holding true or false takes the
+        two words and nothing else, and a member whose class declares a parse
+        converter into an enum takes the names of that enum. Both are read
+        from what this row already carries, so the values offered to be chosen
+        from and the names listed below the row cannot come to differ.
+
+        Every other node answers with no values at all, which is what says
+        that its value is typed rather than chosen: text, a number and a
+        member whose kind nothing says can hold anything of their kind.
+        """
+        if self.is_bool:
+            return BOOL_NAMES
+        return enum_names(self.converter)
 
     @property
     def edited(self) -> bool:

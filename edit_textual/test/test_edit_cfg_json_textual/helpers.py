@@ -23,12 +23,12 @@ from pathlib import Path
 import json
 from config_as_json import JsonType
 from textual.pilot import Pilot
-from textual.widgets import Input, Label, Static
+from textual.widgets import Input, Label, Select, Static
 from edit_cfg_json import ActionSettings, Descriptions, EditModel, LoadReport
 from edit_cfg_json_textual.textual_editor import EditorApp
 from edit_cfg_json_textual.textual_look import DOCSTRING_ID, NAME_CLASS, \
-    SAVE_AS_ID, SAVE_ID, TITLE_ID, VERDICT_ID, description_id, diagnostic_id, \
-    mark_id, value_id
+    SAVE_AS_ID, SAVE_ID, TITLE_ID, VERDICT_ID, choice_id, description_id, \
+    diagnostic_id, mark_id, value_id
 from edit_cfg_json_textual.textual_panel import ModelPanel
 from edit_cfg_json_textual.textual_screen import ModelScreen
 from example.e01_flat_config import FlatConfig
@@ -62,6 +62,9 @@ names."""
 
 EXPLAIN_ALT_KEY = DEFAULT_ACTIONS.explain[1]
 """The other key that shows or hides the explanatory text."""
+
+CHOOSE_KEY = DEFAULT_ACTIONS.choose[0]
+"""Key that switches between typing a value and choosing one."""
 
 TEXT_KIND = 'Text.'
 """What the type of a text member says about it.
@@ -164,6 +167,25 @@ def index_of(app: EditorApp, member_name: str) -> int:
 def field_of(app: EditorApp, member_name: str) -> Input:
     """Return the field that the application shows for one member."""
     return app.query_one(f'#{value_id(index_of(app, member_name))}', Input)
+
+
+def chooser_of(app: EditorApp, member_name: str) -> 'Select[str]':
+    """Return the pull-down that the application shows for one member.
+
+    A member has one where the editor knows the whole set of values it takes,
+    and it is on the screen while the values are being chosen rather than
+    typed.
+
+    Args:
+        app: Application that is showing the model.
+        member_name: Name of the node, which is the last step of its path.
+
+    Returns:
+        The pull-down of that member.
+    """
+    found = app.query_one(f'#{choice_id(index_of(app, member_name))}', Select)
+    assert isinstance(found, Select)
+    return found
 
 
 def mark_of(app: EditorApp, member_name: str) -> str:

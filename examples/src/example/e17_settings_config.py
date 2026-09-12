@@ -58,6 +58,13 @@ it below that as a list you can add to and take from. Change `save` to
 actions the same combination and press Validate, and the refusal is the one
 `edit_cfg_json.ActionSettings` itself makes, shown at the `actions` member.
 
+Four members of that block hold true or false — `extension_enforced`,
+`priority_keys`, `confirm_overwrite` and `choose_values` — so they open as
+pull-downs of those two words. `choose_values` is the setting that says which
+way the editor opens, which makes this the one place where a pull-down decides
+whether there are pull-downs: changing it changes the *next* run, exactly as
+changing a key here does, for the reason the section below gives.
+
 ## A block inside a file is not the same as a file
 
 A **settings file** of its own may name one thing and leave the rest out, and
@@ -77,18 +84,20 @@ keeps the settings in a file of their own and reads them with
 ## A block that an older version of the editor wrote
 
 Read the two paragraphs above together and something follows that this example
-is the place to show: **an action added to the editor is a change of this file
-format**. The keys of `actions` are matched against the ones `SettingsConfig`
-declares, that happens whatever policy the parse was given, and `find` and
-`find_next` did not exist in the first release. So an `editor` block written
-before them holds seven actions where the class now declares nine, and without
-something being done about it this whole application would refuse to start over
-two keys of the editor it embeds.
+is the place to show: **anything added to the settings of the editor is a
+change of this file format**. The keys of `actions` are matched against the
+ones `SettingsConfig` declares and a member it declares has to be there at all,
+both of them happen whatever policy the parse was given, and `find`,
+`find_next`, `choose` and `choose_values` did not exist in the first release.
+So an `editor` block written before them holds seven actions where the class
+now declares ten and leaves one member out altogether, and without something
+being done about it this whole application would refuse to start over the keys
+and the settings of the editor it embeds.
 
 `SettingsConfig` declares rules for reading such a file, which is
 `config_as_json`'s Read Old Configuration File support and is what example 5
 teaches. `../../data/e17_tool_old.json` is that file — `e17_tool.json` with the
-two actions taken out — and it opens:
+three actions and the one member taken out — and it opens:
 
 ````sh
 cd examples/src/example
@@ -96,13 +105,13 @@ python3 e17_settings_config.py --ui dump -i ../../data/e17_tool_old.json \
     --fold editor --fold editor.actions
 ````
 
-`find` and `find_next` are there with the combinations the editor declares, the
-`editor` row is marked as holding what the load supplied rather than what the
-file held, and the printout says so above the values as well, because a save
-would write what is shown. Nothing in *this* file says any of that: an
-application that embeds `SettingsConfig` inherits its compatibility rules along
-with its settings, and the one thing this example does for it is to hand the
-editor `config.editor.as_settings()` afterwards.
+`find`, `find_next`, `choose` and `choose_values` are there with the values the
+editor declares, the `editor` row is marked as holding what the load supplied
+rather than what the file held, and the printout says so above the values as
+well, because a save would write what is shown. Nothing in *this* file says any
+of that: an application that embeds `SettingsConfig` inherits its compatibility
+rules along with its settings, and the one thing this example does for it is to
+hand the editor `config.editor.as_settings()` afterwards.
 
 A settings file of its own is looked after the same way, and there the run says
 it in words: `load_settings` prints which file was an older one and asks for it

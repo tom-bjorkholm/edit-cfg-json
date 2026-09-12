@@ -21,8 +21,9 @@ from edit_cfg_json_tk.tk_editor import EditorWidgets, FOLD_ALL_TEXT, \
 from edit_cfg_json_tk.tk_look import PADDING, TREE_INDENT
 from example.e01_flat_config import FlatConfig
 from example.e08_lists_and_dicts import ContainerConfig
-from .helpers import FakeVar, FakeWidget, real_fold, real_press, \
-    real_texts, stub_editor, stub_fold, stub_keys, stub_press, stub_texts
+from .helpers import real_fold, real_press, real_texts, stub_editor, \
+    stub_fold, stub_keys, stub_press, stub_texts
+from .stubs import FakeVar, FakeWidget
 
 MANY_LABELS = 'many_labels'
 """The member of the example that the editor opens folded."""

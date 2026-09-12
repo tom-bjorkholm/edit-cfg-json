@@ -33,6 +33,13 @@ have one name, and a path holds whatever a dictionary key holds, which is not
 always something Textual accepts as an identifier.
 """
 
+CHOICE_ID_PREFIX = 'choice_'
+"""Prefix of the identifier of the pull-down of one node.
+
+A node whose values are a set the editor knows the whole of has both this and
+the field above, and exactly one of the two is on the screen.
+"""
+
 MARK_ID_PREFIX = 'mark_'
 """Prefix of the identifier of the widget that marks one node."""
 
@@ -268,6 +275,7 @@ PANEL_CSS = '\n'.join(COLOUR_RULES + (
     f'.{ROW_CLASS} {{ height: 1; }}',
     f'.{NAME_CLASS} {{ width: {NAME_WIDTH}; }}',
     f'.{VALUE_CLASS} {{ width: 1fr; min-width: {LEAST_VALUE_WIDTH}; }}',
+    f'Select.{VALUE_CLASS} {{ height: 1; }}',
     f'.{MARK_CLASS}, .{SUBTREE_CLASS} {{ width: auto; }}',
     f'.{ELEMENT_CLASS}, .{FIND_NEXT_CLASS} {{ width: auto; min-width: 0;'
     ' height: 1; padding: 0 1; margin: 0; }',
@@ -316,6 +324,13 @@ where they are there and cannot be seen. The value therefore takes what is
 left over and the marks take what they need, which is the opposite way round
 from the default and the only way round that shows both.
 
+A pull-down is told its height for a neighbouring reason. It is a container
+holding the control and the list of values it opens, so it is as tall as it
+needs to be of its own accord, and the row it is on is one cell: one that grew
+would push the rows below it down without showing anything more. The list it
+opens is laid over those rows rather than between them, which is what a
+pull-down does everywhere and is why saying this costs nothing.
+
 It is the style sheet of the widget that holds the editor and not of an
 application, because an application that mounts that widget in a window of its
 own has a style sheet of its own and would not have this one. Textual scopes
@@ -348,6 +363,11 @@ declared on different widgets and neither style sheet can reach the other.
 def value_id(index: int) -> str:
     """Return the identifier of the widget that shows one node value."""
     return f'{VALUE_ID_PREFIX}{index}'
+
+
+def choice_id(index: int) -> str:
+    """Return the identifier of the pull-down of one node."""
+    return f'{CHOICE_ID_PREFIX}{index}'
 
 
 def mark_id(index: int) -> str:

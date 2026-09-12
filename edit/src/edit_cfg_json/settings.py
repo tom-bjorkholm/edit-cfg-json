@@ -255,6 +255,19 @@ class ActionSettings:  # pylint: disable=too-many-instance-attributes
     the command palette entry are what an action without its key still has.
     """
 
+    choose: tuple[str, ...] = ('f4',)
+    """Keys that switch between typing a value and choosing one.
+
+    `f4` because it is the function key beside the three above it, and the
+    four actions are the same kind of thing: each of them decides how the
+    configuration is put on the screen rather than what it holds.
+
+    It is the whole tuple rather than the first of two, for the reason
+    `find_next` is: of the control letters, a field claims most and the
+    actions above claim the rest, and an action without a second key still has
+    the tick-box of one backend and the command palette of the other.
+    """
+
     def __post_init__(self) -> None:
         """Refuse one key combination that two actions would both run.
 
@@ -275,8 +288,13 @@ class ActionSettings:  # pylint: disable=too-many-instance-attributes
                     raise _duplicate(key=key, first=first, second=field.name)
 
 
+# One attribute per answer the application has already given, which is what
+# section 9.1 of doc/detailed_design.md asks for here as well as of the
+# actions above: an application with no opinion about one of them passes
+# nothing and keeps the default of that attribute. That is what makes the
+# count of these more than pylint's default.
 @dataclass(frozen=True)
-class Settings:
+class Settings:  # pylint: disable=too-many-instance-attributes
     """What the application around the editor has already decided.
 
     Which keys its own user interface has taken and how hard the editor may
@@ -364,6 +382,21 @@ class Settings:
     and returns has nobody to answer it and writes what it was asked to write,
     which is the same answer such a backend gives to the question about
     closing.
+    """
+
+    choose_values: bool = True
+    """Whether a member with a set of values opens as a pull-down.
+
+    A member holding true or false and one holding an enum member are the two
+    whose values the editor knows the whole of, and this is how they are
+    shown until the user says otherwise: the values offered to be chosen
+    from, so that nobody has to remember how a name is spelled. False opens
+    them as fields instead, for a user who would rather type.
+
+    It is the state the editor *opens* in and not the state it stays in. The
+    user switches between the two whenever they like, and this says nothing
+    once they have, exactly as the editor opens with the explanations shown
+    and says nothing about them once they have been hidden.
     """
 
     def __post_init__(self) -> None:

@@ -26,30 +26,34 @@ from config_as_json import Config, ConfigPath
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widget import Widget
-from textual.widgets import Button, Input, Label, Static
+from textual.widgets import Button, Input, Label, Select, Static
 import edit_cfg_json as core
 from edit_cfg_json_textual.textual_ask import AskScreen, ConfirmScreen, \
     DISCARD_LABEL, KEEP_LABEL, NO_SAVE_LABEL, OVERWRITE_LABEL, \
-    QUESTION_SCREENS
+    QUESTION_SCREENS, TellScreen
 from edit_cfg_json_textual.textual_elements import ADD_ACTION, ASK_KEY_ID, \
     ASK_KEY_LEAVE, ASK_KEY_PROMPT, EARLIER_ACTION, REMOVE_ACTION, \
-    element_button, element_id, offered_actions
+    element_id, offered_actions
 from edit_cfg_json_textual.textual_find import FindRow
-from edit_cfg_json_textual.textual_words import CLOSE_COMMAND, \
-    EXPLAIN_COMMAND, EXPLAIN_HELP, EditorCommand, FIND_COMMAND, FIND_HELP, \
+from edit_cfg_json_textual.textual_member import description_widgets, \
+    diagnostic_widget, element_widgets, fold_widget, show_chosen, \
+    show_descriptions, show_diagnostics, show_subtrees, show_way, \
+    subtree_widgets, value_widgets
+from edit_cfg_json_textual.textual_words import CHOOSE_COMMAND, CHOOSE_HELP, \
+    CLOSE_COMMAND, EXPLAIN_COMMAND, EXPLAIN_HELP, EditorCommand, \
+    FIND_COMMAND, FIND_HELP, \
     FIND_NEXT_COMMAND, FIND_NEXT_HELP, FOLD_COMMAND, FOLD_HELP, HIDE_COMMAND, \
     OPEN_COMMAND, SAVE_AS_COMMAND, SAVE_AS_HELP, SAVE_AS_LEAVE, \
-    SAVE_AS_PROMPT, SAVE_COMMAND, SAVE_HELP, VALIDATE_COMMAND, VALIDATE_HELP
-from edit_cfg_json_textual.textual_look import BODY_ID, DESCRIPTION_CLASS, \
-    DIAGNOSTIC_CLASS, DOCSTRING_ID, FOLD_CLASS, LOAD_ID, MARK_CLASS, \
-    MEMBERS_ID, MEMBER_CLASS, NAME_CLASS, PANEL_CSS, ROW_CLASS, SAVE_AS_ID, \
-    SAVE_ID, SUBTREE_CLASS, TITLE_ID, TREE_INDENT, TYPE_MARK, VALUE_CLASS, \
-    VERDICT_ID, bind_action, description_id, diagnostic_id, fold_glyph, \
-    fold_id, mark_id, member_id, plain_widget, show_emphasis, subtree_id, \
-    value_id
+    SAVE_AS_PROMPT, SAVE_COMMAND, SAVE_HELP, TYPE_COMMAND, \
+    VALIDATE_COMMAND, VALIDATE_HELP
+from edit_cfg_json_textual.textual_look import BODY_ID, DOCSTRING_ID, \
+    LOAD_ID, MARK_CLASS, MEMBERS_ID, MEMBER_CLASS, NAME_CLASS, PANEL_CSS, \
+    ROW_CLASS, SAVE_AS_ID, SAVE_ID, TITLE_ID, TREE_INDENT, TYPE_MARK, \
+    VERDICT_ID, bind_action, choice_id, fold_glyph, fold_id, mark_id, \
+    member_id, plain_widget, show_emphasis, value_id
 
 EDITOR_ACTIONS = ('close', 'validate', 'save', 'save_as', 'explain', 'fold',
-                  'find', 'find_next')
+                  'find', 'find_next', 'choose')
 """The actions of the editor, which a question of its own turns off.
 
 Textual offers a priority binding the key before the widget that has the focus
@@ -109,6 +113,7 @@ class ModelPanel(Widget):
         self._on_close = on_close
         self._ended = False
         self._member_rows: dict[str, core.MemberRow] = {}
+        self._choice_rows: dict[str, int] = {}
         self._fold_rows: dict[str, core.MemberRow] = {}
         self._element_rows: dict[str, tuple[core.MemberRow, str]] = {}
         self._built: tuple[tuple[ConfigPath, bool], ...] = ()
@@ -150,6 +155,7 @@ class ModelPanel(Widget):
                 (actions.find_next, 'find_next', FIND_NEXT_COMMAND)):
             self._bind(keys=keys, action=action, name=name)
         self._bind_explain()
+        self._bind_choose()
         self._bind_fold()
 
     def _bind(self, keys: Sequence[str], action: str, name: str) -> None:
@@ -173,6 +179,11 @@ class ModelPanel(Widget):
         """
         self._rebind(keys=self._model.settings.actions.explain,
                      action='explain', name=self._explain_name())
+
+    def _bind_choose(self) -> None:
+        """Bind the choose keys, named for what the next press will do."""
+        self._rebind(keys=self._model.settings.actions.choose, action='choose',
+                     name=self._choose_name())
 
     def _bind_fold(self) -> None:
         """Bind the fold keys, named for what the next press will do.
@@ -207,6 +218,12 @@ class ModelPanel(Widget):
         if self._model.explanations_shown:
             return HIDE_COMMAND
         return EXPLAIN_COMMAND
+
+    def _choose_name(self) -> str:
+        """Return what the choose action is called as things stand now."""
+        if self._model.choices_shown:
+            return TYPE_COMMAND
+        return CHOOSE_COMMAND
 
     def _fold_name(self) -> str:
         """Return what the fold action is called as things stand now."""
@@ -247,10 +264,18 @@ class ModelPanel(Widget):
     def _row_widgets(self) -> list[Widget]:
         """Return the widgets of every node, and forget the ones before.
 
+        The model is asked to settle the values first, because a pull-down
+        holds one of the values its member takes and is made holding it. That
+        is a question and never an answer here: while the values are typed it
+        does nothing, and while they are chosen every such member already
+        holds one of its own values, so it has nothing to do either.
+
         Returns:
             One widget per node of the model, in the order it reports them.
         """
+        self._model.settle_choices()
         self._member_rows = {}
+        self._choice_rows = {}
         self._fold_rows = {}
         self._element_rows = {}
         self._built = core.rows_shape(self._model)
@@ -275,28 +300,24 @@ class ModelPanel(Widget):
         marks = plain_widget(core.row_marks(row), mark_id(index), MARK_CLASS,
                              core.MEMBER_MARK)
         beside = [Label(row.name, classes=NAME_CLASS),
-                  self._value_widget(index=index, row=row), marks,
-                  *self._subtree_widgets(index=index, row=row),
-                  *self._element_widgets(index=index, row=row)]
-        folding = self._fold_widget(index=index, row=row)
+                  *self._added_values(index=index, row=row), marks,
+                  *subtree_widgets(index=index, row=row),
+                  *self._added_elements(index=index, row=row)]
+        folding = self._added_fold(index=index, row=row)
         line = Horizontal(*([folding] if folding is not None else []), *beside,
                           classes=ROW_CLASS)
-        below = list(self._description_widgets(index=index, row=row))
-        below.append(self._diagnostic_widget(index=index, row=row))
+        below = list(description_widgets(model=self._model, index=index,
+                                         row=row))
+        below.append(diagnostic_widget(model=self._model, index=index,
+                                       row=row))
         member = Vertical(line, *below, id=member_id(index),
                           classes=MEMBER_CLASS)
         member.styles.padding = (0, 0, 0, row.depth * TREE_INDENT)
         member.display = row.shown
         return member
 
-    def _element_widgets(self, index: int,
-                         row: core.MemberRow) -> ComposeResult:
-        """Create the controls that change how many elements one node holds.
-
-        They are at the end of the line, after the value and the marks, so a
-        node that offers none of them costs the values no width at all. That
-        is what makes four of them affordable where the one control that folds
-        a container has to keep a column clear on every row.
+    def _added_elements(self, index: int, row: core.MemberRow) -> list[Widget]:
+        """Create the controls of one node, and remember whose they are.
 
         Args:
             index: Place of the node among the rows.
@@ -307,56 +328,47 @@ class ModelPanel(Widget):
             offers none, which is most nodes of most configurations.
         """
         for action in offered_actions(row):
-            widget_id = element_id(index=index, action=action)
-            self._element_rows[widget_id] = (row, action)
-            yield element_button(widget_id=widget_id, action=action)
+            self._element_rows[element_id(index=index,
+                                          action=action)] = (row, action)
+        return list(element_widgets(index=index, row=row))
 
-    @staticmethod
-    def _subtree_widgets(index: int, row: core.MemberRow) -> ComposeResult:
-        """Create the widget that says what one object is on its own.
+    def _added_values(self, index: int, row: core.MemberRow) -> list[Widget]:
+        """Create the ways of editing one value, and remember whose they are.
 
-        A node that is no configuration object gets none, by the same rule as
-        the description below the row: a widget that could never hold anything
-        is a piece of the screen spent on nothing.
+        Which node each of them belongs to is kept here rather than by the
+        widgets, because this is where every message about one of them
+        arrives.
 
         Args:
             index: Place of the node among the rows.
-            row: Node to create the widget for.
+            row: Node to create the widgets for.
 
         Returns:
-            One widget for a nested configuration object, and none at all for
-            every other node.
+            The widgets that show or edit the value of that node.
         """
-        if core.row_validates(row):
-            yield plain_widget(core.row_subtree_text(row), subtree_id(index),
-                               SUBTREE_CLASS, core.subtree_emphasis(row))
+        if row.editable:
+            self._member_rows[value_id(index)] = row
+        if core.row_chooses(row):
+            self._choice_rows[choice_id(index)] = index
+        return list(value_widgets(index=index, row=row,
+                                  chosen=self._model.choices_shown))
 
-    def _fold_widget(self, index: int,
-                     row: core.MemberRow) -> Optional[Widget]:
-        """Return the control that folds one container, or an empty space.
-
-        A node that holds nothing gets a widget of the same width rather than
-        no widget at all, so that the names of a container and of a value
-        beside it begin in the same column. A configuration with nothing to
-        fold anywhere gets no column at all, because a column that could never
-        hold anything is width taken from the values for nothing.
+    def _added_fold(self, index: int, row: core.MemberRow) -> Optional[Widget]:
+        """Create the control that folds one node, and remember whose it is.
 
         Args:
             index: Place of the node among the rows.
             row: Node to create the control for.
 
         Returns:
-            A button for a container, a label for every other node of a
-            configuration that has one, and None for one that has none.
+            The control that folds that container, an empty space of the same
+            width for every other node of a configuration that has one, and
+            None for a configuration with nothing to fold.
         """
-        if not core.can_fold(self._model):
-            return None
-        if not row.foldable:
-            return Label('', classes=FOLD_CLASS)
-        widget_id = fold_id(index)
-        self._fold_rows[widget_id] = row
-        return Button(fold_glyph(row), id=widget_id, classes=FOLD_CLASS,
-                      compact=True)
+        foldable = core.can_fold(self._model)
+        if foldable and row.foldable:
+            self._fold_rows[fold_id(index)] = row
+        return fold_widget(index=index, row=row, foldable=foldable)
 
     def command_entries(self) -> tuple[EditorCommand, ...]:
         """Return the actions of the editor, for a command palette.
@@ -382,6 +394,8 @@ class ModelPanel(Widget):
                                  self.action_save_as),
                    EditorCommand(self._explain_name(), EXPLAIN_HELP,
                                  self.action_explain),
+                   EditorCommand(self._choose_name(), CHOOSE_HELP,
+                                 self.action_choose),
                    EditorCommand(FIND_COMMAND, FIND_HELP, self.action_find),
                    EditorCommand(FIND_NEXT_COMMAND, FIND_NEXT_HELP,
                                  self.action_find_next)]
@@ -402,62 +416,6 @@ class ModelPanel(Widget):
             yield plain_widget(core.docstring_text(self._model), DOCSTRING_ID,
                                emphasis=core.EXPLANATION)
 
-    def _description_widgets(self, index: int,
-                             row: core.MemberRow) -> ComposeResult:
-        """Create the widget that says what one node is for, if anything.
-
-        A node that nothing can ever be said about gets no widget, because
-        there is nothing that could ever appear in it. Whether anything can be
-        is asked of the core, because the description the row carries is not
-        the whole of what is said below a nested configuration object.
-
-        A widget that is created starts out shown or hidden as the model says,
-        which is not the same as shown: a model can have been told to hide the
-        explanations before the editor was started.
-        """
-        if core.row_describes(row):
-            shown = core.row_description(model=self._model, row=row)
-            widget = plain_widget(shown, description_id(index),
-                                  DESCRIPTION_CLASS, core.EXPLANATION)
-            widget.display = bool(shown)
-            yield widget
-
-    def _diagnostic_widget(self, index: int, row: core.MemberRow) -> Static:
-        """Create the widget that says what is wrong with one node.
-
-        Every node gets one, unlike the description above it: any node
-        can be refused, so there is no node for which this could never say
-        anything. It starts out hidden unless the model already has something
-        to say about that node, which it has when a model that has been
-        validated already reaches this backend.
-        """
-        wrong = core.row_diagnostic(model=self._model, row=row)
-        widget = plain_widget(wrong, diagnostic_id(index), DIAGNOSTIC_CLASS,
-                              core.MEMBER_DIAGNOSTIC)
-        widget.display = bool(wrong)
-        return widget
-
-    def _value_widget(self, index: int, row: core.MemberRow) -> Widget:
-        """Return the widget that shows the value of one node.
-
-        A node that the model cannot edit gets a widget that only shows text,
-        because there is nothing the user could do to it: a list, a dict and a
-        nested configuration object are each edited through the rows below
-        them, and a declared member that holds no object holds no text either.
-        """
-        if not row.editable:
-            return plain_widget(core.row_value_text(row), value_id(index),
-                                VALUE_CLASS)
-        self._member_rows[value_id(index)] = row
-        # A field of its own accord selects all of its text when it is given
-        # the focus, so that the first key typed replaces the whole value.
-        # That is turned off here, because the two backends would otherwise
-        # behave differently: a Tk field puts the cursor in the text and
-        # keeps what is there, which is what an editor of existing values
-        # should do.
-        return Input(value=core.row_value_text(row), id=value_id(index),
-                     select_on_focus=False, classes=VALUE_CLASS, compact=True)
-
     def on_input_changed(self, event: Input.Changed) -> None:
         """Write one field into the model and show what the model says.
 
@@ -468,6 +426,25 @@ class ModelPanel(Widget):
         widget_id = event.input.id
         assert widget_id is not None
         self._model.set_text(path=self._member_rows[widget_id].path,
+                             text=event.value)
+        self._show_state()
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        """Write the value that was picked from one pull-down into the model.
+
+        A pull-down posts this message when it is given its initial value as
+        well, which the model handles by treating a set that changes no text
+        as no edit at all.
+
+        Every value it can post is one of the ones that member takes, because
+        that is all a pull-down offers and it has no unselected state.
+        """
+        widget_id = event.select.id
+        assert widget_id is not None
+        event.stop()
+        index = self._choice_rows[widget_id]
+        assert isinstance(event.value, str)
+        self._model.set_text(path=self._model.rows[index].path,
                              text=event.value)
         self._show_state()
 
@@ -621,6 +598,36 @@ class ModelPanel(Widget):
         self._show_explanations()
         self._bind_explain()
 
+    def action_choose(self) -> None:
+        """Switch between typing the values and choosing them.
+
+        The action is renamed as well, for the reason the explain action is:
+        what it is called says what the next press will do.
+        """
+        self._model.toggle_choices()
+        self._show_choices()
+        self._bind_choose()
+
+    def _show_choices(self) -> None:
+        """Show each value the way the model says it is edited now.
+
+        A pull-down shows one of the values its member takes, so switching to
+        one is also when a member whose text means none of them is given one.
+        That is the model's, and so are the words that say what it replaced;
+        this puts the screen, and puts it last, so that what it is about is
+        already on the screen behind it.
+        """
+        replaced = self._model.settle_choices()
+        chosen = self._model.choices_shown
+        for index in self._choice_rows.values():
+            show_way(field=self._field(index), chooser=self._chooser(index),
+                     chosen=chosen)
+        self._refresh()
+        if replaced:
+            self.app.push_screen(
+                TellScreen(message=replaced,
+                           cancel_keys=self._model.settings.actions.cancel))
+
     def action_fold(self) -> None:
         """Fold every container away, or open every one of them."""
         self._model.toggle_fold_all()
@@ -663,6 +670,10 @@ class ModelPanel(Widget):
         there is nothing there to type into: a list, a dict and a nested
         configuration object are each edited through the rows below them.
 
+        What is given the focus is whichever of the two ways of editing that
+        node is on the screen, because a widget that is hidden is one the user
+        cannot see and Textual will not give it the focus in any case.
+
         Args:
             take_focus: Whether the field of that node is given the keyboard
                 focus, which typing in the search field does not ask for.
@@ -673,8 +684,15 @@ class ModelPanel(Widget):
             self.query_one(f'#{member_id(index)}',
                            Vertical).scroll_visible(animate=False)
             if take_focus and value_id(index) in self._member_rows:
-                self._field(index).focus()
+                self._reached_value(index).focus()
             return
+
+    def _reached_value(self, index: int) -> Widget:
+        """Return the way of editing one node that is on the screen now."""
+        if choice_id(index) in self._choice_rows \
+                and self._model.choices_shown:
+            return self._chooser(index)
+        return self._field(index)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Do what the control the user pressed is for.
@@ -777,24 +795,10 @@ class ModelPanel(Widget):
             if row.foldable:
                 self.query_one(f'#{fold_id(index)}',
                                Button).label = fold_glyph(row)
-        self._show_descriptions()
-        self._show_diagnostics()
-        self._show_subtrees()
+        show_descriptions(self, self._model)
+        show_diagnostics(self, self._model)
+        show_subtrees(self, self._model)
         self._bind_fold()
-
-    def _show_subtrees(self) -> None:
-        """Say what each nested object is on its own, as the model says now.
-
-        It is shown after folding as well as after a validation pass, because
-        folding a nested object is one of the moments the model asks that
-        object about itself.
-        """
-        for index, row in enumerate(self._model.rows):
-            if not core.row_validates(row):
-                continue
-            widget = self.query_one(f'#{subtree_id(index)}', Static)
-            widget.update(core.row_subtree_text(row))
-            show_emphasis(widget, core.subtree_emphasis(row))
 
     def _show_explanations(self) -> None:
         """Show as much of the explanatory text as the model says to show.
@@ -810,17 +814,7 @@ class ModelPanel(Widget):
         if self._model.docstring:
             self.query_one(f'#{DOCSTRING_ID}',
                            Static).update(core.docstring_text(self._model))
-        self._show_descriptions()
-
-    def _show_descriptions(self) -> None:
-        """Show what belongs below every node, as the model says it now."""
-        for index, row in enumerate(self._model.rows):
-            if not core.row_describes(row):
-                continue
-            description = core.row_description(model=self._model, row=row)
-            widget = self.query_one(f'#{description_id(index)}', Static)
-            widget.update(description)
-            widget.display = bool(description)
+        show_descriptions(self, self._model)
 
     def action_save_as(self) -> None:
         """Ask which file to write, and write it when one was named."""
@@ -896,7 +890,17 @@ class ModelPanel(Widget):
         for index, row in enumerate(self._model.rows):
             if value_id(index) in self._member_rows:
                 self._field(index).value = core.row_value_text(row)
+        for index in self._choice_rows.values():
+            self._show_chosen(index)
         self._show_state()
+
+    def _show_chosen(self, index: int) -> None:
+        """Show what one pull-down holds, as the model holds it now.
+
+        Args:
+            index: Place of the node among the rows.
+        """
+        show_chosen(self._chooser(index), self._model.rows[index])
 
     async def _rebuild_rows(self) -> None:
         """Show the rows the model has now instead of the ones it had."""
@@ -909,6 +913,12 @@ class ModelPanel(Widget):
     def _field(self, index: int) -> Input:
         """Return the field that this editor shows for one node."""
         return self.query_one(f'#{value_id(index)}', Input)
+
+    def _chooser(self, index: int) -> 'Select[str]':
+        """Return the pull-down that this editor shows for one node."""
+        found = self.query_one(f'#{choice_id(index)}', Select)
+        assert isinstance(found, Select)
+        return found
 
     def _show_state(self) -> None:
         """Show the label, the verdict, the saving and every node.
@@ -933,16 +943,8 @@ class ModelPanel(Widget):
         for index, row in enumerate(self._model.rows):
             self.query_one(f'#{mark_id(index)}',
                            Static).update(core.row_marks(row))
-        self._show_diagnostics()
-        self._show_subtrees()
-
-    def _show_diagnostics(self) -> None:
-        """Show what is wrong with every node, as the model says it now."""
-        for index, row in enumerate(self._model.rows):
-            wrong = core.row_diagnostic(model=self._model, row=row)
-            widget = self.query_one(f'#{diagnostic_id(index)}', Static)
-            widget.update(wrong)
-            widget.display = bool(wrong)
+        show_diagnostics(self, self._model)
+        show_subtrees(self, self._model)
 
     def _told(self, widget_id: str, text: str,
               emphasis: core.Emphasis) -> None:

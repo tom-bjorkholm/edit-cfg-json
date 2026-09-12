@@ -245,12 +245,14 @@ while the model holds a change worth saving.
 | `f2`, or `ctrl+t` | Fold all, or Unfold all |
 | `ctrl+f` | Find |
 | `f3` | Find next |
+| `f4` | Choose values, or Type values |
 | `ctrl+q` | Quit |
 
 Those are the defaults of `edit_cfg_json.ActionSettings`, and an application
 that needs one of these combinations for itself moves it, or empties it, in the
 `actions` of its own `edit_cfg_json.Settings`. **Validate, Save, Save as,
-Explain and the fold action are also in the command palette**, which `ctrl+p`
+Explain, the choose action and the fold action are also in the command
+palette**, which `ctrl+p`
 opens, so an action with no key at all stays reachable — and so does one whose
 combination the terminal cannot deliver, which `ctrl+shift+s` is on a legacy
 terminal that has nowhere to put the shift.
@@ -324,6 +326,19 @@ while they are hidden and "Hide explanation" while they are shown — because
 "Explain" beside explanations that are already there would be offering
 something that has been done.
 
+**Choosing a value** offers a member whose values the editor knows the whole
+of as a pull-down of those values instead of as a field: a member holding true
+or false, and one whose class declares a parse converter into an enum. The list
+holds those values and nothing else — `allow_blank` is false, so there is no
+blank line in it and no unselected state — and one of them is selected at every
+moment. The editor opens with the pull-downs, which
+`edit_cfg_json.Settings.choose_values` is what an application says otherwise
+in, and the action turns all of them into fields and back. It is named for what
+the next press will do, exactly as the explain action is. Switching to the
+pull-downs is what answers for what was typed into a field: a beginning that
+only one of the values has becomes that value, and anything else leaves the
+member holding the first value it takes and says so on a screen of its own.
+
 **A configuration bigger than the terminal** is scrolled through: the rows
 scroll while the verdict, the saving line and the footer stay where they are,
 and a container that would add more rows than the editor opens at is folded to
@@ -387,7 +402,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 2024 passed, 3 deselected in 77s (0:01:17)
+- Test result: 2082 passed, 3 deselected in 80s (0:01:20)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

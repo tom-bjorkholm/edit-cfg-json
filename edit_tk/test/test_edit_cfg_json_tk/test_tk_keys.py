@@ -13,9 +13,9 @@ from edit_cfg_json import ActionSettings, EditModel, Settings
 from edit_cfg_json_tk import edit as tk_edit
 from edit_cfg_json_tk.tk_editor import CLOSE_TEXT, EditorWidgets, SAVE_TEXT
 from example.e01_flat_config import FlatConfig
-from .helpers import FakeVar, FakeWidget, TOUCHPAD, answer_question, \
-    real_fields, real_press, retype, stub_editor, stub_keys, stub_press, \
-    stub_texts, touchpad_known, written
+from .helpers import answer_question, real_fields, real_press, retype, \
+    stub_editor, stub_keys, stub_press, stub_texts, touchpad_known, written
+from .stubs import FakeVar, FakeWidget, TOUCHPAD
 
 WHEEL_SEQUENCES = ('<MouseWheel>', '<Button-4>', '<Button-5>', TOUCHPAD)
 """The sequences that the editor binds so that a scroll reaches the body.
@@ -57,8 +57,8 @@ def test_stub_default_keys(stub_tk: None) -> None:
     stub_editor(EditModel(FlatConfig()))
     assert set(stub_keys()) == {'<Control-q>', '<Control-r>', '<F5>',
                                 '<Control-s>', '<Control-Shift-S>', '<F12>',
-                                '<F1>', '<Control-g>', '<Control-f>', '<F3>',
-                                *WHEEL_SEQUENCES}
+                                '<F1>', '<Control-g>', '<F4>', '<F3>',
+                                '<Control-f>', *WHEEL_SEQUENCES}
 
 
 def test_real_default_keys(root_or_skip: tkinter.Tk) -> None:
@@ -74,8 +74,8 @@ def test_real_default_keys(root_or_skip: tkinter.Tk) -> None:
     EditorWidgets(parent=root_or_skip, model=EditModel(FlatConfig()))
     expected = {'<Control-Key-q>', '<Control-Key-r>', '<Key-F5>',
                 '<Control-Key-s>', '<Control-Shift-Key-S>', '<Key-F12>',
-                '<Key-F1>', '<Control-Key-g>', '<Control-Key-f>', '<Key-F3>',
-                *WHEEL_SEQUENCES}
+                '<Key-F1>', '<Control-Key-g>', '<Key-F4>', '<Key-F3>',
+                '<Control-Key-f>', *WHEEL_SEQUENCES}
     if not touchpad_known(root_or_skip):
         expected.remove(TOUCHPAD)
     assert real_keys(root_or_skip) == expected

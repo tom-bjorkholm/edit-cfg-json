@@ -367,6 +367,30 @@ def row_description(model: EditModel, row: MemberRow) -> str:
     return '\n'.join(line for line in said if line)
 
 
+def row_chooses(row: MemberRow) -> bool:
+    """Return whether one node holds a value that can be chosen from a list.
+
+    A backend asks this before it creates the control that offers those
+    values, by the same rule as `row_describes`: a control that could never
+    hold anything is a piece of the window spent on nothing. Whether that
+    control is the one being shown is `EditModel.choices_shown`, which is one
+    answer for the whole editor.
+
+    A member holding true or false and one holding an enum member can. A node
+    the editor cannot edit at all cannot, whatever its type says, because
+    there is no value of it to change: a list, a dict, a nested configuration
+    object and a member holding nothing are each reached some other way.
+
+    Args:
+        row: Node to ask about.
+
+    Returns:
+        Whether the values of that node are a set the editor knows the whole
+        of.
+    """
+    return row.editable and bool(row.choices)
+
+
 def row_validates(row: MemberRow) -> bool:
     """Return whether one node can ever say what its objects amount to.
 

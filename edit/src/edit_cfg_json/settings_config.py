@@ -38,6 +38,12 @@ action existed would be refused, and a whole application would fail to start
 over a key of the editor it embeds. `ADDED_ACTIONS` is what those files are
 read by, and section 9.10 of `doc/detailed_design.md` is what says that an
 action added later belongs in it.
+
+**A setting added to `Settings` is one as well**, for the neighbouring reason:
+a member this class declares and a file does not hold is refused whatever
+policy the parse was given, because a nested configuration object is read
+whole. `ADDED_SETTINGS` is the same rule for a member that `ADDED_ACTIONS` is
+for a key of `actions`.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -84,7 +90,7 @@ def declared_actions() -> dict[str, list[str]]:
             for field in fields(declared)}
 
 
-ADDED_ACTIONS = ('find', 'find_next')
+ADDED_ACTIONS = ('find', 'find_next', 'choose')
 """Actions that previous released versions did not write into a file.
 
 Supplying these is what makes a settings file of an earlier release readable,
@@ -94,31 +100,45 @@ supplying that one would accept a file no version ever produced, and would put
 a key back that somebody had deliberately taken out.
 """
 
+ADDED_SETTINGS = ('choose_values',)
+"""Settings that previous released versions did not write into a file.
+
+They are to a member of this class what `ADDED_ACTIONS` is to a key of its
+`actions` member, and they are needed for the same reason: a settings file of
+an earlier release does not hold them, and a member this class declares and
+the file leaves out is refused whatever policy the parse was given. Only a
+member added after a release belongs here.
+"""
+
 
 class _OldSettings(ReadOldConfiguration):
     """How a settings file of an earlier release becomes a current one.
 
-    Only the actions added since need saying. Every other difference between
-    one release of this editor and the next is a difference no settings file
-    ever held: the members of `SettingsConfig` are the attributes of `Settings`
-    and have not changed, and each of them keeps its own declared value when a
-    file leaves it out.
+    Only what has been added since needs saying: the actions of
+    `ADDED_ACTIONS` and the settings of `ADDED_SETTINGS`. Every other
+    difference between one release of this editor and the next is a difference
+    no settings file ever held, and each member keeps its own declared value
+    when a file leaves it out.
     """
 
     def get_missing_path_values(self) -> dict[ConfigPath, object]:
-        """Return the combinations of the actions an old file cannot hold.
+        """Return the values an old settings file cannot hold.
 
         `config_as_json` writes each of these only where the file holds nothing
-        at that path, so a file that names one of these actions keeps what it
-        says about it. The values are read from `ActionSettings` rather than
-        written again here, so that the default of an action is stated once.
+        at that path, so a file that names one of them keeps what it says about
+        it. The values are read from `ActionSettings` and `Settings` rather
+        than written again here, so that the default of a setting is stated
+        once.
 
         Returns:
-            The declared combinations of each action of `ADDED_ACTIONS`, by the
-            path in a settings file that holds it.
+            The declared value of each added action and of each added setting,
+            by the path in a settings file that holds it.
         """
-        declared = declared_actions()
-        return {('actions', name): declared[name] for name in ADDED_ACTIONS}
+        actions = declared_actions()
+        declared = Settings()
+        return {('actions', name): actions[name]
+                for name in ADDED_ACTIONS} | {
+            (name,): getattr(declared, name) for name in ADDED_SETTINGS}
 
 
 class _ActionKeys(MemberValidator):  # pylint: disable=too-few-public-methods
@@ -308,12 +328,16 @@ one would be a second way of saying it that could disagree with the first.
 _FLAG = ValueTypeValidator(bool)
 """What a member holding true or false is checked with.
 
-Nothing else is asked of these three: every value of the type is one the
+Nothing else is asked of these four: every value of the type is one the
 editor acts on, so there is nothing for `Settings` to refuse about them.
 """
 
 
-class SettingsConfig(Config):
+# One member per setting, because this class is `Settings` in the form that
+# can be read from a file, and that class has one attribute per answer for the
+# reason section 9.1 of doc/detailed_design.md gives. That is what makes the
+# count of these more than pylint's default.
+class SettingsConfig(Config):  # pylint: disable=too-many-instance-attributes
     """What has been decided about the editor itself.
 
     Which key combinations run the actions of the editor, what a configuration
@@ -353,6 +377,7 @@ class SettingsConfig(Config):
         self.backup_count: int = declared.backup_count
         self.priority_keys: bool = declared.priority_keys
         self.confirm_overwrite: bool = declared.confirm_overwrite
+        self.choose_values: bool = declared.choose_values
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
                         stderr_file=stderr_file, member_name=member_name)
@@ -391,7 +416,8 @@ class SettingsConfig(Config):
                         backup_suffix=self.backup_suffix,
                         backup_count=self.backup_count,
                         priority_keys=self.priority_keys,
-                        confirm_overwrite=self.confirm_overwrite)
+                        confirm_overwrite=self.confirm_overwrite,
+                        choose_values=self.choose_values)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return what every setting of the editor is checked against.
@@ -414,7 +440,8 @@ class SettingsConfig(Config):
                                      validator=_COUNT),
                 MemberValidationStep(
                     member_names=['extension_enforced', 'priority_keys',
-                                  'confirm_overwrite'], validator=_FLAG)]
+                                  'confirm_overwrite', 'choose_values'],
+                    validator=_FLAG)]
 
 
 ACTION_DESCRIPTIONS: Mapping[str, str] = {
@@ -428,7 +455,9 @@ ACTION_DESCRIPTIONS: Mapping[str, str] = {
     'explain': 'Shows or hides what the application says about the values.',
     'fold': 'Folds every list and dict away, or opens every one of them.',
     'find': 'Puts the cursor in the field that a search is typed into.',
-    'find_next': 'Goes to the next member that the search reaches.'}
+    'find_next': 'Goes to the next member that the search reaches.',
+    'choose': 'Switches between typing a value and choosing one of the '
+              'values a member takes.'}
 """What each action of the editor is, by the name it is set under.
 
 Every action of `ActionSettings` has an entry, and one that is added later
@@ -472,7 +501,13 @@ _MEMBER_DESCRIPTIONS: Descriptions = {
                         'an application that has taken one of these '
                         'combinations for a widget of its own.',
     ('confirm_overwrite',): 'Whether the user is asked before an existing '
-                            'file is written over, once per file per session.'}
+                            'file is written over, once per file per session.',
+    ('choose_values',): 'Whether a member whose values the editor knows the '
+                        'whole of opens as a pull-down of those values. It '
+                        'is a member holding true or false and one holding '
+                        'an enum member, and false opens both as fields to '
+                        'type in. The editor switches between the two '
+                        'whatever this says.'}
 """What this class says about each member that is not one action."""
 
 SETTINGS_DESCRIPTIONS: Descriptions = dict(_MEMBER_DESCRIPTIONS) | {

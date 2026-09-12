@@ -18,13 +18,14 @@ import tkinter
 from config_as_json import ConfigPath
 import edit_cfg_json as core
 from edit_cfg_json_tk.scrolling import bring_into_view, scrolling_body
-from edit_cfg_json_tk.tk_ask import asked_file, may_close, may_overwrite
+from edit_cfg_json_tk.tk_ask import asked_file, may_close, may_overwrite, \
+    tell_replaced
 from edit_cfg_json_tk.tk_find import FindPanel
 from edit_cfg_json_tk.tk_scope import KeyScope
 from edit_cfg_json_tk.tk_elements import element_controls
-from edit_cfg_json_tk.tk_look import FOLD_WIDTH, LEAST_FIELD_WIDTH, \
-    NAME_COLUMN_WIDTH, PADDING, TREE_INDENT, edit_field, label_text, \
-    place_text, shown_text, told
+from edit_cfg_json_tk.tk_look import FOLD_WIDTH, NAME_COLUMN_WIDTH, \
+    PADDING, TREE_INDENT, label_text, place_text, shown_text, told
+from edit_cfg_json_tk.tk_values import ValueWidgets
 
 VALIDATE_TEXT = 'Validate'
 """Text of the button that runs the validation of the application."""
@@ -43,6 +44,14 @@ called Explain that hides the explanations reads as the wrong thing entirely.
 The tick says which of the two states the editor is in, so one text is true in
 both. The Textual backend has no button row to put one in and renames its own
 action instead.
+"""
+
+CHOOSE_TEXT = 'Choose values'
+"""Text of the tick-box that switches between typing and choosing.
+
+A tick-box for the reason the one beside it is one: the action is a toggle,
+and one text is true in both of its states. The Textual backend has no button
+row to put one in and renames its own action instead.
 """
 
 FOLD_ALL_TEXT = 'Fold all'
@@ -112,6 +121,14 @@ class StateWidgets(NamedTuple):
     its Tcl variable when it is collected.
     """
 
+    chosen: tkinter.BooleanVar
+    """Whether the tick-box of the pull-downs is ticked.
+
+    It is kept for as long as that tick-box lives, for the reason the variable
+    above it is: a `tkinter.Variable` unsets its Tcl variable when it is
+    collected.
+    """
+
     folding: Optional[tkinter.Button]
     """The button that folds every container away, or opens every one.
 
@@ -122,21 +139,6 @@ class StateWidgets(NamedTuple):
 
     finding: FindPanel
     """The search: its field, its four controls and its line."""
-
-
-class ValueField(NamedTuple):
-    """The field of one editable node, and the variable it shows.
-
-    Both are kept because both are used: the variable is what the text is
-    written into and read from, and the widget is what a search gives the
-    keyboard focus to.
-    """
-
-    text: tkinter.StringVar
-    """The variable that holds what the field shows."""
-
-    entry: tkinter.Entry
-    """The widget that the user types into."""
 
 
 class RowWidgets(NamedTuple):
@@ -153,8 +155,8 @@ class RowWidgets(NamedTuple):
     fold: Optional[tkinter.Button]
     """The control that folds this container, None for a node with none."""
 
-    field: Optional[ValueField]
-    """The field of an editable node, and None for every other node."""
+    field: Optional[ValueWidgets]
+    """The ways of editing a node, and None for a node with none of them."""
 
     mark: tkinter.Label
     """The widget that says what has happened to this member."""
@@ -286,10 +288,12 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         saving = self._add_saving(fixed)
         explained = tkinter.BooleanVar(master=parent,
                                        value=model.explanations_shown)
+        chosen = tkinter.BooleanVar(master=parent, value=model.choices_shown)
         self._state = StateWidgets(title=title, docstring=docstring,
                                    verdict=verdict, saving=saving,
-                                   explained=explained,
-                                   folding=self._add_buttons(fixed, explained),
+                                   explained=explained, chosen=chosen,
+                                   folding=self._add_buttons(fixed, explained,
+                                                             chosen),
                                    finding=finding)
         self._show_rows()
         self._bind_keys()
@@ -418,22 +422,24 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         label.pack(side='top', fill='x', padx=PADDING)
         return label
 
-    def _add_buttons(self, parent: tkinter.Misc, explained: tkinter.BooleanVar
-                     ) -> Optional[tkinter.Button]:
-        """Create the buttons, the tick-box and the one that ends the run.
+    def _add_buttons(self, parent: tkinter.Misc, explained: tkinter.BooleanVar,
+                     chosen: tkinter.BooleanVar) -> Optional[tkinter.Button]:
+        """Create the buttons, the tick-boxes and the one that ends the run.
 
-        They share one row, because six of them stacked above each other
+        They share one row, because seven of them stacked above each other
         would push the values of a real configuration off the window.
 
-        The explanations get a tick-box rather than a button, because the
-        action is a toggle: a button saying Explain beside explanations that
-        are already there would be offering something that has been done. The
-        folding gets a button that is renamed instead, because a partly
-        folded configuration is neither of the two states a tick could show.
+        The explanations and the pull-downs each get a tick-box rather than a
+        button, because both actions are toggles: a button saying Explain
+        beside explanations that are already there would be offering something
+        that has been done. The folding gets a button that is renamed instead,
+        because a partly folded configuration is neither of the two states a
+        tick could show.
 
         Args:
             parent: Widget that becomes the parent of the button row.
             explained: Whether the tick-box of the explanations is ticked.
+            chosen: Whether the tick-box of the pull-downs is ticked.
 
         Returns:
             The button that folds everything, or None for a configuration
@@ -446,8 +452,10 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
                               (SAVE_AS_TEXT, self._save_as)):
             tkinter.Button(line, text=text, command=command).pack(side='left',
                                                                   padx=PADDING)
-        tkinter.Checkbutton(line, text=EXPLAIN_TEXT, command=self._explain,
-                            variable=explained).pack(side='left', padx=PADDING)
+        for text, action, flag in ((EXPLAIN_TEXT, self._explain, explained),
+                                   (CHOOSE_TEXT, self._choose, chosen)):
+            tkinter.Checkbutton(line, text=text, command=action,
+                                variable=flag).pack(side='left', padx=PADDING)
         folding = self._add_fold_all(line)
         closing = tkinter.Button(line, text=CLOSE_TEXT,
                                  command=self.close_editor)
@@ -500,6 +508,10 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         there is nothing there to type into: a list, a dict and a nested
         configuration object are each edited through the rows below them.
 
+        What is given the focus is whichever of the two ways of editing that
+        node is on the window, because a widget that is out of the layout is
+        one the user cannot see.
+
         Args:
             take_focus: Whether the field of that node is given the keyboard
                 focus, which typing in the search field does not ask for.
@@ -509,7 +521,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
                 continue
             bring_into_view(self._scrolling, widgets.frame)
             if take_focus and widgets.field is not None:
-                widgets.field.entry.focus_set()
+                widgets.field.reached.focus_set()
             return
 
     def _bind_keys(self) -> None:
@@ -535,6 +547,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
                               (actions.save, self._save),
                               (actions.save_as, self._save_as),
                               (actions.explain, self._explain),
+                              (actions.choose, self._choose),
                               (folding, self._fold_all),
                               (actions.find, self._state.finding.focus),
                               (actions.find_next,
@@ -549,7 +562,14 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         shown is what `_show_rows` decides, and because the widgets that do
         not scroll have to be packed before these whatever order they are
         created in.
+
+        The model is asked to settle the values first, because a pull-down
+        holds one of the values its member takes and is made holding it. That
+        is a question and never an answer here: while the values are typed it
+        does nothing, and while they are chosen every such member already
+        holds one of its own values, so it has nothing to do either.
         """
+        self._model.settle_choices()
         for child in self._members.winfo_children():
             child.destroy()
         self._rows = [self._add_row(parent=self._members, row=row)
@@ -707,6 +727,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
                                     else FOLD_OPEN_TEXT)
             if row.shown:
                 widgets.frame.pack(fill='x', padx=(self._indent(row), PADDING))
+        self._show_values()
         self._show_member_texts()
         self._show_subtrees()
         self._show_fold_all()
@@ -766,63 +787,27 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         return shown_text(parent, '', core.EXPLANATION)
 
     def _add_value(self, parent: tkinter.Misc,
-                   row: core.MemberRow) -> Optional[ValueField]:
-        """Create the value widget of one member and wire it to the model.
+                   row: core.MemberRow) -> Optional[ValueWidgets]:
+        """Create the ways of editing one value and wire them to the model.
 
         A node that the model cannot edit gets a widget that only shows text,
         because there is nothing the user could do to it: a list, a dict and a
         nested configuration object are each edited through the rows below
         them, and a declared member that holds no object holds no text either.
 
-        The variable is given the parent as its master, so that it is
-        created in the same Tcl interpreter as the field that reads it. A
-        variable constructed without one is created in the first interpreter
-        of the process instead, which is the wrong one as soon as the editor
-        is not the only Tk in the application: the field would then show
-        nothing and the callback below would never run.
+        Args:
+            parent: Line of the node that is being shown.
+            row: Node to create the widgets for.
+
+        Returns:
+            The ways of editing that value, or None for a node with none.
         """
         if not row.editable:
             tkinter.Label(parent, text=core.row_value_text(row),
                           anchor='w').pack(side='left')
             return None
-        field = tkinter.StringVar(master=parent,
-                                  value=core.row_value_text(row))
-        entry = edit_field(parent=parent, text=field, width=LEAST_FIELD_WIDTH)
-        entry.pack(side='left', fill='x', expand=True)
-        entry.bind('<FocusOut>', self._leaver(row))
-        field.trace_add('write', self._writer(row=row, field=field))
-        return ValueField(text=field, entry=entry)
-
-    def _writer(self, row: core.MemberRow,
-                field: tkinter.StringVar) -> Callable[..., None]:
-        """Return the callback that writes one field into the model.
-
-        Tk reports a change of the variable and not of the widget, so the
-        callback reads the field itself. Every change is written through,
-        including the ones that no key press caused, such as a paste.
-        """
-        def write_field(*trace_arguments: str) -> None:
-            """Write the text of the field and show what the model says."""
-            _ = trace_arguments
-            self._model.set_text(path=row.path, text=field.get())
-            self._show_state()
-        return write_field
-
-    def _leaver(self, row: core.MemberRow) -> Callable[..., None]:
-        """Return the callback that one field runs when it loses the focus.
-
-        Leaving a field is when the user has moved on from it, and it is
-        therefore when the editor says whether what they typed means a value
-        of that member at all. Nothing is validated here: the whole
-        configuration is what a validation pass is about, and this is one
-        field answering for itself.
-        """
-        def left_field(*event: 'tkinter.Event[tkinter.Misc]') -> None:
-            """Check the member that was left and show what the model says."""
-            _ = event
-            self._model.check_field(row.path)
-            self._show_state()
-        return left_field
+        return ValueWidgets(parent=parent, row=row, model=self._model,
+                            changed=self._show_state)
 
     def _validate(self) -> None:
         """Validate the buffer and show what the application would say."""
@@ -888,6 +873,38 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
             self._state.docstring.config(text=core.docstring_text(self._model))
         self._show_member_texts()
 
+    def _choose(self) -> None:
+        """Switch between typing the values and choosing them."""
+        self._model.toggle_choices()
+        self._show_choices()
+
+    def _show_choices(self) -> None:
+        """Show each value the way the model says it is edited now.
+
+        A pull-down shows one of the values its member takes, so switching to
+        one is also when a member whose text means none of them is given one.
+        That is the model's, and so are the words that say what it replaced;
+        this puts the dialog, and puts it last, so that what it is about is
+        already on the window behind it.
+
+        The tick-box is set from the model rather than left to Tk, for the
+        reason the one beside it is: Tk only flips it when it is the tick-box
+        that was pressed, and the key of this action reaches this method
+        without touching it.
+        """
+        self._state.chosen.set(self._model.choices_shown)
+        replaced = self._model.settle_choices()
+        self._refresh()
+        self._show_values()
+        if replaced:
+            tell_replaced(replaced)
+
+    def _show_values(self) -> None:
+        """Put the way of editing each value that the model asks for now."""
+        for widgets in self._rows:
+            if widgets.field is not None:
+                widgets.field.show_way()
+
     def _show_member_texts(self) -> None:
         """Show what belongs below every node, as the model says it now."""
         for row, widgets in zip(self._model.rows, self._rows, strict=True):
@@ -912,7 +929,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
             self._build_rows()
         for row, widgets in zip(self._model.rows, self._rows, strict=True):
             if widgets.field is not None:
-                widgets.field.text.set(core.row_value_text(row))
+                widgets.field.show_value(core.row_value_text(row))
         self._show_state()
 
     def _show_state(self) -> None:

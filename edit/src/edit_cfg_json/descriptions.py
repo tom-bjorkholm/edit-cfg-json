@@ -176,6 +176,29 @@ def _enum_type(converter: Optional[ParseConverter]) -> Optional[type[Enum]]:
     return converter.result_type
 
 
+def enum_names(converter: Optional[ParseConverter]) -> tuple[str, ...]:
+    """Return the names one member accepts, empty for one holding no enum.
+
+    They are the values such a member takes, so they are both what is listed
+    below the row and what the row offers to be chosen from. Reading them once
+    here is what keeps the two from listing different names.
+
+    The names the enum class declares, in the order it declares them, which is
+    the order the class was written in and therefore the order somebody
+    choosing between them expects. An alias is among them, exactly as it is in
+    what the description lists: it is a name the member accepts.
+
+    Args:
+        converter: How the text of this member becomes a value, or None for a
+            member that holds what the file holds.
+
+    Returns:
+        The names of that enum, and no names at all for every other member.
+    """
+    enum_type = _enum_type(converter)
+    return () if enum_type is None else tuple(enum_type.__members__)
+
+
 def enum_text(converter: Optional[ParseConverter]) -> str:
     """Return what the type of one member says about it, or nothing.
 
@@ -207,7 +230,7 @@ def enum_text(converter: Optional[ParseConverter]) -> str:
     enum_type = _enum_type(converter)
     if enum_type is None:
         return ''
-    names = CHOICES_FORM.format(names=', '.join(enum_type.__members__))
+    names = CHOICES_FORM.format(names=', '.join(enum_names(converter)))
     return '\n'.join(line for line in [class_summary(enum_type), names]
                      if line)
 
