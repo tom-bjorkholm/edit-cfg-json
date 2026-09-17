@@ -21,6 +21,7 @@ from functools import partial
 from typing import Optional
 import tkinter
 import edit_cfg_json as core
+from edit_cfg_json_tk.scrolling import BODY_WIDTH
 
 NAME_COLUMN_WIDTH = 24
 """Width in characters of the column that holds the member names."""
@@ -299,12 +300,23 @@ def wrap_to_width(label: tkinter.Label) -> None:
     width to wrap at is not known until the window has been laid out, and it
     changes whenever the user resizes it, so it is followed rather than set.
 
+    **It is started at the width of the body**, which is what a paragraph of
+    the editor is given give or take the indent it sits at. A paragraph that
+    started unwrapped would be laid out on one line, ask for the width of its
+    whole text, and become several lines high only once its own `<Configure>`
+    had told it otherwise — and a frame around it grows a round of idle work
+    after that, and the frame around that one a round later again. The last
+    of those rounds lands after the window has been shown, which is a window
+    that resizes itself under the user: `scrolling.BODY_WIDTH` says what that
+    costs, and section 4.6 of the design says what it costs on macOS.
+
     Args:
         label: Label that holds text which may be longer than a line.
     """
     def wrapped(event: 'tkinter.Event[tkinter.Misc]') -> None:
         """Wrap the text of the label at the width it now has."""
         label.configure(wraplength=max(event.width, LEAST_WRAP_WIDTH))
+    label.configure(wraplength=BODY_WIDTH)
     label.bind('<Configure>', wrapped)
 
 

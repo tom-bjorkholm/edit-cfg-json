@@ -220,6 +220,19 @@ def _fit_width(canvas: tkinter.Canvas, item: int) -> Callable[..., None]:
     An item on a canvas is as wide as it asks to be, so without this the
     fields would keep the width they wanted rather than the width there is.
 
+    **It is what a resize by the user needs, and never what opening needs**,
+    because the item is created at `BODY_WIDTH` already. An item created
+    without a width made the body be laid out twice: once at whatever width it
+    asked for, where the paragraphs wrap little, and again at the width of the
+    canvas, where each of them gains a line. `_fit_body` then followed the new
+    height — and did it after the window was on the screen, since the first
+    `<Configure>` of a canvas is the one that says it has been laid out. On
+    macOS the contents of a canvas keep the places they were painted at, so
+    everything on it was then drawn about fifty pixels below where Tk had
+    placed it and every click over the body was delivered to the description
+    of the row above, which is an editor whose fields answer nothing at all
+    until something paints it again.
+
     Args:
         canvas: Canvas that holds the body.
         item: The canvas item that the body was put on.
@@ -287,6 +300,10 @@ def scrolling_body(parent: tkinter.Misc, scope: KeyScope) -> ScrollingArea:
     first so that the widgets of the editor are created in the order they are
     read in.
 
+    The body is put on the canvas at the width it is going to have, so that it
+    is laid out once rather than twice. `_fit_width` says what the second
+    layout cost.
+
     Args:
         parent: Widget that becomes the parent of the created widgets.
         scope: The part of the window this editor reaches, which is where
@@ -304,7 +321,8 @@ def scrolling_body(parent: tkinter.Misc, scope: KeyScope) -> ScrollingArea:
     slider.pack(side='right', fill='y')
     canvas.pack(side='left', fill='both', expand=True)
     body = tkinter.Frame(canvas)
-    item = canvas.create_window(0, 0, window=body, anchor='nw')
+    item = canvas.create_window(0, 0, window=body, anchor='nw',
+                                width=BODY_WIDTH)
     body.bind('<Configure>', _fit_body(canvas=canvas, body=body))
     canvas.bind('<Configure>', _fit_width(canvas=canvas, item=item))
     _bind_wheel(scope=scope, canvas=canvas)

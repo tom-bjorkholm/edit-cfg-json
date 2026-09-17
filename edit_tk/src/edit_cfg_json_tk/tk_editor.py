@@ -18,13 +18,15 @@ import tkinter
 from config_as_json import ConfigPath
 import edit_cfg_json as core
 from edit_cfg_json_tk.scrolling import bring_into_view, scrolling_body
+from edit_cfg_json_tk.showing import when_shown
 from edit_cfg_json_tk.tk_ask import asked_file, may_close, may_overwrite, \
     tell_replaced
 from edit_cfg_json_tk.tk_find import FindPanel
 from edit_cfg_json_tk.tk_scope import KeyScope
 from edit_cfg_json_tk.tk_elements import element_controls
 from edit_cfg_json_tk.tk_look import FOLD_WIDTH, NAME_COLUMN_WIDTH, \
-    PADDING, TREE_INDENT, label_text, place_text, shown_text, told
+    PADDING, TREE_INDENT, label_text, shown_text, told
+from edit_cfg_json_tk.tk_rows import RowWidgets, show_below
 from edit_cfg_json_tk.tk_values import ValueWidgets
 
 VALIDATE_TEXT = 'Validate'
@@ -141,83 +143,6 @@ class StateWidgets(NamedTuple):
     """The search: its field, its four controls and its line."""
 
 
-class RowWidgets(NamedTuple):
-    """The widgets that one node of the configuration owns."""
-
-    frame: tkinter.Frame
-    """The widget that holds the whole node, which is what folding hides.
-
-    It is packed and unpacked rather than created and destroyed, so that a
-    field the user is typing into survives its container being folded and
-    opened again.
-    """
-
-    fold: Optional[tkinter.Button]
-    """The control that folds this container, None for a node with none."""
-
-    field: Optional[ValueWidgets]
-    """The ways of editing a node, and None for a node with none of them."""
-
-    mark: tkinter.Label
-    """The widget that says what has happened to this member."""
-
-    subtree: Optional[tkinter.Label]
-    """The widget that says what this object is on its own.
-
-    It is None for every node that is not a nested configuration object,
-    because nothing else is a configuration that can be asked about itself.
-    """
-
-    description: Optional[tkinter.Label]
-    """The widget that says what this member is for.
-
-    It is None for a member that nothing is said about, because there is then
-    nothing that could ever appear in it.
-    """
-
-    diagnostic: tkinter.Label
-    """The widget that says what is wrong with this member.
-
-    Every member has one, unlike the description above it: any member can be
-    refused, so there is no member for which this could never say anything.
-    """
-
-    elements: tuple[tkinter.Button, ...] = ()
-    """The controls that change how many elements this node holds.
-
-    A node is given exactly the ones it offers and nothing at all where it
-    offers none, because they sit at the end of the line rather than in a
-    column that every row has to keep clear. Which of them a node offers can
-    change — the first element of a list cannot move up until something is put
-    in front of it — and the rows are built again whenever it does.
-    """
-
-
-def _show_below(widgets: RowWidgets, description: str,
-                diagnostic: str) -> None:
-    """Show what belongs below one member, in the order it belongs in.
-
-    Both texts are taken out of the layout and put back rather than only the
-    one that changed, because Tk packs a widget after the ones that are
-    already there: a description that came back while a diagnostic was
-    showing would otherwise land below it. Nothing is touched while both
-    texts are already what they should be, so the ordinary case of typing
-    into a field does not lay the window out again on every key.
-
-    Args:
-        widgets: Widgets of the member.
-        description: What the member is for, empty while that is hidden.
-        diagnostic: What is wrong with the member, empty when nothing is.
-    """
-    if label_text(widgets.description) == description and \
-            label_text(widgets.diagnostic) == diagnostic:
-        return
-    for label in (widgets.description, widgets.diagnostic):
-        place_text(label, '')
-    place_text(widgets.description, description)
-    place_text(widgets.diagnostic, diagnostic)
-
-
 # Each attribute is one independent thing these widgets have to keep: the
 # model, what closing does, the part of the window the keys reach, the part
 # that scrolls, the frame the rows are in, the rows themselves, the paths they
@@ -299,6 +224,28 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._show_rows()
         self._bind_keys()
         self._scope.reach()
+        when_shown(parent, self._focus_first_value)
+
+    def _focus_first_value(self) -> None:
+        """Give the first value of the configuration the keyboard focus.
+
+        An editor that opened with the focus nowhere inside it is one where
+        typing does nothing at all until the user has clicked or tabbed into
+        a field, and where the keys of the editor are the only thing the
+        keyboard reaches. The Textual backend focuses the first widget of its
+        panel already, so this is the same editor in both toolkits.
+
+        Which widget it is, is the one a search reaches for that node: the way
+        of editing it that is on the window, since a widget that is out of the
+        layout is one the user cannot see.
+
+        A configuration whose every row is a container has no value to type
+        into, and the focus is then left where the application had it.
+        """
+        for widgets in self._rows:
+            if widgets.field is not None:
+                widgets.field.reached.focus_set()
+                return
 
     def release_keys(self) -> None:
         """Give up the keys and the wheel that these widgets had.
@@ -792,10 +739,10 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
     def _show_row_texts(self, row: core.MemberRow,
                         widgets: RowWidgets) -> None:
         """Show what the model says belongs below one node."""
-        _show_below(widgets,
-                    description=core.row_description(model=self._model,
-                                                     row=row),
-                    diagnostic=core.row_diagnostic(model=self._model, row=row))
+        show_below(widgets,
+                   description=core.row_description(model=self._model,
+                                                    row=row),
+                   diagnostic=core.row_diagnostic(model=self._model, row=row))
 
     @staticmethod
     def _add_description(parent: tkinter.Misc,

@@ -27,6 +27,7 @@ import sys
 import tkinter
 from config_as_json import Config, PathOrStr
 import edit_cfg_json as core
+from edit_cfg_json_tk.showing import when_shown
 from edit_cfg_json_tk.tk_editor import EditorWidgets
 
 
@@ -67,9 +68,10 @@ class TkEditorPanel:
                 of its own. It cannot be given together with parent.
             modal: Whether the editor grabs its window, or the area, for the
                 session, so that nothing else of the application answers until
-                it closes. Tk refuses a grab for a window that is not on the
-                screen yet, and the editor then opens without one rather than
-                not opening.
+                it closes. The grab is taken once the editor is on the screen,
+                because Tk refuses one for a window that is not viewable. A
+                grab that is refused even then leaves the editor open without
+                one rather than not opening.
             on_close: What the application does once the session has ended,
                 or None for one that reads `saved_config` some other way.
             descriptions: What the application says about the members it
@@ -99,9 +101,22 @@ class TkEditorPanel:
         self._built = _built_widget(parent=parent, area=area,
                                     closer=self.close,
                                     title=self._model.config_type_name)
-        self._modal = modal and _grabbed(self._built)
+        self._modal = False
+        if modal:
+            when_shown(self._built, self._take_grab)
         self._widgets = EditorWidgets(parent=self._built, model=self._model,
                                       on_close=self._end_session)
+
+    def _take_grab(self) -> None:
+        """Hold the application for this editor, now that it is on screen.
+
+        Tk refuses a grab for a window that is not viewable, so asking for one
+        while the editor was being built held the application on the platforms
+        where a window that has just been created counts as viewable and
+        quietly did nothing on the others. Waiting for the window is what
+        makes `modal` mean the same thing everywhere.
+        """
+        self._modal = _grabbed(self._built)
 
     @property
     def model(self) -> core.EditModel:
@@ -180,9 +195,11 @@ def _focus_taker(frame: tkinter.Misc) -> Callable[..., None]:
     """Return what a click on the editor's own frame does.
 
     The keys of the editor reach the part of the window it built and nothing
-    else, so a user who has not been in the editor yet would otherwise press
-    one of them and see nothing happen. A field and a button take the focus of
-    their own accord, and this is what a click on anything else does.
+    else, so a user whose focus is somewhere else in the application would
+    otherwise press one of them and see nothing happen. A field and a button
+    take the focus of their own accord, and this is what a click on anything
+    else does. The editor puts the focus in its first value when it opens, so
+    this is about coming back to it and not about reaching it at all.
 
     Args:
         frame: Frame the editor was built in.
@@ -201,11 +218,12 @@ def _grabbed(widget: tkinter.Misc) -> bool:
     """Take the events of the application for one widget, if Tk allows it.
 
     Args:
-        widget: Widget the editor was built in.
+        widget: Widget the editor was built in, which is on the screen by the
+            time this is asked.
 
     Returns:
         Whether the grab was made, which is what has to be released again. Tk
-        refuses to grab for a window that is not on the screen, and an editor
+        refuses a grab that another application already holds, and an editor
         that opened without a grab is worth more than one that did not open.
     """
     try:

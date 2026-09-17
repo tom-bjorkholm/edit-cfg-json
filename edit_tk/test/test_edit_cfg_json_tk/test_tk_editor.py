@@ -14,11 +14,11 @@ from edit_cfg_json import EditModel, EditorBackend, LoadReport
 from edit_cfg_json_tk import TkEditor
 from edit_cfg_json_tk.tk_editor import EditorWidgets, VALIDATE_TEXT
 from example.e01_flat_config import FlatConfig
-from .helpers import EXPECTED_FIELDS, EXPECTED_LABELS, EXPECTED_LOADED, \
-    FILLED_REPORT, LOAD_MESSAGE, model_value, real_fields, real_press, \
-    real_texts, REFUSED_VERDICT, retype, REWRITTEN_MARK, stub_editor, \
-    stub_field_widgets, stub_fields, stub_press, stub_texts, \
-    UNKNOWN_VERDICT, VALID_VERDICT
+from .helpers import EmptyListConfig, EXPECTED_FIELDS, EXPECTED_LABELS, \
+    EXPECTED_LOADED, FILLED_REPORT, LOAD_MESSAGE, model_value, real_fields, \
+    real_press, real_texts, REFUSED_VERDICT, retype, REWRITTEN_MARK, \
+    stub_editor, stub_field_widgets, stub_fields, stub_press, stub_texts, \
+    stub_window, UNKNOWN_VERDICT, VALID_VERDICT
 from .stubs import FakeVar, FakeWidget
 
 LOAD_REASON = 'read from the older key count'
@@ -295,3 +295,32 @@ def test_is_editor_backend() -> None:
     """Test TkEditor can be used where an EditorBackend is expected."""
     backend: EditorBackend = TkEditor()
     assert hasattr(backend, 'run_editor')
+
+
+def test_stub_focus_on_open(stub_tk: None) -> None:
+    """Test the editor puts the focus in its first value when it is shown.
+
+    It waits for the window, because Tk drops a request for the focus while
+    the widget is not mapped and says nothing about having dropped it. An
+    editor that asked while it was being built would therefore have asked for
+    nothing, which is why the focus is asked about here and not at the end of
+    building the widgets.
+    """
+    _ = stub_tk
+    stub_editor(EditModel(FlatConfig()))
+    assert not FakeWidget.focused
+    stub_window().bindings['<Map>']()
+    assert FakeWidget.focused == [stub_field_widgets()[0]]
+
+
+def test_stub_focus_no_value(stub_tk: None) -> None:
+    """Test a configuration with nothing to type into takes no focus.
+
+    Every row of it is a container, which is edited through the rows below it
+    rather than in a field of its own, so there is nothing for the editor to
+    put the focus in and it leaves the focus where the application had it.
+    """
+    _ = stub_tk
+    stub_editor(EditModel(EmptyListConfig()))
+    stub_window().bindings['<Map>']()
+    assert not FakeWidget.focused

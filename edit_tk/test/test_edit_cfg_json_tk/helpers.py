@@ -21,11 +21,13 @@ backends and by the example itself.
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import cast
+from typing import cast, Optional, TextIO
 import json
+import sys
 import tkinter
 from tkinter import messagebox
 import pytest
+from config_as_json import Config, PathOrStr, ValidationPlan
 from edit_cfg_json import Descriptions, EditModel, LoadReport
 from edit_cfg_json_tk.tk_editor import CHOOSE_TEXT, CLOSE_TEXT, \
     EditorWidgets, EXPLAIN_TEXT, FOLD_OPEN_TEXT, SAVE_AS_TEXT, SAVE_TEXT, \
@@ -159,6 +161,37 @@ class NoDocConfig(FlatConfig):
 # handle, and it cannot be written here, because every class in this
 # repository has to have one. Taking it away afterwards is the same thing.
 NoDocConfig.__doc__ = None
+
+
+class EmptyListConfig(Config):
+    """A configuration whose one member is a list holding nothing.
+
+    A list is edited through the rows below it and never in a field of its
+    own, so an empty one leaves the editor with nothing at all to type into.
+    That is what an editor which puts the focus in its first value has to
+    have an answer for.
+    """
+
+    # Every configuration class of this library is constructed and asked for
+    # its rules in exactly these words, which is what makes them the same
+    # lines in every example and here. There is nothing to factor out of a
+    # signature that `config_as_json` requires of each class on its own.
+    # pylint: disable=duplicate-code
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
+        """Initialize the configuration with its one empty member."""
+        self.nothing: list[str] = []
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file, member_name=member_name)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return the rules of this configuration, which has none."""
+        _ = stderr_file
+        return []
+
 
 REWRITTEN_MARK = ' (edited) (changed by validator)'
 """Mark of a member that the user changed and a validator then rewrote."""

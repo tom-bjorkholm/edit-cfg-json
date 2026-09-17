@@ -16,7 +16,8 @@ does with a body that has not been laid out yet.
 from typing import cast
 import tkinter
 import pytest
-from edit_cfg_json_tk.scrolling import bring_into_view, scrolling_body
+from edit_cfg_json_tk.scrolling import BODY_WIDTH, bring_into_view, \
+    scrolling_body
 from edit_cfg_json_tk.tk_scope import KeyScope
 from .helpers import touchpad_known
 from .stubs import FakeWidget, STUB_BODY_HEIGHT, TOUCHPAD
@@ -215,3 +216,44 @@ def test_real_body_scrolls(root_or_skip: tkinter.Tk) -> None:
     assert area.body.winfo_reqheight() > 0
     bring_into_view(area, area.body)
     assert area.canvas.yview() == (0.0, 1.0)
+
+
+def test_item_born_wide(stub_tk: None) -> None:
+    """Test the body is put on the canvas at the width it is going to have.
+
+    A body put on at no width is laid out at the width it asks for and then
+    again at the width of the canvas, so every paragraph wraps twice and the
+    second wrap makes the body taller. The canvas follows that height, which
+    is a window resizing itself after it is already on the screen.
+
+    Args:
+        stub_tk: The fixture that replaces the Tkinter widget classes.
+    """
+    _ = stub_tk
+    parent, scope = _stub_area()
+    area = scrolling_body(cast(tkinter.Misc, parent), scope)
+    canvas = cast(FakeWidget, area.canvas)
+    assert canvas.item_options['width'] == BODY_WIDTH
+
+
+def test_real_body_born_wide(root_or_skip: tkinter.Tk) -> None:
+    """Test real Tk lays the body out at that width and at no other.
+
+    It is the width the body was laid out at and not the option the item was
+    given, because the width it was laid out at is what the paragraphs wrap
+    to, and a stub can lay nothing out. An item that is given no width of its
+    own is laid out at the width of what is in it — 53 pixels for the label
+    below — until the canvas has been laid out and tells it otherwise, which
+    is after the window is on the screen.
+
+    The area is packed and the body is given something to hold, because
+    neither a canvas nobody asked for nor an empty item is laid out at all.
+    No event is waited for: a canvas lays its item out with everything else,
+    and `_fit_width` has nothing to correct until a user resizes the window.
+    """
+    scope = KeyScope(root_or_skip)
+    area = scrolling_body(root_or_skip, scope)
+    area.area.pack(fill='both', expand=True)
+    tkinter.Label(area.body, text='content').pack(fill='x')
+    root_or_skip.update_idletasks()
+    assert area.body.winfo_width() == BODY_WIDTH

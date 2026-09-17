@@ -6,6 +6,9 @@ screen whatever the size of the configuration, and it has to say which of the
 things on it can be edited and which are text about them. Neither is visible
 to a test that only reads what a widget holds, so these tests read the colours
 and drive the scrolling.
+
+A third thing is what the window does the moment it is shown, which needs a
+window that really is: those tests are the `focus_sensitive` ones at the end.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -13,15 +16,15 @@ and drive the scrolling.
 
 import tkinter
 import pytest
-from edit_cfg_json import Emphasis, EditModel, FindOptions
+from edit_cfg_json import Descriptions, Emphasis, EditModel, FindOptions
 from edit_cfg_json_tk.scrolling import BODY_HEIGHT, BODY_WIDTH
 from edit_cfg_json_tk.tk_editor import EditorWidgets, EXPLAIN_TEXT
 from edit_cfg_json_tk.tk_look import EMPHASIS_COLOURS, FIELD_BACKGROUND, \
     FIELD_FOREGROUND, LEAST_WRAP_WIDTH
 from example.e01_flat_config import FlatConfig
 from .helpers import ABOUT_NAME, DESCRIPTIONS, FILLED_REPORT, \
-    FLAT_DOCSTRING, FLAT_SUMMARY, real_press, real_ticks, stub_editor, \
-    stub_keys, stub_press, TEXT_KIND
+    FLAT_DOCSTRING, FLAT_SUMMARY, real_fields, real_press, real_ticks, \
+    stub_editor, stub_keys, stub_press, TEXT_KIND
 from .stubs import FakeWidget, STUB_BODY_HEIGHT
 
 WHEEL_UP = -1
@@ -457,6 +460,105 @@ def test_shown_window_settles() -> None:
         assert len(_resizes(window, seen)) < RESTLESS_RESIZES
         assert (window.winfo_width(), window.winfo_height()) == opened
         assert real_ticks(window) == SETTLED_TICKS
+    finally:
+        window.destroy()
+
+
+WRAPPING_DESCRIPTIONS: Descriptions = {
+    ('name',): 'The command that opens a note for editing. It is run with '
+               'the name of the file appended to it, so anything the command '
+               'needs in order to wait for the editing to finish belongs '
+               'here as well.',
+    ('answer',): 'Characters of a note that are shown in the panel. A note '
+                 'longer than this is shown up to here and read in full by '
+                 'the editor.'}
+"""Descriptions long enough to wrap, which the test below needs.
+
+A paragraph that fits one line whatever width it is given wraps the same way
+at the width the body asks for and at the width of the canvas, so the body
+that holds it is the same height both times and there is nothing to see. The
+descriptions of the editor's own tests are that short, and these are not.
+"""
+
+
+def _wrapping_model() -> EditModel:
+    """Return a model whose descriptions wrap to more than one line."""
+    return EditModel(FlatConfig(), descriptions=WRAPPING_DESCRIPTIONS,
+                     out_file='out.json')
+
+
+def _canvas_heights(window: tkinter.Tk) -> list[tuple[int, bool]]:
+    """Return every height the scrolling canvas was given while opening.
+
+    The binding is added to the ones the canvas has rather than put in their
+    place: following the width of the canvas is one of them, and a test that
+    took it away would be watching an editor that cannot have the defect.
+
+    Args:
+        window: Window the editor has just been built in, which is let settle
+            and is on the screen for as long as that takes.
+
+    Returns:
+        Each height the canvas was laid out at, with whether the window was
+        already on the screen when it was given that height.
+    """
+    canvas = _real_widgets(window, tkinter.Canvas)[0]
+    seen: list[tuple[int, bool]] = []
+    canvas.bind('<Configure>', lambda event: seen.append(
+        (event.height, bool(window.winfo_ismapped()))), add='+')
+    window.after(SETTLING_TIME, window.quit)
+    window.mainloop()
+    return seen
+
+
+@pytest.mark.focus_sensitive
+def test_shown_height_settled() -> None:
+    """Test the canvas is not made taller after its window is on the screen.
+
+    A canvas that grows once the window is up is a canvas whose contents macOS
+    goes on drawing where they were: everything on it is then drawn below
+    where Tk has placed it, and every click over the body is delivered to the
+    description of the row above the one the user was aiming at, so no value
+    of the editor answers anything until something paints it again. Tk's own
+    geometry is right the whole time, which is why the resize itself is the
+    only thing there is to catch.
+
+    The body used to be laid out twice — once at the width it asked for and
+    once at the width of the canvas — and it is the second wrap that made it
+    taller. It needs a window a person can see for the same reason the two
+    tests above do, and is deselected by the build.
+    """
+    window = tkinter.Tk()
+    try:
+        EditorWidgets(parent=window, model=_wrapping_model())
+        shown = [height for height, on_screen in _canvas_heights(window)
+                 if on_screen]
+        assert len(set(shown)) <= 1
+    finally:
+        window.destroy()
+
+
+@pytest.mark.focus_sensitive
+def test_shown_focus_in_field() -> None:
+    """Test the first value of the editor really has the focus when it opens.
+
+    Tk drops a request for the focus while the widget is not mapped, and says
+    nothing about having dropped it, so only a window on a real display can
+    say that the editor asked at a moment when Tk was listening. A user who
+    opens the editor and types must see what they typed appear somewhere.
+
+    What is asked is the widget Tk would give the focus to for this window,
+    and not the widget that has it: whether the application holds the
+    keyboard focus at all is the window manager's to say and not the
+    editor's, and one that answers with the window itself is one where the
+    request was dropped.
+    """
+    window = tkinter.Tk()
+    try:
+        EditorWidgets(parent=window, model=_described_model())
+        window.after(SETTLING_TIME, window.quit)
+        window.mainloop()
+        assert window.focus_lastfor() is real_fields(window)[0]
     finally:
         window.destroy()
 

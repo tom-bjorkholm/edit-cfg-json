@@ -507,6 +507,18 @@ used to override the priorities the backend report at registration/discovery.
 It is a dict from `--ui` argument string to priority.
 The default Settings has an empty dict for this priority override.
 
+`edit-cfg-json` library gains 2 additional exported functions to be used
+by command line programs with no GUI of their own that wants to offer
+editing of their configuration:
+
+- One is similar to the `edit` function of the backends,
+  but take an `ui: Optional[str]`. It selects the backend just like
+  what is described above for the `edit-cfg-json` command.
+- One returns a list of registered/detected backend strings for
+  backends that can run in this context. The return value is intended
+  as the allowed values of the `--ui` switch for the configuration
+  editor of the command line program.
+
 ### Step 31 - Selectable dark mode
 
 Up until now the `edit-cfg-json-tk` has only had a hard coded light mode.

@@ -409,7 +409,10 @@ running. There is no moment at which it could return what was saved, so
 
 **`modal` defaults to `True`**, which holds your application until the user
 has finished with the editor — including your own controls. Pass
-`modal=False` for an editor your application answers beside.
+`modal=False` for an editor your application answers beside. The grab is
+taken once the editor's window has reached the screen, because Tk refuses one
+for a window that is not viewable yet, so your own controls answer for the
+moment between the call returning and the window being shown.
 
 Worked example: [e15_window_tk.py](../examples/src/example/e15_window_tk.py).
 
@@ -475,6 +478,12 @@ is rarely what an application that chose to embed wants.
 **The keys of the editor reach the editor and nothing else** — the frame it
 built and everything inside it. Your own keys, everywhere else in that window,
 are untouched.
+
+**The editor takes the keyboard focus when it appears**, and puts it in the
+first value of the configuration, so that a user who opens it and types sees
+what they typed. It does that in your window too, once the frame it built is
+on the screen. Give the focus back to a widget of your own afterwards if your
+application wants it elsewhere.
 
 **The size of your window stays yours.** Nothing in the editor scrolls
 sideways, so there is a size below which its rows and its buttons are cut off

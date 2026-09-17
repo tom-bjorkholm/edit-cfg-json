@@ -691,7 +691,7 @@ all to a configuration this section is about.
 The size of a window is the one thing neither backend can leave to the model:
 Textual gives the body the height that is left over, and Tk has no scrolling
 frame at all and needs the canvas, the scrollbar and the frame on the canvas
-that this amounts to. Three constraints of the Tk side, none of them obvious:
+that this amounts to. Five constraints of the Tk side, none of them obvious:
 
 - **The part that does not scroll is packed first.** Tk gives each child the
   space it asks for in the order they were packed, so packing it last would lay
@@ -701,11 +701,36 @@ that this amounts to. Three constraints of the Tk side, none of them obvious:
 - **The size the editor opens at has to be said.** A canvas asks for a width
   and a height of its own that have nothing to do with what is on it, so the
   body is measured and the canvas asks for that, up to the size of a window.
-- **A paragraph has to be told to wrap.** A Tk label neither wraps nor shrinks
-  of its own accord: text wider than the window is cut off. Every text of the
-  editor that is a paragraph follows the width it is given; the mark of a
-  member is the one that does not, because it belongs beside its field on one
-  line, and a narrow window squeezes the field rather than the mark.
+- **The body is put on the canvas at the width it will keep.** An item of a
+  canvas is as wide as it asks to be unless it is told, and it is told on the
+  canvas's first `<Configure>` — which arrives once the canvas has been laid
+  out, and therefore once the window is up. So a body put on untold is laid
+  out twice: at the width it asked for, where the paragraphs wrap little, and
+  at the width of the canvas, where each of them gains a line. The height
+  follows the second wrap, and that resize lands after the window is on the
+  screen. On macOS the contents of a canvas keep the places they were painted
+  at, so everything on it was then drawn about fifty pixels below where Tk had
+  placed it, and every click over the body was delivered to the description of
+  the row above the control the user was aiming at: an editor whose values
+  answer nothing until the scrollbar or anything else paints it again. Giving
+  the item `BODY_WIDTH` when it is created costs one line and removes the
+  second layout; following the width is still wrong, for the reason above, and
+  the callback that follows the canvas is what a user's resize needs.
+- **A paragraph has to be told to wrap, and told before it is laid out.** A Tk
+  label neither wraps nor shrinks of its own accord: text wider than the window
+  is cut off. Every text of the editor that is a paragraph follows the width it
+  is given; the mark of a member is the one that does not, because it belongs
+  beside its field on one line, and a narrow window squeezes the field rather
+  than the mark. Following is not enough on its own, because a label learns its
+  width from its own `<Configure>`: a paragraph that started unwrapped is laid
+  out on one line, becomes several lines high only once that event has
+  arrived, and the frame around it grows a round of idle work later, and the
+  frame around that one a round later again. With a window that is shown as
+  soon as it has a size, the last of those rounds lands after it is on the
+  screen — the same defect as the bullet above, reached the other way, and
+  measured on Tk 8.6 where the rounds are slower than on Tk 9. So a paragraph
+  is *started* at `BODY_WIDTH`, which is the width it will have give or take
+  the indent it sits at, and follows its real width from there.
 - **A window can be made too small for the editor, so the one the editor owns
   is not allowed to be.** Nothing here scrolls sideways, and the line above
   says why a narrow window loses text rather than wrapping it: a member row is
@@ -719,7 +744,7 @@ that this amounts to. Three constraints of the Tk side, none of them obvious:
   create, so an application that mounts the editor in a window of its own is
   told the size and decides for itself what its window allows.
 
-Textual needs none of those three: it wraps, it shrinks, and its footer is
+Textual needs none of those five: it wraps, it shrinks, and its footer is
 docked. What it needs instead is that **everything on a row is a compact
 widget**: a field of Textual's own accord is three cells high and grows its
 border back when given the focus, so on a row of one cell the text of the field
@@ -1837,12 +1862,15 @@ makes the window itself and passes it as `area`.
 It is a Tk word and a Tk argument: the editor asks Tk to hold the events of the
 application for the window or the frame it built, and gives the grab back when
 it closes. Textual has no equivalent and needs none — a pushed screen already
-has the terminal, and a mounted panel already does not. A grab is asked for
-when the editor is built, which is before the window it made has been mapped,
-and whether Tk allows that is a platform question: Aqua does, and X11 refuses a
-grab for a window that is not viewable. A refused grab is a non-modal editor
-rather than an error, so an application that must be held on every platform
-makes its own window, maps it, and passes it as `area`.
+has the terminal, and a mounted panel already does not. **The grab is asked for
+once that window or frame is on the screen**, because Tk refuses one for a
+window that is not viewable and whether a window that has just been created
+counts as viewable is a platform answer: Aqua accepts it and X11 refuses it, so
+an editor that asked while it was being built was modal by luck of the platform
+rather than by anything it did. Waiting for the map is section 8.2.9, and it is
+what makes `modal` mean one thing everywhere. A grab that is refused even then
+— another application may already hold one — is a non-modal editor rather than
+an error.
 
 The rejected alternatives are in section 11.
 
@@ -1988,7 +2016,7 @@ deliberate**: the footer names the actions of the editor while the focus is
 inside the editor, because that is where the bindings are. Textual focuses the
 first focusable widget of a screen, which is inside the panel.
 
-#### 8.2.5 Two rules that hold for both ways of running the editor
+#### 8.2.5 Three rules that hold for both ways of running the editor
 
 - **`EditorBackend` promises a modal editor**, and it does not promise that an
   application can mount the backend as a widget. Mounting is the separate entry
@@ -1996,6 +2024,16 @@ first focusable widget of a screen, which is inside the panel.
   `doc/edit-cfg-json_api.md` says exactly that.
 - **`EditorWidgets` is told what closing does** rather than deriving it from
   `parent.winfo_toplevel()`. The default is what `TkEditor` needs.
+- **The editor puts the keyboard focus in its first value once it is shown.**
+  An editor that opened with the focus nowhere inside it is one a user types
+  into and sees nothing happen: the keys the editor bound still work, because
+  they are on a bind tag rather than on the focused widget, and nothing else
+  does. Textual focuses the first focusable widget of a screen already, so this
+  is the same editor in both toolkits. Which widget it is, is the one a search
+  reaches for that node — the way of editing it that is on the window — and a
+  configuration whose every row is a container has none, so the focus is left
+  where the application had it. Tk cannot be told this while the editor is
+  being built, which is section 8.2.9.
 
 The public surface of both backend packages is `TkEditor`, `TextualEditor` and
 `edit`, and none of them means anything different under embedding. That is what
@@ -2097,6 +2135,37 @@ it is given no master; `Input`, `Button` and `Checkbox` each take a `compact`
 keyword, whose rule takes the border away with `!important` and therefore in
 the focused state as well; and `Misc.bindtags`, `Misc.bind_class` and
 `Misc.unbind_class` are what section 8.2.7 is built on.
+
+Measured on the pinned Tk 9 rather than read: a `focus_set` for a widget of a
+withdrawn root leaves `focus -lastfor` at the root, so the request was dropped
+and nothing said so; a `grab_set` for an unmapped window is accepted on aqua;
+and a panel mounted in a window that is already up has its `<Map>` delivered
+one round of idle work before the fields inside it are mapped, so a focus
+asked for from that handler is dropped as well. Section 8.2.9 is what those
+three add up to.
+
+#### 8.2.9 What has to wait for the window
+
+Two things this editor asks Tk for cannot be asked for while it is being
+built, and neither of them says so: **the keyboard focus** of section 8.2.5,
+which Tk drops for a widget that is not mapped, and **the grab** of section
+8.2.2, which Tk refuses for a window that is not viewable. Both wait for
+`<Map>` on the widget the editor built, which is `showing.when_shown`, and
+which does two things beyond binding:
+
+- **It asks for the layout before it acts.** The event says that this widget
+  is mapped and not that what is inside it is, and the fields are what the
+  focus is for.
+- **It acts once.** A window that is hidden and shown again is mapped again,
+  and an editor that took the focus back each time would take it from wherever
+  the user had put it since.
+
+There is no way to do either of them earlier. A window built withdrawn and
+laid out with `update_idletasks`, or with a full `update`, before it is shown
+propagates nothing at all, because a withdrawn window's children are never
+mapped: everything simply happens after the window is shown, as before. That
+is also why the size the editor opens at has to be right from the first
+layout rather than corrected once — section 4.6.
 
 ### 8.3 A ready-to-run program in each editor package
 

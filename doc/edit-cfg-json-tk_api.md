@@ -25,15 +25,6 @@
     * [chosen](#edit_cfg_json_tk.tk_editor.StateWidgets.chosen)
     * [folding](#edit_cfg_json_tk.tk_editor.StateWidgets.folding)
     * [finding](#edit_cfg_json_tk.tk_editor.StateWidgets.finding)
-  * [RowWidgets](#edit_cfg_json_tk.tk_editor.RowWidgets)
-    * [frame](#edit_cfg_json_tk.tk_editor.RowWidgets.frame)
-    * [fold](#edit_cfg_json_tk.tk_editor.RowWidgets.fold)
-    * [field](#edit_cfg_json_tk.tk_editor.RowWidgets.field)
-    * [mark](#edit_cfg_json_tk.tk_editor.RowWidgets.mark)
-    * [subtree](#edit_cfg_json_tk.tk_editor.RowWidgets.subtree)
-    * [description](#edit_cfg_json_tk.tk_editor.RowWidgets.description)
-    * [diagnostic](#edit_cfg_json_tk.tk_editor.RowWidgets.diagnostic)
-    * [elements](#edit_cfg_json_tk.tk_editor.RowWidgets.elements)
   * [EditorWidgets](#edit_cfg_json_tk.tk_editor.EditorWidgets)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_editor.EditorWidgets.__init__)
     * [release\_keys](#edit_cfg_json_tk.tk_editor.EditorWidgets.release_keys)
@@ -45,6 +36,17 @@
     * [wrong\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.wrong_shown)
     * [element\_texts](#edit_cfg_json_tk.tk_editor.EditorWidgets.element_texts)
     * [docstring\_shown](#edit_cfg_json_tk.tk_editor.EditorWidgets.docstring_shown)
+* [edit\_cfg\_json\_tk.tk\_rows](#edit_cfg_json_tk.tk_rows)
+  * [RowWidgets](#edit_cfg_json_tk.tk_rows.RowWidgets)
+    * [frame](#edit_cfg_json_tk.tk_rows.RowWidgets.frame)
+    * [fold](#edit_cfg_json_tk.tk_rows.RowWidgets.fold)
+    * [field](#edit_cfg_json_tk.tk_rows.RowWidgets.field)
+    * [mark](#edit_cfg_json_tk.tk_rows.RowWidgets.mark)
+    * [subtree](#edit_cfg_json_tk.tk_rows.RowWidgets.subtree)
+    * [description](#edit_cfg_json_tk.tk_rows.RowWidgets.description)
+    * [diagnostic](#edit_cfg_json_tk.tk_rows.RowWidgets.diagnostic)
+    * [elements](#edit_cfg_json_tk.tk_rows.RowWidgets.elements)
+  * [show\_below](#edit_cfg_json_tk.tk_rows.show_below)
 * [edit\_cfg\_json\_tk.tk\_tooltip](#edit_cfg_json_tk.tk_tooltip)
   * [TOOLTIP\_BACKGROUND](#edit_cfg_json_tk.tk_tooltip.TOOLTIP_BACKGROUND)
   * [TOOLTIP\_BORDER](#edit_cfg_json_tk.tk_tooltip.TOOLTIP_BORDER)
@@ -54,6 +56,8 @@
   * [Tooltip](#edit_cfg_json_tk.tk_tooltip.Tooltip)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_tooltip.Tooltip.__init__)
     * [text](#edit_cfg_json_tk.tk_tooltip.Tooltip.text)
+* [edit\_cfg\_json\_tk.showing](#edit_cfg_json_tk.showing)
+  * [when\_shown](#edit_cfg_json_tk.showing.when_shown)
 * [edit\_cfg\_json\_tk.tk\_find](#edit_cfg_json_tk.tk_find)
   * [FIND\_FIELD\_NAME](#edit_cfg_json_tk.tk_find.FIND_FIELD_NAME)
   * [FIND\_LABEL\_TEXT](#edit_cfg_json_tk.tk_find.FIND_LABEL_TEXT)
@@ -386,83 +390,6 @@ not there.
 
 The search: its field, its four controls and its line.
 
-<a id="edit_cfg_json_tk.tk_editor.RowWidgets"></a>
-
-## RowWidgets Objects
-
-```python
-class RowWidgets(NamedTuple)
-```
-
-The widgets that one node of the configuration owns.
-
-<a id="edit_cfg_json_tk.tk_editor.RowWidgets.frame"></a>
-
-#### frame
-
-The widget that holds the whole node, which is what folding hides.
-
-It is packed and unpacked rather than created and destroyed, so that a
-field the user is typing into survives its container being folded and
-opened again.
-
-<a id="edit_cfg_json_tk.tk_editor.RowWidgets.fold"></a>
-
-#### fold
-
-The control that folds this container, None for a node with none.
-
-<a id="edit_cfg_json_tk.tk_editor.RowWidgets.field"></a>
-
-#### field
-
-The ways of editing a node, and None for a node with none of them.
-
-<a id="edit_cfg_json_tk.tk_editor.RowWidgets.mark"></a>
-
-#### mark
-
-The widget that says what has happened to this member.
-
-<a id="edit_cfg_json_tk.tk_editor.RowWidgets.subtree"></a>
-
-#### subtree
-
-The widget that says what this object is on its own.
-
-It is None for every node that is not a nested configuration object,
-because nothing else is a configuration that can be asked about itself.
-
-<a id="edit_cfg_json_tk.tk_editor.RowWidgets.description"></a>
-
-#### description
-
-The widget that says what this member is for.
-
-It is None for a member that nothing is said about, because there is then
-nothing that could ever appear in it.
-
-<a id="edit_cfg_json_tk.tk_editor.RowWidgets.diagnostic"></a>
-
-#### diagnostic
-
-The widget that says what is wrong with this member.
-
-Every member has one, unlike the description above it: any member can be
-refused, so there is no member for which this could never say anything.
-
-<a id="edit_cfg_json_tk.tk_editor.RowWidgets.elements"></a>
-
-#### elements
-
-The controls that change how many elements this node holds.
-
-A node is given exactly the ones it offers and nothing at all where it
-offers none, because they sit at the end of the line rather than in a
-column that every row has to keep clear. Which of them a node offers can
-change — the first element of a list cannot move up until something is put
-in front of it — and the rows are built again whenever it does.
-
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets"></a>
 
 ## EditorWidgets Objects
@@ -658,6 +585,122 @@ def docstring_shown() -> str
 
 Return the text that the label of the configuration class shows.
 
+<a id="edit_cfg_json_tk.tk_rows"></a>
+
+# edit\_cfg\_json\_tk.tk\_rows
+
+The widgets that one node of the configuration owns, and the texts below it.
+
+A node is one line — its name, the way of editing its value, the marks of what
+has happened to it — and under that line the two texts that can appear about
+it: what the member is for and what is wrong with it. Which of the two is
+showing is a rule of its own, because Tk packs a widget after the ones that
+are already there, and it belongs beside the widgets it is about.
+
+It is a module of its own because `tk_editor` is the module of this backend
+that is nearest to being too long to read, and because what a row of the
+editor is made of is worth reading without the whole editor around it.
+
+<a id="edit_cfg_json_tk.tk_rows.RowWidgets"></a>
+
+## RowWidgets Objects
+
+```python
+class RowWidgets(NamedTuple)
+```
+
+The widgets that one node of the configuration owns.
+
+<a id="edit_cfg_json_tk.tk_rows.RowWidgets.frame"></a>
+
+#### frame
+
+The widget that holds the whole node, which is what folding hides.
+
+It is packed and unpacked rather than created and destroyed, so that a
+field the user is typing into survives its container being folded and
+opened again.
+
+<a id="edit_cfg_json_tk.tk_rows.RowWidgets.fold"></a>
+
+#### fold
+
+The control that folds this container, None for a node with none.
+
+<a id="edit_cfg_json_tk.tk_rows.RowWidgets.field"></a>
+
+#### field
+
+The ways of editing a node, and None for a node with none of them.
+
+<a id="edit_cfg_json_tk.tk_rows.RowWidgets.mark"></a>
+
+#### mark
+
+The widget that says what has happened to this member.
+
+<a id="edit_cfg_json_tk.tk_rows.RowWidgets.subtree"></a>
+
+#### subtree
+
+The widget that says what this object is on its own.
+
+It is None for every node that is not a nested configuration object,
+because nothing else is a configuration that can be asked about itself.
+
+<a id="edit_cfg_json_tk.tk_rows.RowWidgets.description"></a>
+
+#### description
+
+The widget that says what this member is for.
+
+It is None for a member that nothing is said about, because there is then
+nothing that could ever appear in it.
+
+<a id="edit_cfg_json_tk.tk_rows.RowWidgets.diagnostic"></a>
+
+#### diagnostic
+
+The widget that says what is wrong with this member.
+
+Every member has one, unlike the description above it: any member can be
+refused, so there is no member for which this could never say anything.
+
+<a id="edit_cfg_json_tk.tk_rows.RowWidgets.elements"></a>
+
+#### elements
+
+The controls that change how many elements this node holds.
+
+A node is given exactly the ones it offers and nothing at all where it
+offers none, because they sit at the end of the line rather than in a
+column that every row has to keep clear. Which of them a node offers can
+change — the first element of a list cannot move up until something is put
+in front of it — and the rows are built again whenever it does.
+
+<a id="edit_cfg_json_tk.tk_rows.show_below"></a>
+
+#### show\_below
+
+```python
+def show_below(widgets: RowWidgets, description: str, diagnostic: str) -> None
+```
+
+Show what belongs below one member, in the order it belongs in.
+
+Both texts are taken out of the layout and put back rather than only the
+one that changed, because Tk packs a widget after the ones that are
+already there: a description that came back while a diagnostic was
+showing would otherwise land below it. Nothing is touched while both
+texts are already what they should be, so the ordinary case of typing
+into a field does not lay the window out again on every key.
+
+**Arguments**:
+
+- `widgets` - Widgets of the member.
+- `description` - What the member is for, empty while that is hidden.
+- `diagnostic` - What is wrong with the member, empty when nothing is.
+
 <a id="edit_cfg_json_tk.tk_tooltip"></a>
 
 # edit\_cfg\_json\_tk.tk\_tooltip
@@ -768,6 +811,50 @@ def text() -> str
 ```
 
 Return what this widget says about itself.
+
+<a id="edit_cfg_json_tk.showing"></a>
+
+# edit\_cfg\_json\_tk.showing
+
+What this editor has to wait for its own window to be on the screen for.
+
+Two things it asks Tk for cannot be asked for while it is being built. The
+keyboard focus for its first field is one: Tk drops a request for the focus
+while the widget or any of its ancestors is unmapped, and says nothing about
+having dropped it. The grab of a modal session is the other: Tk refuses one
+for a window that is not viewable, and whether a window that has just been
+created counts as viewable is a platform answer rather than a rule.
+
+So both wait for the map, which is what this module is. Nothing here knows
+what an edit model is: it is what Tk needs in order to do something once,
+when what was built is really on the screen, in the same way as the scrolling
+beside it.
+
+<a id="edit_cfg_json_tk.showing.when_shown"></a>
+
+#### when\_shown
+
+```python
+def when_shown(widget: tkinter.Misc, action: Callable[[], None]) -> None
+```
+
+Run one action the first time a widget reaches the screen.
+
+**The layout is asked for before the action runs**, because the event
+says that this widget is mapped and not that what is inside it is: an
+editor mounted in a window that is already up is mapped a round of idle
+work before its own fields are, and a focus asked for in between is one
+that Tk drops.
+
+**The action runs once.** A window that is hidden and shown again is
+mapped again, and an editor that took the focus back each time would take
+it from wherever the user had put it since.
+
+**Arguments**:
+
+- `widget` - Widget that the editor built, whose arrival on the screen is
+  what the action waits for.
+- `action` - What to do once it is there.
 
 <a id="edit_cfg_json_tk.tk_find"></a>
 
@@ -1372,6 +1459,16 @@ is simply cut off, which is how a description lost its last words. The
 width to wrap at is not known until the window has been laid out, and it
 changes whenever the user resizes it, so it is followed rather than set.
 
+**It is started at the width of the body**, which is what a paragraph of
+the editor is given give or take the indent it sits at. A paragraph that
+started unwrapped would be laid out on one line, ask for the width of its
+whole text, and become several lines high only once its own `<Configure>`
+had told it otherwise — and a frame around it grows a round of idle work
+after that, and the frame around that one a round later again. The last
+of those rounds lands after the window has been shown, which is a window
+that resizes itself under the user: `scrolling.BODY_WIDTH` says what that
+costs, and section 4.6 of the design says what it costs on macOS.
+
 **Arguments**:
 
 - `label` - Label that holds text which may be longer than a line.
@@ -1627,6 +1724,10 @@ packed before this one to be sure of its space, while this one is created
 first so that the widgets of the editor are created in the order they are
 read in.
 
+The body is put on the canvas at the width it is going to have, so that it
+is laid out once rather than twice. `_fit_width` says what the second
+layout cost.
+
 **Arguments**:
 
 - `parent` - Widget that becomes the parent of the created widgets.
@@ -1711,9 +1812,10 @@ Read the configuration and build the editor where it was told.
   of its own. It cannot be given together with parent.
 - `modal` - Whether the editor grabs its window, or the area, for the
   session, so that nothing else of the application answers until
-  it closes. Tk refuses a grab for a window that is not on the
-  screen yet, and the editor then opens without one rather than
-  not opening.
+  it closes. The grab is taken once the editor is on the screen,
+  because Tk refuses one for a window that is not viewable. A
+  grab that is refused even then leaves the editor open without
+  one rather than not opening.
 - `on_close` - What the application does once the session has ended,
   or None for one that reads `saved_config` some other way.
 - `descriptions` - What the application says about the members it

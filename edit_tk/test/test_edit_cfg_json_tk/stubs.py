@@ -117,6 +117,7 @@ class FakeCanvas(FakeWindow):
         self.scrolled = 0
         self.moved: list[float] = []
         self.view = WHOLE_VIEW
+        self.item_options: dict[str, object] = {}
 
     def create_window(self, *place: int, **options: object) -> int:
         """Put a widget on this canvas, as a real Tk canvas does.
@@ -125,16 +126,26 @@ class FakeCanvas(FakeWindow):
         what a canvas item is: the scrolling part of the editor is on a
         canvas and not packed, and everything in it would otherwise be
         reported as hidden.
+
+        What the item was told is kept, because the width the body is laid
+        out at is one of these options and a body laid out at the wrong width
+        first is what this editor's defect was.
         """
         _ = place
         window = options.get('window')
         if isinstance(window, FakeWidget):
             window.packed = True
+        self.item_options.update(options)
         return STUB_CANVAS_ITEM
 
     def itemconfigure(self, item: int, **options: object) -> None:
-        """Change options of one item of this canvas."""
-        _ = (item, options)
+        """Change options of one item of this canvas.
+
+        This canvas holds the one item the editor puts on it, so what it was
+        told is kept beside what it was created with.
+        """
+        assert item == STUB_CANVAS_ITEM
+        self.item_options.update(options)
 
     def bbox(self, *what: str) -> tuple[int, int, int, int]:
         """Return the area the contents of this canvas take up."""
@@ -166,6 +177,25 @@ class FakeCanvas(FakeWindow):
     def set(self, *fractions: str) -> None:
         """Show how much of the contents is visible, as a scrollbar does."""
         _ = fractions
+
+
+def _both(first: Callable[..., object],
+          second: Callable[..., object]) -> Callable[..., object]:
+    """Return the callback that runs two bindings of one sequence.
+
+    Args:
+        first: What was bound to that sequence already.
+        second: What was added to it.
+
+    Returns:
+        A callback that runs them in the order Tk runs them in, so that a
+        test which runs the binding of a sequence runs all of it.
+    """
+    def run(*event: object) -> object:
+        """Run what the widget had, and then what was added to it."""
+        first(*event)
+        return second(*event)
+    return run
 
 
 # A Tk widget has hundreds of methods, and this stands in for one, so the
@@ -261,9 +291,26 @@ class FakeWidget(FakeCanvas):  # pylint: disable=too-many-public-methods
         parent = self.parent
         return not isinstance(parent, FakeWidget) or parent.shown
 
-    def bind(self, sequence: str, callback: Callable[..., object]) -> str:
-        """Record one key binding, as a real Tk widget accepts one."""
-        self.bindings[sequence] = callback
+    def bind(self, sequence: str, callback: Callable[..., object],
+             add: str = '') -> str:
+        """Record one binding of one sequence, as a real Tk widget does.
+
+        A binding made with `add` is added to what the widget already had
+        rather than replacing it, exactly as Tk adds one: the editor binds
+        the map of its window twice, for the grab and for the focus, and a
+        stub that kept the last one would say that one of the two is missing.
+
+        Args:
+            sequence: Event sequence this widget is bound to.
+            callback: What that event does.
+            add: Tk's own '+' for a binding that is added to the ones there.
+
+        Returns:
+            What Tk answers with, which is the name of the binding.
+        """
+        bound = self.bindings.get(sequence)
+        self.bindings[sequence] = _both(bound, callback) if add and bound \
+            else callback
         return 'stub binding'
 
     def pack(self, **options: object) -> None:

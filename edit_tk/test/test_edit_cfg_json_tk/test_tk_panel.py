@@ -208,21 +208,28 @@ def test_stub_builds_model(stub_tk: None) -> None:
 def test_stub_area_modal(stub_tk: None) -> None:
     """Test a modal editor in an area takes the events for that area.
 
+    It takes them once the editor is on the screen and not while it is being
+    built, because Tk refuses a grab for a window that is not viewable and
+    says nothing about having refused it on the platforms where it does.
+
     An application that wants its own widgets answering beside the editor
     passes modal=False, which is what every other test here does.
     """
     _ = stub_tk
     _, area = _stub_panel(modal=True)
-    assert area.winfo_children()[0].grabbed
+    frame = area.winfo_children()[0]
+    assert not frame.grabbed
+    frame.bindings['<Map>']()
+    assert frame.grabbed
 
 
 def _refuse_grab(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Make every stub widget refuse the grab, as Tk does on some platforms.
+    """Make every stub widget refuse the grab, as Tk refuses one.
 
-    Tk refuses to grab for a window that is not on the screen yet, and whether
-    a window that has just been created counts as one differs between
-    platforms. The stub is the test's own stand-in for Tk, so it is where that
-    answer is given here.
+    The editor asks once its window is on the screen, so a window that is not
+    viewable is no longer the reason it can be refused: a grab that another
+    application already holds is. The stub is the test's own stand-in for Tk,
+    so it is where that answer is given here.
 
     Args:
         monkeypatch: The pytest fixture that replaces the method.
@@ -244,6 +251,7 @@ def test_stub_grab_refused(stub_tk: None,
     _ = stub_tk
     _refuse_grab(monkeypatch)
     panel, area = _stub_panel(modal=True)
+    area.winfo_children()[0].bindings['<Map>']()
     assert not area.winfo_children()[0].grabbed
     assert panel.model.config_type_name == 'FlatConfig'
     panel.close(ask_about_unsaved=False)
@@ -258,6 +266,7 @@ def test_stub_own_window(stub_tk: None) -> None:
     window = parent.winfo_children()[0]
     assert window.window_title == 'FlatConfig'
     assert window.transient_to is parent
+    window.bindings['<Map>']()
     assert window.grabbed
 
 
@@ -269,6 +278,8 @@ def test_stub_window_closed(stub_tk: None) -> None:
     panel = TkEditorPanel(FlatConfig(), parent=cast(tkinter.Misc, parent),
                           on_close=lambda: ended.append('gone'))
     window = parent.winfo_children()[0]
+    window.bindings['<Map>']()
+    assert window.grabbed
     panel.close()
     assert not window.grabbed
     assert window not in FakeWidget.created
