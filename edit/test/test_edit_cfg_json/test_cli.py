@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-"""Tests for the command line that all three programs of this library share.
+"""Tests for the command line that every program of this library shares.
 
 The program is what makes any configuration class in reach editable without a
 line of user interface code, so most of what is tested here is the two doors to

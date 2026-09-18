@@ -2,10 +2,18 @@
 # PYTHON_ARGCOMPLETE_OK
 """The `edit-cfg-json-textual` program: edit any class in the terminal.
 
-It is the same program as `edit-cfg-json` with this package's backend in place
-of the one that prints, so everything about its command line is documented in
-`edit_cfg_json.cli`. What it opens is a Textual screen with a field per member
-of the configuration class it was told to edit.
+It is the command line of `edit_cfg_json.cli` with this package's backend
+written into it, so everything about that command line is documented there.
+What it opens is a Textual screen with a field per member of the configuration
+class it was told to edit.
+
+**It is the terminal editor and nothing else**, which is the difference
+between it and `edit-cfg-json`: that one opens whichever editor the machine
+can run, and this one is how a user who wants the terminal says so once and
+for all, on a machine that has a display as well. Everything the two differ
+about beside that is read from `TEXTUAL_UI`, so this program and a session the
+launcher opens in this editor behave alike down to the settings file they
+read.
 
 Run it as `edit-cfg-json-textual`, or as `python -m edit_cfg_json_textual` on
 a machine whose script folder is not on the path.
@@ -18,19 +26,11 @@ from collections.abc import Sequence
 from typing import Optional
 import sys
 from edit_cfg_json import run_cli
-from edit_cfg_json_textual.textual_editor import TextualEditor
+from edit_cfg_json_textual.textual_ui import TEXTUAL_UI
 from edit_cfg_json_textual.textual_version import TextualVersionReporter
 
 PROGRAM = 'edit-cfg-json-textual'
 """Name that this program is installed under."""
-
-HOME_SETTINGS = '.edit-cfg-json-textual.cfg'
-"""File of the home folder that this program reads its own settings from.
-
-It is looked for before the file that every program of this library reads, so
-that a user whose terminal and window editors want different answers writes
-this one and a user who wants one answer writes only the shared file.
-"""
 
 
 def main(args: Optional[Sequence[str]] = None) -> int:
@@ -42,9 +42,10 @@ def main(args: Optional[Sequence[str]] = None) -> int:
     Returns:
         What this run ends with, as one of `edit_cfg_json.ExitCode`.
     """
-    return run_cli(backend=TextualEditor(), prog=PROGRAM, args=args,
+    return run_cli(backend=TEXTUAL_UI.backend(), prog=PROGRAM, args=args,
                    version_reporter=TextualVersionReporter(),
-                   home_settings=HOME_SETTINGS)
+                   interactive=TEXTUAL_UI.interactive,
+                   home_settings=TEXTUAL_UI.home_settings)
 
 
 if __name__ == '__main__':  # pragma: no cover

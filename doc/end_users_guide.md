@@ -1196,6 +1196,40 @@ Either way, the answers are the same and they are named the same.
 | `confirm_overwrite` | Whether the editor asks before writing over a file this session did not write. | `true`, which is the answer that loses nothing. |
 | `priority_keys` | Whether the editor is offered a key before the field the cursor is in. | `true`, so pressing Save while typing means Save. |
 | `choose_values` | Whether a member whose values the editor knows the whole of — true or false, and one of a fixed set of names — **opens** as a pull-down of those values. See [1.5](#15-changing-a-value) and [2.5](#25-changing-a-value). | `true`. Either way you switch between the two whenever you like, so this says only how the editor opens. |
+| `ui_priorities` | **Which of the two editors** a program that chooses one for itself opens. One entry per editor, with a number: the highest of the editors that can run on this machine is the one you get. See [3.1.1](#311-choosing-which-editor-you-get). | Nothing, and then the window editor is preferred where there is a display and the terminal editor where there is not. |
+
+### 3.1.1 Choosing which editor you get
+
+This one is worth a few more words, because it is the one setting that is not
+about how the editor behaves but about **which editor opens at all**.
+
+Some programs are written for one of the two: they always open a window, or
+always take over the terminal. Those programs are not affected by this
+setting, and there is nothing here for you to decide.
+
+Other programs choose for themselves. They ask every editor that is installed
+whether it can run where you are — a window needs a display, which a plain
+remote shell does not have — and open the best of the ones that can. Each
+editor comes with a number saying how good an editor it is: the window editor
+says 10 and the terminal editor says 5, so a machine with a display gives you
+the window.
+
+`ui_priorities` is how you say otherwise. One entry per editor, under the
+name that program's own `--ui` option uses:
+
+```json
+{"ui_priorities": {"textual": 20}}
+```
+
+That says that you want the terminal editor even where a window could be
+opened. `0` means the opposite — never open this one unless it is asked for
+by name — so `{"ui_priorities": {"tk": 0}}` keeps windows away without
+uninstalling anything.
+
+An editor that is not installed on this machine is simply ignored here, so one
+file can be used on several machines. Note also that a program may have an
+option of its own for one run, and that it wins over this: what you write here
+is what happens when nobody says otherwise.
 
 ## 3.2 What a settings file looks like
 
@@ -1208,7 +1242,8 @@ it leaves out keeps the answer the editor would have chosen anyway.
  "extension_enforced": true,
  "backup_suffix": ".old",
  "backup_count": 3,
- "choose_values": false}
+ "choose_values": false,
+ "ui_priorities": {"textual": 20}}
 ```
 
 The names of the actions are these, and no others:

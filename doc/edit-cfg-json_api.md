@@ -82,6 +82,7 @@
     * [WRONG\_CLASS](#edit_cfg_json.exit_code.ExitCode.WRONG_CLASS)
     * [NOT\_DESCRIPTIONS](#edit_cfg_json.exit_code.ExitCode.NOT_DESCRIPTIONS)
     * [NO\_SETTINGS](#edit_cfg_json.exit_code.ExitCode.NO_SETTINGS)
+    * [NO\_EDITOR](#edit_cfg_json.exit_code.ExitCode.NO_EDITOR)
   * [Refusal](#edit_cfg_json.exit_code.Refusal)
     * [\_\_init\_\_](#edit_cfg_json.exit_code.Refusal.__init__)
 * [edit\_cfg\_json.loading](#edit_cfg_json.loading)
@@ -125,6 +126,7 @@
 * [edit\_cfg\_json.editing](#edit_cfg_json.editing)
   * [editor\_model](#edit_cfg_json.editing.editor_model)
   * [edit](#edit_cfg_json.editing.edit)
+  * [edit\_in\_ui](#edit_cfg_json.editing.edit_in_ui)
 * [edit\_cfg\_json.elements](#edit_cfg_json.elements)
   * [BUILD\_ERRORS](#edit_cfg_json.elements.BUILD_ERRORS)
   * [CLEARED\_KINDS](#edit_cfg_json.elements.CLEARED_KINDS)
@@ -226,6 +228,8 @@
   * [DESCRIPTION](#edit_cfg_json.cli.DESCRIPTION)
   * [POLICY\_NAMES](#edit_cfg_json.cli.POLICY_NAMES)
   * [named\_policy](#edit_cfg_json.cli.named_policy)
+  * [add\_ui\_option](#edit_cfg_json.cli.add_ui_option)
+  * [add\_cfg\_option](#edit_cfg_json.cli.add_cfg_option)
   * [add\_file\_options](#edit_cfg_json.cli.add_file_options)
   * [run\_cli](#edit_cfg_json.cli.run_cli)
 * [edit\_cfg\_json.leaf\_value](#edit_cfg_json.leaf_value)
@@ -267,6 +271,18 @@
     * [loader](#edit_cfg_json.loader.ConfigSource.loader)
     * [config\_type](#edit_cfg_json.loader.ConfigSource.config_type)
     * [made](#edit_cfg_json.loader.ConfigSource.made)
+* [edit\_cfg\_json.ui\_choice](#edit_cfg_json.ui_choice)
+  * [UNKNOWN\_UI](#edit_cfg_json.ui_choice.UNKNOWN_UI)
+  * [CANNOT\_RUN](#edit_cfg_json.ui_choice.CANNOT_RUN)
+  * [NO\_EDITOR](#edit_cfg_json.ui_choice.NO_EDITOR)
+  * [ASK\_BY\_NAME](#edit_cfg_json.ui_choice.ASK_BY_NAME)
+  * [NONE\_AT\_ALL](#edit_cfg_json.ui_choice.NONE_AT_ALL)
+  * [discovered\_uis](#edit_cfg_json.ui_choice.discovered_uis)
+  * [ui\_priority](#edit_cfg_json.ui_choice.ui_priority)
+  * [ordered\_uis](#edit_cfg_json.ui_choice.ordered_uis)
+  * [available\_uis](#edit_cfg_json.ui_choice.available_uis)
+  * [no\_editor\_message](#edit_cfg_json.ui_choice.no_editor_message)
+  * [chosen\_ui](#edit_cfg_json.ui_choice.chosen_ui)
 * [edit\_cfg\_json.buffer](#edit_cfg_json.buffer)
   * [NOT\_EDITABLE\_ERROR](#edit_cfg_json.buffer.NOT_EDITABLE_ERROR)
   * [NOT\_A\_CONTAINER](#edit_cfg_json.buffer.NOT_A_CONTAINER)
@@ -322,7 +338,9 @@
   * [NOT\_AN\_EXTENSION](#edit_cfg_json.settings.NOT_AN_EXTENSION)
   * [NOT\_A\_SUFFIX](#edit_cfg_json.settings.NOT_A_SUFFIX)
   * [NOT\_A\_COUNT](#edit_cfg_json.settings.NOT_A_COUNT)
+  * [NOT\_A\_PRIORITY](#edit_cfg_json.settings.NOT_A_PRIORITY)
   * [MIN\_BACKUPS](#edit_cfg_json.settings.MIN_BACKUPS)
+  * [LOWEST\_PRIORITY](#edit_cfg_json.settings.LOWEST_PRIORITY)
   * [names\_a\_file](#edit_cfg_json.settings.names_a_file)
   * [with\_dot](#edit_cfg_json.settings.with_dot)
   * [BACKUP\_SUFFIX](#edit_cfg_json.settings.BACKUP_SUFFIX)
@@ -347,6 +365,7 @@
     * [priority\_keys](#edit_cfg_json.settings.Settings.priority_keys)
     * [confirm\_overwrite](#edit_cfg_json.settings.Settings.confirm_overwrite)
     * [choose\_values](#edit_cfg_json.settings.Settings.choose_values)
+    * [ui\_priorities](#edit_cfg_json.settings.Settings.ui_priorities)
   * [current\_settings](#edit_cfg_json.settings.current_settings)
   * [CheckedFile](#edit_cfg_json.settings.CheckedFile)
     * [name](#edit_cfg_json.settings.CheckedFile.name)
@@ -377,6 +396,10 @@
     * [loader](#edit_cfg_json.cli_target.Target.loader)
     * [wanted](#edit_cfg_json.cli_target.Target.wanted)
   * [target\_of](#edit_cfg_json.cli_target.target_of)
+* [edit\_cfg\_json.launcher](#edit_cfg_json.launcher)
+  * [PROGRAM](#edit_cfg_json.launcher.PROGRAM)
+  * [NO\_EDITOR\_FACTS](#edit_cfg_json.launcher.NO_EDITOR_FACTS)
+  * [main](#edit_cfg_json.launcher.main)
 * [edit\_cfg\_json.settings\_config](#edit_cfg_json.settings_config)
   * [UNKNOWN\_ACTION](#edit_cfg_json.settings_config.UNKNOWN_ACTION)
   * [REFUSED\_KEYS](#edit_cfg_json.settings_config.REFUSED_KEYS)
@@ -388,6 +411,7 @@
     * [as\_settings](#edit_cfg_json.settings_config.SettingsConfig.as_settings)
     * [get\_validation\_plan](#edit_cfg_json.settings_config.SettingsConfig.get_validation_plan)
   * [ACTION\_DESCRIPTIONS](#edit_cfg_json.settings_config.ACTION_DESCRIPTIONS)
+  * [EVERY\_UI](#edit_cfg_json.settings_config.EVERY_UI)
   * [EVERY\_ACTION](#edit_cfg_json.settings_config.EVERY_ACTION)
   * [SETTINGS\_DESCRIPTIONS](#edit_cfg_json.settings_config.SETTINGS_DESCRIPTIONS)
   * [described\_below](#edit_cfg_json.settings_config.described_below)
@@ -551,6 +575,17 @@
     * [answers](#edit_cfg_json.rows.BufferState.answers)
     * [found](#edit_cfg_json.rows.BufferState.found)
   * [stamped](#edit_cfg_json.rows.stamped)
+* [edit\_cfg\_json.ui\_backend](#edit_cfg_json.ui_backend)
+  * [UI\_GROUP](#edit_cfg_json.ui_backend.UI_GROUP)
+  * [NoEditorError](#edit_cfg_json.ui_backend.NoEditorError)
+  * [UiBackend](#edit_cfg_json.ui_backend.UiBackend)
+    * [ui\_name](#edit_cfg_json.ui_backend.UiBackend.ui_name)
+    * [priority](#edit_cfg_json.ui_backend.UiBackend.priority)
+    * [can\_run](#edit_cfg_json.ui_backend.UiBackend.can_run)
+    * [backend](#edit_cfg_json.ui_backend.UiBackend.backend)
+    * [interactive](#edit_cfg_json.ui_backend.UiBackend.interactive)
+    * [home\_settings](#edit_cfg_json.ui_backend.UiBackend.home_settings)
+  * [DUMP\_UI](#edit_cfg_json.ui_backend.DUMP_UI)
 * [edit\_cfg\_json.constructing](#edit_cfg_json.constructing)
   * [STREAM\_NAME](#edit_cfg_json.constructing.STREAM_NAME)
   * [FILE\_NAME](#edit_cfg_json.constructing.FILE_NAME)
@@ -1924,6 +1959,19 @@ the lookup found does not hold settings of this editor. Running with other
 settings than the ones that were asked for is what this number exists to
 stop, because a user who named a settings file wants that one.
 
+<a id="edit_cfg_json.exit_code.ExitCode.NO_EDITOR"></a>
+
+#### NO\_EDITOR
+
+This machine has no user interface to open the editor in.
+
+It is what the program that chooses an editor answers when nothing
+installed here is an editor that can run: a machine with no display and
+without the terminal editor, or one where every user interface has been
+given the priority that is never chosen on its own. The backend that
+prints once and returns can still be asked for by name, and the message
+says so.
+
 <a id="edit_cfg_json.exit_code.Refusal"></a>
 
 ## Refusal Objects
@@ -2488,6 +2536,10 @@ entry points of the two backend packages are that model mounted in a window
 an application owns. All three take the same few keywords, so an application
 says the same things about a session however it opens the editor.
 
+`edit_in_ui` is `edit` for a caller with no user interface of its own and
+therefore no reason to have chosen one: it names no backend and the editor
+opens in whichever of the installed ones this machine can run.
+
 <a id="edit_cfg_json.editing.editor_model"></a>
 
 #### editor\_model
@@ -2600,6 +2652,68 @@ and the backend asks the user for a destination before it can save.
 **Raises**:
 
 - `ConfigLoadError` - The input file cannot be opened for editing.
+
+<a id="edit_cfg_json.editing.edit_in_ui"></a>
+
+#### edit\_in\_ui
+
+```python
+def edit_in_ui(config: Config,
+               *,
+               ui_name: Optional[str] = None,
+               descriptions: Optional[Descriptions] = None,
+               in_file: Optional[PathOrStr] = None,
+               loader: Optional[ConfigLoader] = None,
+               out_file: Optional[PathOrStr] = None,
+               policy: LoadPolicy = DEFAULT_POLICY,
+               settings: SettingsSource = Settings(),
+               stderr_file: TextIO = sys.stderr) -> Optional[Config]
+```
+
+Edit one configuration in a user interface this machine can run.
+
+This is `edit` for an application that has no user interface of its own
+and therefore no reason to have chosen one: instead of naming a backend it
+names nothing, and the editor opens in the best of the user interfaces
+that are installed and can run in this context. A command that lets its
+own user say which builds the choices of that option with
+`edit_cfg_json.available_uis`, so that it offers exactly the ones that
+would work.
+
+Everything else it does is `edit`, and every keyword means there what it
+means here.
+
+**Arguments**:
+
+- `config` - Configuration object saying which class to edit and what its
+  declared defaults are. It is never modified.
+- `ui_name` - Name of the user interface to open the editor in, or None
+  to open the one this machine can best run. The names are the ones
+  `edit_cfg_json.available_uis` answers with.
+- `descriptions` - What the application says about the members it
+  declares, or None when it says nothing.
+- `in_file` - File to read, or None to start from the declared defaults.
+- `loader` - How this application constructs its configuration, or None for
+  a class the editor can construct on its own.
+- `out_file` - File to write, or None to write the input file.
+- `policy` - What to do about declared keys the input file does not hold.
+- `settings` - What the application around the editor has already decided,
+  or a callable that answers with it. `ui_priorities` is the one of
+  them this call reads before anything is opened.
+- `stderr_file` - Stream used for user-facing diagnostics.
+  
+
+**Returns**:
+
+  The configuration object that was written, or None when the session
+  ended without anything being saved.
+  
+
+**Raises**:
+
+- `ConfigLoadError` - The input file cannot be opened for editing.
+- `NoEditorError` - The user interface that was named cannot run here, or
+  none was named and this machine can open no editor at all.
 
 <a id="edit_cfg_json.elements"></a>
 
@@ -3942,11 +4056,12 @@ they differ about is their keys and their questions, of which this has neither.
 What a settings file still says here is what a file is called and what happens
 to the one a save writes over.
 
-Run it as `python3 -m edit_cfg_json.dump`. This package installs no command of
-its own, and the name `edit-cfg-json` in particular is deliberately free: it
-promises the editor this library is for, and a user who typed it and got a
-printout would have been misled by the name rather than by anything the
-program did.
+Run it as `python3 -m edit_cfg_json.dump`. It is reached by naming it and by
+nothing shorter: `edit-cfg-json` is the editor this machine can run, and a
+user who typed that and got a printout would have been misled by the name
+rather than by anything the program did. That is also what `DUMP_UI` reports
+about itself — the priority that is never chosen on its own — so the launcher
+opens this only where `--ui dump` asked for it.
 
 <a id="edit_cfg_json.dump.PROGRAM"></a>
 
@@ -4163,15 +4278,23 @@ Return what the classes of one tree say about each node of it.
 The command line of a program that edits any configuration class.
 
 An application author should get an editor for their own configuration class
-without writing a line of user interface code, and every one of the three
-distributions therefore ships a program. What differs between the three
-programs is the backend and nothing else, so everything else lives here: the
-parsing, one editing session and the exit code. Each package is then a program
-of a few statements, which is also what makes this testable with no display and
-no toolkit, by handing `run_cli` a backend that is a stub.
+without writing a line of user interface code, so each of the three
+distributions ships a program: the two editors, and from the core both the
+launcher that opens whichever editor this machine can run and the utility that
+prints a configuration once. What differs between them is the backend and
+nothing else, so everything else lives here: the parsing, one editing session
+and the exit code. Each of them is then a program of a few statements, which is
+also what makes this testable with no display and no toolkit, by handing
+`run_cli` a backend that is a stub.
 
 `run_cli` takes the backend for exactly the reason `edit` does: this package
 never imports a user interface library, so it cannot name one.
+
+**One of the programs has no backend of its own**, which is the launcher of
+`edit_cfg_json.launcher`: it opens the editor the machine can run, so it finds
+its backend rather than being built out of one. That is the whole of what
+`--ui` and a backend of None are here for, and both are absent from a program
+that was written for one user interface.
 
 **Where the class comes from is `edit_cfg_json.cli_target`**, which owns the
 three doors to it — an importable module, a Python file, and this library's own
@@ -4238,6 +4361,43 @@ Return the load policy that one `--policy` value asks for.
 - `KeyError` - The name is not one of the accepted values. It cannot come
   from a command line, because `argparse` refuses it first.
 
+<a id="edit_cfg_json.cli.add_ui_option"></a>
+
+#### add\_ui\_option
+
+```python
+def add_ui_option(parser: ArgumentParser,
+                  choices: Optional[Sequence[str]] = None) -> None
+```
+
+Add the option that says which user interface the editor opens in.
+
+It belongs to the program that chooses one for itself and to no other, so
+it is added where that program asks for it rather than by the parser
+below. That program declares it twice — once to read it before it knows
+which editor the rest of the command line belongs to, and once in the
+parser the user sees — and this is what keeps the two the same option.
+
+**Arguments**:
+
+- `parser` - Parser that the option is added to.
+- `choices` - The `--ui` names this run accepts, or None to accept any
+  name, which is what the first of those two readings does.
+
+<a id="edit_cfg_json.cli.add_cfg_option"></a>
+
+#### add\_cfg\_option
+
+```python
+def add_cfg_option(parser: ArgumentParser) -> None
+```
+
+Add the option naming the settings file that one run behaves by.
+
+**Arguments**:
+
+- `parser` - Parser that the option is added to.
+
 <a id="edit_cfg_json.cli.add_file_options"></a>
 
 #### add\_file\_options
@@ -4263,25 +4423,32 @@ from becoming two.
 #### run\_cli
 
 ```python
-def run_cli(backend: EditorBackend,
-            prog: str,
-            *,
-            version_reporter: VersionReporter,
-            args: Optional[Sequence[str]] = None,
-            interactive: bool = True,
-            home_settings: Optional[str] = None) -> int
+def run_cli(
+    backend: Optional[EditorBackend],
+    prog: str,
+    *,
+    version_reporter: VersionReporter,
+    args: Optional[Sequence[str]] = None,
+    interactive: bool = True,
+    home_settings: Optional[str] = None,
+    ui_choices: Sequence[str] = ()) -> int
 ```
 
 Run one program of this library from the command line.
 
-This is the whole of what each of the three programs does. The backend and
-the reporter are what differ between them, and everything that could be
-written twice is therefore here.
+This is the whole of what every program of this library does. The backend
+and the reporter are what differ between them, and everything that could
+be written twice is therefore here.
 
 **Arguments**:
 
 - `backend` - User interface to run the session in. Each package supplies
   its own, which is the one user interface this package cannot name.
+  None is a program that chooses its own and found none it could
+  open, which is refused once the command line has been read, so
+  that `--help` and `--version` still answer: the first of those is
+  what says that `--ui` exists and which names it takes, and the
+  second is what a problem report is written from.
 - `prog` - Name that this program is installed under, used in its help and
   in its refusals.
 - `version_reporter` - What `--version` is answered with. Each program
@@ -4297,6 +4464,9 @@ written twice is therefore here.
   folder, which is the third step of the lookup that
   `edit_cfg_json.settings_file` makes. None is a program that has
   none of its own and reads the shared file or nothing.
+- `ui_choices` - The `--ui` names this run accepts, for a program that
+  chooses its own user interface. The empty default is a program
+  that supplies one backend and therefore has no such option.
   
 
 **Returns**:
@@ -4997,6 +5167,211 @@ Return one configuration object of this session's class.
 - `TypeError` - The configuration cannot be constructed this way.
 - `AttributeError` - The class declares no public member at all.
 
+<a id="edit_cfg_json.ui_choice"></a>
+
+# edit\_cfg\_json.ui\_choice
+
+Which user interface the editor is opened in, on this machine.
+
+`edit_cfg_json.ui_backend` is what a backend package says about itself. This
+is what reads every one of those and answers the two questions a program has:
+which user interfaces could be asked for here, and which one is opened when
+nobody asked.
+
+**Being installed is not the question.** A window needs a display and a
+terminal screen needs a terminal, so each registration answers for itself
+whether it can run in this context, and this module only puts the answers in
+order. The order is the priority each registration reports, with whatever
+`Settings.ui_priorities` says about it instead, and the highest of them that
+can run is the one that is opened.
+
+**A user interface of the lowest priority is never opened on its own.** It is
+asked for by name and at no other time, which is what keeps the backend that
+prints once and returns out of the choosing: somebody who asked for an editor
+and got a printout would have been misled by the answer rather than by
+anything they typed. It is still offered by name, so a machine that can run no
+editor at all can be asked for the printout.
+
+<a id="edit_cfg_json.ui_choice.UNKNOWN_UI"></a>
+
+#### UNKNOWN\_UI
+
+Message of the refusal of a `--ui` name that nothing registers.
+
+<a id="edit_cfg_json.ui_choice.CANNOT_RUN"></a>
+
+#### CANNOT\_RUN
+
+Message of the refusal of a user interface that was asked for by name.
+
+<a id="edit_cfg_json.ui_choice.NO_EDITOR"></a>
+
+#### NO\_EDITOR
+
+What a program says when nothing it could open is an editor.
+
+<a id="edit_cfg_json.ui_choice.ASK_BY_NAME"></a>
+
+#### ASK\_BY\_NAME
+
+What is added to that when something can run, which is normally the case.
+
+It names them because the one that can run is then almost always the backend
+that prints once, and somebody who has been told that no editor can be opened
+has to be told what they can do instead.
+
+<a id="edit_cfg_json.ui_choice.NONE_AT_ALL"></a>
+
+#### NONE\_AT\_ALL
+
+What is added instead when even that one is not registered.
+
+<a id="edit_cfg_json.ui_choice.discovered_uis"></a>
+
+#### discovered\_uis
+
+```python
+def discovered_uis() -> list[UiBackend]
+```
+
+Return every user interface this installation registers, once each.
+
+Two packages registering one `--ui` name is a clash neither of them can
+see, so it is settled rather than refused: the one that reports the higher
+priority is kept, because that is the one whose author believes it is the
+better editor of the two.
+
+**Returns**:
+
+  One registration per `--ui` name, in no particular order.
+
+<a id="edit_cfg_json.ui_choice.ui_priority"></a>
+
+#### ui\_priority
+
+```python
+def ui_priority(backend: UiBackend, settings: Settings) -> int
+```
+
+Return the priority that this machine gives one user interface.
+
+**Arguments**:
+
+- `backend` - What one user interface registered about itself.
+- `settings` - What this machine has decided about the editor.
+  
+
+**Returns**:
+
+  What the settings say about it, and what it reported where they say
+  nothing.
+
+<a id="edit_cfg_json.ui_choice.ordered_uis"></a>
+
+#### ordered\_uis
+
+```python
+def ordered_uis(settings: SettingsSource = Settings()) -> list[UiBackend]
+```
+
+Return every registered user interface, the preferred one first.
+
+Nothing is asked whether it can run here, because ordering is not
+probing: a caller walks this list and asks, which is what stops a machine
+that can open a window from ever being asked about a terminal.
+
+**Arguments**:
+
+- `settings` - What this machine has decided about the editor, or a
+  callable that answers with it.
+  
+
+**Returns**:
+
+  The registrations, by descending priority and then by name, so that
+  two user interfaces of one priority are in an order that does not
+  depend on which package was installed first.
+
+<a id="edit_cfg_json.ui_choice.available_uis"></a>
+
+#### available\_uis
+
+```python
+def available_uis(settings: SettingsSource = Settings()) -> list[str]
+```
+
+Return the names of the user interfaces that can run here.
+
+This is what a program of somebody else's builds the choices of its own
+`--ui` option from, so every name here can be asked for — including one
+whose priority says that it is never opened without being asked for.
+
+Every registration is asked whether it can run, which is what this is for
+and is more than choosing one costs.
+
+**Arguments**:
+
+- `settings` - What this machine has decided about the editor, or a
+  callable that answers with it.
+  
+
+**Returns**:
+
+  The `--ui` name of each user interface that can run in this context,
+  the preferred one first.
+
+<a id="edit_cfg_json.ui_choice.no_editor_message"></a>
+
+#### no\_editor\_message
+
+```python
+def no_editor_message(names: Sequence[str]) -> str
+```
+
+Return what a program says when it can open no editor at all.
+
+**Arguments**:
+
+- `names` - The user interfaces that can run here, which is normally the
+  one that prints and nothing else.
+  
+
+**Returns**:
+
+  The whole of what the user is told.
+
+<a id="edit_cfg_json.ui_choice.chosen_ui"></a>
+
+#### chosen\_ui
+
+```python
+def chosen_ui(
+    ui_name: Optional[str] = None,
+    settings: SettingsSource = Settings()
+) -> UiBackend
+```
+
+Return the user interface that one run opens the editor in.
+
+**Arguments**:
+
+- `ui_name` - The `--ui` name that this run asked for, or None to open
+  the editor that this machine can run.
+- `settings` - What this machine has decided about the editor, or a
+  callable that answers with it.
+  
+
+**Returns**:
+
+  The registration to open the editor in.
+  
+
+**Raises**:
+
+- `NoEditorError` - The name that was asked for is not one that can run
+  here, or nothing was asked for and this machine can open no
+  editor at all.
+
 <a id="edit_cfg_json.buffer"></a>
 
 # edit\_cfg\_json.buffer
@@ -5554,8 +5929,13 @@ Where a program of this library reads its own settings from.
 An application that calls `edit` knows its own settings and passes them. A
 *program* has no application around it to ask, so it reads them from a file,
 and this is the order it looks in: the file the command line names, the file
-the environment names, the file of that program in the home folder, the file
-of this library in the home folder, and finally no file at all.
+the environment names, the file of that user interface in the home folder, the
+file of this library in the home folder, and finally no file at all.
+
+**The third step belongs to the user interface and not to the program**, which
+is why its name is a member of `edit_cfg_json.ui_backend.UiBackend`: what the
+two editors differ about is their keys and their questions, so a session the
+launcher opens in one of them reads the file that editor's own program reads.
 
 **A file that was named must be there, and a file that was looked for need not
 be.** `-c/--cfg` and the environment variable are somebody saying which file to
@@ -5603,7 +5983,9 @@ File of the home folder that every program of this library reads.
 
 It is the last step of the lookup, so a user who wants one answer for the
 window and for the terminal writes it once here, and a user who wants the two
-to differ writes the file of one of them beside it.
+to differ writes the file of one of them beside it. It is also the only one
+that the launcher can read before it has chosen an editor, which is what makes
+it the file that `Settings.ui_priorities` belongs in.
 
 <a id="edit_cfg_json.settings_file.NO_SETTINGS_FILE"></a>
 
@@ -5632,7 +6014,9 @@ that saving the file writes every value this version has.
 It names the file because the lookup has five steps and the user who sees this
 did not necessarily choose the one that answered. It asks for the file to be
 opened and saved rather than for a migration command of its own, because saving
-is what writes those values and the editor is what the two programs are.
+is what writes those values and the editor is what those programs are. The
+first of the three is the one that needs no choice made about it, so it is
+named first.
 
 <a id="edit_cfg_json.settings_file.settings_file"></a>
 
@@ -5648,10 +6032,13 @@ Return the file that one program reads its settings from.
 **Arguments**:
 
 - `named` - File that `-c/--cfg` named, or None when it named none.
-- `home_settings` - Name of this program's own file in the home folder, or
-  None for a program that has none. A backend that prints once and
-  returns is such a program: the settings that differ between the two
-  editors are their keys and their questions, and it has neither.
+- `home_settings` - Name of the chosen user interface's own file in the
+  home folder, or None where there is none. A backend that prints
+  once and returns has none: the settings that differ between the
+  two editors are their keys and their questions, and it has
+  neither. The launcher passes None for the reading that decides
+  which editor to open, because that step of the lookup comes after
+  the choosing.
   
 
 **Returns**:
@@ -5914,11 +6301,29 @@ Message of the refusal of a backup count that keeps no file at all.
 Keeping no backup is what an empty `backup_suffix` says, and saying it twice
 would leave two answers that could disagree with each other.
 
+<a id="edit_cfg_json.settings.NOT_A_PRIORITY"></a>
+
+#### NOT\_A\_PRIORITY
+
+Message of the refusal of a priority below the lowest one there is.
+
 <a id="edit_cfg_json.settings.MIN_BACKUPS"></a>
 
 #### MIN\_BACKUPS
 
 Fewest backup files that `backup_count` may ask for.
+
+<a id="edit_cfg_json.settings.LOWEST_PRIORITY"></a>
+
+#### LOWEST\_PRIORITY
+
+Lowest priority that a user interface may be given.
+
+It is also the answer that says "never on its own": a user interface of this
+priority is opened when it was asked for by name and at no other time, which
+is what a backend that prints once and returns reports about itself. The
+priorities live in `edit_cfg_json.ui_backend`, and the number is here because
+`ui_priorities` below is the one that overrules them.
 
 <a id="edit_cfg_json.settings.names_a_file"></a>
 
@@ -6293,6 +6698,28 @@ user switches between the two whenever they like, and this says nothing
 once they have, exactly as the editor opens with the explanations shown
 and says nothing about them once they have been hidden.
 
+<a id="edit_cfg_json.settings.Settings.ui_priorities"></a>
+
+#### ui\_priorities
+
+What this machine thinks of each user interface, by its `--ui` name.
+
+A program that opens the editor the machine can run asks every installed
+user interface how good an editor it is, and opens the best of those that
+can run here. This is where that answer is overruled, one user interface
+per entry, and the default is an empty dict, which is nobody overruling
+anything.
+
+It is here rather than in `edit_cfg_json.ui_backend` because it is the one
+part of the answer that belongs to the machine and not to the backend: a
+user who prefers the terminal editor on a machine that has a display says
+so once, and every program of this library opens the one they meant.
+
+A name no installed package registers is kept and ignored, because a
+settings file is written once and read on more than one machine. A
+priority below `LOWEST_PRIORITY` is refused, and that lowest one is how a
+user interface is taken out of the choosing without being uninstalled.
+
 <a id="edit_cfg_json.settings.current_settings"></a>
 
 #### current\_settings
@@ -6657,6 +7084,73 @@ Return what one command line says is to be edited.
 
 - `Refusal` - There is no configuration object to edit.
 
+<a id="edit_cfg_json.launcher"></a>
+
+# edit\_cfg\_json.launcher
+
+The `edit-cfg-json` program: the editor this machine can run.
+
+It is the command line of `edit_cfg_json.cli` with no backend written into it.
+What editor it opens is found rather than named: every installed package that
+supplies a user interface registers one `edit_cfg_json.ui_backend.UiBackend`,
+and this opens the best of those that can run here. `--ui` is how one of them
+is asked for instead, and its values are the ones this machine can really run.
+
+**This is the name that promises an editor**, which is why the core has
+installed no program under it until now and why
+`python3 -m edit_cfg_json.dump` is called what it is. Now that the name opens
+one, it is also reachable as `python3 -m edit_cfg_json`, exactly as each of
+the two editor programs is reachable through its own package.
+
+**The command line is read twice, and `--ui` is why.** Which options the
+parser has depends on the editor: a backend that prints once and returns
+offers the two options that stand in for what its user cannot do, and an
+editor offers neither. So `--ui` and `-c` are read first, on their own, and
+the parser the user sees is built once the answer is known. Both readings
+declare the option with the same function of `edit_cfg_json.cli`, so there is
+one option and not two that could drift apart.
+
+**The settings that decide which editor are the shared ones.** The file of a
+program's own in the home folder is read afterwards, by the session, because
+which editor is opened cannot be decided by the settings file belonging to one
+of them. That first reading says nothing about a file it cannot read either:
+the session reads the same file and refuses the run, and one refusal is
+enough.
+
+<a id="edit_cfg_json.launcher.PROGRAM"></a>
+
+#### PROGRAM
+
+Name that this program is installed under.
+
+<a id="edit_cfg_json.launcher.NO_EDITOR_FACTS"></a>
+
+#### NO\_EDITOR\_FACTS
+
+What the command line is told where this machine can open no editor.
+
+They leave it what it would be for an editor, because it is refused once it
+has been read and what it offers until then is the same either way.
+
+<a id="edit_cfg_json.launcher.main"></a>
+
+#### main
+
+```python
+def main(args: Optional[Sequence[str]] = None) -> int
+```
+
+Run this program and return what it ends with.
+
+**Arguments**:
+
+- `args` - Optional replacement for `sys.argv[1:]`, mainly for tests.
+  
+
+**Returns**:
+
+  What this run ends with, as one of `edit_cfg_json.ExitCode`.
+
 <a id="edit_cfg_json.settings_config"></a>
 
 # edit\_cfg\_json.settings\_config
@@ -6684,6 +7178,13 @@ file would have had to name every action. A dict member is filled in per key
 instead, its keys are checked against the ones this class declares, and a
 member validator completes what a file left out. So a settings file may name
 one action and the editor still shows all of them.
+
+**The priorities of the user interfaces are a dict with no declared keys at
+all**, which is `_unchecked_dicts`, and that is the difference between them
+and the actions above: an action name is one this editor has or a mistake,
+while a `--ui` name belongs to whatever packages happen to be installed, and
+the same settings file is read on machines that have different ones. So a name
+nothing registers here is kept and ignored rather than refused.
 
 **Nothing here restates what a valid setting is.** Each member validator hands
 the value to `Settings` or `ActionSettings` and reports what the dataclass
@@ -6777,9 +7278,10 @@ class SettingsConfig(Config)
 What has been decided about the editor itself.
 
 Which key combinations run the actions of the editor, what a configuration
-file of this application is called, and how the file that a save writes
-over is looked after. It is the same set of answers as `Settings`, in the
-form that can be read from a file and edited in this editor.
+file of this application is called, how the file that a save writes over
+is looked after, and which user interface a program that chooses one for
+itself opens. It is the same set of answers as `Settings`, in the form
+that can be read from a file and edited in this editor.
 
 A file of these need name only what it changes: what it leaves out keeps
 the answer the editor would have chosen anyway, and the editor shows every
@@ -6862,6 +7364,16 @@ What each action of the editor is, by the name it is set under.
 
 Every action of `ActionSettings` has an entry, and one that is added later
 without one is described by the line that reaches every action instead.
+
+<a id="edit_cfg_json.settings_config.EVERY_UI"></a>
+
+#### EVERY\_UI
+
+What is said about every entry of the priorities, whatever it is called.
+
+The keys are the user interfaces that happen to be installed, so no line can
+be written per key: this is what the `[` selector reaches, and it is the whole
+of what is said below one of them.
 
 <a id="edit_cfg_json.settings_config.EVERY_ACTION"></a>
 
@@ -9762,6 +10274,150 @@ and a node a search reached all outlive the rows that were there then.
   The same rows, each saying whether it is folded, whether it shows,
   what the configuration objects at or inside it are on their own, and
   whether it is the node the search has got to.
+
+<a id="edit_cfg_json.ui_backend"></a>
+
+# edit\_cfg\_json.ui\_backend
+
+What a user interface says about itself, so that it can be chosen.
+
+The editors of this library live in packages of their own, so a program that
+opens "the editor this machine can run" has to find out what is installed
+before it can open anything. This module is the half of that which a backend
+package writes: one `UiBackend` per user interface, registered in the
+`edit_cfg_json.ui` entry point group of the package that supplies it.
+`edit_cfg_json.ui_choice` is the half that reads them.
+
+**A third party writes one of these exactly as the two backends of this
+repository do.** Nothing here names a user interface library, and the priority
+a registration reports is the backend author's own answer to which editor is
+the better one where a machine can run more than one. The person running the
+program has the last word over that answer, which is `Settings.ui_priorities`.
+
+<a id="edit_cfg_json.ui_backend.UI_GROUP"></a>
+
+#### UI\_GROUP
+
+Entry point group that every user interface of this library registers in.
+
+A package that supplies a user interface names one `UiBackend` of its own in
+this group, and that is the whole of what it has to do to be discovered:
+
+````toml
+[project.entry-points."edit_cfg_json.ui"]
+qt = "edit_cfg_json_qt:QT_UI"
+````
+
+<a id="edit_cfg_json.ui_backend.NoEditorError"></a>
+
+## NoEditorError Objects
+
+```python
+class NoEditorError(Exception)
+```
+
+There is no user interface here to open the editor in.
+
+It is raised where an editor was asked for and the machine can open none:
+a name that no installed package registers, one whose user interface
+cannot run in this context, and a run that named no user interface at all
+on a machine where nothing but a printout is available.
+
+<a id="edit_cfg_json.ui_backend.UiBackend"></a>
+
+## UiBackend Objects
+
+```python
+class UiBackend(NamedTuple)
+```
+
+One user interface that an editor of this library can be opened in.
+
+It is what a backend package registers about itself, and everything a
+program has to know to open an editor in that user interface without
+naming its package: whether it can run here at all, how to make its
+backend, and the two facts about a session in it that the shared command
+line of `edit_cfg_json.cli` is told.
+
+<a id="edit_cfg_json.ui_backend.UiBackend.ui_name"></a>
+
+#### ui\_name
+
+What `--ui` is given to ask for this user interface.
+
+It is what the person running a program types, so it is a plain word and
+not an import name: `tk`, `textual`, `dump`.
+
+<a id="edit_cfg_json.ui_backend.UiBackend.priority"></a>
+
+#### priority
+
+Which user interface is the better one where several can run.
+
+It is zero or more, and the highest of those that can run is the one a
+program opens when nobody said which. `LOWEST_PRIORITY` is the answer of
+something that is not an editor at all: it is never opened unless it was
+asked for by name.
+
+The backend author decides it, because it is a statement about the user
+interface rather than about one machine. What overrules it is the person
+running the program, through `Settings.ui_priorities`.
+
+<a id="edit_cfg_json.ui_backend.UiBackend.can_run"></a>
+
+#### can\_run
+
+Whether this user interface can run in this context.
+
+It is asked, rather than worked out from the packages that are installed,
+because being installed is not the question: a window needs a display and
+a terminal screen needs a terminal, and neither of those is a fact about
+what was installed. It is asked at most once per user interface per run,
+and only until one of them answers yes.
+
+<a id="edit_cfg_json.ui_backend.UiBackend.backend"></a>
+
+#### backend
+
+How one backend of this user interface is made.
+
+It is a callable and not a backend, because making one before it is known
+which will be used would build every user interface of the machine in
+order to open one of them.
+
+<a id="edit_cfg_json.ui_backend.UiBackend.interactive"></a>
+
+#### interactive
+
+Whether the user gets a session they could press Save in.
+
+True for an editor, which is what nearly every registration is. A backend
+that prints once and returns says False, and its program then offers the
+options that stand in for what the user cannot do and answers with the
+verdict of the buffer in its exit code.
+
+<a id="edit_cfg_json.ui_backend.UiBackend.home_settings"></a>
+
+#### home\_settings
+
+Name of this user interface's own settings file in the home folder.
+
+It is read before the file that every program of this library shares, so
+that a user whose window and terminal editors want different keys writes
+one file each. None is a user interface that has nothing of its own to
+differ about, which is what a backend that prints once and returns is.
+
+<a id="edit_cfg_json.ui_backend.DUMP_UI"></a>
+
+#### DUMP\_UI
+
+The very limited non-interactive backend, as a user interface to choose.
+
+Its priority is the one that is never chosen on its own, because printing a
+configuration once is not an editor and somebody who asked for an editor and
+got a printout would have been misled by the answer rather than by anything
+they typed. `--ui dump` reaches it, which is what registering it is for: a
+machine that can run no editor at all can still be asked for the printout.
 
 <a id="edit_cfg_json.constructing"></a>
 

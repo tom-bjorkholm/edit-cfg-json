@@ -10,5 +10,7 @@ that nothing has to be imported from an internal module.
 
 from edit_cfg_json_tk.tk_panel import TkEditor, TkEditorPanel, edit
 from edit_cfg_json_tk.tk_version import TkVersionReporter
+from edit_cfg_json_tk.tk_ui import TK_UI, tk_can_run
 
-__all__ = ['TkEditor', 'TkEditorPanel', 'TkVersionReporter', 'edit']
+__all__ = ['TK_UI', 'TkEditor', 'TkEditorPanel', 'TkVersionReporter',
+           'edit', 'tk_can_run']

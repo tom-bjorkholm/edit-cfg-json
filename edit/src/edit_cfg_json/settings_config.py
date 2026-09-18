@@ -23,6 +23,13 @@ instead, its keys are checked against the ones this class declares, and a
 member validator completes what a file left out. So a settings file may name
 one action and the editor still shows all of them.
 
+**The priorities of the user interfaces are a dict with no declared keys at
+all**, which is `_unchecked_dicts`, and that is the difference between them
+and the actions above: an action name is one this editor has or a mistake,
+while a `--ui` name belongs to whatever packages happen to be installed, and
+the same settings file is read on machines that have different ones. So a name
+nothing registers here is kept and ignored rather than refused.
+
 **Nothing here restates what a valid setting is.** Each member validator hands
 the value to `Settings` or `ActionSettings` and reports what the dataclass
 refused, which is principle 1 of section 3 of `doc/detailed_design.md` applied
@@ -100,7 +107,7 @@ supplying that one would accept a file no version ever produced, and would put
 a key back that somebody had deliberately taken out.
 """
 
-ADDED_SETTINGS = ('choose_values',)
+ADDED_SETTINGS = ('choose_values', 'ui_priorities')
 """Settings that previous released versions did not write into a file.
 
 They are to a member of this class what `ADDED_ACTIONS` is to a key of its
@@ -221,6 +228,46 @@ def _refusal(message: str, stderr_file: TextIO) -> InvalidConfiguration:
     return InvalidConfiguration(message)
 
 
+class _UiPriorities(MemberValidator):  # pylint: disable=too-few-public-methods
+    """Refuse a priority that `Settings` refuses, and nothing else.
+
+    The keys are the `--ui` names of the user interfaces, and this class
+    declares none of them: a settings file is written once and read on more
+    than one machine, so a name that nothing registers here is kept and
+    ignored rather than refused. `_unchecked_dicts` is what takes the
+    declared-keys check off the member, and this is what is left to say about
+    it, which `Settings` already says.
+    """
+
+    def validate_member(self, config: Config, member_name: str,
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
+        """Return the priorities, having asked `Settings` about them.
+
+        Args:
+            config: The configuration object that owns the member.
+            member_name: What a diagnostic calls the member, which is the
+                whole path for reaching it.
+            member_value: What the file or the edit buffer holds for it, whose
+                keys and values were checked by the validator before this one.
+            stderr_file: Stream used for user-facing diagnostics.
+
+        Returns:
+            Those priorities, unchanged.
+
+        Raises:
+            InvalidConfiguration: One of them is below the lowest priority
+                there is.
+        """
+        _ = config, member_name
+        assert isinstance(member_value, dict)
+        try:
+            Settings(ui_priorities=member_value)
+        except ValueError as error:
+            raise _refusal(str(error), stderr_file) from error
+        return member_value
+
+
 class _NamesAFile(MemberValidator):  # pylint: disable=too-few-public-methods
     """Refuse text that adds nothing to a file name, as `Settings` does.
 
@@ -325,6 +372,19 @@ Keeping none of them is what an empty `backup_suffix` says, so a count below
 one would be a second way of saying it that could disagree with the first.
 """
 
+_UI_PRIORITIES = MemberValidatorSequence(
+    [DictKeyValueTypesValidator(
+        key_type=str, value_type=int,
+        value_validator=ValueTypeValidator(value_type=int,
+                                           not_allowed_type=bool)),
+     _UiPriorities()])
+"""What the priority of each user interface is checked with.
+
+True and false are refused although they are whole numbers in Python, for the
+reason every other number member of this class refuses them: a setting that
+was written as a flag by mistake is a mistake worth hearing about.
+"""
+
 _FLAG = ValueTypeValidator(bool)
 """What a member holding true or false is checked with.
 
@@ -341,9 +401,10 @@ class SettingsConfig(Config):  # pylint: disable=too-many-instance-attributes
     """What has been decided about the editor itself.
 
     Which key combinations run the actions of the editor, what a configuration
-    file of this application is called, and how the file that a save writes
-    over is looked after. It is the same set of answers as `Settings`, in the
-    form that can be read from a file and edited in this editor.
+    file of this application is called, how the file that a save writes over
+    is looked after, and which user interface a program that chooses one for
+    itself opens. It is the same set of answers as `Settings`, in the form
+    that can be read from a file and edited in this editor.
 
     A file of these need name only what it changes: what it leaves out keeps
     the answer the editor would have chosen anyway, and the editor shows every
@@ -370,6 +431,10 @@ class SettingsConfig(Config):  # pylint: disable=too-many-instance-attributes
                 where these settings are the whole configuration.
         """
         declared = Settings()
+        # The keys of this one are the `--ui` names of whatever user
+        # interfaces are installed, which this class cannot declare and a
+        # settings file read on another machine would not agree about.
+        self._unchecked_dicts = ['ui_priorities']
         self.actions: dict[str, list[str]] = declared_actions()
         self.file_extension: Optional[str] = declared.file_extension
         self.extension_enforced: bool = declared.extension_enforced
@@ -378,6 +443,7 @@ class SettingsConfig(Config):  # pylint: disable=too-many-instance-attributes
         self.priority_keys: bool = declared.priority_keys
         self.confirm_overwrite: bool = declared.confirm_overwrite
         self.choose_values: bool = declared.choose_values
+        self.ui_priorities: dict[str, int] = dict(declared.ui_priorities)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
                         stderr_file=stderr_file, member_name=member_name)
@@ -417,7 +483,8 @@ class SettingsConfig(Config):  # pylint: disable=too-many-instance-attributes
                         backup_count=self.backup_count,
                         priority_keys=self.priority_keys,
                         confirm_overwrite=self.confirm_overwrite,
-                        choose_values=self.choose_values)
+                        choose_values=self.choose_values,
+                        ui_priorities=dict(self.ui_priorities))
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return what every setting of the editor is checked against.
@@ -438,6 +505,8 @@ class SettingsConfig(Config):  # pylint: disable=too-many-instance-attributes
                                      validator=_SUFFIX),
                 MemberValidationStep(member_names=['backup_count'],
                                      validator=_COUNT),
+                MemberValidationStep(member_names=['ui_priorities'],
+                                     validator=_UI_PRIORITIES),
                 MemberValidationStep(
                     member_names=['extension_enforced', 'priority_keys',
                                   'confirm_overwrite', 'choose_values'],
@@ -462,6 +531,14 @@ ACTION_DESCRIPTIONS: Mapping[str, str] = {
 
 Every action of `ActionSettings` has an entry, and one that is added later
 without one is described by the line that reaches every action instead.
+"""
+
+EVERY_UI = 'How good an editor this user interface is on this machine.'
+"""What is said about every entry of the priorities, whatever it is called.
+
+The keys are the user interfaces that happen to be installed, so no line can
+be written per key: this is what the `[` selector reaches, and it is the whole
+of what is said below one of them.
 """
 
 EVERY_ACTION = 'Key combinations that run one action of the editor.'
@@ -507,7 +584,16 @@ _MEMBER_DESCRIPTIONS: Descriptions = {
                         'is a member holding true or false and one holding '
                         'an enum member, and false opens both as fields to '
                         'type in. The editor switches between the two '
-                        'whatever this says.'}
+                        'whatever this says.',
+    ('ui_priorities',): 'Which user interface a program that chooses one for '
+                        'itself opens the editor in. Each entry is a --ui '
+                        'name and a whole number of zero or more, and the '
+                        'highest of those that can run here is the one that '
+                        'is opened. Zero is never opened unless it is asked '
+                        'for by name. What is not named here keeps the '
+                        'number the user interface reports about itself, and '
+                        'a name that is not installed here is ignored.',
+    ('ui_priorities', '['): EVERY_UI}
 """What this class says about each member that is not one action."""
 
 SETTINGS_DESCRIPTIONS: Descriptions = dict(_MEMBER_DESCRIPTIONS) | {

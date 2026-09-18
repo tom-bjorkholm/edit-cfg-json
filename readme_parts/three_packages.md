@@ -15,7 +15,9 @@ configuration:
   validation and file handling. It is also the package a third party
   writes a new user interface backend against. The only backend it ships
   itself is a very limited non-interactive one that prints the model once
-  and returns, for a script, a test or a continuous integration job.
+  and returns, for a script, a test or a continuous integration job. Its
+  program `edit-cfg-json` opens whichever of the installed editors the
+  machine it runs on can run.
 
 The application supplies its own `Config` object and gets a folding,
 searchable editor for it, without writing any user interface code and
@@ -23,4 +25,6 @@ without describing its configuration schema a second time.
 
 The three packages share a version number and are released together. The
 first two are the editors: pick the one that matches how your application
-is used, and it pulls in the core itself.
+is used, and it pulls in the core itself. An application that has no user
+interface of its own, and therefore no reason to have chosen one, depends on
+the core and edits in whichever editor its users have installed.

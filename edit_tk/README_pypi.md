@@ -17,7 +17,9 @@ configuration:
   validation and file handling. It is also the package a third party
   writes a new user interface backend against. The only backend it ships
   itself is a very limited non-interactive one that prints the model once
-  and returns, for a script, a test or a continuous integration job.
+  and returns, for a script, a test or a continuous integration job. Its
+  program `edit-cfg-json` opens whichever of the installed editors the
+  machine it runs on can run.
 
 The application supplies its own `Config` object and gets a folding,
 searchable editor for it, without writing any user interface code and
@@ -25,7 +27,9 @@ without describing its configuration schema a second time.
 
 The three packages share a version number and are released together. The
 first two are the editors: pick the one that matches how your application
-is used, and it pulls in the core itself.
+is used, and it pulls in the core itself. An application that has no user
+interface of its own, and therefore no reason to have chosen one, depends on
+the core and edits in whichever editor its users have installed.
 
 ## Project status
 
@@ -127,6 +131,13 @@ the class that was named. It is `edit_cfg_json.run_cli` with this package's
 backend filled in, so the command line below is the same one that
 `edit-cfg-json-textual` has; what differs is which of the two shows the
 configuration.
+
+**This program has chosen, and `edit-cfg-json` has not.** That one, which the
+core installs, opens whichever of the installed editors the machine can run
+and takes a `--ui` option for naming one; this program is this editor whatever
+else is installed. Everything else about the two is the same, down to the
+settings file of the home folder, because that file belongs to the editor and
+not to the program that opened it.
 
 ### Telling it which class to edit
 
@@ -391,7 +402,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 2129 passed, 5 deselected in 85s (0:01:25)
+- Test result: 2217 passed, 5 deselected in 89s (0:01:29)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

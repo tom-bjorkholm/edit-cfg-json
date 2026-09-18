@@ -53,6 +53,8 @@ def test_no_opinion() -> None:
     assert settings.backup_count == 1
     assert settings.confirm_overwrite
     assert settings.priority_keys
+    assert settings.choose_values
+    assert not settings.ui_priorities
 
 
 def test_every_action_named() -> None:
@@ -220,3 +222,41 @@ def test_chosen_file_refused() -> None:
     chosen = chosen_file(name='a.json', settings=ENFORCED)
     assert chosen.name == 'a.json'
     assert '.cfg' in chosen.message
+
+
+@pytest.mark.parametrize('given', [{}, {'tk': 0}, {'tk': 3, 'textual': 7},
+                                   {'not_installed_here': 9}])
+def test_priorities_kept(given: dict[str, int]) -> None:
+    """Test what the machine says about the user interfaces is kept as given.
+
+    A name that no installed package registers is kept and not refused,
+    because the same settings file is read on machines that have different
+    packages installed, and an editor a file mentions is not one this machine
+    has to have.
+    """
+    assert Settings(ui_priorities=given).ui_priorities == given
+
+
+@pytest.mark.parametrize('priority', [-1, -10])
+def test_below_lowest(priority: int) -> None:
+    """Test a priority below the lowest one there is is refused.
+
+    Nothing orders below the answer that means "never on its own", so a
+    number below it could only be a mistake that quietly took an editor out
+    of the choosing.
+    """
+    with pytest.raises(ValueError) as refusal:
+        Settings(ui_priorities={'tk': priority})
+    assert 'tk' in str(refusal.value)
+
+
+def test_own_priorities() -> None:
+    """Test one settings object's priorities are not another's.
+
+    The default is an empty dict, which is the one mutable default this class
+    has, so two applications that say nothing must not end up sharing the
+    dict that says it.
+    """
+    first = Settings()
+    first.ui_priorities['tk'] = 3
+    assert not Settings().ui_priorities

@@ -228,7 +228,6 @@
     * [\_options](#edit_cfg_json_textual.textual_find.FindRow._options)
 * [edit\_cfg\_json\_textual.\_\_main\_\_](#edit_cfg_json_textual.__main__)
   * [PROGRAM](#edit_cfg_json_textual.__main__.PROGRAM)
-  * [HOME\_SETTINGS](#edit_cfg_json_textual.__main__.HOME_SETTINGS)
   * [main](#edit_cfg_json_textual.__main__.main)
 * [edit\_cfg\_json\_textual.textual\_member](#edit_cfg_json_textual.textual_member)
   * [value\_widgets](#edit_cfg_json_textual.textual_member.value_widgets)
@@ -243,6 +242,11 @@
   * [show\_subtrees](#edit_cfg_json_textual.textual_member.show_subtrees)
   * [show\_descriptions](#edit_cfg_json_textual.textual_member.show_descriptions)
   * [show\_diagnostics](#edit_cfg_json_textual.textual_member.show_diagnostics)
+* [edit\_cfg\_json\_textual.textual\_ui](#edit_cfg_json_textual.textual_ui)
+  * [TEXTUAL\_PRIORITY](#edit_cfg_json_textual.textual_ui.TEXTUAL_PRIORITY)
+  * [HOME\_SETTINGS](#edit_cfg_json_textual.textual_ui.HOME_SETTINGS)
+  * [textual\_can\_run](#edit_cfg_json_textual.textual_ui.textual_can_run)
+  * [TEXTUAL\_UI](#edit_cfg_json_textual.textual_ui.TEXTUAL_UI)
 * [edit\_cfg\_json\_textual.textual\_words](#edit_cfg_json_textual.textual_words)
   * [CLOSE\_COMMAND](#edit_cfg_json_textual.textual_words.CLOSE_COMMAND)
   * [VALIDATE\_COMMAND](#edit_cfg_json_textual.textual_words.VALIDATE_COMMAND)
@@ -3300,10 +3304,18 @@ Return what the four controls of the search say now.
 
 The `edit-cfg-json-textual` program: edit any class in the terminal.
 
-It is the same program as `edit-cfg-json` with this package's backend in place
-of the one that prints, so everything about its command line is documented in
-`edit_cfg_json.cli`. What it opens is a Textual screen with a field per member
-of the configuration class it was told to edit.
+It is the command line of `edit_cfg_json.cli` with this package's backend
+written into it, so everything about that command line is documented there.
+What it opens is a Textual screen with a field per member of the configuration
+class it was told to edit.
+
+**It is the terminal editor and nothing else**, which is the difference
+between it and `edit-cfg-json`: that one opens whichever editor the machine
+can run, and this one is how a user who wants the terminal says so once and
+for all, on a machine that has a display as well. Everything the two differ
+about beside that is read from `TEXTUAL_UI`, so this program and a session the
+launcher opens in this editor behave alike down to the settings file they
+read.
 
 Run it as `edit-cfg-json-textual`, or as `python -m edit_cfg_json_textual` on
 a machine whose script folder is not on the path.
@@ -3313,16 +3325,6 @@ a machine whose script folder is not on the path.
 #### PROGRAM
 
 Name that this program is installed under.
-
-<a id="edit_cfg_json_textual.__main__.HOME_SETTINGS"></a>
-
-#### HOME\_SETTINGS
-
-File of the home folder that this program reads its own settings from.
-
-It is looked for before the file that every program of this library reads, so
-that a user whose terminal and window editors want different answers writes
-this one and a user who wants one answer writes only the shared file.
 
 <a id="edit_cfg_json_textual.__main__.main"></a>
 
@@ -3656,6 +3658,72 @@ Show what is wrong with every node, as the model says it now.
 
 - `panel` - Widget that the rows were built below.
 - `model` - Model that says what is wrong with each node.
+
+<a id="edit_cfg_json_textual.textual_ui"></a>
+
+# edit\_cfg\_json\_textual.textual\_ui
+
+What this package registers about itself, so that it can be chosen.
+
+A program that opens the editor its machine can run finds this through the
+`edit_cfg_json.ui` entry point group, and it is the whole of what this package
+says about itself: what `--ui` calls it, how good an editor it is where a
+machine can run more than one, whether it can run at all here, and how one of
+its backends is made.
+
+**Textual being installed is not the question either.** This editor takes over
+the terminal it was started in, so what it needs is a terminal: a run whose
+input or output is a pipe or a file has nowhere to draw a screen and nobody to
+press a key on it, which is what a build job, a shell pipeline and a test
+suite with its output captured all are. Asking costs nothing and touches
+nothing, unlike the display of a window, so nothing here is remembered: a
+process whose output was redirected halfway through its own run gets the
+answer that is true now.
+
+<a id="edit_cfg_json_textual.textual_ui.TEXTUAL_PRIORITY"></a>
+
+#### TEXTUAL\_PRIORITY
+
+How good an editor this is where the machine can run more than one.
+
+It is below the window editor and above what is not an editor at all. A
+machine with a display and a terminal has both, and the window is what a user
+of such a machine expects to be given; this is the editor of every machine
+that has no display, which is where a terminal is not second best but the
+whole of what there is.
+
+<a id="edit_cfg_json_textual.textual_ui.HOME_SETTINGS"></a>
+
+#### HOME\_SETTINGS
+
+File of the home folder that this user interface reads its settings from.
+
+It is looked for before the file that every program of this library reads, so
+that a user whose terminal and window editors want different answers writes
+this one and a user who wants one answer writes only the shared file. It
+belongs to the user interface and not to the program, so a session in this
+editor reads it whichever program opened that session.
+
+<a id="edit_cfg_json_textual.textual_ui.textual_can_run"></a>
+
+#### textual\_can\_run
+
+```python
+def textual_can_run() -> bool
+```
+
+Return whether a screen of this editor can be shown in this run.
+
+**Returns**:
+
+  Whether both ends of this process are a terminal, which is what a
+  screen that is drawn on one and typed into needs.
+
+<a id="edit_cfg_json_textual.textual_ui.TEXTUAL_UI"></a>
+
+#### TEXTUAL\_UI
+
+What this package registers in the `edit_cfg_json.ui` entry point group.
 
 <a id="edit_cfg_json_textual.textual_words"></a>
 

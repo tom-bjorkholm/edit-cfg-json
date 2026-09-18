@@ -22,7 +22,7 @@ turns out to be impossible for a reason of its own. See `settings_config`.
 # MIT License
 
 from collections.abc import Callable
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import NamedTuple, Optional
 from config_as_json import PathOrStr
@@ -43,8 +43,21 @@ Keeping no backup is what an empty `backup_suffix` says, and saying it twice
 would leave two answers that could disagree with each other.
 """
 
+NOT_A_PRIORITY = '{value} is not a priority for the {ui} user interface.'
+"""Message of the refusal of a priority below the lowest one there is."""
+
 MIN_BACKUPS = 1
 """Fewest backup files that `backup_count` may ask for."""
+
+LOWEST_PRIORITY = 0
+"""Lowest priority that a user interface may be given.
+
+It is also the answer that says "never on its own": a user interface of this
+priority is opened when it was asked for by name and at no other time, which
+is what a backend that prints once and returns reports about itself. The
+priorities live in `edit_cfg_json.ui_backend`, and the number is here because
+`ui_priorities` below is the one that overrules them.
+"""
 
 
 def names_a_file(value: str) -> bool:
@@ -280,12 +293,13 @@ class ActionSettings:  # pylint: disable=too-many-instance-attributes
             ValueError: Two actions hold the same key combination.
         """
         taken: dict[str, str] = {}
-        for field in fields(self):
-            keys: tuple[str, ...] = getattr(self, field.name)
+        for action in fields(self):
+            keys: tuple[str, ...] = getattr(self, action.name)
             for key in keys:
-                first = taken.setdefault(key.lower(), field.name)
-                if first != field.name:
-                    raise _duplicate(key=key, first=first, second=field.name)
+                first = taken.setdefault(key.lower(), action.name)
+                if first != action.name:
+                    name = action.name
+                    raise _duplicate(key=key, first=first, second=name)
 
 
 # One attribute per answer the application has already given, which is what
@@ -399,15 +413,37 @@ class Settings:  # pylint: disable=too-many-instance-attributes
     and says nothing about them once they have been hidden.
     """
 
+    ui_priorities: dict[str, int] = field(default_factory=dict)
+    """What this machine thinks of each user interface, by its `--ui` name.
+
+    A program that opens the editor the machine can run asks every installed
+    user interface how good an editor it is, and opens the best of those that
+    can run here. This is where that answer is overruled, one user interface
+    per entry, and the default is an empty dict, which is nobody overruling
+    anything.
+
+    It is here rather than in `edit_cfg_json.ui_backend` because it is the one
+    part of the answer that belongs to the machine and not to the backend: a
+    user who prefers the terminal editor on a machine that has a display says
+    so once, and every program of this library opens the one they meant.
+
+    A name no installed package registers is kept and ignored, because a
+    settings file is written once and read on more than one machine. A
+    priority below `LOWEST_PRIORITY` is refused, and that lowest one is how a
+    user interface is taken out of the choosing without being uninstalled.
+    """
+
     def __post_init__(self) -> None:
         """Normalize the extension, and refuse what names no file at all.
 
         Raises:
             ValueError: The extension or the backup suffix is text that names
-                no file, or fewer than one backup is to be kept.
+                no file, fewer than one backup is to be kept, or a user
+                interface is given a priority below the lowest one there is.
         """
         self._normalize_extension()
         self._check_backups()
+        self._check_priorities()
 
     def _normalize_extension(self) -> None:
         """Add the dot of the extension, and refuse text that is not one.
@@ -443,6 +479,22 @@ class Settings:  # pylint: disable=too-many-instance-attributes
             raise ValueError(NOT_A_SUFFIX.format(value=repr(suffix)))
         if self.backup_count < MIN_BACKUPS:
             raise ValueError(NOT_A_COUNT.format(value=self.backup_count))
+
+    def _check_priorities(self) -> None:
+        """Refuse a priority that is below the lowest one there is.
+
+        Nothing else is asked of them. A name that no installed package
+        registers is not an error, because the same settings file is read on
+        more than one machine, and no order between them can be wrong: they
+        are read as numbers to sort by, and every number sorts.
+
+        Raises:
+            ValueError: A user interface is given a priority below the lowest.
+        """
+        for name, priority in self.ui_priorities.items():
+            if priority < LOWEST_PRIORITY:
+                raise ValueError(NOT_A_PRIORITY.format(value=priority,
+                                                       ui=name))
 
 
 type SettingsSource = Settings | Callable[[], Settings]

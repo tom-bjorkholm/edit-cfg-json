@@ -4,8 +4,13 @@
 An application that calls `edit` knows its own settings and passes them. A
 *program* has no application around it to ask, so it reads them from a file,
 and this is the order it looks in: the file the command line names, the file
-the environment names, the file of that program in the home folder, the file
-of this library in the home folder, and finally no file at all.
+the environment names, the file of that user interface in the home folder, the
+file of this library in the home folder, and finally no file at all.
+
+**The third step belongs to the user interface and not to the program**, which
+is why its name is a member of `edit_cfg_json.ui_backend.UiBackend`: what the
+two editors differ about is their keys and their questions, so a session the
+launcher opens in one of them reads the file that editor's own program reads.
 
 **A file that was named must be there, and a file that was looked for need not
 be.** `-c/--cfg` and the environment variable are somebody saying which file to
@@ -62,7 +67,9 @@ SHARED_SETTINGS = '.edit-cfg-json.cfg'
 
 It is the last step of the lookup, so a user who wants one answer for the
 window and for the terminal writes it once here, and a user who wants the two
-to differ writes the file of one of them beside it.
+to differ writes the file of one of them beside it. It is also the only one
+that the launcher can read before it has chosen an editor, which is what makes
+it the file that `Settings.ui_priorities` belongs in.
 """
 
 NO_SETTINGS_FILE = 'The settings file {name} cannot be read.'
@@ -77,6 +84,7 @@ OLDER_SETTINGS = (
     'that was used. It was accepted, and a future version may stop accepting '
     'it.\nWrite it in the current format by opening it in one of the editors '
     'and saving it:\n'
+    '    edit-cfg-json --edit-settings -i {name}\n'
     '    edit-cfg-json-tk --edit-settings -i {name}\n'
     '    edit-cfg-json-textual --edit-settings -i {name}')
 """What a run says about a settings file that those rules were needed for.
@@ -90,7 +98,9 @@ that saving the file writes every value this version has.
 It names the file because the lookup has five steps and the user who sees this
 did not necessarily choose the one that answered. It asks for the file to be
 opened and saved rather than for a migration command of its own, because saving
-is what writes those values and the editor is what the two programs are.
+is what writes those values and the editor is what those programs are. The
+first of the three is the one that needs no choice made about it, so it is
+named first.
 """
 
 
@@ -134,10 +144,13 @@ def settings_file(named: Optional[PathOrStr] = None,
 
     Args:
         named: File that `-c/--cfg` named, or None when it named none.
-        home_settings: Name of this program's own file in the home folder, or
-            None for a program that has none. A backend that prints once and
-            returns is such a program: the settings that differ between the two
-            editors are their keys and their questions, and it has neither.
+        home_settings: Name of the chosen user interface's own file in the
+            home folder, or None where there is none. A backend that prints
+            once and returns has none: the settings that differ between the
+            two editors are their keys and their questions, and it has
+            neither. The launcher passes None for the reading that decides
+            which editor to open, because that step of the lookup comes after
+            the choosing.
 
     Returns:
         The file to read the settings from, and None where the lookup found no

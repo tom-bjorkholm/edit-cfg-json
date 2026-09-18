@@ -107,6 +107,17 @@ class ExitCode(IntEnum):
     stop, because a user who named a settings file wants that one.
     """
 
+    NO_EDITOR = 18
+    """This machine has no user interface to open the editor in.
+
+    It is what the program that chooses an editor answers when nothing
+    installed here is an editor that can run: a machine with no display and
+    without the terminal editor, or one where every user interface has been
+    given the priority that is never chosen on its own. The backend that
+    prints once and returns can still be asked for by name, and the message
+    says so.
+    """
+
 
 class Refusal(Exception):
     """Refusal to run, with what to say about it and what to exit with.

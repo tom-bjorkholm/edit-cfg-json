@@ -6,6 +6,10 @@
 entry points of the two backend packages are that model mounted in a window
 an application owns. All three take the same few keywords, so an application
 says the same things about a session however it opens the editor.
+
+`edit_in_ui` is `edit` for a caller with no user interface of its own and
+therefore no reason to have chosen one: it names no backend and the editor
+opens in whichever of the installed ones this machine can run.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -20,6 +24,7 @@ from edit_cfg_json.edit_model import EditModel
 from edit_cfg_json.loader import ConfigLoader
 from edit_cfg_json.loading import DEFAULT_POLICY, LoadPolicy, load_config
 from edit_cfg_json.settings import Settings, SettingsSource
+from edit_cfg_json.ui_choice import chosen_ui
 
 
 # Every argument after the configuration is an optional keyword, and each of
@@ -136,3 +141,60 @@ def edit(config: Config, backend: EditorBackend, *,
                          settings=settings, stderr_file=stderr_file)
     backend.run_editor(model)
     return model.saved_config
+
+
+# See the same disable above: this takes the keywords of a session, and the
+# one thing it says instead of naming a backend.
+# pylint: disable-next=too-many-arguments
+def edit_in_ui(config: Config, *, ui_name: Optional[str] = None,
+               descriptions: Optional[Descriptions] = None,
+               in_file: Optional[PathOrStr] = None,
+               loader: Optional[ConfigLoader] = None,
+               out_file: Optional[PathOrStr] = None,
+               policy: LoadPolicy = DEFAULT_POLICY,
+               settings: SettingsSource = Settings(),
+               stderr_file: TextIO = sys.stderr) -> Optional[Config]:
+    """Edit one configuration in a user interface this machine can run.
+
+    This is `edit` for an application that has no user interface of its own
+    and therefore no reason to have chosen one: instead of naming a backend it
+    names nothing, and the editor opens in the best of the user interfaces
+    that are installed and can run in this context. A command that lets its
+    own user say which builds the choices of that option with
+    `edit_cfg_json.available_uis`, so that it offers exactly the ones that
+    would work.
+
+    Everything else it does is `edit`, and every keyword means there what it
+    means here.
+
+    Args:
+        config: Configuration object saying which class to edit and what its
+            declared defaults are. It is never modified.
+        ui_name: Name of the user interface to open the editor in, or None
+            to open the one this machine can best run. The names are the ones
+            `edit_cfg_json.available_uis` answers with.
+        descriptions: What the application says about the members it
+            declares, or None when it says nothing.
+        in_file: File to read, or None to start from the declared defaults.
+        loader: How this application constructs its configuration, or None for
+            a class the editor can construct on its own.
+        out_file: File to write, or None to write the input file.
+        policy: What to do about declared keys the input file does not hold.
+        settings: What the application around the editor has already decided,
+            or a callable that answers with it. `ui_priorities` is the one of
+            them this call reads before anything is opened.
+        stderr_file: Stream used for user-facing diagnostics.
+
+    Returns:
+        The configuration object that was written, or None when the session
+        ended without anything being saved.
+
+    Raises:
+        ConfigLoadError: The input file cannot be opened for editing.
+        NoEditorError: The user interface that was named cannot run here, or
+            none was named and this machine can open no editor at all.
+    """
+    chosen = chosen_ui(ui_name=ui_name, settings=settings)
+    return edit(config, backend=chosen.backend(), descriptions=descriptions,
+                in_file=in_file, loader=loader, out_file=out_file,
+                policy=policy, settings=settings, stderr_file=stderr_file)

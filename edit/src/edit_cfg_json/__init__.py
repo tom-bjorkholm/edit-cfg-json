@@ -12,7 +12,7 @@ from edit_cfg_json.edit_model import EditModel
 from edit_cfg_json.rows import MemberRow
 from edit_cfg_json.backend import DumpEditor, EditorBackend
 from edit_cfg_json.descriptions import Descriptions
-from edit_cfg_json.editing import edit, editor_model
+from edit_cfg_json.editing import edit, edit_in_ui, editor_model
 from edit_cfg_json.elements import ElementOffer
 from edit_cfg_json.loader import ConfigLoader, derived_loader
 from edit_cfg_json.loading import ConfigLoadError, DEFAULT_POLICY, \
@@ -38,10 +38,14 @@ from edit_cfg_json.model_text import can_fold, close_question, \
 from edit_cfg_json.tree import path_text, text_path
 from edit_cfg_json.exit_code import ExitCode
 from edit_cfg_json.version_report import EcajVersionReporter
+from edit_cfg_json.ui_backend import DUMP_UI, NoEditorError, UI_GROUP, \
+    UiBackend
+from edit_cfg_json.ui_choice import available_uis, chosen_ui, discovered_uis, \
+    ordered_uis, ui_priority
 from edit_cfg_json.cli import add_file_options, named_policy, run_cli
 
 __all__ = ['EditModel', 'MemberRow', 'EditorBackend', 'Descriptions', 'edit',
-           'LeafType',
+           'LeafType', 'edit_in_ui',
            'editor_model', 'ElementOffer',
            'ConfigLoadError', 'ConfigLoader', 'DEFAULT_POLICY', 'LoadPolicy',
            'LoadReport',
@@ -63,4 +67,6 @@ __all__ = ['EditModel', 'MemberRow', 'EditorBackend', 'Descriptions', 'edit',
            'named_policy', 'run_cli', 'SettingsConfig',
            'SETTINGS_DESCRIPTIONS', 'declared_actions', 'described_below',
            'SETTINGS_VARIABLE', 'SHARED_SETTINGS', 'load_settings',
-           'settings_file']
+           'settings_file', 'DUMP_UI', 'NoEditorError', 'UI_GROUP',
+           'UiBackend', 'available_uis', 'chosen_ui', 'discovered_uis',
+           'ordered_uis', 'ui_priority']

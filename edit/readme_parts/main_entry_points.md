@@ -6,12 +6,13 @@ module. These are the names an application starts with:
 
 ````python
 from {{import_name}} import Descriptions, EditModel, LoadPolicy, Settings, \
-    edit, editor_model, load_config
+    edit, edit_in_ui, editor_model, load_config
 ````
 
 | Name | What it is |
 | --- | --- |
 | `edit` | The whole of an editing session in one call: read the input file, build the model, run a backend to completion, and give back the configuration object that was saved, or `None` when nothing was. The backend is a parameter because this package never imports a user interface library; each backend package exports an `edit` of its own that supplies itself. |
+| `edit_in_ui`, `available_uis` | The same session for a caller that names no backend at all: the editor opens in whichever installed user interface can run on this machine, and the second answers with the ones that can, for an option of the caller's own. This is what an application with no user interface of its own wants, since it has no reason to have chosen one for its editor either. |
 | `editor_model` | The first half of `edit` on its own: read the input file and give back the model of one session, for an application that shows that model itself. It takes every keyword `edit` takes except the backend, so a session is described in the same words whichever way the editor is opened. |
 | `EditModel` | The editable state of one `config_as_json.Config` object, discovered by looking at that object: the tree of rows, what has happened to each of them, `validate` over the whole buffer, and `save`. |
 | `Descriptions` | What the application says about the members it declares: a mapping from the absolute `config_as_json.ConfigPath` of a member to the text that explains it. It is one of the two type aliases this library declares, and `SettingsSource` is the other. |
@@ -20,7 +21,8 @@ from {{import_name}} import Descriptions, EditModel, LoadPolicy, Settings, \
 
 That is what an application uses. Writing a user interface backend, or a
 program on top of this one, needs the rest of the public API — `EditorBackend`
-and `DumpEditor`, the rows and their marks, what each of them offers about how
+and `DumpEditor`, `UiBackend` and the entry point group a backend registers
+itself in, the rows and their marks, what each of them offers about how
 many things it holds, the `Emphasis` vocabulary, the search and where it looks,
 the questions to ask before closing and before overwriting a file,
 `ConfigLoader`, `SettingsConfig` with the settings file lookup, `run_cli` and
@@ -202,6 +204,13 @@ translates them into the notation of its own toolkit. `file_extension` is
 `None` by default, which is no opinion: this library has none of its own about
 what a configuration file is called.
 
+One of the settings is not about the editor's behaviour but about **which**
+editor: `ui_priorities` is what `edit_in_ui` and the program of this package
+read before anything is opened, over the priority each installed user interface
+reports about itself. It belongs to the machine rather than to the
+application, which is why an application normally leaves it to a settings file
+of its users.
+
 The same answers are a configuration class of their own, `SettingsConfig`, so
 they can be read from a file, edited in this editor like any other
 configuration, and declared as one member of an application's own configuration
@@ -214,7 +223,41 @@ with one. A callable is asked again at each point where an answer is used,
 which is what lets an application build the model long before it has decided
 how the editor is to behave.
 
-This package installs no program: the editors are `edit-cfg-json-tk` and
-`edit-cfg-json-textual`, and `python3 -m {{import_name}}.dump --help` is a
-small utility for whoever is writing a program on top of this one, printing
-what a class makes of a file and answering with an exit code.
+## The {{dist_name}} program
+
+Installing this package installs a program of the same name, which opens the
+editor the machine it is run on can run: a window where there is a display, a
+terminal screen where there is none. It takes any `config_as_json.Config`
+class it is told the name of, with no code written by anybody.
+
+````sh
+{{dist_name}} --module myapp.config --class AppConfig -i /etc/myapp.json
+{{dist_name}} --ui textual --module myapp.config --class AppConfig
+python3 -m {{import_name}} --version
+````
+
+Its command line is the one `edit-cfg-json-tk` and `edit-cfg-json-textual`
+have, documented on either of their pages and in
+[the programmer's guide](https://github.com/tom-bjorkholm/edit-cfg-json/blob/master/doc/application_programmers_guide.md),
+with one option added: `--ui`, whose values are the user interfaces that can
+run here. Which one it opens without that option is decided by the priority
+each installed user interface reports about itself, with `ui_priorities` of a
+settings file over it, so a user who prefers the terminal on a machine with a
+display says so once and every program of this library obeys. A machine where
+no installed editor can run is told so, with an exit code of its own, rather
+than given a traceback of a toolkit.
+
+**A user interface registers itself** in the `{{import_name}}.ui` entry point
+group, naming one `UiBackend`, and that is the whole of what a third-party
+backend has to do to be found by this program and by `edit_in_ui`:
+
+````toml
+[project.entry-points."{{import_name}}.ui"]
+qt = "edit_cfg_json_qt:QT_UI"
+````
+
+`python3 -m {{import_name}}.dump --help` is the other program here, and it is
+no editor: a small utility for whoever is writing a program on top of this
+one, printing what a class makes of a file and answering with an exit code. It
+is reached by naming it and by nothing shorter, because the name of this
+package promises the editor and not a printout.

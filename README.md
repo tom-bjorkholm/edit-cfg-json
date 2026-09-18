@@ -16,27 +16,31 @@ folding editor for configuration objects based on `config_as_json.Config`:
 | [edit_tk/](edit_tk/) | `edit-cfg-json-tk` | `edit_cfg_json_tk` |
 | [edit_textual/](edit_textual/) | `edit-cfg-json-textual` | `edit_cfg_json_textual` |
 
-The two editor packages each install a program of their own name, which takes
-any `config_as_json.Config` class it is told the name of, with no code written
-by anybody:
+Each package installs a program of its own name, which takes any
+`config_as_json.Config` class it is told the name of, with no code written by
+anybody:
 
 ```sh
+edit-cfg-json --module myapp.config --class AppConfig -i /etc/myapp.json
 edit-cfg-json-tk --module myapp.config --class AppConfig -i /etc/myapp.json
 edit-cfg-json-textual --module myapp.config --class AppConfig
 ```
 
-They open an editor, in a window and in the terminal, and they are what this
-repository is for. The core installs no program at all, because the name
-`edit-cfg-json` promises an editor and the core has none to give. The same
-command line over the very limited non-interactive backend is a small utility.
+They open an editor, and they are what this repository is for. The first opens
+whichever of the installed editors the machine can run — a window where there
+is a display, the terminal where there is none — and `--ui` names one instead;
+the other two are the window editor and the terminal editor whatever else is
+installed. The same command line over the very limited non-interactive backend
+is a small utility, and it is reached by naming it, because the name of the
+library promises an editor:
 
 ```sh
 python3 -m edit_cfg_json.dump --module myapp.config --class AppConfig \
     -i /etc/myapp.json
 ```
 
-Inside this repository they are `./venv/bin/edit-cfg-json-tk`,
-`./venv/bin/edit-cfg-json-textual` and
+Inside this repository they are `./venv/bin/edit-cfg-json`,
+`./venv/bin/edit-cfg-json-tk`, `./venv/bin/edit-cfg-json-textual` and
 `./venv/bin/python3 -m edit_cfg_json.dump`, and any class under
 [examples/src/example/](examples/src/example/) or
 [https://github.com/tom-bjorkholm/config_as_json/tree/master/example/src/example](https://github.com/tom-bjorkholm/config_as_json/tree/master/example/src/example)
@@ -189,7 +193,7 @@ browsed through `reports/index.html`.
 
 ## Test summary
 
-- Test result: 2129 passed, 5 deselected in 85s (0:01:25)
+- Test result: 2217 passed, 5 deselected in 89s (0:01:29)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

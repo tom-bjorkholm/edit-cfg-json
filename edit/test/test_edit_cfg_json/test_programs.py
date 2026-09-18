@@ -1,9 +1,13 @@
 #! /usr/bin/env python3
 """Tests that each of the three packages ships the program it promises.
 
-The three programs differ in the backend, in the versions they report and in
-how they are reached, and everything else about them is one command line, so
-what they are is one table and not three test modules. Written per package
+These are the three programs that were written for one backend. The fourth,
+which finds its own, is `test_launcher.py`: what it hands over depends on the
+machine, so it cannot be a row of a table.
+
+The three differ in the backend, in the versions they report and in how they
+are reached, and everything else about them is one command line, so what they
+are is one table and not three test modules. Written per package
 these tests were near copies of each other, and pylint said so: three copies of
 one shape would have been free to drift apart, and a table cannot.
 
@@ -50,7 +54,7 @@ is running it would pass or fail according to what that person had configured.
 
 
 class ProgramSpec(NamedTuple):
-    """What one of the three programs of this repository is."""
+    """What one of the programs written for one backend is."""
 
     run_module: str
     """What `python -m` is given to run it."""
@@ -97,16 +101,18 @@ PROGRAMS = (ProgramSpec(run_module='edit_cfg_json.dump',
                         home_settings='.edit-cfg-json-textual.cfg',
                         distribution='edit-cfg-json-textual',
                         reporter='TextualVersionReporter'))
-"""Every program this repository ships, and what each of them is.
+"""Every program written for one backend, and what each of them is.
 
 The two editors are installed under the names their help text says and are
 reachable with `python -m` as well. The checker is reachable only that way: it
-is no editor, so the name `edit-cfg-json` would promise what it cannot give.
+is no editor, and the name `edit-cfg-json` is the editor this machine can run,
+so a user who typed it and got a printout would have been misled by the name.
 
-Only the two editors have a settings file of their own in the home folder. What
-the two of them differ about is their keys and their questions, and a backend
-that prints once and returns has neither, so it reads the shared file or
-nothing.
+Only the two editors have a settings file of their own in the home folder. It
+belongs to the user interface rather than to the program, so the launcher
+opens a session in one of them and that session reads the same file. What the
+two of them differ about is their keys and their questions, and a backend that
+prints once and returns has neither, so it reads the shared file or nothing.
 """
 
 PROGRAM_IDS = tuple(spec.run_module for spec in PROGRAMS)
@@ -198,15 +204,19 @@ def test_home_settings_name(spec: ProgramSpec) -> None:
     assert spec.home_settings == expected
 
 
-def test_no_misleading_name() -> None:
-    """Test the core package runs nothing under the name of an editor.
+def test_core_runs_the_editor() -> None:
+    """Test the core package runs an editor under the name of an editor.
 
-    `python3 -m edit_cfg_json` printed the configuration and returned, which
-    is the one thing a name must not do: it promises the editor this library
-    is for, and what it gave was a printout. There is no `__main__` in the
-    core at all now, so the utility is reached by naming it.
+    `python3 -m edit_cfg_json` once printed the configuration and returned,
+    which is the one thing that name must not do: it promises the editor this
+    library is for, and what it gave was a printout. For several releases
+    there was therefore no `__main__` in the core at all. What answers there
+    now is the launcher, which opens the editor the machine can run, and the
+    printout is still reached only by naming it.
     """
-    assert importlib.util.find_spec('edit_cfg_json.__main__') is None
+    assert importlib.util.find_spec('edit_cfg_json.__main__') is not None
+    assert importlib.import_module('edit_cfg_json.__main__').main is \
+        importlib.import_module('edit_cfg_json.launcher').main
 
 
 @pytest.mark.parametrize('spec', PROGRAMS, ids=PROGRAM_IDS)

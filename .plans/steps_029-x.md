@@ -2,8 +2,8 @@
 
 ## Where everything is
 
-Steps 1 to 29 are implemented and committed, step 23 with the corrections its
-review asked for, and step 29B is implemented and awaiting its review. Steps 1
+Steps 1 to 29B are implemented and committed, step 23 with the corrections its
+review asked for, and step 30 is implemented and awaiting its review. Steps 1
 to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md), steps 10 to 21 in
 [steps_010-021_done.md](steps_010-021_done.md) and steps 22 to 28 in
@@ -110,6 +110,10 @@ the plan says only *when* that decision gets built.
 - [Step 29B](#step-29b---the-value-a-mistyped-name-is-given) — the first value
   it takes kept as the last resort it should have been, with the value a
   mistyped or unfinished name most likely meant put in front of it.
+- [Step 30](#step-30---the-launcher-the-name-edit-cfg-json-is-kept-for) — each
+  user interface registering what it is and whether it can run here, the
+  launcher the name was kept for installed at last, and the same choice offered
+  to a command that has no user interface of its own.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -211,7 +215,7 @@ version. Record which one, because the next step's fast iteration with
 | Second release 0.0.4 | 18 to 21 | Release 0.0.4 | done |
 | Third release 0.1.0 | 22 to 28 | Release 0.1.0 | done |
 | Fourth release 0.2.0 | none | Release 0.2.0, the paths that `config-as-json` 1.7 reports | done |
-| Fifth release | 29 onwards | in progress | step 29 committed, step 29B awaiting review |
+| Fifth release | 29 onwards | in progress | steps 29 and 29B committed, step 30 awaiting review |
 
 ## 3. Steps 29 onwards, as named steps
 
@@ -465,7 +469,7 @@ nothing said so until they were run by hand.
 
 ### Step 30 - The launcher the name `edit-cfg-json` is kept for
 
-Status: **Not started.**
+Status: **Implemented, committed.**
 
 Section 8.1 of the design is headed "planned, not implemented": an
 `edit_cfg_json.ui` entry-point group would let backends register themselves for
@@ -518,6 +522,100 @@ editing of their configuration:
   backends that can run in this context. The return value is intended
   as the allowed values of the `--ui` switch for the configuration
   editor of the command line program.
+
+#### What it decided
+
+The named tuple is `UiBackend` in `edit_cfg_json.ui_backend`, registered in the
+`edit_cfg_json.ui` entry point group, and it has **six** members rather than
+the four above. The two added are `interactive` and `home_settings`, and the
+reason is that the launcher hands its whole session to the same `run_cli` the
+other three programs use, which is told both of them: the first decides
+`--save` and `--unfold` and what the exit code answers with, and the second is
+the settings file of the home folder. Both are facts about the user interface
+and not about the program that opened it, so a session the launcher opens in
+the window editor reads `~/.edit-cfg-json-tk.cfg` exactly as
+`edit-cfg-json-tk` does. The three programs of section 8.3 now read their own
+two facts from their own registration as well, so there is one place that says
+them.
+
+The "callable to start the editor" is a `Callable[[], EditorBackend]` and not a
+call that runs a session. Every way of showing the editor takes a backend —
+`edit`, `run_cli`, and an application that built the model itself — so a
+factory fits all of them, and it is a factory rather than a backend so that
+choosing between the installed user interfaces does not build every one of
+them.
+
+**Asking Tk whether it can run happens in a child process**, which is the one
+decision here that was made against the obvious implementation. A `Tk()` that
+the asking process built and destroyed would be the first of two in the process
+that goes on to open the editor, and step 29's own review recorded a Tk
+destroyed under an aborted test segfaulting the next one. The child runs
+`import tkinter; tkinter.Tk().destroy()` and answers with its exit code, the
+answer is cached for the run, and no test of this repository builds a Tk in the
+pytest process in order to ask. It costs one Python start-up per run of the
+launcher. Textual's answer is `isatty` on both ends of the process and is not
+cached, because it costs nothing and can change within one run.
+
+**`--ui` accepts what can run here and nothing else**, so a name that cannot
+run is refused by `argparse` beside the names that would have worked. That
+costs asking every registration before the command line is parsed. The library
+functions still refuse a named user interface about itself —
+`edit_in_ui(ui_name='tk')` on a machine with no display says so rather than
+opening the terminal editor — because a caller that named one wants that one.
+
+**A machine that can open no editor is refused after the command line is read.**
+`--help` is what says that `--ui` exists and `--version` is what a problem
+report is written from, and the person who has just been told they have no
+editor is the person who most needs both, so `run_cli` took an
+`Optional[EditorBackend]` and answers `ExitCode.NO_EDITOR` once those two have
+had their chance.
+
+**The launcher reads the settings twice.** The priorities have to be known
+before the editor is chosen, and the settings file of the home folder cannot be
+known until it has been: the file belongs to the editor. So the launcher makes
+the lookup without any program's own file, silently, and the session makes it
+again with the file of the editor that was chosen. Silently, because a file
+that cannot be read is refused by the session in the same words, and one fault
+deserves one message.
+
+#### What it found while building it
+
+- **The priority override cannot be an ordinary dict member of
+  `SettingsConfig`.** `config_as_json` matches a dict member's keys against the
+  ones the class declares, whatever policy the parse was given, and the class
+  declares none of them: a `--ui` name belongs to whatever packages happen to
+  be installed, and the same settings file is read on machines that have
+  different ones. `_unchecked_dicts` is what takes that check off the member,
+  which is what steps 27 and 28 were about for an application's own classes and
+  is now used by a class of this library. The shape of the value is still
+  checked, so text where a table belongs is still refused, with a `KeyError`
+  from `config_as_json` rather than the `InvalidConfiguration` of a validator —
+  which is why it is a test of its own rather than another row of the table of
+  wrong types.
+- **It is a change of this library's own file format**, so `ui_priorities`
+  joined `ADDED_SETTINGS`, and the helper that writes "a settings file as an
+  earlier release wrote one" in the tests now takes out the added members as
+  well as the added actions. That is what made the existing rules for an older
+  file exercised by the case they were written for.
+- **`ui` is not a name pylint accepts**, since it is two characters and the
+  default pattern asks for three. So the member is `ui_name`, and so is the
+  keyword of `edit_in_ui` and of `chosen_ui`. It reads better beside
+  `available_uis` anyway.
+- **`dataclasses` refuses a mutable default**, so the new attribute of
+  `Settings` is the one with a `default_factory`. It is worth a test: two
+  applications that say nothing about the priorities must not share the dict
+  that says it.
+- **The example's own `-i` and `-o` tripped R0801 against the module the `a`
+  series shares.** The answer was to factor the two options out into
+  `add_editor_files` there, which a01 and a02 already reached through
+  `editor_files`, and it left a03's parser showing only the option that is its
+  subject. The shared helper is deliberately not `edit_cfg_json.add_file_options`:
+  that one adds `--policy` too, which this series does not have.
+- **Nothing in the launcher can be tested against the real registrations.**
+  What they answer depends on the machine, so every test of choosing replaces
+  discovery with user interfaces made up for the test, and what the two real
+  ones report is tested where each of them lives. The one test that lets the Tk
+  child process really run asserts only that an answer came back.
 
 ### Step 31 - Selectable dark mode
 
@@ -575,17 +673,7 @@ makes implementing the wizards simpler.
 Alternatively, consider if we should use the menubar and menu items like
 File - Open. (Using the menubar may feel very natural in the Tk version.)
 
-## 4. Relative effort of the steps still to build
-
-The relative effort of the remaining steps is listed in effort order.
-
-| Step | Effort | What the number is mostly |
-| --- | --- | --- |
-| 30 The launcher | 4 | Little logic, spread over all three packages: an entry-point group, a script the core has never installed, discovery, and what a machine that can run neither editor is told. |
-| 32 Raw JSON for a subtree | 8 | An editing surface the editor does not have at all yet, in both backends, and two rules about a second way of editing one thing. |
-| 33 The wizard | 10 | Two toolkits' dialogs and file choosers, two bridge libraries to weigh against the menubar alternative, and no headless test worth much. |
-
-## 5. Open questions recorded, not answered
+## 4. Open questions recorded, not answered
 
 These do not block current development, and each is scheduled to be answered at the
 step that needs it. They are listed here so they are not forgotten.

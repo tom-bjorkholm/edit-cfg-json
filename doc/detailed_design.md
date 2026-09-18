@@ -45,8 +45,10 @@ the model holds and never what an editor does. It is good for two things:
 exercising a feature over the core and backend API on a machine with no
 display, and running a short sequence of editor actions and printing what they
 left behind. It is `DumpEditor` in the core, `--ui dump` in the examples of
-this repository, and the backend of the `python3 -m edit_cfg_json.dump`
-utility (section 8.3).
+this repository and in the launcher, and the backend of the
+`python3 -m edit_cfg_json.dump` utility (section 8.3). It registers itself
+under the priority that is never chosen without being asked for by name, so no
+run that asked for an editor is ever given it (section 8.1).
 
 **When describing functionality it must be described focusing only on
 interactive editors**. Describing functionality using `DumpEditor` or
@@ -110,6 +112,11 @@ handling is fragile, which matters under this repository's strict checkers).
   imports the core with both blocked in `sys.modules`; separate wheels do not
   catch a wrong-direction import on their own, because all three packages are
   installed into the same venv at test time.
+- A backend package says that it exists by registering one `UiBackend` in the
+  `edit_cfg_json.ui` entry-point group (section 8.1), and that group and that
+  class are as much part of the contract as the protocol is: a third-party
+  backend is then discovered and opened by the launcher and by an application
+  that names no toolkit, with nothing added to the core.
 
 ### 2.5 Release status
 
@@ -1795,14 +1802,135 @@ tripping R0801, the correct response is to move logic into the core — tree
 flattening, fold state, edit dispatch, dirty tracking and diagnostic
 presentation all belong there.
 
-### 8.1 Entry points (planned, not implemented)
+### 8.1 Each user interface registers itself
 
-An `edit_cfg_json.ui` entry-point group would let backends register themselves
-for discovery (`--ui=auto`). It is additive and breaks nothing, and is only
-worth building once there is a generic launcher or a third-party backend in the
-wild. The programs of section 8.3 are not that launcher: each supplies its own
-backend. An `edit-cfg-json` that chose an editor for the machine it was run on
-would be that launcher, and the name is kept free for it.
+The `edit_cfg_json.ui` entry-point group is how a backend package says that it
+exists, so that a program can open "the editor this machine can run" without
+naming a package. One `UiBackend` per user interface is registered in it, and
+nothing else is asked of a backend author:
+
+```python
+class UiBackend(NamedTuple):
+    ui_name: str
+    priority: int
+    can_run: Callable[[], bool]
+    backend: Callable[[], EditorBackend]
+    interactive: bool = True
+    home_settings: Optional[str] = None
+```
+
+**Being installed is not the question, which is why `can_run` is asked.** A
+window needs a display and a terminal screen needs a terminal, and neither of
+those is a fact about what was installed: Tkinter comes with Python on every
+machine this library supports, and the window it opens is refused over a plain
+remote shell and in a build job. So each registration answers for itself, and
+the core only puts the answers in order. A registration whose package cannot be
+imported at all is the other half of the same question, and it is skipped
+rather than refused: a machine with one of the two editors installed has an
+editor, and a refusal about the other would leave it with none.
+
+**The Tk answer is worked out in a process of its own.** A Tk that the asking
+process built and destroyed would be the first of two in the process that goes
+on to open the editor, and a failed one leaves Tcl state behind that has
+crashed the next Tk in this repository's own tests (section 10.2). A child
+running `import tkinter; tkinter.Tk().destroy()` answers with its exit code and
+takes whatever it made with it. The answer is remembered for the run, because
+the display of a machine does not appear while one program runs and the child is
+the expensive part of asking. The Textual answer is `isatty` on both ends of the
+process, which costs nothing and is therefore not remembered: a process whose
+output was redirected half way through gets the answer that is true now.
+
+**The priority is the backend author's statement and the user's decision.** It
+is reported by the registration, because which editor is the better one is a
+fact about the user interface rather than about one machine: 10 for the window,
+5 for the terminal, and `LOWEST_PRIORITY`, which is 0, for what is not an editor
+at all. `Settings.ui_priorities` overrules it per `--ui` name (section 9.1), so
+a user who prefers the terminal on a machine with a display says so once and
+every program of this library opens the one they meant.
+
+**Zero is never opened on its own.** `DumpEditor` registers itself so that
+`--ui dump` reaches it, and it is asked for by name or not at all — it is not
+even asked whether it can run, because a yes from it could not change anything.
+Somebody who asked for an editor and got a printout would have been misled by
+the answer rather than by anything they typed, which is the same reason the core
+installed no program at all until there was an editor to install one for
+(section 8.3).
+
+**`interactive` and `home_settings` are on the registration and not on the
+program**, because they are facts about the user interface. The first decides
+`--save` and `--unfold` and what the exit code answers with, and the second is
+the settings file of the home folder that section 9.9 looks for: what the two
+editors differ about is their keys and their questions, so a session the
+launcher opens in the window editor reads the same `~/.edit-cfg-json-tk.cfg`
+that `edit-cfg-json-tk` reads. Each of the three programs of section 8.3 reads
+its own two facts from its own registration as well, so there is one place that
+says them.
+
+#### 8.1.1 What a caller does with the registrations
+
+Three functions of the core read them, and `edit_in_ui` is `edit` with the
+backend found instead of named:
+
+```python
+def available_uis(settings: SettingsSource = Settings()) -> list[str]:
+def chosen_ui(ui_name: Optional[str] = None,
+              settings: SettingsSource = Settings()) -> UiBackend:
+def edit_in_ui(config: Config, *, ui_name: Optional[str] = None,
+               ...) -> Optional[Config]:   # the keywords of edit()
+```
+
+**A command with no user interface of its own has no reason to have chosen
+one**, and those two are what it needs: `edit_in_ui` opens the editor this
+machine can run, and `available_uis` is the list of values an option of its own
+should accept. A list written out by hand would offer the window editor on a
+machine with no display and would say nothing about a user interface installed
+later, so the choices are asked rather than written.
+
+**`NoEditorError` and not a `None` answer.** None already means a session that
+ended without saving anything, and a caller that could not tell the two apart
+would report that its user changed nothing. It is also one exception whatever
+the user interfaces are, which is what a command that imports no toolkit needs:
+it could not catch `tkinter.TclError` without importing Tkinter.
+
+A name that was asked for is answered about itself and never with another user
+interface. Somebody who typed `--ui tk` on a machine with no display is told
+that, because being given the terminal editor instead is a surprise about what
+they are looking at.
+
+#### 8.1.2 The launcher, and the name it was kept for
+
+`edit-cfg-json` is the program the core installs, and section 8.3 kept the name
+free for it: it is the editor this library is for, chosen for the machine it was
+run on. It is the command line of section 8.3 with no backend written into it,
+`--ui` added, and `python3 -m edit_cfg_json` reaching it as each editor program
+is reachable through its own package.
+
+**The command line is read twice, and `--ui` is why.** Which options the parser
+has depends on the editor — `--save` and `--unfold` belong to a backend with no
+user and to no other — so `--ui` and `-c` are read on their own first and the
+parser the user sees is built once the answer is known. One function of
+`edit_cfg_json.cli` declares the option for both readings, so there is one
+option and not two that could drift apart.
+
+**`--ui` accepts what can run here and nothing else.** A name that cannot run
+is then refused by `argparse` beside the ones that would have worked, which is
+the answer that says what to type instead. It costs asking every registration
+before the command line is parsed, which is one child process on a machine with
+the window editor installed.
+
+**The settings that decide which editor are the shared ones.** The lookup of
+section 9.9 is made without any program's own file of the home folder, because
+the settings belonging to one editor cannot be what decides that another editor
+is opened. The session then reads them again with the file of the editor that
+was chosen. The first reading is silent about a file it cannot read, because the
+second makes the same refusal with the same words and one fault is one message.
+
+**A machine that can open no editor is refused after the command line is read,
+not before.** `--help` is what says that `--ui` exists and which names it
+takes, and `--version` is what a problem report is written from, so the one
+person who has just been told that they have no editor is the one person who
+most needs both. `run_cli` therefore takes a backend of None and answers
+`ExitCode.NO_EDITOR` once those two have had their chance.
 
 ### 8.2 Embedding in an application that already runs a UI
 
@@ -2176,15 +2304,24 @@ only a development tool: a question about a configuration that is not two
 members long would otherwise cost a hand-written example, and any class in
 reach answers it instead.
 
-**The core installs no program, and the name it would have installed under is
-the reason.** The same command line over the non-interactive backend is worth
-having, because it says what a class makes of a file and answers with an exit
-code, which a continuous integration job can read. But that is a small utility
-for whoever is writing a program on top of this library, and `edit-cfg-json` is
-the name of the editor this library is for: a command named after a library is
-taken for that library's product. So the utility is
-`python3 -m edit_cfg_json.dump`, and the name is left free for the launcher
-that picks the editor the machine can run.
+**They are the two that have chosen, and `edit-cfg-json` is the one that has
+not.** A user who wants the window whatever else is installed names the window
+program, and a user who has no opinion names the launcher and is given what the
+machine can run. All three are the command line below with a different answer
+to where the backend comes from, and each reads what it is told about its
+editor from that editor's own registration (section 8.1).
+
+**The core installs one program, and it is an editor.** `edit-cfg-json` is the
+launcher of section 8.1.2, which opens the editor the machine can run. The same
+command line over the non-interactive backend is worth having too, because it
+says what a class makes of a file and answers with an exit code, which a
+continuous integration job can read — but that is a small utility for whoever
+is writing a program on top of this library, and it may not have the name of
+the library: a command named after a library is taken for that library's
+product, and `edit-cfg-json` promises the editor this library is for. So the
+utility is `python3 -m edit_cfg_json.dump`, reached by naming it and by nothing
+shorter, and the name it may not have belongs to the launcher. For several
+releases that name installed nothing at all, which is what kept it free.
 
 #### 8.3.1 The command line owns no logic
 
@@ -2196,12 +2333,12 @@ would be near copies of each other, and section 8 answers duplicate code
 between the backends by moving logic into the core. It is also what makes the
 whole program testable with no display and no toolkit.
 
-Each editor program is reachable as `python -m` on its own package as well, so
-a machine whose script folder is not on `PATH` can still run it, and the
-utility of the core is reached that way and no other. All three complete their
-own command lines with `argcomplete`: the two installed programs through
-`register-python-argcomplete`, and the utility through the global completion,
-which finds the `PYTHON_ARGCOMPLETE_OK` marker.
+Every program here is reachable as `python -m` on the package that installs it
+as well, so a machine whose script folder is not on `PATH` can still run it,
+and the utility of the core is reached that way and no other. All four complete
+their own command lines with `argcomplete`: the three installed programs
+through `register-python-argcomplete`, and the utility through the global
+completion, which finds the `PYTHON_ARGCOMPLETE_OK` marker.
 
 #### 8.3.2 The class is told, and never guessed
 
@@ -2417,6 +2554,7 @@ class Settings:
     priority_keys: bool = True
     confirm_overwrite: bool = True
     choose_values: bool = True
+    ui_priorities: dict[str, int] = field(default_factory=dict)
 ```
 
 One attribute per action rather than a mapping keyed by an action enum. The
@@ -2475,6 +2613,23 @@ in, which is what makes it a setting rather than session state: the user
 switches between the two whenever they like, and this says nothing once they
 have. True is the default, because a member whose values the editor knows the
 whole of is a member nobody should have to spell (section 4.11).
+
+`ui_priorities` is the one attribute that is not about the editor's behaviour
+at all but about **which editor**, and it is the third and last word in the
+choosing of section 8.1: the backend author reports a priority, this overrules
+it per `--ui` name, and an option of the program overrules that for one run.
+The default is an empty dict, which is nobody overruling anything, and it is
+the one mutable default this class has — hence `default_factory`, so that two
+applications which say nothing do not share the dict that says it.
+
+**A name that nothing registers here is kept and ignored**, because the same
+settings file is read on machines with different packages installed, and an
+editor a file mentions is not one this machine has to have. A number below
+`LOWEST_PRIORITY` is refused, since nothing sorts below "never on its own", and
+that lowest value is how a user takes an editor out of the choosing without
+uninstalling it. It is a fact about the machine rather than about the
+application, which is why an application embedding the editor has no reason to
+set it and a settings file has every reason to.
 
 ### 9.2 Key combinations
 
@@ -2611,6 +2766,13 @@ calls that method while it constructs and while it parses, so such a class
 cannot be built at all. No `Config` may hold a member of that name. That is
 also what makes unfreezing `Settings` moot (section 9.1).
 
+**The priorities of the user interfaces are the one dict member with no
+declared keys**, which is `_unchecked_dicts`, and that is what tells them apart
+from the actions below: an action name is one this editor has or a mistake,
+while a `--ui` name belongs to whatever packages happen to be installed. The
+shape of the value is still checked, so a file with text where a table belongs
+is refused.
+
 **The key combinations are a dict member and not a nested object.**
 `config_as_json` reads a nested configuration object whole — without the
 permissive flag of the parse around it — so every settings file would then have
@@ -2642,13 +2804,21 @@ do quietly. The two files of the home folder are the lookup itself, and a step
 of a lookup that finds nothing is the lookup working.
 
 **One environment variable for every program, and one file of the home folder
-per program above the shared one.** The variable is a machine or a session
-deciding how this editor behaves, and an answer that had to be given three
-times would come to be given twice. What the two editors differ about is their
-keys and their questions, so a user who wants the window and the terminal to
-differ writes one file each and a user who wants one answer writes only the
+per user interface above the shared one.** The variable is a machine or a
+session deciding how this editor behaves, and an answer that had to be given
+three times would come to be given twice. What the two editors differ about is
+their keys and their questions, so a user who wants the window and the terminal
+to differ writes one file each and a user who wants one answer writes only the
 shared file. The backend that prints once and returns has neither keys nor
 questions, so it has no file of its own.
+
+**That file belongs to the user interface and not to the program**, which is
+why it is named by the registration of section 8.1: a session the launcher
+opens in the window editor is a session in that editor, so it reads the file
+that editor's own program reads. The launcher itself has no file of its own
+above the shared one, and cannot have: the step that would name it comes after
+the choosing, and it is the choosing that this lookup is read for (section
+8.1.2).
 
 **It is read with `LoadPolicy.DEFAULTS`**, because a settings file is written
 by hand to change one or two things. It is also read **before** anything else
@@ -2681,7 +2851,8 @@ things hold for those rules.
 
 - **Only a difference a released version really wrote belongs in them.**
   `ADDED_ACTIONS` names the actions no released version ever put in a file and
-  `ADDED_SETTINGS` names the members none of them held. Supplying something
+  `ADDED_SETTINGS` names the members none of them held, `ui_priorities` among
+  them. Supplying something
   that has always existed would accept a file no version ever produced, and
   would hide a key or a setting that somebody removed by hand.
 - **A member added to the class needs the same rule as an action**, and for the

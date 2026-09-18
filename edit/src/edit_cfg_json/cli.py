@@ -2,15 +2,23 @@
 """The command line of a program that edits any configuration class.
 
 An application author should get an editor for their own configuration class
-without writing a line of user interface code, and every one of the three
-distributions therefore ships a program. What differs between the three
-programs is the backend and nothing else, so everything else lives here: the
-parsing, one editing session and the exit code. Each package is then a program
-of a few statements, which is also what makes this testable with no display and
-no toolkit, by handing `run_cli` a backend that is a stub.
+without writing a line of user interface code, so each of the three
+distributions ships a program: the two editors, and from the core both the
+launcher that opens whichever editor this machine can run and the utility that
+prints a configuration once. What differs between them is the backend and
+nothing else, so everything else lives here: the parsing, one editing session
+and the exit code. Each of them is then a program of a few statements, which is
+also what makes this testable with no display and no toolkit, by handing
+`run_cli` a backend that is a stub.
 
 `run_cli` takes the backend for exactly the reason `edit` does: this package
 never imports a user interface library, so it cannot name one.
+
+**One of the programs has no backend of its own**, which is the launcher of
+`edit_cfg_json.launcher`: it opens the editor the machine can run, so it finds
+its backend rather than being built out of one. That is the whole of what
+`--ui` and a backend of None are here for, and both are absent from a program
+that was written for one user interface.
 
 **Where the class comes from is `edit_cfg_json.cli_target`**, which owns the
 three doors to it — an importable module, a Python file, and this library's own
@@ -59,6 +67,7 @@ from edit_cfg_json.loading import DEFAULT_POLICY, ConfigLoadError, \
     LoadPolicy, load_config
 from edit_cfg_json.settings import Settings
 from edit_cfg_json.settings_file import load_settings
+from edit_cfg_json.ui_choice import no_editor_message
 
 DESCRIPTION = ('Edit one config_as_json configuration class, without '
                'writing a program for it.')
@@ -100,6 +109,37 @@ def named_policy(name: str) -> LoadPolicy:
     return POLICY_NAMES[name]
 
 
+def add_ui_option(parser: ArgumentParser,
+                  choices: Optional[Sequence[str]] = None) -> None:
+    """Add the option that says which user interface the editor opens in.
+
+    It belongs to the program that chooses one for itself and to no other, so
+    it is added where that program asks for it rather than by the parser
+    below. That program declares it twice — once to read it before it knows
+    which editor the rest of the command line belongs to, and once in the
+    parser the user sees — and this is what keeps the two the same option.
+
+    Args:
+        parser: Parser that the option is added to.
+        choices: The `--ui` names this run accepts, or None to accept any
+            name, which is what the first of those two readings does.
+    """
+    parser.add_argument('--ui', default=None, choices=choices,
+                        help='User interface to open the editor in, instead '
+                             'of the one this machine can best run.')
+
+
+def add_cfg_option(parser: ArgumentParser) -> None:
+    """Add the option naming the settings file that one run behaves by.
+
+    Args:
+        parser: Parser that the option is added to.
+    """
+    parser.add_argument('-c', '--cfg', default=None, metavar='PATH',
+                        help='Settings file that this program itself runs '
+                             'with, instead of the one it would look for.')
+
+
 def add_file_options(parser: ArgumentParser) -> None:
     """Add the file and policy options that every program of this library has.
 
@@ -121,7 +161,8 @@ def add_file_options(parser: ArgumentParser) -> None:
                         help='Configuration file to write, or the input file.')
 
 
-def _create_parser(prog: str, interactive: bool) -> ArgumentParser:
+def _create_parser(prog: str, interactive: bool,
+                   ui_choices: Sequence[str]) -> ArgumentParser:
     """Return the parser of one program of this library.
 
     `--save` belongs to a program whose backend prints once and returns,
@@ -143,6 +184,9 @@ def _create_parser(prog: str, interactive: bool) -> ArgumentParser:
         prog: Name that this program is installed under.
         interactive: Whether the backend of this program gives the user a
             session in which they could ask for a save themselves.
+        ui_choices: The `--ui` names this run accepts, which is empty for a
+            program that supplies its own backend and therefore offers no
+            such option at all.
 
     Returns:
         The parser for one program.
@@ -161,9 +205,9 @@ def _create_parser(prog: str, interactive: bool) -> ArgumentParser:
                        help='Report the versions of this program and of the '
                             'packages it is built on, and whether newer ones '
                             'are available.')
-    parser.add_argument('-c', '--cfg', default=None, metavar='PATH',
-                        help='Settings file that this program itself runs '
-                             'with, instead of the one it would look for.')
+    if ui_choices:
+        add_ui_option(parser, choices=ui_choices)
+    add_cfg_option(parser)
     parser.add_argument('--class', dest='class_name', default=None,
                         metavar='CLASS',
                         help='Name of the config_as_json.Config class.')
@@ -356,19 +400,25 @@ def _check_target(parser: ArgumentParser, parsed: Namespace) -> None:
 # object to satisfy the count would make a program of this library longer to
 # write than what it saves.
 # pylint: disable-next=too-many-arguments
-def run_cli(backend: EditorBackend, prog: str, *,
+def run_cli(backend: Optional[EditorBackend], prog: str, *,
             version_reporter: VersionReporter,
             args: Optional[Sequence[str]] = None, interactive: bool = True,
-            home_settings: Optional[str] = None) -> int:
+            home_settings: Optional[str] = None,
+            ui_choices: Sequence[str] = ()) -> int:
     """Run one program of this library from the command line.
 
-    This is the whole of what each of the three programs does. The backend and
-    the reporter are what differ between them, and everything that could be
-    written twice is therefore here.
+    This is the whole of what every program of this library does. The backend
+    and the reporter are what differ between them, and everything that could
+    be written twice is therefore here.
 
     Args:
         backend: User interface to run the session in. Each package supplies
             its own, which is the one user interface this package cannot name.
+            None is a program that chooses its own and found none it could
+            open, which is refused once the command line has been read, so
+            that `--help` and `--version` still answer: the first of those is
+            what says that `--ui` exists and which names it takes, and the
+            second is what a problem report is written from.
         prog: Name that this program is installed under, used in its help and
             in its refusals.
         version_reporter: What `--version` is answered with. Each program
@@ -384,6 +434,9 @@ def run_cli(backend: EditorBackend, prog: str, *,
             folder, which is the third step of the lookup that
             `edit_cfg_json.settings_file` makes. None is a program that has
             none of its own and reads the shared file or nothing.
+        ui_choices: The `--ui` names this run accepts, for a program that
+            chooses its own user interface. The empty default is a program
+            that supplies one backend and therefore has no such option.
 
     Returns:
         What this run of the program ends with, as one of `ExitCode`.
@@ -392,12 +445,16 @@ def run_cli(backend: EditorBackend, prog: str, *,
         SystemExit: The command line itself is wrong, or help was asked for.
             That is `argparse` reporting it, with `ExitCode.USAGE`.
     """
-    parser = _create_parser(prog=prog, interactive=interactive)
+    parser = _create_parser(prog=prog, interactive=interactive,
+                            ui_choices=ui_choices)
     argcomplete.autocomplete(parser)
     parsed = parser.parse_args(args)
     if parsed.version:
         version_reporter.print()
         return ExitCode.OK
+    if backend is None:
+        print(no_editor_message(ui_choices), file=sys.stderr)
+        return ExitCode.NO_EDITOR
     _check_target(parser=parser, parsed=parsed)
     try:
         return _session(backend=backend, parsed=parsed,

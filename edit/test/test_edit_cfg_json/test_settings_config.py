@@ -21,22 +21,25 @@ from edit_cfg_json import ActionSettings, EditModel, SETTINGS_DESCRIPTIONS, \
     Settings, SettingsConfig, declared_actions, described_below, \
     model_as_text, row_description
 from edit_cfg_json.settings_config import ACTION_DESCRIPTIONS, \
-    ADDED_ACTIONS, EVERY_ACTION, UNKNOWN_ACTION
+    ADDED_ACTIONS, ADDED_SETTINGS, EVERY_ACTION, EVERY_UI, UNKNOWN_ACTION
 from edit_cfg_json.tree import EVERY_ELEMENT
 from .model_helpers import row_at, written
 
 BAD_FILES = (('{"file_extension": "..."}', 'not a file name extension'),
              ('{"backup_suffix": " "}', 'not a backup file name suffix'),
              ('{"backup_count": 0}', 'backup_count'),
-             ('{"actions": {"save": ["ctrl+q"]}}', 'both quit and save'))
+             ('{"actions": {"save": ["ctrl+q"]}}', 'both quit and save'),
+             ('{"ui_priorities": {"tk": -1}}', 'tk'))
 """Settings files that this class refuses, and a word of each refusal."""
 
-MEMBER_IDS = ('extension', 'suffix', 'count', 'keys')
+MEMBER_IDS = ('extension', 'suffix', 'count', 'keys', 'priority')
 """Names of those cases, so a failure says which file it was."""
 
 WRONG_TYPES = ('{"backup_count": "soon"}', '{"file_extension": 5}',
                '{"priority_keys": "yes"}', '{"actions": {"save": "ctrl+w"}}',
-               '{"actions": {"save": [5]}}')
+               '{"actions": {"save": [5]}}',
+               '{"ui_priorities": {"tk": "high"}}',
+               '{"ui_priorities": {"tk": true}}')
 """Settings files whose values are of a type no setting of the editor has."""
 
 
@@ -279,12 +282,13 @@ def test_saved_read_back(tmp_path: Path) -> None:
 
 
 def _old_shape_text() -> str:
-    """Return a settings file as a release before the added actions wrote one.
+    """Return a settings file as an earlier release of the editor wrote one.
 
-    It is what this version writes with the actions of `ADDED_ACTIONS` taken
-    out of it again, rather than a file written out here: a settings file is
-    written by the editor saving one, so a file of an earlier release is that
-    file without what the release did not have.
+    It is what this version writes with the actions of `ADDED_ACTIONS` and the
+    members of `ADDED_SETTINGS` taken out of it again, rather than a file
+    written out here: a settings file is written by the editor saving one, so
+    a file of an earlier release is that file without what the release did not
+    have.
 
     Returns:
         The whole text of such a file.
@@ -294,6 +298,8 @@ def _old_shape_text() -> str:
     actions = data['actions']
     for name in ADDED_ACTIONS:
         del actions[name]
+    for name in ADDED_SETTINGS:
+        del data[name]
     return json.dumps(data)
 
 
@@ -307,8 +313,25 @@ def test_added_are_actions() -> None:
     assert set(ADDED_ACTIONS) <= set(declared_actions())
 
 
+def test_added_are_settings() -> None:
+    """Test every setting said to be added is a member this class declares.
+
+    A member named there and nowhere else would be supplied into a file as a
+    key that `SettingsConfig` does not declare, and the file would then be
+    refused for holding it.
+    """
+    assert set(ADDED_SETTINGS) <= _members(SettingsConfig())
+
+
+def test_named_setting_kept() -> None:
+    """Test a file that names an added setting keeps what it says about it."""
+    config = _parsed('{"ui_priorities": {"tk": 1}, "choose_values": false}')
+    assert config.ui_priorities == {'tk': 1}
+    assert not config.choose_values
+
+
 def test_reads_old_shape() -> None:
-    """Test a file of a release before the added actions is read.
+    """Test a file of an earlier release of the editor is read.
 
     The keys of a dict member are matched against the ones the class declares
     before any validator of the class is asked anything, and that happens
@@ -321,6 +344,8 @@ def test_reads_old_shape() -> None:
     assert set(config.actions) == set(declared_actions())
     for name in ADDED_ACTIONS:
         assert config.actions[name] == declared_actions()[name]
+    for name in ADDED_SETTINGS:
+        assert getattr(config, name) == getattr(Settings(), name)
     assert config.as_settings() == Settings()
 
 
@@ -362,3 +387,41 @@ def test_other_gaps_refused() -> None:
     with pytest.raises(KeyError):
         SettingsConfig().parse_json(text, ok_to_use_defaults=False,
                                     stderr_file=sys.stderr)
+
+
+@pytest.mark.parametrize('given', ['{}', '{"tk": 0}',
+                                   '{"tk": 3, "textual": 7}',
+                                   '{"not_installed_here": 9}'])
+def test_free_priority_keys(given: str) -> None:
+    """Test the priorities accept a `--ui` name this class never declared.
+
+    They are the one dict member of this class whose keys are not checked
+    against the ones it declares, because they belong to whatever packages
+    happen to be installed and the same file is read on more than one
+    machine.
+    """
+    config = _parsed(f'{{"ui_priorities": {given}}}')
+    assert config.ui_priorities == json.loads(given)
+    assert config.as_settings().ui_priorities == json.loads(given)
+
+
+def test_priorities_described() -> None:
+    """Test every entry of the priorities is explained by the one line.
+
+    A line per key is impossible: the keys are the user interfaces that
+    happen to be installed, so what is said is said about all of them.
+    """
+    assert SETTINGS_DESCRIPTIONS[('ui_priorities', EVERY_ELEMENT)] == EVERY_UI
+
+
+def test_priorities_shape() -> None:
+    """Test a priorities member that is no dict at all is refused.
+
+    It is `config_as_json` that refuses it, by the shape of the value against
+    the shape the class declares, and it does so before any validator of this
+    class is asked. Taking the declared-keys check off a member with
+    `_unchecked_dicts` does not take that away, which is what keeps a file
+    from being read with text where a table belongs.
+    """
+    with pytest.raises(KeyError):
+        _parsed('{"ui_priorities": "tk"}')

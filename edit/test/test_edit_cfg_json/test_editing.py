@@ -14,8 +14,9 @@ who pressed Save.
 from pathlib import Path
 import json
 import pytest
-from edit_cfg_json import ConfigLoadError, EditModel, LoadPolicy, Settings, \
-    edit, editor_model
+from edit_cfg_json import ConfigLoadError, EditModel, EditorBackend, \
+    LoadPolicy, NoEditorError, Settings, UiBackend, edit, edit_in_ui, \
+    editor_model
 from .sample_cfg import PICKED_NAME, ExtraArgCfg, FlatCfg, RangeCfg, \
     RewriteCfg, extra_arg_loader, picking_loader
 
@@ -27,6 +28,26 @@ INCOMPLETE = '{"name": "Only a name"}'
 
 UNKNOWN_KEY = '{"name": "n", "answer": 1, "colour": "red"}'
 """An input file with a key that the configuration does not declare."""
+
+
+def registered(monkeypatch: pytest.MonkeyPatch, backend: EditorBackend,
+               priority: int = 10) -> None:
+    """Make one made up user interface the only one this installation has.
+
+    A real registration would answer according to the machine the tests
+    happen to run on, so what `edit_in_ui` is tested against is one that
+    answers what the test wants.
+
+    Args:
+        monkeypatch: What the replacement is undone by.
+        backend: Backend that this user interface is to be opened in.
+        priority: How good an editor it says it is, where zero is the answer
+            that is never chosen without being asked for by name.
+    """
+    made = UiBackend(ui_name='made_up', priority=priority,
+                     can_run=lambda: True, backend=lambda: backend)
+    monkeypatch.setattr('edit_cfg_json.ui_choice.discovered_uis',
+                        lambda: [made])
 
 
 class Closer:  # pylint: disable=too-few-public-methods
@@ -373,3 +394,67 @@ def test_model_is_described() -> None:
     about_name = 'What the name is for.'
     model = editor_model(FlatCfg(), descriptions={('name',): about_name})
     assert model.rows[0].description.startswith(about_name)
+
+
+def test_edit_in_ui_opens(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test the editor is opened in the user interface that was found.
+
+    This is `edit` for a caller with no user interface of its own, so what it
+    adds is finding one, and everything else about a session is the same.
+    """
+    backend = Closer()
+    registered(monkeypatch, backend)
+    assert edit_in_ui(FlatCfg()) is None
+    assert len(backend.seen) == 1
+    assert backend.seen[0].config_type_name == 'FlatCfg'
+
+
+def test_edit_in_ui_saves(monkeypatch: pytest.MonkeyPatch,
+                          tmp_path: Path) -> None:
+    """Test the session it opens is the session `edit` opens.
+
+    The keywords reach the model, so a save writes the file that was named
+    and the object that was written is what comes back.
+    """
+    registered(monkeypatch, Saver('name', 'Typed in'))
+    written = tmp_path / 'saved.json'
+    saved = edit_in_ui(FlatCfg(), out_file=written)
+    assert saved is not None
+    assert json.loads(written.read_text(encoding='utf-8'))['name'] == \
+        'Typed in'
+
+
+def test_edit_in_ui_named(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test a user interface named by the caller is the one that is opened."""
+    backend = Closer()
+    registered(monkeypatch, backend)
+    assert edit_in_ui(FlatCfg(), ui_name='made_up') is None
+    assert len(backend.seen) == 1
+
+
+def test_edit_in_ui_refuses(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test a caller is told when there is no editor to open.
+
+    It is an exception and not a None answer, because None already means a
+    session that ended without saving anything, and a caller that cannot tell
+    the two apart would report that the user changed nothing.
+    """
+    backend = Closer()
+    registered(monkeypatch, backend, priority=0)
+    with pytest.raises(NoEditorError):
+        edit_in_ui(FlatCfg())
+    assert not backend.seen
+
+
+def test_in_ui_priorities(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test the settings the caller passes decide which editor is opened.
+
+    An application that reads its own users' settings hands them over here
+    like any other, and the priorities are the one of them that is read
+    before anything is opened.
+    """
+    backend = Closer()
+    registered(monkeypatch, backend, priority=0)
+    settings = Settings(ui_priorities={'made_up': 4})
+    assert edit_in_ui(FlatCfg(), settings=settings) is None
+    assert len(backend.seen) == 1

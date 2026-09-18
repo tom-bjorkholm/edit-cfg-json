@@ -5,7 +5,7 @@ its configuration, and who wants to give them the editor of `edit-cfg-json`
 for the job — a window, or the terminal.
 
 It says **what your application has to do**, and nothing about how the editor
-works inside. There are six situations an application can be in, one section
+works inside. There are seven situations an application can be in, one section
 each, and every one of them is a few lines of your code.
 
 ## What this guide is not
@@ -69,9 +69,15 @@ your validators before any of that is wired into an application.
 ## 1.1 Open your own class
 
 ```sh
+edit-cfg-json --module myapp.config --class AppConfig
 edit-cfg-json-tk --module myapp.config --class AppConfig
 edit-cfg-json-textual --module myapp.config --class AppConfig -i app.json
 ```
+
+**Three programs, one command line.** The first opens the editor the machine
+you are on can run — a window where there is a display, the terminal editor
+where there is none — and `--ui` names one instead. The other two are the
+window editor and the terminal editor whatever else is installed.
 
 `--module` names an importable module; `--file` names a Python file instead,
 for a class that is not on the import path yet:
@@ -80,9 +86,9 @@ for a class that is not on the import path yet:
 edit-cfg-json-tk --file ./scratch/new_config.py --class DraftConfig
 ```
 
-Both are also reachable as `python3 -m edit_cfg_json_tk` and
-`python3 -m edit_cfg_json_textual`, for a machine whose script folder is not
-on `PATH`.
+All three are also reachable as `python3 -m edit_cfg_json`,
+`python3 -m edit_cfg_json_tk` and `python3 -m edit_cfg_json_textual`, for a
+machine whose script folder is not on `PATH`.
 
 **Importing a module runs it.** That is the same exposure as
 `python3 somefile.py`, and it is worth knowing when the module you name has
@@ -90,10 +96,12 @@ work at import time.
 
 ## 1.2 The whole command line
 
-Both programs take the same options, and so does the utility of section 1.5.
+All three programs take the same options, and so does the utility of section
+1.5.
 
 | Option | What it says |
 | --- | --- |
+| `--ui NAME` | Which editor to open. `edit-cfg-json` only, and its values are the user interfaces that can run on this machine. |
 | `--module MODULE` | Importable module holding the class. |
 | `--file PATH` | Python file holding the class. |
 | `--edit-settings` | Edit a settings file of the editor itself, rather than a class of yours. |
@@ -217,7 +225,7 @@ your application would refuse is a failed run**, not a remark in the output.
 
 ---
 
-# Part 2 — The six ways to open the editor
+# Part 2 — The seven ways to open the editor
 
 Find your situation in the first column. Everything else in this part follows
 from that one row.
@@ -230,6 +238,7 @@ from that one row.
 | **4.** No user interface at all, wants the terminal | `edit_cfg_json_textual.edit` | yes | the return value | [a02_textual_for_no_gui.py](../examples/src/example/a02_textual_for_no_gui.py) |
 | **5.** Already runs Textual, wants the whole interface | `push_screen(EditorScreen(...))` | no | `on_close` + `saved_config` | [e16_screen_textual.py](../examples/src/example/e16_screen_textual.py) |
 | **6.** Already runs Textual, wants an area it has | `mount(EditorPanel(...))` | no | `on_close` + `saved_config` | [e14_embedded_textual.py](../examples/src/example/e14_embedded_textual.py) |
+| **7.** No user interface at all, and no preference | `edit_cfg_json.edit_in_ui` | yes | the return value | [a03_chosen_ui.py](../examples/src/example/a03_chosen_ui.py) |
 
 **The one rule behind the split.** Cases 1 and 4 create the toolkit's own
 top object — a `tkinter.Tk`, or a Textual `App` — and run its event loop.
@@ -246,7 +255,7 @@ something you own, and they take exactly the same keywords about the session
 (Part 3). Neither toolkit offers a supported way to ask whether one is already
 running, so the editor is told and never guesses.
 
-## The class the six programs share
+## The class the seven programs share
 
 Every program below edits this one class, which is an ordinary
 `config_as_json.Config` and knows nothing about the editor:
@@ -684,11 +693,81 @@ whose own widget inside that area has already taken one of these combinations.
 Worked example:
 [e14_embedded_textual.py](../examples/src/example/e14_embedded_textual.py).
 
+## 2.7 Case 7 — a command with no user interface, in whichever editor runs
+
+```python
+"""configure.py — a command with no preference about the editor either."""
+
+import argparse
+import sys
+from edit_cfg_json import ConfigLoadError, NoEditorError, available_uis, \
+    edit_in_ui
+from myapp.config import DESCRIPTIONS, AppConfig
+
+
+def main() -> None:
+    """Edit the configuration in some editor, then run with what was saved."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ui', default=None, choices=available_uis())
+    chosen = parser.parse_args()
+    try:
+        saved = edit_in_ui(AppConfig(), ui_name=chosen.ui,
+                           descriptions=DESCRIPTIONS, in_file='app.json')
+    except (ConfigLoadError, NoEditorError) as refusal:
+        sys.exit(str(refusal))
+    if saved is None:
+        sys.exit('Nothing was saved.')
+    run_the_pipeline(saved)
+
+
+if __name__ == '__main__':
+    main()
+```
+
+**This is case 1 and case 4 without the choice**, and it is the case most
+commands are really in: a command with no user interface of its own has no
+reason to have chosen one for its editor either. Your application imports no
+toolkit and depends on neither editor package — `edit-cfg-json` alone is
+enough — and the editor opens in whichever installed user interface can run on
+the machine the command was run on. A user at a desk gets a window and a user
+over a plain remote shell gets the terminal editor, from this one line.
+
+**Which one, and who decides.** Every installed package that supplies a user
+interface registers itself with a priority: the window editor reports the
+highest of the ones this repository ships, the terminal editor the next, and
+the backend that only prints reports the value that is never opened unless it
+is asked for by name. Your application says nothing about any of that. What
+overrules it is the person running the command, through the `ui_priorities`
+setting (section 4.4), and then your own option for one run.
+
+**`--ui` is worth adding, and its choices are asked for.**
+`available_uis()` answers with the user interfaces that can run here, which is
+exactly what such an option should accept: a list written out by hand would
+offer the window editor on a machine with no display and would say nothing
+about a user interface installed later. Leave `None` as the default, so that a
+user with no opinion needs none.
+
+**`NoEditorError` is the one new thing to catch.** It says that there is no
+editor here to open, which a machine with no display and without the terminal
+editor installed is. It replaces the `tkinter.TclError` of case 1, and it is
+one exception whatever the machine has — which is what a command that imports
+no toolkit needs, since it cannot catch the exception of a package it does not
+import. It is an exception and not a `None` answer, because `None` already
+means a session that saved nothing.
+
+**Depend on `edit-cfg-json` and let your users install an editor**, or depend
+on one editor package so that there is certainly one. Both are reasonable: the
+first is what a command distributed to machines you do not know wants, and the
+second is what makes the refusal above unlikely.
+
+Worked example:
+[a03_chosen_ui.py](../examples/src/example/a03_chosen_ui.py).
+
 ---
 
-# Part 3 — What every one of the six takes
+# Part 3 — What every one of the seven takes
 
-All six entry points say the same things about a session, with the same
+All seven entry points say the same things about a session, with the same
 keyword names, so moving from one to another changes where the editor is and
 nothing else.
 
@@ -704,6 +783,7 @@ nothing else.
 | `policy` | `STRICT_THEN_DEFAULTS` | What to do about declared keys the input file does not hold. |
 | `settings` | `Settings()` | What your application has already decided about keys and file names, or a callable answering with it. |
 | `stderr_file` | `sys.stderr` | Stream for user-facing diagnostics. |
+| `ui_name` | `None` | `edit_in_ui` only (case 7): which user interface to open, or the best one this machine can run. |
 
 The four mounting entry points take these after their own first arguments —
 `parent`/`area`/`modal` for Tk, and `on_close` for all four.
@@ -806,10 +886,11 @@ the object you passed.
 
 | Raised by | When | What to do |
 | --- | --- | --- |
-| `edit_cfg_json.ConfigLoadError` | All six, when `in_file` cannot be read as this class: not there, not JSON, or refused by the class. | Catch it and say so. Never let the user get an editor quietly showing defaults instead of the file they asked for. |
+| `edit_cfg_json.ConfigLoadError` | All seven, when `in_file` cannot be read as this class: not there, not JSON, or refused by the class. | Catch it and say so. Never let the user get an editor quietly showing defaults instead of the file they asked for. |
 | `ValueError` | `TkEditorPanel`, when `parent` and `area` are both or neither given. | Fix the call; it is a programming mistake, not a run-time condition. |
 | `ValueError` | `Settings(...)`, for an extension or backup suffix that names no file, a backup count below one, or one key combination given to two actions. | Fix the settings; the refusal names what is wrong. |
 | `tkinter.TclError` | Case 1, on a machine with no display. | Catch it where a command may run over a plain remote shell or from a build job. A message beats a traceback. |
+| `edit_cfg_json.NoEditorError` | Case 7, on a machine where no installed editor can run, and for a `ui_name` that cannot run here. | Catch it for the same reason, and note that it is the one refusal you can catch without importing a toolkit. |
 
 `ConfigLoadError` carries the message in `str(error)` and whatever the
 configuration class itself said in `error.diagnostics`.
@@ -985,11 +1066,24 @@ this written out in full.
 
 **As a settings file of its own**, which is what section 1.4 already
 described: `edit_cfg_json.load_settings` and `edit_cfg_json.settings_file`
-are the same five-place lookup the two programs use, available to your
+are the same five-place lookup the programs use, available to your
 application.
 
 A settings **block** inside your own configuration is read whole, so it has to
 hold every key. A settings **file** of its own need name only what it changes.
+
+**One of these settings is not about the editor's behaviour but about which
+editor.** `ui_priorities` is what case 7 and the `edit-cfg-json` program read
+before anything is opened: an entry per `--ui` name, over what the user
+interface reports about itself, so a user who prefers the terminal on a
+machine with a display writes one line and every program of this library opens
+the one they meant. Zero takes an editor out of the choosing without
+uninstalling it, and a name that is not installed here is ignored, because the
+same file is read on more than one machine.
+
+```json
+{"ui_priorities": {"textual": 20}}
+```
 
 **`settings` may be a callable** rather than a `Settings`, and is then asked
 again at each point where an answer is used. What that is really for is an
@@ -1027,7 +1121,7 @@ the model — on the same keywords as Part 3, and answers with an `EditModel`.
 backend that prints the model once and returns. Between them they say what a
 backend really is, which is anything with a `run_editor` method.
 
-That is a bigger job than the six cases above and is not what this guide is
+That is a bigger job than the seven cases above and is not what this guide is
 about; [detailed_design.md](detailed_design.md) section 8 is.
 
 ---
@@ -1042,8 +1136,10 @@ about; [detailed_design.md](detailed_design.md) section 8 is.
 4. Decide the file naming and the keys, try them with `--edit-settings` and
    `-c`, and turn the answers into one `Settings` in Python (sections 4.2 and
    4.3).
-5. Find your situation in the table in Part 2 and write that one call.
-6. Handle `ConfigLoadError` (section 4.1).
+5. Find your situation in the table in Part 2 and write that one call. A
+   command with no user interface of its own is case 7 unless it has a reason
+   to insist on the window or on the terminal.
+6. Handle `ConfigLoadError`, and `NoEditorError` in case 7 (section 4.1).
 7. Use the object you are given back, not the one you handed over
    (section 3.3).
 8. Point your own users at [end_users_guide.md](end_users_guide.md), or lift

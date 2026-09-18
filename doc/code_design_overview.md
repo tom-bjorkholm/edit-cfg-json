@@ -125,10 +125,12 @@ Pure inspection. Nothing here knows that an editor exists.
 | File | Role |
 | --- | --- |
 | [edit_model.py](../edit/src/edit_cfg_json/edit_model.py) | The session: the buffer, the load report, the verdict, where a save would go. Everything a backend calls is a method here. |
-| [editing.py](../edit/src/edit_cfg_json/editing.py) | `editor_model()` builds a session and `edit()` runs it in a backend. The front door for an application. |
+| [editing.py](../edit/src/edit_cfg_json/editing.py) | `editor_model()` builds a session, `edit()` runs it in a backend, and `edit_in_ui()` runs it in whichever backend this machine can. The front door for an application. |
 | [model_text.py](../edit/src/edit_cfg_json/model_text.py) | Every string a backend shows, as plain text: row values, marks, descriptions, diagnostics, questions, and the whole model as one text. |
 | [emphasis.py](../edit/src/edit_cfg_json/emphasis.py) | Which kind of text each part is — value, explanation, mark, diagnostic. The colour of a kind belongs to each backend. |
 | [backend.py](../edit/src/edit_cfg_json/backend.py) | The `EditorBackend` protocol, and `DumpEditor`, the non-interactive backend that prints the model once. |
+| [ui_backend.py](../edit/src/edit_cfg_json/ui_backend.py) | `UiBackend`, which is what a backend package registers about itself in the `edit_cfg_json.ui` entry point group, and `DUMP_UI`. |
+| [ui_choice.py](../edit/src/edit_cfg_json/ui_choice.py) | Reading those registrations: which can run here, and which one the editor is opened in when nobody said. |
 | [__init__.py](../edit/src/edit_cfg_json/__init__.py) | The public API, re-exported. |
 
 ### Settings of the editor itself
@@ -143,7 +145,8 @@ Pure inspection. Nothing here knows that an editor exists.
 
 | File | Role |
 | --- | --- |
-| [cli.py](../edit/src/edit_cfg_json/cli.py) | The command line that all three programs share. Only the backend, the name and the version reporter differ between them. |
+| [cli.py](../edit/src/edit_cfg_json/cli.py) | The command line that all four programs share. Only the backend, the name and the version reporter differ between them, and one of the four finds its backend instead of being built out of one. |
+| [launcher.py](../edit/src/edit_cfg_json/launcher.py) | `edit-cfg-json`: the same command line with `--ui` and with the backend chosen for this machine. |
 | [cli_target.py](../edit/src/edit_cfg_json/cli_target.py) | What one command line says is to be edited: a module, a Python file, or this library's own settings, and the class, loader and descriptions named inside. |
 | [dump.py](../edit/src/edit_cfg_json/dump.py) | `python3 -m edit_cfg_json.dump`: `DumpEditor` behind `cli`, so it needs no display. |
 | [exit_code.py](../edit/src/edit_cfg_json/exit_code.py) | The exit codes the programs promise, and `Refusal`, which carries one out to where it is printed. |
@@ -168,6 +171,7 @@ Pure inspection. Nothing here knows that an editor exists.
 | Colours | `emphasis.py` for the kinds, `tk_look.py` and `textual_look.py` for the colours |
 | Key combinations | `settings.py`, and the backend that binds them |
 | A command-line option, or the settings file lookup | `cli.py`, `cli_target.py`, `settings_file.py` |
+| Which editor a program opens, or a backend not being found | `ui_choice.py`, then `ui_backend.py` and `tk_ui.py` or `textual_ui.py` |
 | An exit code | `exit_code.py` |
 | Intended API usage, in context | [examples/src/example/](../examples/src/example/) |
 
@@ -176,10 +180,10 @@ Pure inspection. Nothing here knows that an editor exists.
 The tests are in
 [edit/test/test_edit_cfg_json/](../edit/test/test_edit_cfg_json/), mostly one
 `test_<module>.py` per module.
-[examples/src/example/](../examples/src/example/) holds twenty-one worked
+[examples/src/example/](../examples/src/example/) holds twenty-two worked
 examples, each one a small program: nineteen that teach the library one idea
-at a time, and two more that answer which call an application writes. They are
-the quickest way to see what a feature is for.
+at a time, and three more that answer which call an application writes. They
+are the quickest way to see what a feature is for.
 
 `./run_static_checks.py <files>` is the fast loop. `./run_clean_build.py` is
 what a change has to end with. Both are described in

@@ -77,6 +77,13 @@ package's backend filled in, so the command line below is the same one that
 `edit-cfg-json-tk` has; what differs is which of the two shows the
 configuration.
 
+**This program has chosen, and `edit-cfg-json` has not.** That one, which the
+core installs, opens whichever of the installed editors the machine can run
+and takes a `--ui` option for naming one; this program is this editor whatever
+else is installed. Everything else about the two is the same, down to the
+settings file of the home folder, because that file belongs to the editor and
+not to the program that opened it.
+
 {{include: program.md}}
 
 ## What the screen shows

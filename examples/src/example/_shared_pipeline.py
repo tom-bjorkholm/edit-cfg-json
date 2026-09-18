@@ -114,6 +114,27 @@ class EditorFiles(NamedTuple):
     """File the editor writes, or None for the input file."""
 
 
+def add_editor_files(parser: argparse.ArgumentParser) -> None:
+    """Add the two file options that every example of this series has.
+
+    It is not `edit_cfg_json.add_file_options`, which the `e` series uses:
+    that one adds `--policy` as well, and what to do about a value a file
+    leaves out is example 1's subject and not this series'.
+
+    They are declared here once because every example of the series takes
+    them and none of them is about them. An example that has an option of its
+    own — a03 has `--ui`, which is its whole subject — builds its own parser
+    and calls this for the two that are not its subject.
+
+    Args:
+        parser: Parser that the options are added to.
+    """
+    parser.add_argument('-i', '--input', default=None,
+                        help='Configuration file to read.')
+    parser.add_argument('-o', '--output', default=None,
+                        help='Configuration file to write, or the input file.')
+
+
 def editor_files(name: str, args: Optional[list[str]]) -> EditorFiles:
     """Return the file options that one run of an example was given.
 
@@ -125,10 +146,7 @@ def editor_files(name: str, args: Optional[list[str]]) -> EditorFiles:
         What to pass on to the editor about files.
     """
     parser = argparse.ArgumentParser(prog=name)
-    parser.add_argument('-i', '--input', default=None,
-                        help='Configuration file to read.')
-    parser.add_argument('-o', '--output', default=None,
-                        help='Configuration file to write, or the input file.')
+    add_editor_files(parser)
     parsed = parser.parse_args(args)
     return EditorFiles(in_file=parsed.input, out_file=parsed.output)
 

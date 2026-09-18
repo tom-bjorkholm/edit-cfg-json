@@ -30,11 +30,12 @@ they differ about is their keys and their questions, of which this has neither.
 What a settings file still says here is what a file is called and what happens
 to the one a save writes over.
 
-Run it as `python3 -m edit_cfg_json.dump`. This package installs no command of
-its own, and the name `edit-cfg-json` in particular is deliberately free: it
-promises the editor this library is for, and a user who typed it and got a
-printout would have been misled by the name rather than by anything the
-program did.
+Run it as `python3 -m edit_cfg_json.dump`. It is reached by naming it and by
+nothing shorter: `edit-cfg-json` is the editor this machine can run, and a
+user who typed that and got a printout would have been misled by the name
+rather than by anything the program did. That is also what `DUMP_UI` reports
+about itself — the priority that is never chosen on its own — so the launcher
+opens this only where `--ui dump` asked for it.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -43,8 +44,8 @@ program did.
 from collections.abc import Sequence
 from typing import Optional
 import sys
-from edit_cfg_json.backend import DumpEditor
 from edit_cfg_json.cli import run_cli
+from edit_cfg_json.ui_backend import DUMP_UI
 from edit_cfg_json.version_report import EcajVersionReporter
 
 PROGRAM = 'python3 -m edit_cfg_json.dump'
@@ -60,8 +61,10 @@ def main(args: Optional[Sequence[str]] = None) -> int:
     Returns:
         What this run ends with, as one of `edit_cfg_json.ExitCode`.
     """
-    return run_cli(backend=DumpEditor(), prog=PROGRAM, args=args,
-                   version_reporter=EcajVersionReporter(), interactive=False)
+    return run_cli(backend=DUMP_UI.backend(), prog=PROGRAM, args=args,
+                   version_reporter=EcajVersionReporter(),
+                   interactive=DUMP_UI.interactive,
+                   home_settings=DUMP_UI.home_settings)
 
 
 if __name__ == '__main__':  # pragma: no cover
