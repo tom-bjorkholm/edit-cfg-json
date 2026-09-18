@@ -59,7 +59,7 @@ SETTINGS_VARIABLE = 'CFG_EDIT_CFG_JSON'
 
 It is one variable for all of them rather than one each, because what it is for
 is a machine or a session that has decided how this editor behaves, and an
-answer that had to be given three times would come to be given twice.
+answer that had to be given four times would come to be given twice.
 """
 
 SHARED_SETTINGS = '.edit-cfg-json.cfg'

@@ -52,8 +52,8 @@ configuration that is not two members long.
 - Where to start when new to the code:
   [doc/code_design_overview.md](doc/code_design_overview.md)
 
-- For the programmer of an application that offers one of the two editors to
-  its own users:
+- For the programmer of an application that offers the editor to its own
+  users:
   [doc/application_programmers_guide.md](doc/application_programmers_guide.md)
 
 - For whoever edits a configuration in one of the two editors:
@@ -193,10 +193,10 @@ browsed through `reports/index.html`.
 
 ## Test summary
 
-- Test result: 2217 passed, 5 deselected in 89s (0:01:29)
+- Test result: 2217 passed, 5 deselected in 87s (0:01:27)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
-- Built version(s): 0.3.1
+- Built version(s): 0.4.0
 - Build and test using Python 3.14.7

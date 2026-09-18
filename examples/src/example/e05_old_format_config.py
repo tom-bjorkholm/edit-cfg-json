@@ -228,10 +228,10 @@ class NoHookConfig(OldFormatConfig):
                 configuration, so that a diagnostic about a value inside it
                 names the whole path. None for the top level itself.
         """
-        # Leaving the hook out here used to be what made this class the one
-        # that could not report the older keys of a file. It no longer costs
-        # anything at all, and running the two classes over the same file is
-        # what shows that.
+        # Leaving the hook out here costs this class nothing at all: the
+        # editor reads the records from the object the load produced, and
+        # `Config` gives every object one of those. Running the two classes
+        # over the same file is what shows that.
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file, member_name=member_name)

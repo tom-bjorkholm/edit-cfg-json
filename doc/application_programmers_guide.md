@@ -27,15 +27,18 @@ the object you hand over. Whatever shape your configuration has — nested
 objects, lists, dicts, enums, optional members — is a shape the editor
 already shows.
 
-**Which of the two editors.** `edit-cfg-json-tk` is a window and needs a
-display. `edit-cfg-json-textual` fills the terminal and needs a terminal.
-Nothing stops you from depending on both and choosing at run time.
+**Which editor, or none of your choosing.** `edit-cfg-json-tk` is a window
+and needs a display. `edit-cfg-json-textual` fills the terminal and needs a
+terminal. The third answer is to choose neither and let the editor open in
+whichever one the machine your application runs on can run, which is case 7 of
+Part 2 and what most commands with no user interface of their own want.
 
 ## Installing, and what to depend on
 
 ```sh
 pip install edit-cfg-json-tk        # the window editor
 pip install edit-cfg-json-textual   # the terminal editor
+pip install edit-cfg-json           # the core, and no editor of its own
 ```
 
 Declare in your own project whichever ones you actually import:
@@ -44,12 +47,14 @@ Declare in your own project whichever ones you actually import:
 | --- | --- | --- |
 | `edit_cfg_json_tk` | `edit-cfg-json-tk` | `edit-cfg-json`, and Tkinter comes with Python |
 | `edit_cfg_json_textual` | `edit-cfg-json-textual` | `edit-cfg-json` and `textual` |
-| `edit_cfg_json` only | `edit-cfg-json` | no user interface at all |
+| `edit_cfg_json` only | `edit-cfg-json` | no user interface library at all |
 
-`edit-cfg-json` on its own gives you the model and the non-interactive
-backend, and no editor. Depend on it alone when you write a backend of your
-own, or when a part of your application only needs to read a configuration
-file the same way the editor does.
+`edit-cfg-json` on its own gives you the model, the non-interactive backend
+and the choosing of section 2.7, so an application that depends on it alone
+still opens an editor — whichever one its own users installed. Depend on it
+alone for that, when you write a backend of your own, or when a part of your
+application only needs to read a configuration file the same way the editor
+does.
 
 Python 3.12 or newer, for all three.
 
@@ -219,6 +224,7 @@ no fold control to press.
 | 13, 14, 15 | The loader cannot be called, needs arguments a command line cannot give, or answered with the wrong class. |
 | 16 | The `--descriptions` name is no mapping. |
 | 17 | The settings of the program itself cannot be read. |
+| 18 | There is no user interface here that can open an editor. |
 
 Exit code 10 is the one worth building a job around: **a configuration file
 your application would refuse is a failed run**, not a remark in the output.
@@ -1120,6 +1126,18 @@ the model — on the same keywords as Part 3, and answers with an `EditModel`.
 `edit_cfg_json.edit` runs it in, and `edit_cfg_json.DumpEditor` is a small
 backend that prints the model once and returns. Between them they say what a
 backend really is, which is anything with a `run_editor` method.
+
+**Registering it is what makes it findable.** A package naming one
+`edit_cfg_json.UiBackend` in the `edit_cfg_json.ui` entry point group is
+discovered by the `edit-cfg-json` program and by `edit_in_ui`, with nothing
+added to the core, and that registration says what `--ui` calls your user
+interface, whether it can run here, how good an editor it is where a machine
+can run more than one, and how one of its backends is made:
+
+```toml
+[project.entry-points."edit_cfg_json.ui"]
+qt = "edit_cfg_json_qt:QT_UI"
+```
 
 That is a bigger job than the seven cases above and is not what this guide is
 about; [detailed_design.md](detailed_design.md) section 8 is.

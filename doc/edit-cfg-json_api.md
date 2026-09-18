@@ -4035,11 +4035,11 @@ writes the validated file. That is worth having while a program of one's own
 is being written, and it is worth having in a continuous integration job,
 where an exit code is the whole of what can be read.
 
-**It is no editor, and the editors are `edit-cfg-json-tk` and
-`edit-cfg-json-textual`.** They take the very same command line and open a
-window and a terminal screen. This utility has no field to type into and
-nobody to press Save, which is why it is the one of the three that offers
-`--save` at all.
+**It is no editor, and the editors are `edit-cfg-json-tk`,
+`edit-cfg-json-textual` and the `edit-cfg-json` launcher.** They take the very
+same command line and open a window or a terminal screen. This utility has no
+field to type into and nobody to press Save, which is why `--save` is offered
+here and by no run that opens an editor.
 
 `--unfold` is there for the same reason. A container that would flood a window
 opens folded, so a printout of a configuration of any size is mostly a line
@@ -5973,7 +5973,7 @@ Environment variable naming the settings file of every program here.
 
 It is one variable for all of them rather than one each, because what it is for
 is a machine or a session that has decided how this editor behaves, and an
-answer that had to be given three times would come to be given twice.
+answer that had to be given four times would come to be given twice.
 
 <a id="edit_cfg_json.settings_file.SHARED_SETTINGS"></a>
 
@@ -7096,11 +7096,10 @@ supplies a user interface registers one `edit_cfg_json.ui_backend.UiBackend`,
 and this opens the best of those that can run here. `--ui` is how one of them
 is asked for instead, and its values are the ones this machine can really run.
 
-**This is the name that promises an editor**, which is why the core has
-installed no program under it until now and why
-`python3 -m edit_cfg_json.dump` is called what it is. Now that the name opens
-one, it is also reachable as `python3 -m edit_cfg_json`, exactly as each of
-the two editor programs is reachable through its own package.
+**This is the name that promises an editor**, which is why the printout of
+the core is called `python3 -m edit_cfg_json.dump` and is reached by naming
+it. This program is also reachable as `python3 -m edit_cfg_json`, exactly as
+each of the two editor programs is reachable through its own package.
 
 **The command line is read twice, and `--ui` is why.** Which options the
 parser has depends on the editor: a backend that prints once and returns
@@ -8371,9 +8370,10 @@ class EcajVersionReporter(VersionReporter)
 
 Report what this package and everything it is built on are.
 
-It is what `python3 -m edit_cfg_json.dump` answers `--version` with, and
-the base class of the reporter of each editor package, which is what lets
-a backend name itself without repeating what this package depends on.
+It is what the two programs of this package answer `--version` with —
+`edit-cfg-json` and `python3 -m edit_cfg_json.dump` — and the base class
+of the reporter of each editor package, which is what lets a backend name
+itself without repeating what this package depends on.
 
 <a id="edit_cfg_json.version_report.EcajVersionReporter.package_names"></a>
 

@@ -8,11 +8,10 @@ supplies a user interface registers one `edit_cfg_json.ui_backend.UiBackend`,
 and this opens the best of those that can run here. `--ui` is how one of them
 is asked for instead, and its values are the ones this machine can really run.
 
-**This is the name that promises an editor**, which is why the core has
-installed no program under it until now and why
-`python3 -m edit_cfg_json.dump` is called what it is. Now that the name opens
-one, it is also reachable as `python3 -m edit_cfg_json`, exactly as each of
-the two editor programs is reachable through its own package.
+**This is the name that promises an editor**, which is why the printout of
+the core is called `python3 -m edit_cfg_json.dump` and is reached by naming
+it. This program is also reachable as `python3 -m edit_cfg_json`, exactly as
+each of the two editor programs is reachable through its own package.
 
 **The command line is read twice, and `--ui` is why.** Which options the
 parser has depends on the editor: a backend that prints once and returns

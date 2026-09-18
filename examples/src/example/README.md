@@ -18,7 +18,7 @@ repository only.
 | [e02_enum_config.py](e02_enum_config.py) | An `Enum` member and an `IntEnum` member, with no validators at all. An enum is written to the file as the name of its member, so it is edited as text, and a name that is no member is refused by the conversion rather than by a validator. Which of `parse_converters()` and `serialize_converters()` an application has to write, why matching a name is forgiving enough to complete a prefix, and why a half typed name in a field is kept while the same name in a file refuses the file. |
 | [e03_described_config.py](e03_described_config.py) | Explaining the values to whoever edits them. The docstring of the configuration class labels the object and needs no passing, because the class already has it; the members need a `Descriptions` mapping, because a member docstring does not exist at runtime. Absolute paths as its keys, one member deliberately left undescribed, why a range is explained in words while the names of an enum are not, and the key that hides all of it again. |
 | [e04_validated_config.py](e04_validated_config.py) | Saying which member of a configuration is wrong. Why the validation pass that decides the verdict cannot say it, and how walking the same plan a second time can: a validator this application wrote and a validator `config_as_json` ships are attributed the same way, because the editor recognises no validator by type. Also the rule that is about no single member — a `ProjectedWholeConfigValidator` over two of them — which is why the block below the members is still there. |
-| [e05_old_format_config.py](e05_old_format_config.py) | Saying that reading the file changed it. An application that renamed a member between versions reads its older files with `ReadOldConfiguration`, and the values then on the screen are not the values in the file. How the editor finds that out for every configuration class — by writing the loaded values back and comparing them with the file — and what a class that declares `auto_ch_hook` can add to it, which is the names of the older keys. Two classes, one of each kind, over the same file. |
+| [e05_old_format_config.py](e05_old_format_config.py) | Saying that reading the file changed it. An application that renamed a member between versions reads its older files with `ReadOldConfiguration`, and the values then on the screen are not the values in the file. How the editor finds that out for every configuration class — by writing the loaded values back and comparing them with the file — and where the names of the older keys come from, which is the hook that `Config` gives every configuration object whether the application asked for one or not. Two classes, one declaring `auto_ch_hook` and one not, reporting the same over the same file. |
 | [e06_factory_config.py](e06_factory_config.py) | A configuration class that the editor cannot construct, because it is told which teams exist and only the application knows that. `edit_cfg_json.ConfigLoader` is how an application says how its class is built, `derived_loader` is the one line that says it for a class plus a bound argument, and the same file without a loader is refused with the message that names the class. Also what a loader is *not* needed for: editing, validating and saving work on the object it made. |
 | [e07_chosen_class.py](e07_chosen_class.py) | A loader that chooses its class by looking at the JSON, written out by hand, for an application with two modes whose files have the same shape and different rules. The two rules that make it work: the class is chosen when the file is loaded and the session then edits that class, and a value that would select the other class is refused by the save rather than followed. |
 | [e08_lists_and_dicts.py](e08_lists_and_dicts.py) | A member that holds a list or a dict, shown as a tree of rows with a field at every value. How a value inside one is addressed, by the whole path to it, which is also how one description can reach every element of a list. Folding a container away and opening it again, and why a long one opens folded. Looking for a member with the search field, the four tick-boxes that say where a search looks, and why what is found is always reachable: a match inside a folded container opens it. What a validator that sorts and de-duplicates a list does to the rows, and why what a validator of a container refuses is shown at the container and not at one value inside it. |
@@ -30,7 +30,7 @@ repository only.
 | [e14_embedded_textual.py](e14_embedded_textual.py) | The same application in the other toolkit: `EditorPanel` is a widget, so it is mounted in an area of the application's own screen and the application keeps its own header, its own footer and its own palette. Also the one setting only an embedded editor has a reason to change, `edit_cfg_json.Settings.priority_keys`, built in Python as a real application builds it and shown on a combination that Textual's own field reads for itself. |
 | [e15_window_tk.py](e15_window_tk.py) | The same editor in a Tkinter window of its own over the application, which is the same `TkEditorPanel` with a `parent` instead of an `area`. The editor makes that window, names it after the configuration class and destroys it again, and `modal` — which defaults to True — is what holds the application until the user has finished with it, including the application's own button for closing the editor. |
 | [e16_screen_textual.py](e16_screen_textual.py) | The same in the other toolkit, where a window of its own is a screen: `EditorScreen` is `EditorPanel` with a header, a footer and the palette entries of the editor around it, pushed on top of the application's own screen. It pops itself when the session ends, so the application pops nothing and its own screen is back by the time it is told. |
-| [e17_settings_config.py](e17_settings_config.py) | The settings of the editor as a configuration class, `edit_cfg_json.SettingsConfig`, declared as one member of an application's own configuration so that the person running the application decides how the editor behaves and writes it in a file. What `as_settings()` bridges, what `described_below` puts under the member holding it, why a settings *block* inside another configuration is read whole while a settings *file* of its own may name one setting, and the `--edit-settings` option that edits such a file in the two editor programs with no application around it at all. |
+| [e17_settings_config.py](e17_settings_config.py) | The settings of the editor as a configuration class, `edit_cfg_json.SettingsConfig`, declared as one member of an application's own configuration so that the person running the application decides how the editor behaves and writes it in a file. What `as_settings()` bridges, what `described_below` puts under the member holding it, why a settings *block* inside another configuration is read whole while a settings *file* of its own may name one setting, and the `--edit-settings` option that edits such a file in any of the three installed programs with no application around it at all. |
 | [e18_declared_types.py](e18_declared_types.py) | What the **declaration** of a member says, over and above the value it holds: read from a dataclass, from a class level annotation, and for the ordinary `Config` pattern from the source of the class itself, because a PEP 526 annotation on an instance attribute is recorded nowhere at runtime. It is what says that a member holding `0` holds a number, and what a member holding nothing is for. Also the two states of a member declared `Optional[str]` — holding a value and holding none — moved between with the same add and remove controls as an optional nested object, which is how a `null` is told apart from an empty text, and why the one member with no annotation is still a member nothing can be added to. |
 | [e19_omitted_members.py](e19_omitted_members.py) | The members that `_omit_none_from_json()` leaves out of the file altogether, rather than writing them as `null`. Nothing at all is written for one of them while it holds nothing, so the editor asks the configuration *object* for those members instead of the values it writes: every one of them has a row saying that it holds nothing, and without that a file with no key for such a member could never be given one. An optional nested configuration object added from being absent, a list that takes two presses to reach an element, the one member declared alike that cannot be given a value at all and says why, and the unannotated member that is an ordinary field showing `null`. |
 
@@ -95,6 +95,7 @@ takes the same options:
 | `--move PATH=up` | Move one element of a list one place earlier, or `=down` one place later. Repeatable. |
 | `--toggle-explain` | Hide the explanations, as the explain key does. |
 | `--toggle-fold` | Fold every list and dict away, as the fold key does. |
+| `--type-values` | Open a member whose values the editor knows the whole of in a field to type in rather than in a pull-down of those values. |
 | `--fold PATH` | Fold one list or dict away, or open it. Repeatable. |
 | `--find TEXT` | Look for one text, as typing into the search field does. |
 | `--find-next` | Press the find next key. Repeatable, as a key is. |
@@ -184,6 +185,13 @@ text, in the same way that `--set` stands in for a user typing into a field.
 The editor starts with the explanations shown, so this flag is what shows the
 hidden form.
 
+`--type-values` stands in for `edit_cfg_json.Settings.choose_values` being
+false, which is the other way an editor can open: a member holding true or
+false, and one holding an enum, is then a field to type in rather than a
+pull-down of the values it takes. It is a flag and not a key, because what a
+key does is switch afterwards and what this says is which way the editor
+opens.
+
 There is no option standing in for Close, and there is deliberately none.
 Closing writes nothing, so an editor holding something that has not been saved
 asks before it drops it — which is a question, and a printout has nobody to
@@ -223,11 +231,13 @@ tests in [examples/test/test_example/](../../test/test_example/) do.
 
 ## Opening these classes without running an example
 
-Each of the two editor packages installs a program that takes the *name* of a
+Each of the three packages installs a program that takes the *name* of a
 configuration class, so any class in this folder can be opened without running
 the file it lives in:
 
 ```sh
+PYTHONPATH=examples/src ./venv/bin/edit-cfg-json \
+    --module example.e02_enum_config --class EnumConfig
 PYTHONPATH=examples/src ./venv/bin/edit-cfg-json-textual \
     --module example.e02_enum_config --class EnumConfig
 ./venv/bin/edit-cfg-json-tk --file \
@@ -236,8 +246,11 @@ PYTHONPATH=examples/src ./venv/bin/python3 -m edit_cfg_json.dump \
     --module example.e03_described_config --class DescribedConfig
 ```
 
-The first two open an editor. The third is the small utility of the core
-package, which runs the non-interactive backend and prints.
+The first three open an editor: the one the core installs opens whichever of
+them this machine can run, and `--ui` names one instead, while the other two
+are the window editor and the terminal editor whatever else is installed. The
+fourth is the small utility of the core package, which runs the
+non-interactive backend and prints.
 
 A class that the editor cannot construct on its own is named through its
 loader instead, and `--class` beside it says which class the run insists on

@@ -22,8 +22,9 @@ backends use only the public API of the core.
 
 The core is what this document is about. In the backends, the file names say
 what they are: `*_editor.py` runs a window, `*_panel.py` builds the rows,
-`*_look.py` holds the colours, `*_ask.py` asks the four questions, and
-`textual_words.py` holds that backend's own wording.
+`*_look.py` holds the colours, `*_ask.py` asks the four questions, `*_ui.py`
+is what that package registers about itself, and `textual_words.py` holds that
+backend's own wording.
 
 ## 2. Patterns
 
@@ -40,7 +41,7 @@ what they are: `*_editor.py` runs a window, `*_panel.py` builds the rows,
   marks and fold state are all mappings keyed by that path, which is how
   modules that know nothing of each other talk about the same node.
 
-- **Operations answer with a `NamedTuple`.** Twenty-five of them
+- **Operations answer with a `NamedTuple`.** Twenty-eight of them
   (`LoadReport`, `ValidationVerdict`, `SaveOutcome`, `FindReport`,
   `ElementOffer`, `TreeFacts`, ...). The classes that hold editing state
   are three: `EditModel`, `EditBuffer` and `SaveState`.
@@ -72,7 +73,8 @@ above. There are no cycles.
 
 | Layer | Modules |
 | --- | --- |
-| Entry points | `cli`, `cli_target`, `dump`, `editing` |
+| Entry points | `cli`, `cli_target`, `dump`, `editing`, `launcher` |
+| Choosing a user interface | `ui_backend`, `ui_choice` |
 | Rendering | `model_text`, `emphasis`, `backend` |
 | The session | `edit_model` |
 | The edit buffer | `buffer` |

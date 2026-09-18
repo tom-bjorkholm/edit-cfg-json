@@ -2,10 +2,10 @@
 
 This document records the design of the folding configuration editor built on
 top of [`config-as-json`](https://pypi.org/project/config-as-json). It
-describes what is implemented and how it is designed, and what is planned but
-not implemented yet. It is a design document, not an API reference. Where it
-states a fact about `config_as_json`, the source is that project's own
-documentation, examples and implementation:
+describes what this library is and why it is built this way, as it is now. It
+is a design document, not an API reference. Where it states a fact about
+`config_as_json`, the source is that project's own documentation, examples and
+implementation:
 [github.com/tom-bjorkholm/config_as_json](https://github.com/tom-bjorkholm/config_as_json).
 
 ## 1. Purpose and scope
@@ -23,6 +23,9 @@ The library provides:
 - a Tkinter (desktop) editor
 - a very limited non-interactive backend, shipped by the core, which
   prints the model once and returns
+- the choosing of the user interface an editor opens in, where the caller
+  named none: every installed backend registers itself and says whether it
+  can run here (section 8.1)
 
 The application supplies its `Config` object, optionally a loader callable,
 optionally an input file name, an output file name, and a mapping of
@@ -89,7 +92,7 @@ handling is fragile, which matters under this repository's strict checkers).
   differ.
 - The UI packages pin the core with a compatible-release constraint and not
   with an exact one, so a core patch release does not strand them.
-- From 0.1.0 (section 2.5) the core follows semantic versioning, a promise
+- The three packages follow semantic versioning (section 2.5), a promise
   third-party backend authors need more than the in-house backends do.
 - `BuildSpec.package_folders` stays unset; the three `pyproject.toml` files are
   auto-discovered.
@@ -118,27 +121,18 @@ handling is fragile, which matters under this repository's strict checkers).
   backend is then discovered and opened by the launcher and by an application
   that names no toolkit, with nothing added to the core.
 
-### 2.5 Release status
+### 2.5 What a release promises
 
-**The Alpha period ends with 0.1.0.** Releases 0.0.2 and 0.0.4 were Alpha, and
-what Alpha was for was publishing three packages before a backend written by
-somebody else had proven the public API of the core: the two in-house backends
-exercise that API and cannot test whether it is enough for a backend written
-without reading the core. Twenty-eight steps of delivery over both backends is
-what answers that instead, so the freedom to rename a public name without
-crossing a major version is given up rather than kept.
-
-**From 0.1.0 the three packages follow semantic versioning**, which is the
-promise section 2.3 says third-party backend authors need. What the promise is
-about is exactly the public half of the split in section 2.4: a name that
+**The three packages follow semantic versioning**, which is the promise
+section 2.3 says third-party backend authors need. What the promise is about
+is exactly the public half of the split in section 2.4: a name that
 `edit_cfg_json/__init__.py` or a backend's own `__init__.py` re-exports is not
 removed, and what it means is not changed, without a major version. Everything
 else stays internal and may change in any release.
 
-The README and the PyPI classifiers say so in one place each:
-`readme_parts/project_status.md` in all three generated readme files, and the
-`Development Status` classifier in all three `pyproject.toml`, which the
-release commit moves off `3 - Alpha` together with the version.
+It is written down once for whoever reads it before depending on a package:
+`readme_parts/project_status.md`, which is part of all three generated readme
+files and therefore of all three PyPI pages.
 
 ### 2.6 Shared type aliases
 
@@ -1193,8 +1187,8 @@ class ConfigLoader(Protocol):
 This is `config_as_json.ConfigFactory` plus the one parameter it lacks, which
 gives factory-constructed configurations the load-policy control
 `ConfigFactory` cannot give them. There is no parameter for the hook that
-reports automatic changes, because `config_as_json` 1.5 makes that hook
-something every configuration object has (section 5.3).
+reports automatic changes, because that hook is something every
+`config_as_json` configuration object has (section 5.3).
 
 When no loader is supplied, the editor derives one from `type(config)`, reading
 `inspect.signature()` to decide what that class can be told — the name of the
@@ -1350,8 +1344,8 @@ and publishes both through `auto_change_hook()`. So a class that declares
 `auto_ch_hook` and hands it on is reported on exactly as fully as the ordinary
 three-keyword constructor shape that does not, and `ConfigLoader` has no
 parameter for one (section 5.1). Keeping it by reference is what
-`config-as-json` 1.5 promises: a copy of the configuration carries a copy of
-the hook, so a later parse cannot disturb what the load recorded.
+`config-as-json` promises: a copy of the configuration carries a copy of the
+hook, so a later parse cannot disturb what the load recorded.
 
 **A record reaches a member or it reaches the message.** That one rule places
 all of them. A record that produced a member explains that member and is shown
@@ -1852,9 +1846,9 @@ every program of this library opens the one they meant.
 `--ui dump` reaches it, and it is asked for by name or not at all — it is not
 even asked whether it can run, because a yes from it could not change anything.
 Somebody who asked for an editor and got a printout would have been misled by
-the answer rather than by anything they typed, which is the same reason the core
-installed no program at all until there was an editor to install one for
-(section 8.3).
+the answer rather than by anything they typed, which is the same reason the
+name of the library belongs to the launcher and the printout is reached by
+naming it (section 8.3).
 
 **`interactive` and `home_settings` are on the registration and not on the
 program**, because they are facts about the user interface. The first decides
@@ -1897,13 +1891,13 @@ interface. Somebody who typed `--ui tk` on a machine with no display is told
 that, because being given the terminal editor instead is a surprise about what
 they are looking at.
 
-#### 8.1.2 The launcher, and the name it was kept for
+#### 8.1.2 The launcher
 
-`edit-cfg-json` is the program the core installs, and section 8.3 kept the name
-free for it: it is the editor this library is for, chosen for the machine it was
-run on. It is the command line of section 8.3 with no backend written into it,
-`--ui` added, and `python3 -m edit_cfg_json` reaching it as each editor program
-is reachable through its own package.
+`edit-cfg-json` is the program the core installs, and it carries the name of
+the library because it is the editor this library is for, chosen for the
+machine it was run on (section 8.3). It is the command line of section 8.3
+with no backend written into it, `--ui` added, and `python3 -m edit_cfg_json`
+reaching it as each editor program is reachable through its own package.
 
 **The command line is read twice, and `--ui` is why.** Which options the parser
 has depends on the editor — `--save` and `--unfold` belong to a backend with no
@@ -2295,33 +2289,33 @@ mapped: everything simply happens after the window is shown, as before. That
 is also why the size the editor opens at has to be right from the first
 layout rather than corrected once — section 4.6.
 
-### 8.3 A ready-to-run program in each editor package
+### 8.3 A ready-to-run program in every package
 
 An application author should not have to write a program to get an editor for
-their own configuration class, so each of the two editor distributions installs
-one: `edit-cfg-json-tk` and `edit-cfg-json-textual`. They are a product and not
-only a development tool: a question about a configuration that is not two
-members long would otherwise cost a hand-written example, and any class in
-reach answers it instead.
+their own configuration class, so each of the three distributions installs one:
+`edit-cfg-json-tk` and `edit-cfg-json-textual` from the editor packages, and
+`edit-cfg-json` from the core. They are a product and not only a development
+tool: a question about a configuration that is not two members long would
+otherwise cost a hand-written example, and any class in reach answers it
+instead.
 
-**They are the two that have chosen, and `edit-cfg-json` is the one that has
-not.** A user who wants the window whatever else is installed names the window
-program, and a user who has no opinion names the launcher and is given what the
-machine can run. All three are the command line below with a different answer
-to where the backend comes from, and each reads what it is told about its
-editor from that editor's own registration (section 8.1).
+**The two editor programs have chosen, and `edit-cfg-json` has not.** A user
+who wants the window whatever else is installed names the window program, and a
+user who has no opinion names the launcher and is given what the machine can
+run. All three are the command line below with a different answer to where the
+backend comes from, and each reads what it is told about its editor from that
+editor's own registration (section 8.1).
 
-**The core installs one program, and it is an editor.** `edit-cfg-json` is the
-launcher of section 8.1.2, which opens the editor the machine can run. The same
-command line over the non-interactive backend is worth having too, because it
-says what a class makes of a file and answers with an exit code, which a
-continuous integration job can read — but that is a small utility for whoever
-is writing a program on top of this library, and it may not have the name of
-the library: a command named after a library is taken for that library's
-product, and `edit-cfg-json` promises the editor this library is for. So the
-utility is `python3 -m edit_cfg_json.dump`, reached by naming it and by nothing
-shorter, and the name it may not have belongs to the launcher. For several
-releases that name installed nothing at all, which is what kept it free.
+**The program the core installs is an editor.** `edit-cfg-json` is the launcher
+of section 8.1.2, which opens the editor the machine can run. The same command
+line over the non-interactive backend is worth having too, because it says what
+a class makes of a file and answers with an exit code, which a continuous
+integration job can read — but that is a small utility for whoever is writing a
+program on top of this library, and it may not have the name of the library: a
+command named after a library is taken for that library's product, and
+`edit-cfg-json` promises the editor this library is for. So the utility is
+`python3 -m edit_cfg_json.dump`, reached by naming it and by nothing shorter,
+and the name of the library belongs to the launcher.
 
 #### 8.3.1 The command line owns no logic
 
@@ -2469,7 +2463,7 @@ program per answer.
 
 Whoever is about to report a problem, and whoever is about to upgrade, has to
 know which versions are really installed and whether newer ones exist. So each
-of the three programs answers `--version` with the report that
+of the four programs answers `--version` with the report that
 [`versionreporter`](https://pypi.org/project/versionreporter/) prints: the
 installed version of every package the program is built out of and of Python
 itself, and then what PyPI has that is newer, told apart into what runs on this
@@ -2806,7 +2800,7 @@ of a lookup that finds nothing is the lookup working.
 **One environment variable for every program, and one file of the home folder
 per user interface above the shared one.** The variable is a machine or a
 session deciding how this editor behaves, and an answer that had to be given
-three times would come to be given twice. What the two editors differ about is
+four times would come to be given twice. What the two editors differ about is
 their keys and their questions, so a user who wants the window and the terminal
 to differ writes one file each and a user who wants one answer writes only the
 shared file. The backend that prints once and returns has neither keys nor
@@ -2915,14 +2909,19 @@ tests fall into three groups with genuinely different requirements:
 Category 3 maps directly onto `BuildSpec.excluded_test_markers`, whose own
 docstring uses `focus_sensitive` as its example and notes such tests are
 **deselected** rather than collected — so they never appear in the summary as
-skipped, and are run on demand with `pytest -m focus_sensitive`.
+skipped. `./run_focus_sensitive_tests.py` is how they are run on demand: that
+marker over `edit_tk/test` in the virtual environment the build made, which is
+what keeps a source tree newer than the installed packages from aborting one
+test and taking the next down with it.
 
-**Interaction to be aware of**: `BuildSpec.readme_summary_max_skipped` defaults
-to `0`, so the README test summary is updated only when nothing was skipped. On
-a machine with a display, category 2 runs and the summary updates. On a
-headless machine, category 2 skips and the summary is not updated. That is
-defensible — a summary should not be published from an incomplete run — but it
-should be a known consequence rather than a surprise.
+**Interaction to be aware of**: `BuildSpec.readme_summary_max_skipped` is how
+many skipped tests a run may have and still write the README test summary, and
+`custom_build_tools/custom_spec.py` sets it to `15` rather than leaving it at
+the default `0`. Category 2 is what it is set for: those tests run on a machine
+with a display and skip on a headless one, and a summary that only a machine
+with a display could ever publish would be a summary nobody published. The
+number is a ceiling and not a licence — a run that skipped more than that
+writes no summary, because that is no longer the same test suite.
 
 ### 10.3 Test the same code both ways
 

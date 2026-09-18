@@ -60,8 +60,8 @@ take.
 
 `OldFormatConfig` reads files written by an older version of its application,
 which renamed one member, dropped one key and added one. `NoHookConfig` beside
-it in that example is the same configuration by a class that cannot report what
-the reading did.
+it in that example is the same configuration by a class whose constructor takes
+no change hook, and the two report exactly the same.
 
 | File | What happens |
 | --- | --- |
@@ -156,7 +156,7 @@ holding a whole `edit_cfg_json.SettingsConfig`.
 | File | What happens |
 | --- | --- |
 | [e17_tool.json](e17_tool.json) | Opens with every value from the file, including a whole settings block: another backup suffix, three of them kept, an extension for this tool's files and `ctrl+w` for Save. It holds every member of `SettingsConfig` because a nested configuration object is read whole whatever policy the parse around it was given, which is the one thing about this example that a shorter file would have hidden. |
-| [e17_tool_old.json](e17_tool_old.json) | Opens. It is the same file as a release before the editor had the `find` and `find_next` actions wrote it, so its `actions` block names seven actions where the class now declares nine. `SettingsConfig` declares rules for reading such a file, so the two are supplied with the combinations the editor declares, the `editor` row is marked as holding what the load put there, and the printout says that reading the file changed it. Without those rules this whole application would refuse to start over two keys of the editor it embeds. |
+| [e17_tool_old.json](e17_tool_old.json) | Opens. It is a settings block as an earlier release of the editor wrote one, so it names seven actions where the class declares ten and seven settings where the class declares nine. `SettingsConfig` declares rules for reading such a file, so the three missing actions and the two missing settings are supplied with what the editor declares, the `editor` row is marked as holding what the load put there, and the printout says that reading the file changed it. Without those rules this whole application would refuse to start over five keys of the editor it embeds. |
 
 ## Files for `e18_declared_types.py`
 

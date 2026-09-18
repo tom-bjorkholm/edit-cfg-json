@@ -9,11 +9,11 @@ writes the validated file. That is worth having while a program of one's own
 is being written, and it is worth having in a continuous integration job,
 where an exit code is the whole of what can be read.
 
-**It is no editor, and the editors are `edit-cfg-json-tk` and
-`edit-cfg-json-textual`.** They take the very same command line and open a
-window and a terminal screen. This utility has no field to type into and
-nobody to press Save, which is why it is the one of the three that offers
-`--save` at all.
+**It is no editor, and the editors are `edit-cfg-json-tk`,
+`edit-cfg-json-textual` and the `edit-cfg-json` launcher.** They take the very
+same command line and open a window or a terminal screen. This utility has no
+field to type into and nobody to press Save, which is why `--save` is offered
+here and by no run that opens an editor.
 
 `--unfold` is there for the same reason. A container that would flood a window
 opens folded, so a printout of a configuration of any size is mostly a line

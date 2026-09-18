@@ -2,13 +2,12 @@
 
 ## Where everything is
 
-Steps 1 to 29B are implemented and committed, step 23 with the corrections its
-review asked for, and step 30 is implemented and awaiting its review. Steps 1
-to 9 are written up in
+Steps 1 to 30 are implemented and committed, step 23 with the corrections its
+review asked for. Steps 1 to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md), steps 10 to 21 in
 [steps_010-021_done.md](steps_010-021_done.md) and steps 22 to 28 in
-[steps_022-028_done.md](steps_022-028_done.md). The steps still to build are in
-[steps_029-x.md](steps_029-x.md). Where any of the four files mentions a
+[steps_022-028_done.md](steps_022-028_done.md). Steps 29 to 30 and the steps
+still to build are in this file. Where any of the four files mentions a
 design decision, [`doc/detailed_design.md`](../doc/detailed_design.md) remains the authority and
 the plan says only *when* that decision gets built.
 
@@ -170,14 +169,14 @@ decision gets built.
 - Every step touches all three packages where the capability is
   user-visible, so `edit_cfg_json`, `edit_cfg_json_tk` and
   `edit_cfg_json_textual` never drift apart by more than one review.
-- Steps 1 to 28 are built, and each is written up in
+- Steps 1 to 30 are built. Steps 1 to 28 are written up in
   [steps_001-009_done.md](steps_001-009_done.md), in
   [steps_010-021_done.md](steps_010-021_done.md) or in
-  [steps_022-028_done.md](steps_022-028_done.md) as what it decided, what it
-  found while building it and what came of its review. Steps 29 onwards are
-  named steps with their observable outcome and their main risks; they are
-  detailed just before they are started, when the core API is real rather than
-  imagined.
+  [steps_022-028_done.md](steps_022-028_done.md), and steps 29 to 30 in
+  section 3 below, as what each decided, what it found while building it and
+  what came of its review. Steps 31 onwards are named steps with their
+  observable outcome and their main risks; they are detailed just before they
+  are started, when the core API is real rather than imagined.
 
 ### 1.1 Definition of done for one step
 
@@ -215,12 +214,14 @@ version. Record which one, because the next step's fast iteration with
 | Second release 0.0.4 | 18 to 21 | Release 0.0.4 | done |
 | Third release 0.1.0 | 22 to 28 | Release 0.1.0 | done |
 | Fourth release 0.2.0 | none | Release 0.2.0, the paths that `config-as-json` 1.7 reports | done |
-| Fifth release | 29 onwards | in progress | steps 29 and 29B committed, step 30 awaiting review |
+| Fifth release 0.3.0 | 29 and 29B | Release 0.3.0, a member whose values the editor knows offered to be chosen from | done |
+| Sixth release 0.4.0 | corrections and 30 | Release 0.4.0, an editor launcher | done |
 
 ## 3. Steps 29 onwards, as named steps
 
-Each of these is detailed just before it is started. What is fixed now is
-the order, the observable outcome and the main risk.
+Steps 29 to 30 are built and written up here. Each of the rest is detailed
+just before it is started; what is fixed now is the order, the observable
+outcome and the main risk.
 
 ### Step 29 - Pull-down selection of enum and bool values
 

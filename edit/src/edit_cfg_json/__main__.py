@@ -6,11 +6,10 @@ It is `edit_cfg_json.launcher` and nothing else, so that a machine whose
 script folder is not on `PATH` can still run the launcher, which is how each
 of the two editor programs is reachable through its own package as well.
 
-This name promised an editor long before it opened one, which is why for
-several releases there was no `__main__` here at all: it printed the
-configuration and returned, and a user who typed the name of the library and
-got a printout had been misled by the name. What answers here now is the
-editor the machine can run, and the printout is still reached by naming it:
+What answers here is the editor the machine can run, because this name
+promises an editor: a user who typed the name of the library and got a
+printout would have been misled by the name rather than by anything they
+typed. The printout is reached by naming it, as
 `python3 -m edit_cfg_json.dump`.
 """
 

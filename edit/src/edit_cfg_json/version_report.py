@@ -36,9 +36,10 @@ MAIN_PACKAGE = 'edit-cfg-json'
 class EcajVersionReporter(VersionReporter):
     """Report what this package and everything it is built on are.
 
-    It is what `python3 -m edit_cfg_json.dump` answers `--version` with, and
-    the base class of the reporter of each editor package, which is what lets
-    a backend name itself without repeating what this package depends on.
+    It is what the two programs of this package answer `--version` with —
+    `edit-cfg-json` and `python3 -m edit_cfg_json.dump` — and the base class
+    of the reporter of each editor package, which is what lets a backend name
+    itself without repeating what this package depends on.
     """
 
     def package_names(self) -> list[str]:
