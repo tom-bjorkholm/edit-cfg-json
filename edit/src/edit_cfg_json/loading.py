@@ -36,6 +36,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from enum import Enum, auto
 from io import StringIO
 from pathlib import Path
+from types import MappingProxyType
 from typing import NamedTuple, Optional
 from config_as_json import Config, ConfigBadJson, PathOrStr, RocfChange, \
     RocfChangeKind
@@ -202,7 +203,7 @@ class LoadReport(NamedTuple):
     the file asked for.
     """
 
-    reasons: Mapping[str, str] = {}
+    reasons: Mapping[str, str] = MappingProxyType({})
     """What the load did to each member it put a value into or altered.
 
     Reading a file is not always only reading it: the rules a class declares

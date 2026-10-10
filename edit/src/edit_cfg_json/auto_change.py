@@ -52,6 +52,7 @@ into a copy of the loaded object whose key check records and stops.
 from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from io import StringIO
+from types import MappingProxyType
 from typing import NamedTuple, Optional, TextIO
 import json
 from config_as_json import Config, ConfigAutoChangeHook, \
@@ -150,7 +151,7 @@ class FileChanges(NamedTuple):
     the same thing would be worse than either of them alone.
     """
 
-    reasons: Mapping[str, tuple[RocfChange, ...]] = {}
+    reasons: Mapping[str, tuple[RocfChange, ...]] = MappingProxyType({})
     """What the load recorded about each member that it recorded anything for.
 
     These are the records that produced a member of this configuration, which
