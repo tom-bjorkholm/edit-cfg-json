@@ -219,9 +219,11 @@ version. Record which one, because the next step's fast iteration with
 
 ## 3. Steps 29 onwards, as named steps
 
-Steps 29 to 30 are built and written up here. Each of the rest is detailed
-just before it is started; what is fixed now is the order, the observable
-outcome and the main risk.
+Steps 29 to 30 are built and written up here. Step 31 is detailed already and
+split into sub-steps, because the decisions it rests on were settled in a
+design discussion before it was planned. Each of the rest is detailed just
+before it is started; what is fixed now is the order, the observable outcome
+and the main risk.
 
 ### Step 29 - Pull-down selection of enum and bool values
 
@@ -296,7 +298,7 @@ which is the setting that says which way the editor opens.
   same edit as typing one. It is built from the `Menubutton` and `Menu` that
   `tkinter.OptionMenu` is, which is plain Tk rather than `ttk` and keeps every
   widget of this backend configurable with `background` and `foreground` — what
-  step 31 will need.
+  step 32 will need.
 
 **Core.** `leaf_value` gained `BOOL_NAMES` beside `BOOL_CHOICES`,
 `descriptions` gained `enum_names`, `rows` gained `MemberRow.choices`,
@@ -618,7 +620,333 @@ deserves one message.
   ones report is tested where each of them lives. The one test that lets the Tk
   child process really run asserts only that an answer came back.
 
-### Step 31 - Selectable dark mode
+### Step 31 - The type of every row, and choosing between the types allowed
+
+Status: **Planned and split into sub-steps 31A to 31E. Not started.**
+
+Two complaints from users, and one answer to both.
+
+- **The type of a value is not said in the words users already know.** Many
+  users program in Python, Swift or C++, and they want every row labelled with
+  the type it holds in the vocabulary of Python type hints — `int`,
+  `list[str]`, `Colors` — and not with *A whole number.* below it.
+- **A member that allows two types offers one of them.** An application
+  declares `self.jira_column_map: dict[str, list[str] | list[list[str]]]`, and
+  a new key of that dict is given a copy of the first entry it holds, which is
+  a `list[str]`. Nothing lets the user make it a `list[list[str]]` instead.
+  The cause is in `member_types._optional_type`: a union of more than one type
+  beside `None` is read as *nothing this editor can use*, so the editor never
+  knew there were two.
+
+**The answer is that every row has a set of allowed types**, read from the
+declaration: the alternatives of a union, a plain type being a union of one,
+and `Optional[X]` being the union of `X` and `None` rather than a state of its
+own. The set is shown on the row as a pull-down, and choosing another of its
+types is how the user changes what the row holds.
+
+#### What was decided before it was planned
+
+- **A column after the name, always shown.** The pull-down sits between the
+  name and the value, which reads as Python's `name: type = value`. The column
+  is one width for the whole editor, that of the longest type text up to a
+  limit (which rows count is an open question of section 4); a longer text is
+  cut with `…`, and then the whole type is said on the explanation line of
+  that row. No key, no tick-box and no setting hides it, so `Settings` and
+  `SettingsConfig` do not change and no rule for an older settings file is
+  needed (design section 9.10).
+- **One type is still a pull-down, inactive.** A row whose set has one member
+  shows it in the same control, so every row says its type in the same place,
+  and nothing can be chosen there.
+- **The spelling is Python's, normalized from the resolved hint** and not
+  copied from the source text, so a declaration read from source and one read
+  with `typing.get_type_hints` are spelled alike. `Optional[int]` and
+  `Union[int, None]` are `int | None`, `List[str]` is `list[str]`, a container
+  of a union is `dict[str, list[str] | list[list[str]]]`, and an enum or a
+  configuration class is its unqualified name. Another class of the
+  application's, such as `Path` with a parse converter, is spelled by its own
+  name, and what kind of JSON value it holds is still read from the value. The
+  alternatives are offered in the order the declaration writes them.
+- **`Literal` is a set of values like an enum.** A `Literal` whose values are
+  all text, all whole numbers or all booleans is offered as a pull-down of
+  those values. A text that means none of them is read by the rules of an enum
+  name and of the two words of a boolean — the case ignored, a beginning only
+  one of them has completed — and is refused at the member otherwise, in the
+  words `yes is not one of: true, false` uses. That makes it the second refusal
+  of a leaf that the editor makes itself (design section 4.2). A `Literal` of
+  mixed kinds, `tuple`, `set`, `Any` and every other generic are *nothing
+  usable*, the rule below.
+- **A member whose declaration says nothing usable shows the inferred type,
+  inactive.** That is a member with no annotation, one whose annotation will
+  not resolve, and one of the kinds just listed. The pull-down shows the kind
+  its value has, which is what the field already reads its text by, and the
+  explanation line says that it was taken from the value because nothing was
+  declared. Principle 4 of design section 3 is unchanged.
+- **`None` replaces the two controls of a member that may hold nothing.** Such
+  a member has `None` among its types, and choosing it is what *remove* was;
+  choosing another type while it holds nothing is what *add* was. That holds
+  for a plain value, for an `OPTIONAL_MEMBER` configuration object and for a
+  key that `DICT_VALUE_BY_KEY` names, so all three are `StageConfig | None` or
+  `str | None` in the same control. The element controls of design section 4.9
+  stay for what they are really about: adding an element of a list or an entry
+  of a dict, taking one out, and moving one.
+- **Switching keeps what still fits.** A plain value keeps its text where that
+  text means a value of the new type, so `'5'` becomes `5` when `str` is
+  changed to `int`. Everything else — a value whose text does not fit, and
+  every list, dict, object and `None` on either side of the switch — is given
+  the empty value of the new type: `''`, `0`, `[]`, a new object of the class,
+  or nothing. Nothing is remembered per type.
+- **A type the class would refuse is not offered.** `config_as_json` refuses
+  a dict where the object it parses into holds something else, and the
+  reverse, `None` included, wherever its dict-shape check reaches (the facts
+  below). Such a type is left out of the pull-down, and the explanation line
+  names it and says why. It is left out rather than shown disabled because
+  Textual's `Select` cannot disable one option, and the two backends must not
+  differ.
+- **The prose about the kind goes.** *Text.*, *A whole number.*, *A number.*,
+  *True or false.*, *A list.*, *A dict.* and *It may hold no value.* are said
+  by the pull-down now. What the pull-down cannot say stays on the explanation
+  line: the summary and the names of an enum, that the class leaves the member
+  out of the file while it holds nothing, why a type is not offered, the whole
+  of a type the column cut, and where the type was inferred.
+- **This reverses two sentences of the design**, and says so where they stand:
+  *the user never changes what kind of value a leaf takes* in section 4.2, and
+  the rejected alternative *the user changing the type metadata of a leaf* in
+  section 11. What was rejected was the user choosing a kind; what is built is
+  the user choosing among the kinds the application declared, and the worry
+  the rejection recorded — a value the application then refuses — is what
+  leaving out the refused types answers.
+
+#### Facts checked against `config_as_json` before planning
+
+Checked with a probe class against the `config_as_json` in `./venv`.
+
+- **A list is never checked, so complaint 2 needs nothing from the library.**
+  `{"k": [["x"]], "z": []}` parses into a member of `_unchecked_dicts`
+  declared `dict[str, list[str] | list[list[str]]]` whose default holds
+  `{"k": ["x"]}`.
+- **Dict-ness is checked against the object, member by member.**
+  `check_dict_parse(getattr(self, i), data[i], ...)` refuses `{"a": 1}` for a
+  member that holds `3` (*Unexpected dictionary*) and `null` for a member that
+  holds a dict (*Not dictionary*). The check is made *before*
+  `_unchecked_dicts` is asked, so a member named there is checked too; it
+  recurses only into the keys of a checked dict that the object holds.
+- **The object it is checked against is the loaded one, for the whole
+  session.** Validation parses into a copy of the model's own object, which is
+  the one the load made, and nothing replaces it after a pass or a save. Which
+  positions may change between a dict and something else is therefore fixed
+  for a session, and is answered from that object rather than from the buffer.
+- **A latent defect today:** an `Optional[dict[...]]` member that its class
+  writes as `null` (not one `_omit_none_from_json()` names) and that was
+  loaded holding a dict is offered *remove*, and the next validation pass is
+  refused with *Not dictionary*. 31C removes it by the rule above rather than
+  by a special case.
+
+#### The names it is expected to settle
+
+Named here so that the sub-steps can refer to them; each is settled by the
+sub-step that builds it, as every step so far has done.
+
+| Name | Kind | Sub-step |
+| --- | --- | --- |
+| `TypeOption` | one allowed type of a row: its text, its JSON kind, what is inside it, its class or its literal values | 31A |
+| `MemberRow.types` | the types this row may hold, the refused ones left out | 31A |
+| `MemberRow.chosen_type` | the one of them it holds now | 31A |
+| `row_type_text` | the type as the column shows it, cut where it must be | 31A |
+| `type_column_width` | how wide the column is for this model | 31A |
+| `EditModel.set_type` | change the type of a row | 31B |
+| `--set-type PATH=TYPE` | the examples' stand-in for a user choosing a type, as `--set` is for typing | 31B |
+
+`LeafType` and `MemberRow.declared` are replaced by the first three, which is
+why 31A is mostly a change of the core with one visible result.
+
+#### Step 31A - Every row says its type
+
+**What it does.** A new core module reads a resolved annotation into a tuple
+of `TypeOption`, one per alternative, with the spelling decided above, and
+`member_types` hands rows that tuple where it handed them a `LeafType`.
+Everything that asked `LeafType.kind`, `.nothing` and `.inside` asks the
+alternatives instead: `leaf_kind` and `text_as_value` read a text by the type
+the row holds now, `_type_at` steps into what is inside each alternative, and
+`elements` answers `nothing` from a `None` alternative. Which alternative a row
+holds is derived from its value — the first one the value fits, `5` fitting
+`float` as well as `int` — so that nothing yet depends on a choice the user
+cannot make until 31B. Both backends gain the column, inactive on every row in
+this sub-step: Tk a disabled `Menubutton` in a fixed-width column, Textual a
+compact `Select(disabled=True)`. The kind prose leaves `descriptions`.
+`model_as_text` prints the type of every row.
+
+**Observable outcome.** `e18_declared_types.py --ui tk` and `--ui textual`
+show `float` beside `threshold` although it holds `0`, `str | None` beside
+`subtitle` and `note`, and the inferred `list` beside `spare` with the line
+saying that it was taken from the value; `e11_add_remove.py` shows
+`dict[str, StageConfig | str | dict[str, int]]` cut with `…` beside `hooks`,
+with the whole of it on the line below; `e02_enum_config.py` shows the name of
+the enum class beside each enum member. The *add* and *remove* controls of
+optional members are still there, unchanged.
+
+**Main risks.**
+
+- **`textual_panel` has to be split first.** Step 29 left it within a hundred
+  lines of the limit and said that the next step touching it splits the actions
+  of the panel from its widgets. `tk_editor` is at 937 lines and is likely to
+  need the same.
+- **Width.** The column makes the Tk button row no wider but every member row
+  wider, so `EditorWidgets.least_size` and the test that squeezes the window to
+  it have to agree again (step 29B). Run `./run_focus_sensitive_tests.py` after
+  a build, one test at a time where one fails.
+- **The three ways a union is spelled at runtime.** `typing.Union`,
+  `types.UnionType` and, from 3.14, the two being one type; `Optional` inside a
+  container; a PEP 695 `type` alias, which is expanded to what it stands for
+  and spelled as the expansion. All of it is tested on 3.12 to 3.15.
+- **A value of none of its types.** `config_as_json` checks no type against an
+  annotation, so a file can hold `"abc"` for an `int`. Such a row keeps the
+  first alternative and reads its text by it, as a value of the wrong type is
+  read today, and is not refused unless the application's validators refuse it.
+
+#### Step 31B - Choosing between the types of a plain value
+
+**What it does.** The type a row holds becomes state of the buffer where the
+value cannot answer for it, kept by path the way the fold state is: carried
+over when the rows are built again, moved with an element that changes places,
+and dropped with one that is taken out (design section 4.9). A value fits more
+than one alternative — `5` for `int | float`, `''` for `str` beside a
+`Literal` of text — so the user's choice has to outlive the value; a validator
+that rewrites the value into one the choice no longer fits makes the value
+answer again. `EditModel.set_type` changes it and applies *switching keeps what
+still fits*. The pull-down becomes active wherever a row has more than one
+type and **every** one of them is a plain value or `None`: `int | str`,
+`float | None`, `Colors | None`. Such an optional member loses *add* and
+*remove*; one whose types include a list, a dict or an object keeps them until
+31C or 31D. `rows_shape` answers the type of every row as well, because a row
+that changes type changes which widgets it has. The examples gain
+`--set-type`.
+
+**Observable outcome.** `e18_declared_types.py --ui tk`: `subtitle` holds
+`None`, says nothing where a value would be and has no `+`; choosing `str`
+gives it an empty field, and choosing `None` for `note` takes its text away
+with no `-` pressed. A new member of that example declared `int | str` takes
+`5` as a number while `int` is chosen and as text while `str` is, and keeps
+`5` across the switch. `--ui textual` the same.
+
+**Main risks.**
+
+- **An enum beside another type that is not `None`.** The parse converter is
+  per member and `config_as_json` calls it on every value that is not already
+  of its result type, so `Colors | int` may be a declaration the class itself
+  cannot read. Find out what it does before deciding whether such an enum is
+  offered.
+- **`settle_choices` and F4.** The type pull-down is not the value pull-down of
+  step 29, and F4 switches only the second. A row that changes from `str` to an
+  enum while values are being chosen has to be settled as it gets its
+  pull-down.
+- **Tk focus order** reaches the type before the value, while the focus that
+  section 8.2.5 gives the first value at start has to stay on the value.
+- A validatator may change both the value and the type of an attribute/field.
+  When a validator has changed the type the editor need to show the new type
+  resulting from the validation.
+
+#### Step 31C - Choosing between lists and dicts
+
+**What it does.** The types of a row may now include lists and dicts, and
+changing between a container and anything else builds the rows again, as an
+element added or removed does. The refused types are worked out here: wherever
+the dict-shape check reaches — every member, and inside a checked dict every
+key the loaded object holds — a dict is offered only where the loaded object
+holds a dict there, and only a dict is offered where it does; inside an
+`_unchecked_dicts` member, below a list and inside a member `nested_configs()`
+names, everything is offered. That is `elements._holds_elements` asked one
+question earlier, and it should share its walk rather than repeat it.
+`NO_DICT_YET` becomes the reason the explanation line gives, and the latent
+defect above goes with it. A new element of a list or a new entry of a dict whose element
+type is a union is still copied by the three rules of section 4.9; the last of
+them, the empty value of the declared type, takes the first alternative.
+
+**Observable outcome.** A new example, `e20_union_types.py`, is the complaint
+itself: `jira_column_map: dict[str, list[str] | list[list[str]]]` with one
+entry of each. A new entry is a copy of the first, `list[str]`, and choosing
+`list[list[str]]` for it gives it an empty list whose `+` adds an empty
+`list[str]` — in both `--ui tk` and `--ui textual`. `e19_omitted_members.py`
+shows `extra_hosts` as `list[str] | None` with no `+` or `-` of its own, and
+`limits` as `dict[str, int] | None` with `dict[str, int]` left out and the line
+saying why.
+
+**Main risks.**
+
+- **The rows below a row that changes type.** Folding, a search that had got to
+  a node inside it, and the choices kept for paths inside it have to go the way
+  they go when an element is removed, and the paths are what carry them.
+- **The column width of nested rows.** A type inside a container is shorter
+  than the member's, so the column is decided by the longest *shown* text and
+  changes with folding; decide whether it may, or whether it is computed over
+  every row.
+
+#### Step 31D - Choosing between an object and `None`
+
+**What it does.** An `OPTIONAL_MEMBER` and a key that `DICT_VALUE_BY_KEY`
+names show `StageConfig | None`, and choosing between the two is what *add*
+and *remove* did: `placing.object_added` and `object_removed` are reached
+through `set_type` instead, so the model's own object still gains and loses the
+object as the buffer does (design section 4.9). A class the editor cannot
+construct is a type that is not offered, with `NO_CLASS_FORM` as its reason.
+An ordinary entry of a `DICT_VALUE_BY_KEY` member is offered the types of the
+declaration less the configuration class, because `config_as_json` refuses an
+object beside the named keys; the line says so. After this, `+` and `-` mean
+an element or an entry everywhere and nothing else.
+
+**Observable outcome.** `e11_add_remove.py --ui tk`: `audit` is
+`StageConfig | None` holding `None`; choosing `StageConfig` gives it an object
+whose rows appear below it, and choosing `None` again takes them away. The
+named key of `hooks` behaves the same, and an ordinary entry of `hooks` offers
+`str | dict[str, int]`. `e19_omitted_members.py` shows the same for its
+`audit`. `--ui textual` the same.
+
+**Main risks.**
+
+- **The subtree answers and the verdict.** An object that appears or goes is a
+  change of the elements, not a validation pass, and the subtree badge of the
+  object and of every container above it has to follow (design section 6.2).
+- **The tests of steps 25, 26 and 28** that pressed `+` and `-` on these
+  places change shape rather than meaning; check that everything they asserted
+  is still asserted through the type pull-down, rather than deleting them.
+
+#### Step 31E - `Literal` values
+
+**What it does.** A one-kind `Literal` is a set of values the editor knows the
+whole of, so `MemberRow.choices` answers with its values beside `is_bool` and
+the enum converter, and the step 29 machinery — F4, `settle_choices`,
+`matched_choice`, `nearest_choice` — applies to it unchanged. Its text is read
+by the rules of an enum name, and a text meaning none of the values is refused
+at the member as `x is not one of: a, b`, which is a second refusal of the
+editor's own and is written into design section 4.2 as one. A `Literal` of
+mixed kinds is the *nothing usable* rule, and the explanation says that it is.
+A `Literal` among other types is one alternative of the pull-down like any
+other.
+
+**Observable outcome.** `e20_union_types.py` gains
+`self.layout: Literal['compact', 'wide'] | None = 'compact'`: `--ui tk` shows
+its type as `Literal['compact', 'wide'] | None` and its value as a pull-down
+of the two words, F4 turns it into a field in which `wi` completes to `wide`
+and `tall` is refused at the member, and choosing `None` takes the value away.
+`--ui textual` the same.
+
+**Main risks.**
+
+- **The value pull-down and the type pull-down on one row**, both active, need
+  the width of two columns where step 29 needed one; recheck `least_size`.
+- **A literal value is not a name.** An enum is matched by a converter the
+  class declares and a `Literal` by the editor alone, so the matching rule has
+  to be the one `bool_word` already is, generalized, rather than a third copy.
+
+#### Documentation, in every sub-step
+
+Each sub-step updates the sections of `doc/detailed_design.md` it changes —
+4.1 and 4.2 on what a declaration says, 4.3 and 4.4 on the explanation line,
+4.9 on the controls, 4.11 on the values offered, and 11 — and the user's and
+the application programmer's guides where what a user sees has changed. That
+keeps every sub-step one review, rather than leaving a documentation step at
+the end that would change what no example program does.
+
+### Step 32 - Selectable dark mode
 
 Up until now the `edit-cfg-json-tk` has only had a hard coded light mode.
 Add to the Settings an enum value that selects between light mode and
@@ -637,7 +965,7 @@ UI element type colors.
 Evaluate to which extent the Tk UI mode settings and colors can also
 be applied to the textual UI.
 
-### Step 32 - Raw JSON for a subtree the editor cannot show
+### Step 33 - Raw JSON for a subtree the editor cannot show
 
 Step 25's early idea included a raw JSON editing surface for a sub-object whose
 class nothing says anything about, and step 25 found that the case it was
@@ -655,7 +983,7 @@ belong to any second way of editing the same thing — which of the two wins
 while both are open, and what a validation pass does to text the user is half
 way through typing — and they are the reason this is late rather than cheap.
 
-### Step 33 — The program asks for what the command line left out
+### Step 34 — The program asks for what the command line left out
 
 A wizard: the program opens with no location, no class name and no files,
 and asks for them in the toolkit it was started in. What has been chosen,
@@ -679,6 +1007,7 @@ File - Open. (Using the menubar may feel very natural in the Tk version.)
 These do not block current development, and each is scheduled to be answered at the
 step that needs it. They are listed here so they are not forgotten.
 
-| Question      | Answer needed by |
-| ------------- | ---------------- |
-| (nothing yet) |                  |
+| Question | Answer needed by |
+| --- | --- |
+| Is an enum offered beside a type that is not `None` (`Colors \| int`), given that the parse converter runs on every value of the member? | 31B |
+| Is the width of the type column decided over the rows on the screen, and so changed by folding, or over every row? | 31C |
