@@ -107,14 +107,6 @@ only its value can say are not.
 """
 
 
-CHOOSABLE_KINDS: tuple[type, ...] = (*SCALAR_KINDS, list, dict)
-"""The kinds of JSON value that a type the user chooses between is written as.
-
-A plain value is chosen in the same field, and a list or a dict is a container
-whose rows are built again below it when it is chosen.
-"""
-
-
 class _Unusable(Exception):
     """Raised where one part of a declaration names nothing usable."""
 
@@ -366,11 +358,18 @@ def node_options(options: Sequence[TypeOption],
         Those of the types that node can be holding.
     """
     return tuple(option for option in options if option == NONE_TYPE
-                 or _names_config(option) == is_object)
+                 or names_config(option) == is_object)
 
 
-def _names_config(option: TypeOption) -> bool:
-    """Return whether one type is a configuration class."""
+def names_config(option: TypeOption) -> bool:
+    """Return whether one type is a configuration class.
+
+    Args:
+        option: The type asked about.
+
+    Returns:
+        Whether it names a subclass of `Config`.
+    """
     return option.of_class is not None and issubclass(option.of_class, Config)
 
 
@@ -465,20 +464,41 @@ def empty_option_value(option: TypeOption) -> Optional[JsonType]:
     return empty_value(option.kind)
 
 
+def makes_value(option: TypeOption) -> bool:
+    """Return whether the editor can make a value of one type on its own.
+
+    It can of a plain value, a list, a dict, an enum with members and a
+    `Literal`, whose empty value `empty_option_value` gives, and of a
+    configuration class, whose object is constructed where a declaration
+    names that class (`type_choice.offered_types` leaves the class out where
+    it cannot be). It cannot of a class of the application's own whose kind
+    only its value can say, nor of `None`, which is no value at all.
+
+    Args:
+        option: The type asked about.
+
+    Returns:
+        Whether choosing that type can give a node a value of it.
+    """
+    return names_config(option) or empty_option_value(option) is not None
+
+
 def choosable(options: Sequence[TypeOption]) -> bool:
     """Return whether the user may choose which of some types a node holds.
 
-    They may where there is more than one type to choose from and every one
-    of them is a plain value, a list, a dict or `None`, which is what
-    `int | str`, `float | None`, `Colors | None`, `list[str] | None` and
-    `list[str] | list[list[str]]` are. A choice of the user's between them is
-    a value of the other type in the same field, a container of the other
-    type with rows of its own below it, or no value at all.
+    They may where there is more than one type to choose from and the editor
+    can make a value of at least one of them besides `None`, which is what
+    `int | str`, `float | None`, `Colors | None`, `list[str] | None`,
+    `list[str] | list[list[str]]` and `StageConfig | None` are. A choice of
+    the user's between them is a value of the other type in the same field, a
+    container of the other type with rows of its own below it, an object with
+    the members of its class below it, or no value at all.
 
-    A configuration class is not one of them yet, and neither is a class of
-    the application's own whose kind only its value can say: the editor
-    cannot make a value of the second, and the first is made and taken away
-    by the controls of section 4.9 of `doc/detailed_design.md`.
+    A type the editor cannot make a value of is offered only where the node
+    holds it or where nothing else could be chosen instead, as
+    `type_choice.offered_types` says. So choosing never gives a node a type
+    it cannot be given a value of, and `Path | None`, where nothing else
+    could, is not a choice at all: such a member is a field, as it always was.
 
     Args:
         options: The types a node may hold.
@@ -486,7 +506,4 @@ def choosable(options: Sequence[TypeOption]) -> bool:
     Returns:
         Whether the type that node holds is the user's to choose.
     """
-    return len(options) > 1 and all(
-        option == NONE_TYPE or (option.kind in CHOOSABLE_KINDS
-                                and not _names_config(option))
-        for option in options)
+    return len(options) > 1 and any(makes_value(option) for option in options)

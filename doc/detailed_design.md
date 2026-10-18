@@ -247,10 +247,18 @@ file is that class's to say, and the members are ordered as that class declares
 them and not as the sorted dictionary it writes. Only the description mapping
 crosses the boundary (section 4.3).
 
-**A declared member that holds no object is a row that says which class is
-missing.** It cannot be edited, because no text typed into a field becomes a
-configuration object; making one is adding, and belongs with adding an element
-of a list.
+**A declared member that holds no object is a row whose type says `None`.**
+It cannot be edited, because no text typed into a field becomes a
+configuration object; making one is choosing its class in the pull-down of its
+types (section 4.12), which constructs one. **What a place where a declaration
+puts an object may hold is said by that declaration**, not by the annotation of
+its member, because the declaration is what `config_as_json` constructs the
+object by and refuses `null` by: the class it names, and `None` beside it for
+an `OPTIONAL_MEMBER` and a key `DICT_VALUE_BY_KEY` names. So an unannotated
+optional member is still `StageConfig | None`, and a `MEMBER` annotated
+`Optional[StageConfig]` is `StageConfig` alone. A class the editor cannot
+construct is not offered at a place that holds none of it, and that row alone
+says which class is missing, because nothing can be chosen there.
 
 **A member that its class leaves out of the file has a row all the same.** A
 class that lists a member in `_omit_none_from_json()` writes nothing for it
@@ -512,17 +520,14 @@ in a field:
 - while it **holds a value** it is an ordinary field;
 - while it **holds nothing** it has no field at all.
 
-Where every type the member may hold is a plain value, a list or a dict,
-`None` is one of the types in its pull-down: `Optional[str]` is `str | None`
-and `Optional[list[str]]` is `list[str] | None`, the pull-down says `None`
-while the member holds nothing and the row says nothing more, and choosing
-`str` or `list[str]` gives it the value of that type that says no more than
-which type it is — the empty text, the empty list. Where it may hold a
-configuration object, the two controls that section 4.9 gives a declared
-member holding no configuration object move it between the two states instead,
-and the row says what it holds none of (step 31D of the plan moves those to the
-pull-down as well). **How the class writes such a member decides nothing about the two
-states**: `null` and a member that `_omit_none_from_json()` leaves out have the
+`None` is one of the types in its pull-down: `Optional[str]` is `str | None`,
+`Optional[list[str]]` is `list[str] | None` and an optional nested object is
+`StageConfig | None`. The pull-down says `None` while the member holds nothing
+and the row says nothing more, and choosing `str` or `list[str]` gives it the
+value of that type that says no more than which type it is — the empty text,
+the empty list — while choosing `StageConfig` gives it a new object of that
+class holding what the class declares. **How the class writes such a member
+decides nothing about the two states**: `null` and a member that `_omit_none_from_json()` leaves out have the
 same pair of states and the same way of moving between them, and what differs
 is only the file. Both have a row while they hold nothing (section 4.1), and
 the line under the member says which of the two kinds of optional it is,
@@ -563,18 +568,17 @@ with: annotate the members of a configuration class.
 A node whose type the user chooses has them wherever `None` is one of those
 types, which is `Optional[str]`, `Optional[int | str]`, `Optional[Colors]` —
 an enum is a type the editor can make a value of, the name of its first member
-— and `Optional[list[str]]`, and that holds for a value inside a list or a dict
-as much as for a member: an element of `list[Optional[str]]` that holds `null`
-has no field, and is given one by choosing `str`. Any other member has them
-where its types include `None` beside a first type the editor can make an empty
-value of, which is `Optional[str | Path]`. A member allowing `None` beside a
-configuration class or another class of the application's own has one state as
-before, because the editor cannot make a value of such a type on its own; the
-configuration class is the place section 4.9 gives its own two controls. A node
-offered `None` and nothing else holds nothing as the one state its class would
-accept, with no field to type a refused value into. Any other value inside a
-list or a dict never has the two states, whatever its declaration allows, and
-its type column still says `None` while it holds `null`.
+— `Optional[list[str]]` and `StageConfig | None`, and that holds for a value
+inside a list or a dict as much as for a member: an element of
+`list[Optional[str]]` that holds `null` has no field, and is given one by
+choosing `str`. `Optional[int | Path]` is one of them as well, because `Path`,
+a class of the application's own that the editor can make no value of, is not
+offered beside a type it can make while the member holds no path (section
+4.12). A node offered `None` and nothing else holds nothing as the one state
+its class would accept, with no field to type a refused value into. Every
+other node has one state, whatever its declaration allows: `Optional[Path]`,
+where the editor could make no value of anything but `None`, is the field it
+always was, and takes the text of `null` as the JSON it is.
 
 **`None` the class would refuse is not one of them.** `config_as_json` hands
 `null` to the parse converter of a member it writes as `null`, and the
@@ -628,6 +632,9 @@ column cannot:
 - **that the type was taken from the value**, where nothing usable was
   declared, so that a user reading `int` beside a member with no annotation
   knows it is what the value happens to be and not what the class requires;
+- **why each declared type that is not offered is left out** — the class would
+  refuse it, or the editor cannot make a value of it (section 4.12) — because a
+  pull-down cannot say what is not in it;
 - that the class leaves the member out of the file while it holds nothing,
   from the `_omit_none_from_json()` of the class that owns it.
 
@@ -636,8 +643,10 @@ longer said: `None` among the declared types says it.
 
 A nested configuration object says no names and nothing about where its type
 came from, because its class is declared by `nested_configs()` whatever its
-annotation says. What it may still say is the whole of a declaration of more
-than one type, and that the class above it can leave it out of the file.
+annotation says. What it may still say is that its declaration lets it hold
+nothing, as *Declared as StageConfig | None.*, that its class is not offered
+where the editor cannot construct one, and that the class above it can leave
+it out of the file.
 
 What a validator would have added — a range, a set of allowed values — stays
 out permanently (section 11). The names of an enum are the type of the member;
@@ -997,24 +1006,26 @@ application's own validators then make of a key is the ordinary verdict of a
 validation pass: the editor runs the application's rules and has none of its
 own about keys.
 
-**A member holding nothing is grown by being given a value** (section 4.2). A
-member declared to hold a configuration object or none has the pair of controls
-of this section for it, and how the class writes such a member decides nothing
-here: one that `_omit_none_from_json()` names keeps its row (section 4.1), so
-clearing it is not a way of losing it. A member whose types are all plain
-values, lists or dicts has neither control: it is given a value, and has it
-taken away, by choosing a type in the pull-down of section 4.12, and the
-controls of this section are about elements and objects alone.
+**A member holding nothing is not grown: it is given a value** (section 4.2),
+by choosing a type in the pull-down of section 4.12, and has it taken away by
+choosing `None` there. That holds for a member declared to hold a
+configuration object or none as much as for one that holds a text, a list or
+a dict, and how the class writes such a member decides nothing: one that
+`_omit_none_from_json()` names keeps its row (section 4.1), so taking its
+value away is not a way of losing it. **The controls of this section are about
+elements and entries alone**: `+` adds one to a list or a dict, `-` takes one
+out, and nothing else has either of them.
 
 **A member whose values are of two kinds is asked twice.** A
 `DICT_VALUE_BY_KEY` declaration names one key of a dict as a configuration
 object and leaves every other key of the same dict an ordinary value, so what
 that member offers is two answers, in two places.
 
-- **The named key is a place**, with the same pair of states and controls as a
-  member declared to hold one object or none: it is given an object of the
-  class its own declaration names, and clearing it leaves the row saying which
-  class is missing and the file holding no such key (section 4.1).
+- **The named key is a place**, with the same pair of states and the same
+  pull-down as a member declared to hold one object or none: it is
+  `StageConfig | None`, choosing the class gives it an object of the class its
+  own declaration names, and choosing `None` leaves the row and the file
+  holding no such key (section 4.1). It is not an entry, so it has no `-`.
 - **Every other key is an entry** of an ordinary container: the member takes a
   new one under a key the user gives, and each of them can be taken out.
   Nothing checks which keys such a member has, nor which keys anything inside
@@ -1022,8 +1033,9 @@ that member offers is two answers, in two places.
   whole — so a dict held at one of those keys is a container of its own in the
   same way. What a new entry holds is the same three questions, asked of the
   entries that no declaration names: an object belongs at the keys that declare
-  one, and `config_as_json` refuses one beside them. A member that has none of
-  the three says so and keeps offering the objects its declarations name.
+  one, and `config_as_json` refuses one beside them, so the class is no type an
+  entry is offered either (section 4.12). A member that has none of the three
+  says so and keeps offering the objects its declarations name.
 
 Asking for the named key as a new entry is refused as a key the dict already
 holds, because its row is there whether the object is or not.
@@ -1035,12 +1047,14 @@ alone and says why. The check refuses the empty dict before it reaches the
 member whose keys it does not check, so a member of `_unchecked_dicts` that
 holds nothing is not given a dict either.
 
-**Where an object is added, an object is made.** The tree finds the nested
-configuration objects by walking the real objects (section 4.1), so an element
-that existed only in the edit buffer would be shown as the dictionary it
-serializes to, with the member order of nobody and the parse converters of
-nobody. So the model's own configuration object, the copy the caller never
-sees, gains the object as the buffer gains its values. Principle 5 of section 3
+**Where an object is added, an object is made**, whether by adding an element
+of a container of objects or by choosing the class of a place (section 4.12).
+The tree finds the nested configuration objects by walking the real objects
+(section 4.1), so an element that existed only in the edit buffer would be
+shown as the dictionary it serializes to, with the member order of nobody and
+the parse converters of nobody. So the model's own configuration object, the
+copy the caller never sees, gains the object as the buffer gains its values,
+and loses it as the buffer does. Principle 5 of section 3
 is untouched: it is the editor's copy that changes.
 
 **What the editor holds about a node is held under the path of that node**, and
@@ -1280,15 +1294,30 @@ spelled in the vocabulary of Python type hints: `int`, `list[str]`, `Colors`,
 and choosing another of the types in it is how the user changes what the row
 holds, where the type is the user's to choose.
 
-**The type is the user's to choose where every type a row may hold is a plain
-value, a list, a dict or `None`**, and there are more than one of them:
+**The type is the user's to choose where a row is offered more than one type
+and the editor can make a value of at least one of them besides `None`**:
 `int | str`, `float | None`, `Colors | None`, `Literal['fast', 'slow'] | int`,
-`list[str] | None`, `int | list[int]` and `list[str] | list[list[str]]`. A
-plain value is one a field holds — a bool, a whole number, a number, a text,
-and an enum or a `Literal`, both of which are written as one of those. The
-pull-down is active on such a row and disabled on every other, which still says
-its type in the same place. A row whose types include a configuration object is
-not chosen in yet; step 31D of the plan is about those.
+`list[str] | None`, `int | list[int]`, `list[str] | list[list[str]]` and
+`StageConfig | None`. The editor can make a value of a plain value — one a
+field holds: a bool, a whole number, a number, a text, and an enum with members
+or a `Literal`, both of which are written as one of those — of a list, of a
+dict, and of a configuration class at a place a declaration puts an object at,
+by constructing one. The pull-down is active on such a row and disabled on
+every other, which still says its type in the same place. `Path | None` is
+disabled: the editor can make no value of a class of the application's own
+whose kind only its value says, so `None` would be all there is to choose, and
+such a member is the field section 4.2 says it is.
+
+**An object chosen has rows of its own.** Choosing the class of an
+`OPTIONAL_MEMBER`, or of a key that `DICT_VALUE_BY_KEY` names, gives that place
+a new object of the class its declaration names, constructed by the factory
+the declaration names where it names one and holding the values the class
+declares, and the rows of its members appear below it; choosing `None` takes
+the object and its rows away. The model's own configuration object gains and
+loses the object as the buffer does (section 4.9), and a subtree badge of the
+object, which has been asked nothing yet, is not shown until a validation pass
+asks it. This is what *add* and *remove* were for such a place before step
+31D, and `+` and `-` now mean an element or an entry everywhere.
 
 **A container chosen has rows of its own.** Choosing a list or a dict for a row
 that held something else, or the reverse, makes the rows below it again, as
@@ -1312,7 +1341,7 @@ the type chosen is kept as section 4.2 says. `EditModel.set_type` is how a
 backend chooses one, and `--set-type PATH=TYPE` is how the example programs
 stand in for a user choosing, as `--set` stands in for one typing.
 
-**A type the class would refuse is not offered**, for one of two reasons.
+**A type the class would refuse is not offered**, for one of three reasons.
 
 **The dict-shape check.** `Config.check_dict_parse` matches a file against the
 object the class parses it into, member by member and down through the dicts
@@ -1326,8 +1355,8 @@ the one the rows are built from, which is the model's own or one a validation
 pass accepted, and an accepted one holds a dict at exactly the checked places
 where the other does, so which rows may change between a dict and something
 else does not change while the editor is open. It is asked of every row and
-not only of one whose type is chosen, because it also decides what the control
-of section 4.9 would give a member holding nothing. A class of the
+not only of one whose type is chosen, because a row offered `None` alone holds
+nothing as a state, with no field to type a refused value into. A class of the
 application's own whose kind only its value can say is never refused by it.
 
 **The parse converter.** `config_as_json` hands every
@@ -1341,10 +1370,34 @@ class writes `null` for the member. `None` is offered where the class leaves
 the member out of the file while it holds nothing, because nothing is
 converted then, and an application whose own converter takes more is offered
 more. It is asked only of a row whose type is chosen, because only there is a
-value of another type something the user could give it.
+value of another type something the user could give it, and never about a type
+the editor cannot make a value of, because there is no value to ask about.
+
+**The declarations of objects.** `config_as_json` makes an object of a
+configuration class only where `nested_configs()` declares one: a dict written
+anywhere else is read as the dict it is, and an object held anywhere else is
+refused — `_validate_dict_by_key` refuses one beside the keys a
+`DICT_VALUE_BY_KEY` declaration names. So a configuration class is offered
+only where the tree declares an object, and an ordinary entry of `hooks`,
+annotated `StageConfig | str | dict[str, int]`, is offered `str |
+dict[str, int]`.
+
+**A type the editor cannot make a value of is offered only where it must be**,
+which is not quite a refusal of the class: a class of the application's own
+whose kind only its value can say, an enum with no members, and a
+configuration class the editor cannot construct at a place that holds none of
+it. Such a type is offered where the row holds a value of it, because the
+column has to say what the row holds, and where nothing besides `None` would be
+left to choose instead. So `Optional[int | Path]` holding `5` is offered
+`int | None`, and holding a path read from a file is offered all three, with
+the path in a field read as the text it was written as; choosing `int` or
+`None` is one way, because nothing is remembered per type and nothing the
+editor makes is a path. `Optional[Path]` keeps both types, and is not a choice
+(see above).
 
 The line below the row names each type left out and why: the value the
-converter refused, or the dict the class holds or does not hold. A type left
+converter refused, the dict the class holds or does not hold, that no object
+is declared there, or that the editor cannot make one. A type left
 out is not shown disabled, because Textual's `Select` cannot disable one option
 and the two backends must not differ.
 
@@ -1358,13 +1411,14 @@ and from Python 3.14 the two being one type — are all read as a union.
 
 **The column shows the type the row holds, and the pull-down lists every type
 it may hold.** A row holding nothing shows `None`, and so does a place declared
-to hold a configuration object and holding none, whether its declaration allows
-`None` or not: a key that `DICT_VALUE_BY_KEY` names is one the dict need not
-have. A configuration class is held only where the tree has an object declared
-— an object is written as a dict, and so is a dict, so `{"cpu": 2}` beside a
-named key is a `dict[str, int]` and not the class — and a row whose declaration
-names nothing usable shows the type of its value, and the class of its object
-for an object row. The whole declaration is said on the line below the row
+to hold a configuration object and holding none. What such a place may hold is
+its declaration's to say and not the annotation's (section 4.1): a key that
+`DICT_VALUE_BY_KEY` names is `StageConfig | None` whatever the values of the
+dict are annotated with, because it is one the dict need not have. A
+configuration class is held only where the tree has an object declared — an
+object is written as a dict, and so is a dict, so `{"cpu": 2}` beside a named
+key is a `dict[str, int]` and not the class — and a row whose declaration
+names nothing usable shows the type of its value. The whole declaration is said on the line below the row
 wherever the column cannot show it (section 4.3).
 
 **The column ends in one place for the whole editor**, so that the values of
@@ -3239,6 +3293,14 @@ version rather than assumed.
 - **A named key of a dict that vanishes when its object is taken away.** It is
   what the file does, but nothing would then name that key again, so clearing
   it would be a way of losing it. Sections 4.1 and 4.9.
+- **Adding and removing the object of a place that holds one or none.** It was
+  what such a place had until step 31D of the plan: a `+` that made the object
+  and a `-` that took it away. Once every row has a pull-down of its types, the
+  same two states are `StageConfig` and `None` in it, as they are `str` and
+  `None` for a text, and two controls for one choice would be two ways of
+  doing one thing, one of them unlike every other row. `+` and `-` are kept for
+  what they are really about, an element of a list or an entry of a dict.
+  Sections 4.9 and 4.12.
 - **A row only for the omitted members the editor can make a value for.** It
   would make the existence of a row a second thing to explain. Every member of
   the configuration has a row, and one whose kind nothing says is an ordinary

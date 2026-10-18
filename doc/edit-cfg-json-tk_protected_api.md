@@ -3047,9 +3047,9 @@ backends cannot offer different things.
 
 Text of the control that gives a node one more value.
 
-That is one more element of a container, and it is also the value of a member
-that is allowed to hold nothing and holds nothing: the two are the same
-question one step apart, so they are the same control.
+That is one more element of a list or one more entry of a dict, and nothing
+else: a member that is allowed to hold nothing is given a value by choosing
+its type, in the pull-down of the types.
 
 It is a word and not the `+` of the fold control beside it, because the two do
 different things and one row can have both: a list of configuration objects
@@ -3060,11 +3060,11 @@ offers that could not be told apart.
 
 #### REMOVE\_TEXT
 
-Text of the control that takes one value off a node.
+Text of the control that takes one element out of what holds it.
 
-`edit_cfg_json.ElementOffer.cleared` says which of the two that is: an element
-of a container is gone, and a declared place put back to holding nothing keeps
-its row and can be given an object or a value again.
+An element of a list or an entry of a dict is gone afterwards. A member that
+is allowed to hold nothing is put back to holding nothing by choosing `None`
+as its type instead, and keeps its row.
 
 <a id="edit_cfg_json_tk.tk_elements.EARLIER_TEXT"></a>
 

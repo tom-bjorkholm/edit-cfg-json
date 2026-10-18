@@ -16,7 +16,6 @@ of them and fold one of them away.
 # MIT License
 
 from collections.abc import Iterable, Mapping, Sequence
-from copy import deepcopy
 from io import StringIO
 from typing import NamedTuple, Optional, TextIO
 from config_as_json import Config, ConfigPath, JsonType
@@ -26,7 +25,8 @@ from edit_cfg_json.descriptions import Descriptions
 from edit_cfg_json.elements import NOT_EXTENDABLE, NOT_MOVABLE, \
     NOT_REMOVABLE, checked_key, grown, kept_order, moved_paths, refused, \
     shrunk, swapped
-from edit_cfg_json.placing import object_added, object_moved, object_removed
+from edit_cfg_json.placing import object_added, object_moved, \
+    object_removed, object_switched
 from edit_cfg_json.finding import FindOptions, FindReport, FindState, \
     find_report, matched, next_match
 from edit_cfg_json.leaf_value import text_as_value
@@ -34,6 +34,7 @@ from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.rows import BufferState, MemberRow, built_rows, stamped
 from edit_cfg_json.tree import assembled, member_values, starts_folded
 from edit_cfg_json.type_choice import chosen_option, switched_value
+from edit_cfg_json.type_options import NONE_TYPE
 from edit_cfg_json.validation import SubtreeAnswer
 
 NOT_EDITABLE_ERROR = 'Member {name} is not a value that can be edited.'
@@ -499,9 +500,7 @@ class EditBuffer:
         object of the declared class where the class declares one, a copy of
         what it declares for the member where it does not, and the emptiest
         value of the kind the member is annotated with where it declares
-        neither. A member that holds nothing is grown by being given a value,
-        which is what design sections 4.1 and 4.9 of `doc/detailed_design.md`
-        call adding, whether that value is a configuration object or not.
+        neither.
 
         Args:
             config: Configuration object of the session. It is modified where
@@ -522,23 +521,16 @@ class EditBuffer:
         checked_key(offer=row.offer, value=row.value, key=key,
                     name=row.full_name)
         object_added(config=config, path=path, key=key, stream=StringIO())
-        made = grown(value=row.value, key=key, template=row.offer.template) \
-            if row.foldable else deepcopy(row.offer.template)
-        self._restructured(config=config, path=path, value=made, moved={})
+        self._restructured(config=config, path=path, moved={},
+                           value=grown(value=row.value, key=key,
+                                       template=row.offer.template))
 
     def remove_element(self, config: Config, path: ConfigPath) -> None:
         """Take one element out of the node that holds it.
 
-        A node that a class declared a place for is put back to holding
-        nothing instead of being taken out of what holds it, which is what
-        `ElementOffer.cleared` says: such a node keeps its row, and a key that
-        a `DICT_VALUE_BY_KEY` member declares keeps it while being one key of
-        a dict whose other keys are taken out of it.
-
         Args:
             config: Configuration object of the session, modified as above.
-            path: Path of the element to remove, or of the place to put back
-                to holding nothing at all.
+            path: Path of the element to remove.
 
         Raises:
             KeyError: The path is not a node of this configuration.
@@ -548,9 +540,6 @@ class EditBuffer:
         refused(offered=row.offer.remove, form=NOT_REMOVABLE,
                 name=row.full_name)
         object_removed(config=config, path=path)
-        if row.offer.cleared:
-            self._restructured(config=config, path=path, value=None, moved={})
-            return
         held = self._rows[path[:-1]]
         self._restructured(config=config, path=held.path,
                            value=shrunk(value=held.value, step=path[-1]),
@@ -589,11 +578,16 @@ class EditBuffer:
         and the rows are built again around it, as they are when an element
         is added: a node that holds nothing, one that holds a value and one
         that holds a container are different rows, and what was held for a
-        node inside a container it held is gone with that node.
+        node inside a container it held is gone with that node. A place that
+        a class declared an object at is given a new object of that class, or
+        has its object taken away, as `object_switched` says.
 
         Args:
             config: Configuration object of the session, which says which
                 nodes are configuration objects when the rows are built again.
+                It is modified where the node is a declared place, because the
+                tree finds those objects by walking the real ones. It is the
+                editor's own copy and never the caller's.
             path: Path of the node.
             text: The type as a Python type hint spells it, which is how the
                 pull-down of the types names each of them.
@@ -611,10 +605,13 @@ class EditBuffer:
                                name=row.full_name)
         if option == row.chosen_type:
             return False
+        value = object_switched(config=config, path=path, stream=StringIO(),
+                                made=option != NONE_TYPE) \
+            if row.config_type is not None \
+            else switched_value(option, row.value)
         self._rows[path] = row._replace(held=option, conversion='',
                                         changed_by_validator=False)
-        self._restructured(config=config, path=path,
-                           value=switched_value(option, row.value), moved={})
+        self._restructured(config=config, path=path, value=value, moved={})
         return True
 
     def _moved(self, held: MemberRow, path: ConfigPath, removing: bool,

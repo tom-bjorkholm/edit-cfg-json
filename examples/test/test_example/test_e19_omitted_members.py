@@ -79,7 +79,7 @@ def test_starts_as_nothing(capsys: pytest.CaptureFixture[str]) -> None:
     """Test each of those members starts in the state that holds nothing."""
     printed = _dump(capsys)
     assert '\nnote: None\n' in printed
-    assert 'audit: None, no AuditConfig' in printed
+    assert '\naudit: None\n' in printed
     assert '\nextra_hosts: None\n' in printed
     assert 'limits: None, no value' in printed
     assert 'validation: valid' in printed
@@ -90,10 +90,11 @@ def test_object_from_class(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the member holding no object is given one of the declared class.
 
     This is the case that had no row at all before, so it is the one worth
-    asserting all of: the row becomes the class, the members of that class
-    appear below it, and the object says that it is valid on its own.
+    asserting all of: choosing the class makes the row that class, the members
+    of that class appear below it, and the object says that it is valid on its
+    own.
     """
-    printed = _dump(capsys, '--add', 'audit')
+    printed = _dump(capsys, '--set-type', 'audit=AuditConfig')
     assert 'audit: AuditConfig (edited) [valid on its own]' in printed
     assert '    destination: str = audit.log' in printed
     assert '    retries: int = 2' in printed
@@ -101,8 +102,9 @@ def test_object_from_class(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_object_cleared_again(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the same member is put back to holding no object."""
-    printed = _dump(capsys, '--add', 'audit', '--remove', 'audit')
-    assert 'audit: None, no AuditConfig' in printed
+    printed = _dump(capsys, '--set-type', 'audit=AuditConfig', '--set-type',
+                    'audit=None')
+    assert '\naudit: None\n' in printed
     assert '    destination' not in printed
     assert 'validation: valid' in printed
 
@@ -182,7 +184,8 @@ def test_two_states_two_files(capsys: pytest.CaptureFixture[str],
     """
     without = _saved(capsys, tmp_path / 'without.json')
     assert list(without) == ['title']
-    with_object = _saved(capsys, tmp_path / 'with.json', '--add', 'audit')
+    with_object = _saved(capsys, tmp_path / 'with.json', '--set-type',
+                         'audit=AuditConfig')
     assert with_object['audit'] == {'destination': 'audit.log', 'retries': 2}
 
 
@@ -196,7 +199,7 @@ def test_bare_file_read(capsys: pytest.CaptureFixture[str]) -> None:
     printed = _dump(capsys, '-i', data_file(DATA_NAME))
     assert 'title: str = Monthly report' in printed
     assert '\nnote: None\n' in printed
-    assert 'audit: None, no AuditConfig' in printed
+    assert '\naudit: None\n' in printed
     assert 'validation: valid' in printed
 
 
@@ -206,13 +209,15 @@ def test_application_refuses(capsys: pytest.CaptureFixture[str]) -> None:
     `AuditConfig` refuses more than five retries whoever built the object, so
     what the editor added is no more trusted than what a file held.
     """
-    printed = _dump(capsys, '--add', 'audit', '--set', 'audit.retries=9')
+    printed = _dump(capsys, '--set-type', 'audit=AuditConfig', '--set',
+                    'audit.retries=9')
     assert 'validation: invalid, see audit.retries' in printed
 
 
 def test_tk_shows_it(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test the Tk backend opens on this example without failing."""
-    open_tk_ui(e19_omitted_members.main, monkeypatch, '--add', 'audit')
+    open_tk_ui(e19_omitted_members.main, monkeypatch, '--set-type',
+               'audit=AuditConfig')
 
 
 def test_textual_shows_it(monkeypatch: pytest.MonkeyPatch) -> None:

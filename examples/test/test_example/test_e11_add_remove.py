@@ -244,20 +244,24 @@ def test_label_removed(capsys: pytest.CaptureFixture[str]) -> None:
 def test_named_key_cleared(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the named key of the two-kinded dict is given up and kept.
 
-    Its object goes and its row stays, holding `None` and saying which class
-    is missing, which is what makes taking it away safe: nothing else in the
-    editor would name that key again.
+    Choosing `None` takes its object away and its row stays, holding `None`
+    and offering its class again, which is what makes taking it away safe:
+    nothing else in the editor would name that key again.
     """
-    printed = _dump(capsys, '--remove', NAMED_KEY)
-    assert f'    on_failure: None, no {STAGE_CLASS} (edited)' in printed
+    printed = _explained(capsys, '--set-type', f'{NAMED_KEY}=None')
+    assert '    on_failure: None (edited)\n' in printed
+    assert f'Declared as {STAGE_CLASS} | None.' in printed
     assert 'validation: valid' in printed
+    refusal = _refused(capsys, '--ui', 'dump', '--remove', NAMED_KEY)
+    assert 'hooks[on_failure] is not something that can be removed' in refusal
 
 
 def test_named_key_written(capsys: pytest.CaptureFixture[str],
                            tmp_path: Path) -> None:
     """Test the file of a cleared named key holds no such key at all."""
     out_file = tmp_path / 'hooks.json'
-    _dump(capsys, '--remove', NAMED_KEY, '-o', str(out_file), '--save')
+    _dump(capsys, '--set-type', f'{NAMED_KEY}=None', '-o', str(out_file),
+          '--save')
     written = json.loads(out_file.read_text(encoding='UTF-8'))
     assert sorted(written[HOOKS]) == ['notify', 'thresholds']
 
@@ -333,10 +337,33 @@ def test_hook_dict_grows(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_optional_added(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test the optional member is given the object it is declared for."""
-    printed = _dump(capsys, '--add', 'audit', '--set', 'audit.name=cleanup')
+    """Test the optional member is given the object it is declared for.
+
+    Choosing its class is what gives it one, and there is no control that
+    adds anything to it.
+    """
+    printed = _dump(capsys, '--set-type', f'audit={STAGE_CLASS}', '--set',
+                    'audit.name=cleanup')
     assert f'audit: {STAGE_CLASS} (edited)' in printed
     assert '    name: str = cleanup (edited)' in printed
+    refusal = _refused(capsys, '--ui', 'dump', '--add', 'audit')
+    assert 'Nothing can be added to audit' in refusal
+
+
+def test_entry_by_type(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test an ordinary entry of the two-kinded dict chooses its type.
+
+    It may hold a text or a dict, and not the class of the named key, which
+    `config_as_json` refuses anywhere but at that key; the line below it says
+    so.
+    """
+    printed = _explained(capsys, '--set-type',
+                         f'{HOOKS}.notify=dict[str, int]')
+    assert '    notify: dict[str, int], 0 entries (edited)' in printed
+    assert (f'{STAGE_CLASS} is not offered, because the configuration class '
+            'reads one only where nested_configs() declares it, and it '
+            'declares none here.') in printed
+    assert 'validation: valid' in printed
 
 
 def test_moved_stage(capsys: pytest.CaptureFixture[str]) -> None:

@@ -29,12 +29,14 @@ mentioned. This one configuration puts every case side by side:
   container.
 - `labels` — add with a key, remove. `_unchecked_dicts` makes its keys the
   application's own, and a validator of its own says which they are.
-- `hooks` — add with a key, remove, and add and remove at one row of its own.
-  `DICT_VALUE_BY_KEY`: one named key of it holds an object and the others hold
-  ordinary values, so both halves of it are offered separately. One of those
-  ordinary values is itself a dict, and it takes an entry too.
-- `audit` — add and remove. An `OPTIONAL_MEMBER` is given its object, or put
-  back to holding none.
+- `hooks` — add with a key, remove, and at one row of its own a type to
+  choose instead. `DICT_VALUE_BY_KEY`: one named key of it holds an object and
+  the others hold ordinary values, so both halves of it are offered
+  separately. One of those ordinary values is itself a dict, and it takes an
+  entry too.
+- `audit` — no control at all. An `OPTIONAL_MEMBER` is given its object by
+  choosing its class as its type, or put back to holding none by choosing
+  `None`, which is not a matter of elements.
 
 ## A new element is copied, and invented only from a declared type
 
@@ -185,11 +187,13 @@ because `config_as_json` reads the whole member instead. So both halves of it
 are offered, and they are offered in different places.
 
 **The named key has a row whether the file holds it or not.** `on_failure`
-holds one `StageConfig` or holds nothing, exactly as `audit` below it does,
-and the same two controls move it between those states. Taking the object away
-leaves the row saying which class is missing, so the key can be given back;
-the file then simply has no `on_failure` in it, which is what an application
-that has not written the hook ships.
+holds one `StageConfig` or holds nothing, exactly as `audit` below it does, so
+its type is `StageConfig | None` and the pull-down of its types moves it
+between those states. Choosing `None` takes the object away and leaves the
+row, whose type then says `None` and still offers the class, so the key can be
+given back; the file then simply has no `on_failure` in it, which is what an
+application that has not written the hook ships. It is not an entry of the
+dict, so it has no control that takes it out.
 
 **Every other key is an ordinary entry.** The member itself takes an entry
 with a key, and each of those entries can be taken out. What a new one holds
@@ -197,6 +201,13 @@ is the same question a new element of `retry_delays` is answered by, asked of
 the entries that no declaration names: `notify` is the one this class declares,
 so a new entry is a copy of it. Asking for `on_failure` as an entry is refused
 as a key the dict already holds, because its row is already there.
+
+**An ordinary entry may hold a text or a dict, and not a stage.** The values
+of `hooks` are annotated `StageConfig | str | dict[str, int]`, and
+`config_as_json` makes a `StageConfig` only at the key the declaration names:
+a dict written under any other key is read as a dict, and an object held there
+is refused. So the pull-down of `notify` offers `str | dict[str, int]`, and
+the line below it says why `StageConfig` is not among them.
 
 **And nothing inside such a member is checked either.** The check is never
 applied to the member at all, so it never reaches anything below it, however
@@ -207,26 +218,34 @@ other of the two routes.
 
 ````sh
 cd examples/src/example
-python3 e11_add_remove.py --ui dump --remove hooks.on_failure
+python3 e11_add_remove.py --ui dump --set-type hooks.on_failure=None
 python3 e11_add_remove.py --ui dump --add hooks=notify_slack
 python3 e11_add_remove.py --ui dump --remove hooks.notify
 python3 e11_add_remove.py --ui dump --add hooks.thresholds=timeouts
+python3 e11_add_remove.py --ui dump --set-type 'hooks.notify=dict[str, int]'
 ````
 
-## An optional member is added and removed too
+The quotation marks of the last one are for the shell, which would otherwise
+read the square brackets as a pattern of file names.
 
-`audit` holds one `StageConfig` or none. No text typed into a field becomes a
-configuration object, so giving it one is *adding*, and putting it back to
-holding none is *removing*. This class writes `null` for that member while it
+## An optional member chooses its object
+
+`audit` holds one `StageConfig` or none, so its type is `StageConfig | None`.
+No text typed into a field becomes a configuration object, so giving it one is
+*choosing its class* in the pull-down of its types, and putting it back to
+holding none is choosing `None`. Neither is a matter of how many elements
+something holds, so neither is one of the controls this example is about, and
+`--add audit` is refused. This class writes `null` for that member while it
 holds none; a class that listed it in `_omit_none_from_json()` would leave it
-out of the file altogether instead, and the same two controls would move it
+out of the file altogether instead, and the same pull-down would move it
 between the same two states. Example 19 is about that other kind of optional
 member.
 
 ````sh
 cd examples/src/example
-python3 e11_add_remove.py --ui dump --add audit
-python3 e11_add_remove.py --ui dump --add audit --set audit.name=cleanup
+python3 e11_add_remove.py --ui dump --set-type audit=StageConfig
+python3 e11_add_remove.py --ui dump --set-type audit=StageConfig \
+    --set audit.name=cleanup
 ````
 
 ## What the application still decides
@@ -283,14 +302,16 @@ Look along the rows and see which controls each of them gets. `stages` offers
 adding on its own row and removing and moving on the row of each element it
 holds; `extra_hosts` offers the same although nothing in it was ever written
 down, because its declared type says what one element of it would be; `hooks`
-offers adding on its own row and removing on every row below it, one of which
-is the named key that holds an object; `labels` offers what any other dict
-does, because its class took the declared-keys check away and answers for the
-keys itself; `stage_limits` offers everything, at its own row and at the row of
-each dict inside it, because a list is in the way of the check; and `limits`
-alone offers nothing, with a line below it saying why. Adding an entry to
-`runners`, to `hooks`, to `labels` or to one of the dicts of `stage_limits` is
-where the editor asks a question, which is the other thing only an editor does.
+offers adding on its own row and removing on the row of every entry below it,
+while its named key, which holds an object, offers its type instead;
+`labels` offers what any other dict does, because its class took the
+declared-keys check away and answers for the keys itself; `stage_limits` offers
+everything, at its own row and at the row of each dict inside it, because a
+list is in the way of the check; `audit` offers no control and a pull-down of
+its types; and `limits` alone offers nothing, with a line below it saying why.
+Adding an entry to `runners`, to `hooks`, to `labels` or to one of the dicts of
+`stage_limits` is where the editor asks a question, which is the other thing
+only an editor does.
 
 `--ui dump` is the very limited non-interactive user interface, and the
 command lines above press the same controls without a display. There is a file
@@ -524,9 +545,10 @@ def _default_hooks(stderr_file: TextIO
 
     `DICT_VALUE_BY_KEY` declares exactly that shape: the value at
     `on_failure` is a configuration object and every other key of the same
-    dict holds an ordinary value. Both of these are what the editor copies
-    from: the stage is what the named key is given again once it has been
-    taken away, and `notify` is what a new entry beside it is a copy of.
+    dict holds an ordinary value. `notify` is what a new entry beside the
+    named key is a copy of. The stage is not copied: once it has been taken
+    away, choosing `StageConfig` for that key again gives it a new stage
+    holding what `StageConfig` declares.
 
     `thresholds` is an ordinary value of that dict which is itself a dict.
     Nothing checks the keys of this member, so nothing checks the keys of
@@ -595,11 +617,13 @@ class PipelineConfig(Config):
         # validator below is what says which keys are allowed.
         self.labels: dict[str, str] = {'team': 'platform'}
         # A dict where one named key holds a configuration object and the
-        # rest hold ordinary values. Both halves of it can be added to: the
-        # named key at a row of its own, the rest as entries of the dict.
+        # rest hold ordinary values. Both halves of it can be given something:
+        # the named key by choosing its type at a row of its own, the rest as
+        # entries added to the dict.
         self.hooks: dict[str, StageConfig | str | dict[str, int]] = \
             _default_hooks(stderr_file)
-        # An optional member: one stage or none. Giving it one is adding.
+        # An optional member: one stage or none. Giving it one is choosing
+        # `StageConfig` as its type.
         self.audit: Optional[StageConfig] = None
         # This is what takes the declared-keys check off `labels`, and it has
         # to be assigned before the base class is initialized.

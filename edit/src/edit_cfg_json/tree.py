@@ -110,14 +110,15 @@ ENTRY_FORM = '{count} entry'
 """The same for the one dict that holds a single entry."""
 
 NO_OBJECT_FORM = 'no {name}'
-"""What a declared nested member that holds no object says instead.
+"""What a declared place that holds no object, and cannot be given one, says.
 
-An `OPTIONAL_MEMBER` is what holds none, and it has a row whether its class
-writes `null` for it or leaves it out of the file altogether. The row says
-which class would be there and that there is nothing there, because both of
-those are worth knowing and neither is a value: no text typed into a field
-becomes a configuration object, so the row cannot be edited. Making one is
-adding, and belongs with adding an element of a list.
+An `OPTIONAL_MEMBER` and a key that `DICT_VALUE_BY_KEY` names are what hold
+none, and each has a row whether the file holds it or not. Where its class
+can be constructed, the pull-down of its types says `None` and offers the
+class, and the row says nothing more. Where it cannot, `None` is all it is
+offered, and the row says which class would be there and that there is
+nothing there, because both of those are worth knowing and neither is a
+value: no text typed into a field becomes a configuration object.
 """
 
 OPEN_AT_MOST = 8
@@ -474,6 +475,14 @@ class ConfigNode(NamedTuple):
     object, so a node that has none has nothing below it either.
     """
 
+    nesting: Optional[ConfigNesting] = None
+    """What declared that an object is at this node, None for the root.
+
+    It is what says which class the node may hold and whether it may hold
+    none, whatever its member is annotated with, because it is what
+    `config_as_json` constructs the object by.
+    """
+
 
 def _member_objects(name: str, held: object,
                     nesting: ConfigNesting) -> list[tuple[ConfigPath,
@@ -512,8 +521,9 @@ def _member_objects(name: str, held: object,
 def _config_node(held: object, nesting: ConfigNesting) -> ConfigNode:
     """Return what is at one declared place, whether or not it holds one."""
     if isinstance(held, Config):
-        return ConfigNode(config_type=type(held), config=held)
-    return ConfigNode(config_type=nesting.config_type, config=None)
+        return ConfigNode(config_type=type(held), config=held, nesting=nesting)
+    return ConfigNode(config_type=nesting.config_type, config=None,
+                      nesting=nesting)
 
 
 def _declared_objects(config: Config) -> Iterator[tuple[ConfigPath,

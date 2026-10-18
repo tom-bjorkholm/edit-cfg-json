@@ -141,18 +141,30 @@ object as anywhere else.
 ## An optional nested object
 
 `audit_output` may be there or not. It is `None` here, and this class does not
-list it in `_omit_none_from_json()`, so `null` is what reaches the file and the
-row says which class is missing:
+list it in `_omit_none_from_json()`, so `null` is what reaches the file. Its
+type says `None`, and the line below it says which other type it may hold:
 
 ````text
-audit_output: no TableOutputConfig
+audit_output: None
+    Where the administrator audit log is written, when one is wanted at all.
+    Declared as TableOutputConfig | None.
 ````
 
-It cannot be edited, because no text typed into a field becomes a
-configuration object. Making one is *adding*, which
-[e11_add_remove.py](e11_add_remove.py) is about. A class that listed the
-member in `_omit_none_from_json()` would write nothing for it at all, and it
-would then have no row — which is what any member a class omits already does.
+It has no field, because no text typed into a field becomes a configuration
+object. In an editor the pull-down of its types offers `TableOutputConfig`
+beside `None`: choosing the class gives the member a new object of it, with
+rows of its own, and choosing `None` takes it away again. Without a display,
+`--set-type` chooses the same way:
+
+````sh
+cd examples/src/example
+python3 e09_nested_config.py --ui dump \
+    --set-type audit_output=TableOutputConfig
+````
+
+A class that listed the member in `_omit_none_from_json()` would write nothing
+for it at all while it holds none, and its row would be the same, which is
+what [e19_omitted_members.py](e19_omitted_members.py) is about.
 
 The file in [examples/data/](../../data/) has an audit output, so reading it
 shows the same member as a real object with rows of its own:

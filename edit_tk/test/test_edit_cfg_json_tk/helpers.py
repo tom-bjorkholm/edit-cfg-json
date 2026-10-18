@@ -27,7 +27,7 @@ import sys
 import tkinter
 from tkinter import messagebox
 import pytest
-from config_as_json import Config, PathOrStr, ValidationPlan
+from config_as_json import Config, ConfigPath, PathOrStr, ValidationPlan
 from edit_cfg_json import Descriptions, EditModel, LoadReport
 from edit_cfg_json_tk.tk_editor import CHOOSE_TEXT, CLOSE_TEXT, \
     EditorWidgets, EXPLAIN_TEXT, FOLD_OPEN_TEXT, SAVE_AS_TEXT, SAVE_TEXT, \
@@ -467,10 +467,24 @@ def stub_types() -> list[FakeWidget]:
     """Return every stub pull-down of the types, in row order.
 
     Every node has one. It shows a text of its own rather than a variable,
-    because nothing can be chosen in it yet.
+    and a type is chosen in the menu below it, as `stub_pick` does.
     """
     return [widget for widget in FakeWidget.created
             if widget.options.get('name') == MEMBER_TYPE_NAME]
+
+
+def stub_type_of(model: EditModel, path: ConfigPath) -> FakeWidget:
+    """Return the stub pull-down of the types of one node of one model.
+
+    Args:
+        model: Model whose rows the pull-downs were made for.
+        path: Path of the node.
+
+    Returns:
+        The pull-down of the types of that node.
+    """
+    paths = [row.path for row in model.rows]
+    return stub_types()[paths.index(path)]
 
 
 def stub_choices(widget: FakeWidget) -> tuple[str, ...]:

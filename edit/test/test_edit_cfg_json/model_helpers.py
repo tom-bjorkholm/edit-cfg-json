@@ -1,10 +1,10 @@
 #! /usr/bin/env python3
 """Ways of reading one edit model that its tests share.
 
-A test of the model asks it the same four things over and over: what one row
-holds, which rows there are, which of them are on the screen, and what a save
-wrote. They are here rather than in each test module, so that one test module
-more does not mean one more copy of them.
+A test of the model asks it the same five things over and over: what one row
+holds, which types it may hold, which rows there are, which of them are on the
+screen, and what a save wrote. They are here rather than in each test module,
+so that one test module more does not mean one more copy of them.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -30,6 +30,19 @@ def row_at(model: EditModel, path: ConfigPath) -> MemberRow:
         KeyError: The path is not a node of this configuration.
     """
     return {row.path: row for row in model.rows}[path]
+
+
+def type_texts(row: MemberRow) -> list[str]:
+    """Return every type one row may hold, as Python spells each of them.
+
+    Args:
+        row: Row to read.
+
+    Returns:
+        The text of each of its types, in the order the declaration writes
+        them, the ones its class would refuse left out.
+    """
+    return [option.text for option in row.types]
 
 
 def row_paths(model: EditModel) -> list[ConfigPath]:

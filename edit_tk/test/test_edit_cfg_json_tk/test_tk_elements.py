@@ -26,7 +26,7 @@ from edit_cfg_json_tk.tk_elements import ADD_TEXT, EARLIER_TEXT, LATER_TEXT, \
 from example.e11_add_remove import PipelineConfig
 from example.e18_declared_types import ReportConfig
 from .helpers import real_buttons, real_fields, real_press, retype, \
-    stub_editor, stub_field_widgets
+    stub_choices, stub_editor, stub_field_widgets, stub_pick, stub_type_of
 from .stubs import FakeWidget
 
 NEW_KEY = 'nightly'
@@ -181,33 +181,39 @@ def test_stub_under_list(stub_tk: None) -> None:
 
 
 def test_stub_offers_by_key(stub_tk: None) -> None:
-    """Test the dict whose values are of two kinds has both sets of controls.
+    """Test the dict whose values are of two kinds has the controls of one.
 
-    Its named key is a place that holds an object or holds nothing, so it is
-    added and removed like a member that may hold none, and every other key
-    of it is an ordinary entry of a dict.
+    Its named key is a place that holds an object or holds nothing, which is
+    chosen in the pull-down of its types like a member that may hold none, so
+    it has no control at all; every other key of it is an ordinary entry of a
+    dict.
     """
     _ = stub_tk
     editor = _pipeline_stub()
     assert _controls_of(editor, HOOKS) == [ADD_TEXT]
-    assert _controls_of(editor, (*HOOKS, 'on_failure')) == [REMOVE_TEXT]
+    assert _controls_of(editor, (*HOOKS, 'on_failure')) == []
     assert _controls_of(editor, (*HOOKS, 'notify')) == [REMOVE_TEXT]
     assert _controls_of(editor, (*HOOKS, 'thresholds')) == [ADD_TEXT,
                                                             REMOVE_TEXT]
 
 
 def test_stub_clears_by_key(stub_tk: None) -> None:
-    """Test pressing the control of the named key leaves its row behind.
+    """Test choosing `None` for the named key leaves its row behind.
 
-    The object goes and the row stays, saying which class is missing and
-    offering to make one, which is what makes taking it away safe.
+    The object goes and the row stays, its type saying `None` and offering
+    the class again, which is what makes taking it away safe. Choosing the
+    class gives it a new object.
     """
     _ = stub_tk
     editor = _pipeline_stub()
     named = (*HOOKS, 'on_failure')
-    _press(REMOVE_TEXT, place=_place_of(editor, named, REMOVE_TEXT))
-    assert _controls_of(editor, named) == [ADD_TEXT]
-    assert _value_of(editor, named) == 'no StageConfig'
+    stub_pick(stub_type_of(editor.model, named), 'None')
+    assert named in [row.path for row in editor.model.rows]
+    assert stub_choices(stub_type_of(editor.model, named)) == ('StageConfig',
+                                                               'None')
+    assert _controls_of(editor, named) == []
+    stub_pick(stub_type_of(editor.model, named), 'StageConfig')
+    assert _value_of(editor, (*named, 'name')) == 'build'
 
 
 def test_stub_adds_an_element(stub_tk: None) -> None:

@@ -19,8 +19,8 @@ from edit_cfg_json_textual.textual_look import NAME_CLASS, SUBTREE_CLASS, \
     VALUE_CLASS, fold_id, member_id, subtree_id, value_id
 from example.e09_nested_config import CourseExportConfig, TableOutputConfig
 from example.e10_config_containers import CourseReportsConfig
-from .helpers import ROOMY_SIZE, description_of, index_of, type_of, \
-    wrong_of
+from .helpers import ROOMY_SIZE, description_of, index_of, type_chooser_of, \
+    type_of, wrong_of
 
 OUTPUT_CLASS = TableOutputConfig.__name__
 """What the row of a nested object of the example says its type is.
@@ -28,8 +28,8 @@ OUTPUT_CLASS = TableOutputConfig.__name__
 Nothing is said where its value would be, because its value is its rows.
 """
 
-MISSING_OUTPUT = f'no {OUTPUT_CLASS}'
-"""What the row of the optional member that holds no object says."""
+MISSING_TYPES = (OUTPUT_CLASS, 'None')
+"""What the pull-down of the optional member that holds no object offers."""
 
 OWN_VALID = ' [valid on its own]'
 """What the row of an object that is a configuration on its own adds.
@@ -127,25 +127,29 @@ def _value_text(app: EditorApp, member_name: str) -> str:
     return str(widget.content)
 
 
-async def _opened() -> tuple[list[str], tuple[str, str], str]:
+async def _opened() -> tuple[list[str], tuple[str, str],
+                             tuple[str, str, tuple[str, ...]]]:
     """Return the rows, the type and value of the object, and the missing."""
     app = _nested_app()
     async with app.run_test(size=ROOMY_SIZE):
         return (_all_names(app), (type_of(app, OBJECT_MEMBER),
                                   _value_text(app, OBJECT_MEMBER)),
-                _value_text(app, MISSING_MEMBER))
+                (type_of(app, MISSING_MEMBER),
+                 _value_text(app, MISSING_MEMBER),
+                 type_chooser_of(app, MISSING_MEMBER).offered))
 
 
 def test_object_is_a_node() -> None:
     """Test a nested object says its class and holds its members as rows.
 
-    The class is its type, and nothing is said where a value would be.
+    The class is its type, and nothing is said where a value would be. The
+    member that holds no object says `None` and offers the class instead.
     """
     names, held, missing = asyncio.run(_opened())
     assert names == ['course_name', OBJECT_MEMBER, INSIDE_MEMBER,
                      'output_format', 'encoding', MISSING_MEMBER]
     assert held == (OUTPUT_CLASS, '')
-    assert missing == MISSING_OUTPUT
+    assert missing == ('None', '', MISSING_TYPES)
 
 
 async def _fields() -> int:

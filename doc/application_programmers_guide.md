@@ -1019,15 +1019,33 @@ union such as `Optional[str]` or a long type such as
 `dict[str, StageConfig | str | dict[str, int]]` is said whole on the line below
 the row.
 
-**Where every type a member is declared to allow is a plain value, a list or a
-dict, the user chooses between them.** `self.width: int | str = 80` takes
-either a number or a text, and the column is a pull-down of the two: the text
-in the field is read as a value of the type chosen. `Optional[str]` is
-`str | None` and `Optional[list[str]]` is `list[str] | None`, so `None` is
-chosen in the same pull-down, which is what the add and remove controls did
-for such a member before; a member that may hold a nested object or nothing
-keeps those controls for now. A plain value is a text, a number, true or false,
-an enum or a `Literal`. Switching keeps what still fits — the number `80`
+**Where a member is offered more than one type and the editor can make a value
+of at least one of them besides `None`, the user chooses between them.**
+`self.width: int | str = 80` takes either a number or a text, and the column
+is a pull-down of the two: the text in the field is read as a value of the
+type chosen. `Optional[str]` is `str | None` and `Optional[list[str]]` is
+`list[str] | None`, so `None` is chosen in the same pull-down. A plain value is
+a text, a number, true or false, an enum or a `Literal`.
+
+**A nested object is chosen in the same pull-down.** What a place
+`nested_configs()` puts an object at may hold is what that declaration says,
+whatever the member is annotated with: an `OPTIONAL_MEMBER` and a key that
+`DICT_VALUE_BY_KEY` names are `StageConfig | None`, and a `MEMBER` is
+`StageConfig` alone, because `config_as_json` refuses `null` there. Choosing
+the class constructs a new object of it — through the `factory_function` of
+the declaration where it has one — holding the values your class declares, and
+choosing `None` takes it away; there are no add and remove controls for it. A
+class the editor cannot construct is offered only while the place holds an
+object of it. Every other key of a `DICT_VALUE_BY_KEY` member is not offered
+the class at all, because `config_as_json` makes one only at the keys you
+declared.
+
+**A type the editor cannot make a value of is offered only where it must be.**
+A class of your own whose JSON kind only its converters know, such as `Path`,
+is left out beside a type the editor can make, unless the member holds a value
+of it: `Optional[int | Path]` holding `5` is offered `int | None`. Where
+nothing else could be chosen, as in `Optional[Path]`, the member stays an
+ordinary field, as it always was. Switching keeps what still fits — the number `80`
 becomes the text `80` — and gives the empty value of the new type otherwise,
 which a list or a dict on either side of the switch always is. The choice lasts
 until a validation pass leaves a value it does not fit, so a validator of yours
@@ -1045,7 +1063,7 @@ you wrote for a `list[str]` entry is not copied into a `list[list[str]]` the use
 chose for it instead. Worked example:
 [e20_union_types.py](../examples/src/example/e20_union_types.py).
 
-**A type your class would refuse is not offered.** `Config.check_dict_parse`
+**A type your class would refuse is not offered either.** `Config.check_dict_parse`
 matches a file against the object your class parses it into, and refuses a
 dict where that object holds something else and anything else, `None` among
 it, where it holds a dict. So `Optional[dict[str, int]]` is offered `None`

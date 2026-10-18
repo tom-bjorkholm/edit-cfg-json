@@ -17,7 +17,7 @@ from config_as_json import ConfigPath, JsonType
 from edit_cfg_json import EditModel, row_chooses_type
 from edit_cfg_json.type_choice import DICT_ONLY, NO_DICT_YET
 from .choice_cfg import ContainerChoiceCfg, FlatteningCfg
-from .model_helpers import row_at, row_paths, written
+from .model_helpers import row_at, row_paths, type_texts, written
 
 FLAT = ('columns', 'flat')
 """Path of the entry of `ContainerChoiceCfg` that holds a `list[str]`."""
@@ -31,7 +31,7 @@ LISTS = 'list[list[str]]'
 
 def _types(model: EditModel, path: ConfigPath) -> list[str]:
     """Return the text of every type one node of one model is offered."""
-    return [option.text for option in row_at(model, path).types]
+    return type_texts(row_at(model, path))
 
 
 def _held(model: EditModel, path: ConfigPath) -> str:

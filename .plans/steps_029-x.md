@@ -2,7 +2,7 @@
 
 ## Where everything is
 
-Steps 1 to 30 and 31A to 31C are implemented and committed, step 23 with the
+Steps 1 to 30 and 31A to 31D are implemented and committed, step 23 with the
 corrections its review asked for. Steps 1 to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md), steps 10 to 21 in
 [steps_010-021_done.md](steps_010-021_done.md) and steps 22 to 28 in
@@ -123,6 +123,10 @@ the plan says only *when* that decision gets built.
   chosen in the same column, the rows below a row made again by a choice, and
   the dict-shape check of the class asked of every row before a type is
   offered.
+- [Step 31D](#step-31d---choosing-between-an-object-and-none) — a nested
+  object and nothing chosen in the same column, its types read from the
+  declaration that puts it there, and a type the editor cannot make a value of
+  offered only where it must be.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -179,7 +183,7 @@ decision gets built.
 - Every step touches all three packages where the capability is
   user-visible, so `edit_cfg_json`, `edit_cfg_json_tk` and
   `edit_cfg_json_textual` never drift apart by more than one review.
-- Steps 1 to 30 and 31A to 31C are built. Steps 1 to 28 are written up in
+- Steps 1 to 30 and 31A to 31D are built. Steps 1 to 28 are written up in
   [steps_001-009_done.md](steps_001-009_done.md), in
   [steps_010-021_done.md](steps_010-021_done.md) or in
   [steps_022-028_done.md](steps_022-028_done.md), and steps 29 to 30 in
@@ -632,7 +636,7 @@ deserves one message.
 
 ### Step 31 - The type of every row, and choosing between the types allowed
 
-Status: **Split into sub-steps 31A to 31E. 31A to 31C implemented, the
+Status: **Split into sub-steps 31A to 31E. 31A to 31D implemented, the
 rest planned.**
 
 Two complaints from users, and one answer to both.
@@ -1205,6 +1209,8 @@ and the rows inside it are `list[str]` and `str`.
 
 #### Step 31D - Choosing between an object and `None`
 
+Status: **Implemented, committed.**
+
 **What it does.** An `OPTIONAL_MEMBER` and a key that `DICT_VALUE_BY_KEY`
 names show `StageConfig | None`, and choosing between the two is what *add*
 and *remove* did: `placing.object_added` and `object_removed` are reached
@@ -1231,6 +1237,91 @@ named key of `hooks` behaves the same, and an ordinary entry of `hooks` offers
 - **The tests of steps 25, 26 and 28** that pressed `+` and `-` on these
   places change shape rather than meaning; check that everything they asserted
   is still asserted through the type pull-down, rather than deleting them.
+
+**What it decided.** Six things.
+
+- **What a place where a declaration puts an object may hold is said by the
+  declaration, not by the annotation.** An `OPTIONAL_MEMBER` and a key that
+  `DICT_VALUE_BY_KEY` names are `StageConfig | None`, and a `MEMBER`, an
+  element of a `LIST_ELEMENT` and a value of a `DICT_VALUE` are `StageConfig`
+  alone, because the declaration is what `config_as_json` constructs by and
+  refuses `null` by. So an unannotated optional member gets the pull-down, a
+  `MEMBER` annotated `Optional[StageConfig]` is not offered a `None` the class
+  would refuse, and `hooks.on_failure` says *Declared as StageConfig | None.*
+  where it said the annotation of the values of `hooks`.
+- **A configuration class is offered only where a declaration puts an object**,
+  as one general rule rather than a case of `DICT_VALUE_BY_KEY`: a dict written
+  anywhere else is read as a dict, and an object held anywhere else is
+  refused. An ordinary entry of `hooks` is offered `str | dict[str, int]`, and
+  the line says *StageConfig is not offered, because the configuration class
+  reads one only where nested_configs() declares it, and it declares none
+  here.*
+- **A class the editor cannot construct is not offered at a place that holds
+  none of it**, with *X is not offered, because the editor cannot make one on
+  its own.* That is a sentence of `type_choice` beside the other reasons, not
+  `NO_CLASS_FORM`, which stays the refusal of the `+` of a container of such
+  objects. A place that holds one keeps the class offered, because the column
+  has to say what it holds; choosing `None` there is one way.
+- **The rule for a type to be chosen is now: more than one type offered, and
+  at least one besides `None` that the editor can make a value of.** A
+  configuration class is one it can make, by constructing it; a class of the
+  application's own whose kind only its value says is not.
+- **A type the editor cannot make a value of is offered only where it must
+  be** — where the node holds it, or where nothing besides `None` would be left
+  — with the sentence above as its reason. It came up as the one place `+` and
+  `-` were still used for a value: `Optional[int | Path]` had them, because
+  `int` could be made. Now it is offered `int | None` while it holds a number,
+  and `Optional[Path]` stays the field it always was. A path read from a file
+  keeps `Path` offered and edited as text; switching away from it is one way,
+  because nothing is remembered per type.
+- **So `+` and `-` mean an element or an entry everywhere.**
+  `ElementOffer.cleared`, the `_new_value` and `_new_object` offers and the
+  place branch of `object_removed` are gone, and which nodes have the two
+  states is one line: `None` among the types offered, alone or beside a choice.
+
+**Core.** `type_options.choosable` is the rule above, with `makes_value` and
+`names_config` (no longer private) beside it, and `CHOOSABLE_KINDS` is gone.
+`type_choice.offered_types` takes a `NodeFacts` — the value, the converter,
+whether the member is omitted, the dict shape and the new `placed` — and leaves
+out a class with `NO_OBJECT_HERE` or `NOT_MADE`, and in a second pass a type
+the editor cannot make. `tree.ConfigNode` carries the `nesting` that put it
+there, which `member_types.object_types` reads, and `nothing_allowed` takes the
+types alone. `elements.tree_facts` works out `placed` per node from the cache
+of made objects that it already had. `placing.object_switched` builds the
+object and puts it, or takes it away, and `EditBuffer.set_type` calls it at an
+object node instead of `switched_value`. `MemberRow.editable` and `kind` read a
+held class whose kind only its value says as a field of text, `value_text` says
+nothing where the type says `None`, and `chosen_type` lost the two branches the
+declaration now answers. The two backends needed no change of code, only of
+the docstrings of their `Add` and `Del`.
+
+| Name | Kind |
+| --- | --- |
+| `type_choice.NodeFacts` | what decides which declared types one node is offered, in place of four arguments of `offered_types` |
+| `type_choice.NO_OBJECT_HERE`, `type_choice.NOT_MADE` | why a configuration class, or a type the editor cannot make, is not offered |
+| `type_options.makes_value`, `type_options.names_config` | whether the editor can make a value of a type, and whether a type is a configuration class |
+| `member_types.object_types`, `member_types.NOTHING_KINDS` | the types of a place a declaration puts an object at; the second replaces `elements.CLEARED_KINDS` |
+| `tree.ConfigNode.nesting` | the declaration that put an object at a node |
+| `placing.object_switched` | give a place a new object of its class, or take its object away |
+| `ElementOffer.cleared` | removed, not deprecated, as `LeafType` was in 31A |
+
+**What building it found.**
+
+- **A refusal names a key as the dump does not**: `--remove hooks.on_failure`
+  is refused as *hooks[on_failure] is not something that can be removed*,
+  which is the full name the rows have always used for a key.
+- **Three texts were older than this step and wrong**: example 9 said that a
+  member its class omits would have no row, which step 25 ended; a comment of
+  example 19 said *Add* gives `note` its text, which 31B ended; and the Tk test
+  helper said nothing can be chosen in a pull-down of the types *yet*. All
+  three say what is true now.
+- **A probe with a `Path` parse converter** on `Optional[int | Path]` was
+  offered `Path` alone: the converter refuses `0` and `null`, so that is the
+  31B rule doing its job, and not this step's.
+- **The tests spelled the types of a row out in four modules**, which are one
+  helper of `model_helpers` now, `type_texts`; the Tk tests share
+  `stub_type_of` for the same reason.
+- **`elements` is 842 lines**, down from 950.
 
 #### Step 31E - `Literal` values
 

@@ -78,13 +78,15 @@ def test_entries_apart() -> None:
     """Test the named key of a dict holds the class and another key does not.
 
     An object is written as a dict, so the tree is what says which of the
-    entries is one: the declaration allows both of them both types.
+    entries is one. The named key is offered what its declaration allows,
+    the class or nothing, and an ordinary entry what the values of the dict
+    are annotated with, less the class `config_as_json` would refuse there.
     """
     model = EditModel(ByKeyCfg())
     assert row_type_texts(row_at(model, ('hooks', 'main'))) == ('InnerCfg',
-                                                                'str')
+                                                                'None')
     assert row_type_text(row_at(model, ('hooks', 'main'))) == 'InnerCfg'
-    assert row_type_text(row_at(model, ('hooks', 'note'))) == 'str'
+    assert row_type_texts(row_at(model, ('hooks', 'note'))) == ('str',)
 
 
 def test_object_has_class() -> None:
@@ -201,17 +203,17 @@ def test_dump_says_the_types() -> None:
 
 
 def test_cleared_key_is_none() -> None:
-    """Test a named key holding no object holds `None` and offers it.
+    """Test a named key holding no object holds `None` and offers the class.
 
-    The values of the dict are not declared to allow `None`, and the key is
-    still one the dict need not have, so `None` is what it holds and the
-    pull-down offers it after the types the declaration names.
+    The values of the dict are not annotated to allow `None`, and the key is
+    still one the dict need not have, because its declaration says so: that
+    is what the pull-down offers, whatever the annotation says.
     """
     model = EditModel(ByKeyCfg())
-    model.remove_element(('hooks', 'main'))
+    model.set_type(path=('hooks', 'main'), text='None')
     row = row_at(model, ('hooks', 'main'))
     assert row_type_text(row) == 'None'
-    assert row_type_texts(row) == ('InnerCfg', 'str', 'None')
+    assert row_type_texts(row) == ('InnerCfg', 'None')
 
 
 def test_inferred_follows() -> None:

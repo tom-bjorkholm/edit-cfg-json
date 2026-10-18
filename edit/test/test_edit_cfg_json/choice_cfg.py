@@ -4,14 +4,15 @@
 A member whose declaration allows more than one plain type, list or dict, or
 one of them and `None`, holds the one the user chooses. These classes hold one
 of each such declaration, the classes whose parse converter refuses some of the
-declared types, which are not offered for that reason, and the class with one
+declared types, which are not offered for that reason, the class with one
 place of each kind that the dict-shape check of `config_as_json` reaches,
-which refuses others.
+which refuses others, and the class with a type the editor cannot make.
 """
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from pathlib import Path
 from typing import Literal, Optional, TextIO
 import sys
 from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
@@ -216,3 +217,16 @@ class ShapeCfg(SampleCfg):
         """Return the declaration of the one nested configuration object."""
         return {'inner': ConfigNesting(kind=ConfigNestingKind.MEMBER,
                                        config_type=ShapeInnerCfg)}
+
+
+class UnmadeCfg(SampleCfg):
+    """A configuration whose member allows a class the editor cannot make.
+
+    `Path` is a class of the application's own whose kind only its value
+    says, so the editor can make no value of it. Beside a number, which it
+    can make, it is offered only while the member holds a path.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the member that holds a number, a path or nothing."""
+        self.place: Optional[int | Path] = 5

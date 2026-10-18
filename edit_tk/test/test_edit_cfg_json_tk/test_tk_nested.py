@@ -17,19 +17,28 @@ member, and a list and a dict whose elements are objects.
 
 from typing import Optional
 import tkinter
+from config_as_json import ConfigPath
 from edit_cfg_json import EditModel
 from edit_cfg_json_tk.tk_editor import EditorWidgets, FOLD_SHUT_TEXT
 from example.e09_nested_config import CourseExportConfig, TableOutputConfig
 from example.e10_config_containers import CourseReportsConfig, \
     ReportOutputConfig
-from .helpers import real_fields, real_fold, real_texts, stub_editor, \
-    stub_fields, stub_fold, stub_texts
+from .helpers import real_fields, real_fold, real_texts, real_types, \
+    stub_choices, stub_editor, stub_fields, stub_fold, stub_texts, \
+    stub_type_of
 
 OUTPUT_CLASS = TableOutputConfig.__name__
 """What the row of a nested object of the example says instead of a value."""
 
-MISSING_OUTPUT = f'no {OUTPUT_CLASS}'
-"""What the row of the optional member that holds no object says."""
+MISSING_MEMBER: ConfigPath = ('audit_output',)
+"""The optional member of the example that holds no object."""
+
+MISSING_TYPES = (OUTPUT_CLASS, 'None')
+"""What the pull-down of the types of that member offers.
+
+It holds `None`, and choosing the class is what gives it an object, so the
+row says nothing where a value would be.
+"""
 
 INSIDE_MEMBER = 'file_name'
 """A member that only exists inside a nested object of the example."""
@@ -112,22 +121,32 @@ def _nested_real(parent: tkinter.Misc,
 
 
 def test_stub_shows_the_class(stub_tk: None) -> None:
-    """Test the row of a nested object says its class and holds its members."""
+    """Test the row of a nested object says its class and holds its members.
+
+    The member that holds no object says `None` and offers the class.
+    """
     _ = stub_tk
-    _nested_stub()
+    model = _nested_model()
+    _nested_stub(model)
     shown = stub_texts(packed_only=True)
     assert OUTPUT_CLASS in shown
     assert INSIDE_MEMBER in shown
-    assert MISSING_OUTPUT in shown
+    assert stub_choices(stub_type_of(model, MISSING_MEMBER)) == MISSING_TYPES
 
 
 def test_real_shows_the_class(root_or_skip: tkinter.Tk) -> None:
     """Test real Tk shows exactly what the stubbed test expects."""
-    _nested_real(root_or_skip)
+    model = _nested_model()
+    _nested_real(root_or_skip, model)
     shown = real_texts(root_or_skip, packed_only=True)
     assert OUTPUT_CLASS in shown
     assert INSIDE_MEMBER in shown
-    assert MISSING_OUTPUT in shown
+    index = [row.path for row in model.rows].index(MISSING_MEMBER)
+    menu = root_or_skip.nametowidget(
+        str(real_types(root_or_skip)[index].cget('menu')))
+    assert isinstance(menu, tkinter.Menu)
+    assert (menu.entrycget(0, 'label'),
+            menu.entrycget(1, 'label')) == MISSING_TYPES
 
 
 def test_stub_object_no_field(stub_tk: None) -> None:
@@ -296,7 +315,8 @@ def test_stub_only_objects(stub_tk: None) -> None:
     asked by then.
     """
     _ = stub_tk
-    _nested_stub(_nested_model(validated=True))
+    model = _nested_model(validated=True)
+    _nested_stub(model)
     shown = stub_texts(packed_only=True)
     assert shown.count(OWN_VALID) == 1
-    assert MISSING_OUTPUT in shown
+    assert stub_type_of(model, MISSING_MEMBER).options['text'] == 'None'

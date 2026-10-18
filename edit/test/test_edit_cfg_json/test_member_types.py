@@ -12,16 +12,18 @@ level annotation records one without a dataclass around it, and the ordinary
 
 from dataclasses import dataclass, field
 from io import StringIO
+from pathlib import Path
 from typing import Optional
 import pytest
-from config_as_json import Config, ConfigPath, JsonType
+from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
+    ConfigPath, JsonType
 from edit_cfg_json.leaf_value import empty_value
 from edit_cfg_json.member_types import KeptTypes, attribute_texts, \
-    declared_hints, member_types, node_types, nothing_allowed
+    declared_hints, member_types, node_types, nothing_allowed, object_types
 from edit_cfg_json.tree import ConfigNode, config_nodes, flat_values, \
     member_values
 from edit_cfg_json.type_options import NONE_TYPE, TypeOption, type_options
-from .container_cfg import LooseDictCfg, UnionCfg
+from .container_cfg import InnerCfg, LooseDictCfg, UnionCfg
 
 
 class WrittenInInit:  # pylint: disable=too-few-public-methods
@@ -308,7 +310,19 @@ def test_nothing_allowed(path: ConfigPath, expected: bool) -> None:
     """
     nodes, flat = _tree(UnionCfg())
     options = node_types(nodes=nodes, flat=flat).get(path, ())
-    assert nothing_allowed(path=path, options=options, nodes=nodes) is expected
+    assert nothing_allowed(options) is expected
+
+
+@pytest.mark.parametrize('hint, expected',
+                         [(Optional[InnerCfg], True), (Path | None, False),
+                          (Optional[int | Path], True), (int | str, False)])
+def test_nothing_by_type(hint: object, expected: bool) -> None:
+    """Test a configuration class beside `None` has the two states as well.
+
+    `Path | None` has one, because the editor could make no value of
+    anything but `None` there, and the member is the field it always was.
+    """
+    assert nothing_allowed(type_options(hint)) is expected
 
 
 @pytest.mark.parametrize('refreshing, expected',
@@ -333,5 +347,26 @@ def test_only_none_is_state() -> None:
 
     The class would accept nothing else there, so no field is given it.
     """
-    nodes, _ = _tree(UnionCfg())
-    assert nothing_allowed(path=('count',), options=(NONE_TYPE,), nodes=nodes)
+    assert nothing_allowed((NONE_TYPE,))
+
+
+@pytest.mark.parametrize('kind, expected',
+                         [(ConfigNestingKind.MEMBER, ['InnerCfg']),
+                          (ConfigNestingKind.OPTIONAL_MEMBER,
+                           ['InnerCfg', 'None']),
+                          (ConfigNestingKind.LIST_ELEMENT, ['InnerCfg']),
+                          (ConfigNestingKind.DICT_VALUE, ['InnerCfg']),
+                          (ConfigNestingKind.DICT_VALUE_BY_KEY,
+                           ['InnerCfg', 'None'])])
+def test_object_types(kind: ConfigNestingKind, expected: list[str]) -> None:
+    """Test a place a declaration puts an object at is typed by it.
+
+    It holds the class the declaration names, and may hold nothing where the
+    declaration lets it: an optional member and a named key of a dict. The
+    annotation of the member is not asked, because `config_as_json` refuses
+    `null` by the declaration and not by the annotation.
+    """
+    key = 'main' if kind is ConfigNestingKind.DICT_VALUE_BY_KEY else None
+    nesting = ConfigNesting(kind=kind, config_type=InnerCfg,
+                            discriminator_key=key)
+    assert _texts(object_types(nesting)) == expected

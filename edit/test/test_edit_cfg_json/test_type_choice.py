@@ -14,7 +14,8 @@ from typing import Literal, Optional
 import pytest
 from config_as_json import Config, JsonType, ParseConverter
 from edit_cfg_json.type_choice import DICT_ONLY, NOT_CONVERTED_FORM, \
-    NO_DICT_YET, chosen_option, offered_types, switched_value
+    NOT_MADE, NO_DICT_YET, NO_OBJECT_HERE, NodeFacts, chosen_option, \
+    offered_types, switched_value
 from edit_cfg_json.type_options import NONE_TYPE, kept_choice, type_options
 from .container_cfg import InnerCfg
 from .sample_cfg import Colour
@@ -23,13 +24,16 @@ COLOUR_CONVERTER = Config.get_converter_dict(Colour)
 """The converter `config_as_json` ships for an enum, made for `Colour`."""
 
 
-def _texts(hint: object, converter: Optional[ParseConverter],
-           omitted: bool = False,
-           holds_dict: Optional[bool] = None) -> list[str]:
+def _texts(hint: object, facts: NodeFacts = NodeFacts()) -> list[str]:
     """Return the text of every type offered for one annotation."""
-    offer = offered_types(options=type_options(hint), converter=converter,
-                          omitted=omitted, holds_dict=holds_dict)
+    offer = offered_types(options=type_options(hint), facts=facts)
     return [option.text for option in offer.offered]
+
+
+def _colour(omitted: bool = False) -> NodeFacts:
+    """Return the facts of a node whose converter is the one of `Colour`."""
+    converter: ParseConverter = COLOUR_CONVERTER
+    return NodeFacts(converter=converter, omitted=omitted)
 
 
 @pytest.mark.parametrize('hint, omitted, expected',
@@ -45,14 +49,13 @@ def test_converter_decides(hint: object, omitted: bool,
     empty text is no name of a member. `None` is never converted where the
     class leaves the member out of the file, so it is offered there.
     """
-    assert _texts(hint, COLOUR_CONVERTER, omitted=omitted) == expected
+    assert _texts(hint, _colour(omitted=omitted)) == expected
 
 
 def test_refusal_says_why() -> None:
     """Test each type left out is said, with the value it was refused for."""
     offer = offered_types(options=type_options(Colour | int | None),
-                          converter=COLOUR_CONVERTER, omitted=False,
-                          holds_dict=None)
+                          facts=_colour())
     assert offer.refusals == (NOT_CONVERTED_FORM.format(type='int', value='0'),
                               NOT_CONVERTED_FORM.format(type='None',
                                                         value='null'))
@@ -61,8 +64,7 @@ def test_refusal_says_why() -> None:
 @pytest.mark.parametrize('hint', [int | str, Optional[str], list[str] | None])
 def test_no_converter_all(hint: object) -> None:
     """Test every declared type is offered where no converter says no."""
-    offer = offered_types(options=type_options(hint), converter=None,
-                          omitted=False, holds_dict=None)
+    offer = offered_types(options=type_options(hint), facts=NodeFacts())
     assert offer.offered == type_options(hint) and offer.refusals == ()
 
 
@@ -71,7 +73,7 @@ def test_not_choosable_kept() -> None:
 
     Its type is what its value is, so nothing is asked of the converter.
     """
-    assert _texts(Colour, COLOUR_CONVERTER) == ['Colour']
+    assert _texts(Colour, _colour()) == ['Colour']
 
 
 @pytest.mark.parametrize('hint, value, chosen, refreshing, expected',
@@ -112,7 +114,7 @@ def test_chosen_option() -> None:
 
 @pytest.mark.parametrize('hint, text', [(int | str, 'float'), (int, 'int'),
                                         (list[str] | None, 'list[int]'),
-                                        (InnerCfg | None, 'None')])
+                                        (Path | None, 'None')])
 def test_option_refused(hint: object, text: str) -> None:
     """Test a type not offered, and a node whose type is not chosen, refuse."""
     with pytest.raises(ValueError):
@@ -163,8 +165,8 @@ def test_dict_shape_decides(holds_dict: Optional[bool],
     The class refuses a dict where it holds none and anything else where it
     holds one, `None` among it, and offers both where its check never asks.
     """
-    assert _texts(Optional[dict[str, int]], None,
-                  holds_dict=holds_dict) == expected
+    assert _texts(Optional[dict[str, int]],
+                  NodeFacts(holds_dict=holds_dict)) == expected
 
 
 @pytest.mark.parametrize('holds_dict, form',
@@ -172,7 +174,7 @@ def test_dict_shape_decides(holds_dict: Optional[bool],
 def test_shape_says_why(holds_dict: bool, form: str) -> None:
     """Test each type the dict-shape check refuses is said, by its name."""
     offer = offered_types(options=type_options(Optional[dict[str, int]]),
-                          converter=None, omitted=False, holds_dict=holds_dict)
+                          facts=NodeFacts(holds_dict=holds_dict))
     left_out = 'None' if holds_dict else 'dict[str, int]'
     assert offer.refusals == (form.format(type=left_out),)
 
@@ -180,10 +182,10 @@ def test_shape_says_why(holds_dict: bool, form: str) -> None:
 def test_shape_not_chosen() -> None:
     """Test the dict-shape check is asked of a type that is not chosen too.
 
-    It decides what the control that gives a member a value gives it, so a
-    single declared dict where the class holds none is no type at all.
+    A single declared dict where the class holds none is no type at all,
+    because the class would refuse any dict written for it.
     """
-    assert _texts(dict[str, int], None, holds_dict=False) == []
+    assert _texts(dict[str, int], NodeFacts(holds_dict=False)) == []
 
 
 def test_unknown_kind_kept() -> None:
@@ -192,4 +194,62 @@ def test_unknown_kind_kept() -> None:
     Nothing says whether its converters write it as a dict or not, so the
     dict-shape check cannot be said to refuse it.
     """
-    assert _texts(Path | None, None, holds_dict=True) == ['Path']
+    assert _texts(Path | None, NodeFacts(holds_dict=True)) == ['Path']
+
+
+@pytest.mark.parametrize('placed, expected',
+                         [(None, ['None']), (False, ['None']),
+                          (True, ['InnerCfg', 'None'])])
+def test_object_placed(placed: Optional[bool], expected: list[str]) -> None:
+    """Test a configuration class is offered only where it can be placed.
+
+    That is where `nested_configs()` declares an object, and there only where
+    one is or the editor can construct one.
+    """
+    assert _texts(InnerCfg | None, NodeFacts(placed=placed)) == expected
+
+
+@pytest.mark.parametrize('placed, form',
+                         [(None, NO_OBJECT_HERE), (False, NOT_MADE)])
+def test_object_says_why(placed: bool, form: str) -> None:
+    """Test a configuration class left out is said, with the reason."""
+    offer = offered_types(options=type_options(InnerCfg | str),
+                          facts=NodeFacts(value='x', placed=placed))
+    assert offer.refusals == (form.format(type='InnerCfg'),)
+
+
+@pytest.mark.parametrize('hint, value, expected',
+                         [(Optional[int | Path], 5, ['int', 'None']),
+                          (Optional[int | Path], None, ['int', 'None']),
+                          (Optional[int | Path], 'x/y',
+                           ['int', 'Path', 'None']),
+                          (int | Path, 'x/y', ['int', 'Path']),
+                          (Path | None, None, ['Path', 'None']),
+                          (Path | None, 'x/y', ['Path', 'None'])])
+def test_unmade_left_out(hint: object, value: JsonType,
+                         expected: list[str]) -> None:
+    """Test a type the editor cannot make is offered only where it must be.
+
+    That is where the node holds it, and where nothing besides `None` is
+    offered instead: `Path | None` keeps `Path`, because leaving it out
+    would leave nothing but `None` to hold.
+    """
+    assert _texts(hint, NodeFacts(value=value)) == expected
+
+
+def test_unmade_says_why() -> None:
+    """Test a type the editor cannot make is said, by its name."""
+    offer = offered_types(options=type_options(Optional[int | Path]),
+                          facts=NodeFacts(value=5))
+    assert offer.refusals == (NOT_MADE.format(type='Path'),)
+
+
+def test_unmade_not_converted() -> None:
+    """Test no converter is asked about a type the editor cannot make.
+
+    There is no value of it to ask about, so a node that holds one keeps it
+    offered: the converter of `Colour` would refuse the `null` that asking
+    about the empty value of `Path` would have handed it.
+    """
+    facts = _colour()._replace(value='x/y')
+    assert _texts(Path | Colour, facts) == ['Path', 'Colour']

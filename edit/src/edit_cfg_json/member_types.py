@@ -44,10 +44,11 @@ from typing import NamedTuple, Optional, get_type_hints
 import ast
 import inspect
 import sys
-from config_as_json import ConfigPath, JsonType
+from config_as_json import ConfigNesting, ConfigNestingKind, ConfigPath, \
+    JsonType
 from edit_cfg_json.tree import ConfigNode, owner_path
 from edit_cfg_json.type_options import NONE_TYPE, TypeOption, choosable, \
-    empty_option_value, kept_choice, node_options, type_options, value_option
+    kept_choice, node_options, type_options
 
 SELF_NAME = 'self'
 """What the first argument of a method is called, by every convention."""
@@ -59,6 +60,15 @@ SOURCE_ERRORS = (OSError, SyntaxError, TypeError, ValueError)
 source to read — an interactive session, `exec`, and a frozen program are the
 three — and `TypeError` for an object it cannot take source from at all.
 Parsing what it did read is what raises the other two.
+"""
+
+NOTHING_KINDS = (ConfigNestingKind.OPTIONAL_MEMBER,
+                 ConfigNestingKind.DICT_VALUE_BY_KEY)
+"""The declarations of a place that holds one object or holds nothing.
+
+A member that may hold none, and a named key that the file need not have.
+`MEMBER` holds one always, and so does every element of a `LIST_ELEMENT` and
+every value of a `DICT_VALUE` member: `config_as_json` refuses `null` there.
 """
 
 HINT_ERRORS = (AttributeError, NameError, SyntaxError, TypeError, ValueError,
@@ -239,15 +249,16 @@ def _type_at(path: ConfigPath, nodes: Mapping[ConfigPath, ConfigNode],
 
     The class that answers is the one that owns the subtree, exactly as it is
     for a parse converter and for an optional member: a nested configuration
-    object declares its own members. What it declares is about the member, and
-    a node inside that member is reached by stepping into what the member
-    allows inside it, once per step. Where a container is allowed to be more
-    than one type, the step goes through the one it holds, which is what makes
-    the inside of `list[str] | list[list[str]]` either of the two, and through
-    a configuration class only where the tree has an object. The type it holds
-    is the one the user chose where there is one, because `[]` is both of
-    those lists and only the choice says which, and the one its value is
-    otherwise.
+    object declares its own members. A node where a declaration puts an object
+    is answered by that declaration instead, as `object_types` says. What it
+    declares is about the member, and a node inside that member is reached by
+    stepping into what the member allows inside it, once per step. Where a
+    container is allowed to be more than one type, the step goes through the
+    one it holds, which is what makes the inside of `list[str] |
+    list[list[str]]` either of the two, and through a configuration class only
+    where the tree has an object. The type it holds is the one the user chose
+    where there is one, because `[]` is both of those lists and only the choice
+    says which, and the one its value is otherwise.
 
     Args:
         path: Path of the node to answer for.
@@ -259,6 +270,9 @@ def _type_at(path: ConfigPath, nodes: Mapping[ConfigPath, ConfigNode],
     Returns:
         The types that node may hold, and none where nothing usable says.
     """
+    node = nodes.get(path)
+    if node is not None and node.nesting is not None:
+        return object_types(node.nesting)
     owner = owner_path(path=path, nodes=nodes)
     member = path[:len(owner) + 1]
     options = owned.get(owner, {}).get(member[-1], ())
@@ -297,47 +311,49 @@ def node_types(nodes: Mapping[ConfigPath, ConfigNode],
     return {path: options for path, options in found if options}
 
 
-def nothing_allowed(path: ConfigPath, options: Sequence[TypeOption],
-                    nodes: Mapping[ConfigPath, ConfigNode]) -> bool:
+def object_types(nesting: ConfigNesting) -> tuple[TypeOption, ...]:
+    """Return the types a place that one declaration puts an object at allows.
+
+    It is the class the declaration names, and `None` beside it where the
+    declaration lets the place hold nothing. The declaration answers rather
+    than the annotation of the member, because it is what `config_as_json`
+    constructs the object by and what it refuses `null` by: an
+    `Optional[StageConfig]` declared `MEMBER` may not hold nothing, and an
+    unannotated member declared `OPTIONAL_MEMBER` may.
+
+    Args:
+        nesting: What the class declared about the place.
+
+    Returns:
+        The class, and `None` where the place may hold none.
+    """
+    nothing = (NONE_TYPE,) if nesting.kind in NOTHING_KINDS else ()
+    return type_options(nesting.config_type) + nothing
+
+
+def nothing_allowed(options: Sequence[TypeOption]) -> bool:
     """Return whether holding nothing is a state of one node, not a value.
 
-    A member has the two states of a value and of nothing where its
-    declaration allows `None` beside a type the editor can make an empty value
-    of (section 4.2 of `doc/detailed_design.md`). Where every type is a plain
-    value, a list or a dict, the pull-down of the types moves it between the
-    two, and otherwise the controls that add and remove do. A member that
-    allows nothing beside a configuration class or another class of the
-    application's own has one state as before: the editor cannot make a value
-    of such a type on its own.
-
-    A node whose type the user chooses has them wherever `None` is one of the
-    types offered, a value inside a list or a dict as much as a member: `None`
-    is then chosen in the pull-down of its types like any other type, and the
-    node holding it holds nothing. Every other value inside a list or a dict
-    never has them, whatever its declaration allows, because what may hold
-    nothing is something a class says about a member of its own and an
-    element that could be taken out of what holds it already has a control
-    that means that.
+    A node has the two states of a value and of nothing where `None` is one of
+    the types it is offered and the type it holds is the user's to choose: the
+    pull-down of its types then moves it between the two, a value inside a
+    list or a dict as much as a member, and a configuration object as much as
+    a value (section 4.2 of `doc/detailed_design.md`).
 
     A node offered `None` and nothing else holds nothing as the one state its
     class would accept, wherever it is: `Optional[dict[str, int]]` where the
     class holds no dict to match one against is that. It is a state for the
     same reason, so that no field is given it to type a refused value into.
 
+    Every other node has one state, whatever its declaration allows: that is
+    `Path | None`, where the editor could make no value of anything but
+    `None`, and its field takes the text of `null` as the JSON it is.
+
     Args:
-        path: Path of the node to answer for.
-        options: The types it is offered, the ones its class would refuse
-            left out.
-        nodes: Every configuration object of the tree, by its path.
+        options: The types the node is offered, the ones its class would
+            refuse left out.
 
     Returns:
         Whether that node holding nothing is a state of it.
     """
-    if NONE_TYPE not in options:
-        return False
-    first = value_option(options)
-    if first is None or choosable(options):
-        return True
-    if len(path) != len(owner_path(path=path, nodes=nodes)) + 1:
-        return False
-    return empty_option_value(first) is not None
+    return NONE_TYPE in options and (len(options) == 1 or choosable(options))

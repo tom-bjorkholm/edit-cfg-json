@@ -31,11 +31,12 @@ so a run against that file starts with every one of them holding nothing:
 - `note` — an `Optional[str]`, which is `str | None`. Choosing `str` in the
   pull-down of its type gives it the empty text, and choosing `None` puts it
   back to holding nothing, exactly as for the members of example 18.
-- `audit` — an `OPTIONAL_MEMBER` holding one `AuditConfig` or none. This is
-  the case that had no row at all before this example was written, and it is
-  the one worth pressing in an editor: adding it builds an object of that
-  class holding its own declared values, and the rows of that object appear
-  below it.
+- `audit` — an `OPTIONAL_MEMBER` holding one `AuditConfig` or none, which
+  is `AuditConfig | None`. This is the case that had no row at all before this
+  example was written, and it is the one worth trying in an editor: choosing
+  `AuditConfig` in the pull-down of its type builds an object of that class
+  holding its own declared values, and the rows of that object appear below
+  it.
 - `extra_hosts` — an `Optional[list[str]]`, which is `list[str] | None`. It
   takes two steps to get an element: choosing `list[str]` in the pull-down of
   its type gives the member the empty list, and the control of that list then
@@ -49,8 +50,8 @@ so a run against that file starts with every one of them holding nothing:
   hold, so it has no second state to move to and is an ordinary field showing
   `null`, which is a value the user can type over and type back.
 
-Run it, press the control at the end of the row of `audit`, and choose in the
-pull-downs of the types of `note` and `extra_hosts`:
+Run it, and choose in the pull-downs of the types of `audit`, `note` and
+`extra_hosts`:
 
 ````sh
 python3 examples/src/example/e19_omitted_members.py --ui tk
@@ -65,15 +66,17 @@ Inside this repository, use the virtual environment that the build creates:
 
 `audit` is the reason this example exists. Making a configuration object is
 not something a field can do — no text typed into one becomes an object — so
-it is *adding*, exactly as an element of a list is. The class the declaration
-names is what one is made of, and the object holds the values that class
-declares:
+it is *choosing its type*, exactly as giving `note` a text is. The class the
+declaration names is the type offered beside `None`, and the object holds the
+values that class declares:
 
 ````sh
 cd examples/src/example
-python3 e19_omitted_members.py --ui dump --add audit
-python3 e19_omitted_members.py --ui dump --add audit --set audit.retries=4
-python3 e19_omitted_members.py --ui dump --add audit --remove audit
+python3 e19_omitted_members.py --ui dump --set-type audit=AuditConfig
+python3 e19_omitted_members.py --ui dump --set-type audit=AuditConfig \
+    --set audit.retries=4
+python3 e19_omitted_members.py --ui dump --set-type audit=AuditConfig \
+    --set-type audit=None
 ````
 
 The last of those ends where it started, and it is worth doing in an editor
@@ -87,7 +90,7 @@ writes a file with no `audit` key; the second writes one holding the object:
 ````sh
 cd examples/src/example
 python3 e19_omitted_members.py --ui dump --save -o /tmp/without.json
-python3 e19_omitted_members.py --ui dump --add audit \
+python3 e19_omitted_members.py --ui dump --set-type audit=AuditConfig \
     --save -o /tmp/with.json
 ````
 
@@ -140,7 +143,8 @@ held:
 
 ````sh
 cd examples/src/example
-python3 e19_omitted_members.py --ui dump --add audit --set audit.retries=9
+python3 e19_omitted_members.py --ui dump --set-type audit=AuditConfig \
+    --set audit.retries=9
 ````
 
 The editor accepts the number as a number and the application refuses it as a
@@ -236,7 +240,8 @@ class ReportConfig(Config):
         # The one member that is always in the file, so that there is
         # something to compare the rest with.
         self.title: str = 'Quarterly report'
-        # A text that may be left unsaid. Add gives it the empty text.
+        # A text that may be left unsaid. Choosing `str` gives it the empty
+        # text.
         self.note: Optional[str] = None
         # One configuration object or none, and the file holds no key for it
         # while there is none. This is the case that had no row at all before

@@ -22,13 +22,14 @@ from edit_cfg_json import EditModel, row_chooses_type, row_type_text, \
 from edit_cfg_json_tk.tk_editor import EditorWidgets
 from edit_cfg_json_tk.tk_elements import ADD_TEXT
 from edit_cfg_json_tk.tk_look import BLANK_WIDTH, TREE_INDENT, row_font
+from example.e11_add_remove import PipelineConfig
 from example.e18_declared_types import ReportConfig
 from example.e19_omitted_members import ReportConfig as OmittedReport
 from example.e20_union_types import ExportConfig
 from .helpers import TwoTypesConfig, model_value, real_fields, real_types, \
     retype, stub_choices, stub_editor, stub_field_widgets, stub_pick, \
-    stub_types
-from .stubs import FakeVar, FakeWidget
+    stub_type_of, stub_types
+from .stubs import FakeVar
 
 SUBTITLE: ConfigPath = ('subtitle',)
 """The member of the example declared `Optional[str]` and holding nothing."""
@@ -38,6 +39,9 @@ FOOTER: ConfigPath = ('footer',)
 
 HOSTS: ConfigPath = ('extra_hosts',)
 """The member of example 19 declared `Optional[list[str]]`."""
+
+AUDIT: ConfigPath = ('audit',)
+"""The member of example 11 declared to hold one `StageConfig` or none."""
 
 
 def _report() -> EditModel:
@@ -59,12 +63,6 @@ def _widths(model: EditModel, measure: Callable[[str], int]) -> list[int]:
     """
     widths = type_column_widths(model, measure=measure, indent=TREE_INDENT)
     return [width + BLANK_WIDTH for width in widths]
-
-
-def _type_widget(model: EditModel, path: ConfigPath) -> FakeWidget:
-    """Return the stub pull-down of the types of one node of one model."""
-    paths = [row.path for row in model.rows]
-    return stub_types()[paths.index(path)]
 
 
 def test_stub_every_row(stub_tk: None) -> None:
@@ -218,10 +216,10 @@ def test_stub_value_by_type(stub_tk: None) -> None:
     model = _report()
     stub_editor(model)
     before = len(stub_field_widgets())
-    stub_pick(_type_widget(model, SUBTITLE), 'str')
+    stub_pick(stub_type_of(model, SUBTITLE), 'str')
     assert model_value(model, 'subtitle') == ''
     assert len(stub_field_widgets()) == before + 1
-    stub_pick(_type_widget(model, FOOTER), 'None')
+    stub_pick(stub_type_of(model, FOOTER), 'None')
     assert model_value(model, 'footer') is None
     assert len(stub_field_widgets()) == before
 
@@ -259,10 +257,10 @@ def test_stub_list_by_type(stub_tk: None) -> None:
     model = EditModel(OmittedReport())
     widgets = stub_editor(model)
     assert _controls(model, widgets, HOSTS) == []
-    stub_pick(_type_widget(model, HOSTS), 'list[str]')
+    stub_pick(stub_type_of(model, HOSTS), 'list[str]')
     assert model_value(model, 'extra_hosts') == []
     assert _controls(model, widgets, HOSTS) == [ADD_TEXT]
-    stub_pick(_type_widget(model, HOSTS), 'None')
+    stub_pick(stub_type_of(model, HOSTS), 'None')
     assert model_value(model, 'extra_hosts') is None
     assert _controls(model, widgets, HOSTS) == []
 
@@ -280,3 +278,34 @@ def test_real_list_by_type(root_or_skip: tkinter.Tk) -> None:
     assert model_value(model, 'extra_hosts') == []
     assert str(real_types(root_or_skip)[index].cget('text')) == 'list[str]'
     assert _controls(model, widgets, HOSTS) == [ADD_TEXT]
+
+
+def test_stub_object_by_type(stub_tk: None) -> None:
+    """Test choosing a class gives the row an object, and `None` takes it.
+
+    The rows of the object appear below the row, and choosing `None` takes
+    them away again; neither has a control at the end of the row.
+    """
+    _ = stub_tk
+    model = EditModel(PipelineConfig())
+    widgets = stub_editor(model)
+    stub_pick(stub_type_of(model, AUDIT), 'StageConfig')
+    assert (*AUDIT, 'name') in [row.path for row in model.rows]
+    assert _controls(model, widgets, AUDIT) == []
+    stub_pick(stub_type_of(model, AUDIT), 'None')
+    assert model_value(model, 'audit') is None
+    assert (*AUDIT, 'name') not in [row.path for row in model.rows]
+
+
+def test_real_object_by_type(root_or_skip: tkinter.Tk) -> None:
+    """Test choosing a class in a real menu gives the row an object."""
+    model = EditModel(PipelineConfig())
+    EditorWidgets(parent=root_or_skip, model=model)
+    index = [row.path for row in model.rows].index(AUDIT)
+    menu = root_or_skip.nametowidget(
+        str(real_types(root_or_skip)[index].cget('menu')))
+    assert isinstance(menu, tkinter.Menu)
+    assert menu.entrycget(0, 'label') == 'StageConfig'
+    menu.invoke(0)
+    assert (*AUDIT, 'name') in [row.path for row in model.rows]
+    assert str(real_types(root_or_skip)[index].cget('text')) == 'StageConfig'

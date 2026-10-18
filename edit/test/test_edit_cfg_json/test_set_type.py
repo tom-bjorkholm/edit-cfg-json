@@ -2,10 +2,11 @@
 """Tests for choosing the type of a node, as a model does it.
 
 A node whose declaration allows more than one plain type, or a plain type and
-`None`, holds the one the user chooses with `EditModel.set_type`. These are
-about what a model makes of a choice: what the node holds afterwards, how its
-text is read, how long the choice lasts, which nodes offer it, and which types
-are not offered because the class would refuse them.
+`None`, holds the one the user chooses with `EditModel.set_type`. A type the
+editor cannot make a value of is offered only where the node holds it. These
+are about what a model makes of a choice: what the node holds afterwards, how
+its text is read, how long the choice lasts, which nodes offer it, and which
+types are not offered because the class would refuse them.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -17,12 +18,16 @@ import pytest
 from config_as_json import ConfigPath, JsonType
 from edit_cfg_json import EditModel, row_chooses, row_chooses_type, \
     rows_shape
-from edit_cfg_json.type_choice import NOT_CONVERTED_FORM
-from .choice_cfg import ChoiceCfg, ConvertedCfg, LenientCfg, NumberingCfg
-from .model_helpers import row_at, written
+from edit_cfg_json.type_choice import NOT_CONVERTED_FORM, NOT_MADE
+from .choice_cfg import ChoiceCfg, ConvertedCfg, LenientCfg, NumberingCfg, \
+    UnmadeCfg
+from .model_helpers import row_at, type_texts, written
 
 SIZES = ('sizes',)
 """Path of the list of `ChoiceCfg` whose elements may be `int` or `float`."""
+
+PLACE = ('place',)
+"""Path of the member of `UnmadeCfg` that may hold a number or a path."""
 
 
 def _held(model: EditModel, path: ConfigPath) -> str:
@@ -135,11 +140,11 @@ def test_who_chooses(path: ConfigPath, expected: bool) -> None:
     """Test which nodes offer their type to be chosen.
 
     A member declared to allow a list or nothing is one of them, and offers
-    neither of the controls that add and remove for its two states.
+    no control that adds for its two states.
     """
     row = row_at(EditModel(ChoiceCfg()), path)
     assert row_chooses_type(row) is expected
-    assert not (expected and (row.offer.extend or row.offer.cleared))
+    assert not (expected and row.offer.extend)
 
 
 def test_list_member_chosen() -> None:
@@ -245,7 +250,7 @@ def test_converter_refuses(path: ConfigPath, types: list[str],
     pull-down cannot say what is not in it.
     """
     row = row_at(EditModel(ConvertedCfg()), path)
-    assert [option.text for option in row.types] == types
+    assert type_texts(row) == types
     if refused is not None:
         type_text, value = refused
         assert NOT_CONVERTED_FORM.format(type=type_text,
@@ -260,3 +265,31 @@ def test_own_converter_offers() -> None:
     assert row_at(model, ('mixed',)).value == 0
     assert model.validate().valid
     assert _held(model, ('mixed',)) == 'int'
+
+
+def test_unmade_left_out() -> None:
+    """Test a type the editor cannot make is not offered beside one it can.
+
+    Choosing it could give the member no value of it, so the member is
+    offered the number and nothing, and the line below it says why.
+    """
+    row = row_at(EditModel(UnmadeCfg()), PLACE)
+    assert type_texts(row) == ['int', 'None'] and row.type_choosable
+    assert NOT_MADE.format(type='Path') in row.description
+
+
+def test_unmade_held() -> None:
+    """Test a member holding a path keeps it offered, in a field of text.
+
+    Its text is read as the text it was written as, so a text that is JSON
+    for a list does not take the field away. Choosing another type is one way,
+    because nothing the editor could make is a path.
+    """
+    model = EditModel(UnmadeCfg(from_json_data_text='{"place": "x/y"}'))
+    row = row_at(model, PLACE)
+    assert type_texts(row) == ['int', 'Path', 'None']
+    assert row.chosen_type.text == 'Path' and row.editable
+    model.set_text(path=PLACE, text='[1]')
+    assert row_at(model, PLACE).value == '[1]'
+    model.set_type(path=PLACE, text='int')
+    assert type_texts(row_at(model, PLACE)) == ['int', 'None']

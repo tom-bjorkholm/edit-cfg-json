@@ -17,12 +17,12 @@ from config_as_json import ConfigPath
 from edit_cfg_json import EditModel, model_as_text, row_description
 from edit_cfg_json.elements import BY_KEY_PATTERN, FIXED_KEYS, NO_CLASS_FORM, \
     NO_ENTRY_PATTERN, NO_PATTERN
-from edit_cfg_json.type_choice import NO_DICT_YET
+from edit_cfg_json.type_choice import NOT_MADE, NO_DICT_YET, NO_OBJECT_HERE
 from .container_cfg import ByKeyCfg, ByKeyDictCfg, ConfigDictCfg, \
     ConfigListCfg, DictPlaceCfg, ElementCfg, EmptyObjectsCfg, \
     ExtraObjectsCfg, NullNestedCfg, OmitNestedCfg, OnlyNamedCfg, TreeCfg, \
     UncheckedCfg
-from .model_helpers import row_at, row_paths, written
+from .model_helpers import row_at, row_paths, type_texts, written
 from .sample_cfg import FlatCfg, OmitKindsCfg
 
 TAGS: ConfigPath = ('tags',)
@@ -107,29 +107,42 @@ def test_by_key_offers_both() -> None:
     reads a member named in `nested_configs()` whole instead of matching it
     against the keys the class declares. So the member takes an entry of its
     own like any other dict, and the key that holds the object is a place
-    beside those entries rather than one of them.
+    beside those entries rather than one of them: its object is chosen in the
+    pull-down of its types, and it is not an element to take out.
     """
     model = EditModel(ByKeyCfg())
     member = row_at(model=model, path=HOOKS).offer
     assert member.extend and member.keyed and member.refusal == ''
-    named = row_at(model=model, path=NAMED).offer
-    assert named.remove and named.cleared and not named.extend
-    ordinary = row_at(model=model, path=(*HOOKS, 'note')).offer
-    assert ordinary.remove and not ordinary.cleared
+    named = row_at(model=model, path=NAMED)
+    assert type_texts(named) == ['InnerCfg', 'None'] and named.type_choosable
+    assert not named.offer.remove and not named.offer.extend
+    ordinary = row_at(model=model, path=(*HOOKS, 'note'))
+    assert ordinary.offer.remove and type_texts(ordinary) == ['str']
+
+
+def test_entry_no_object() -> None:
+    """Test an entry beside the named key is not offered the object's class.
+
+    `config_as_json` makes an object only at the key the declaration names
+    and refuses one held at any other, so the class is left out of what an
+    ordinary entry may hold, and the line below it says why.
+    """
+    row = row_at(model=EditModel(ByKeyCfg()), path=(*HOOKS, 'note'))
+    assert NO_OBJECT_HERE.format(type='InnerCfg') in row.description
 
 
 def test_named_key_cleared() -> None:
     """Test the named key of such a dict is put back to holding nothing.
 
-    It keeps its row, which says which class is missing and offers to make
-    one, exactly as a member that may hold no object does. Without the row
-    there would be nowhere to ask for the object again.
+    It keeps its row, whose type says `None` and offers the class again,
+    exactly as a member that may hold no object does. Without the row there
+    would be nowhere to ask for the object again.
     """
     model = EditModel(ByKeyCfg())
-    model.remove_element(NAMED)
+    model.set_type(path=NAMED, text='None')
     row = row_at(model=model, path=NAMED)
-    assert not row.is_object
-    assert row.offer.extend
+    assert not row.is_object and row.holds_nothing
+    assert type_texts(row) == ['InnerCfg', 'None']
     assert row_paths(model) == [HOOKS, (*HOOKS, 'main'), (*HOOKS, 'note')]
     assert model.validate().valid
 
@@ -138,7 +151,7 @@ def test_named_key_given() -> None:
     """Test a dict with no such key is given the object it declares."""
     model = EditModel(ByKeyCfg(from_json_data_text=NO_NAMED_JSON))
     assert not row_at(model=model, path=NAMED).is_object
-    model.add_element(NAMED)
+    model.set_type(path=NAMED, text='InnerCfg')
     assert row_at(model=model, path=NAMED).is_object
     assert row_at(model=model, path=(*NAMED, 'width')).value == 4
     assert model.validate().valid
@@ -153,7 +166,7 @@ def test_named_key_no_file(tmp_path: Path) -> None:
     """
     out_file = tmp_path / 'out.json'
     model = EditModel(ByKeyCfg(), out_file=out_file)
-    model.remove_element(NAMED)
+    model.set_type(path=NAMED, text='None')
     assert model.save().saved
     assert written(out_file) == {'hooks': {'note': 'nothing'}}
 
@@ -188,7 +201,7 @@ def test_named_key_is_taken() -> None:
     the one that makes the object.
     """
     model = EditModel(ByKeyCfg())
-    model.remove_element(NAMED)
+    model.set_type(path=NAMED, text='None')
     with pytest.raises(ValueError, match='already holds'):
         model.add_element(path=HOOKS, key='main')
 
@@ -218,8 +231,8 @@ def test_only_named_says_why() -> None:
     member = row_at(model=model, path=HOOKS).offer
     assert not member.extend
     assert member.refusal == BY_KEY_PATTERN
-    model.remove_element(NAMED)
-    assert row_at(model=model, path=NAMED).offer.extend
+    model.set_type(path=NAMED, text='None')
+    assert 'InnerCfg' in type_texts(row_at(model=model, path=NAMED))
 
 
 @pytest.mark.parametrize('path, inside',
@@ -235,9 +248,9 @@ def test_no_class_to_make(path: ConfigPath, inside: ConfigPath) -> None:
     refuses every press is worse than no control.
 
     The two containers are here and the named key of a dict is the test below
-    it, because a key that holds the object has nothing to be offered until it
-    is cleared. What is inside each container is untouched by the refusal, and
-    is still a row that can be edited and taken out.
+    it, because a key that holds the object has nothing to refuse until its
+    object is taken away. What is inside each container is untouched by the
+    refusal, and is still a row that can be edited and taken out.
 
     Args:
         path: Path of the place that cannot be given an object.
@@ -251,18 +264,21 @@ def test_no_class_to_make(path: ConfigPath, inside: ConfigPath) -> None:
 
 
 def test_named_key_no_return() -> None:
-    """Test a named key of such a class says so once it has been cleared.
+    """Test a named key of such a class says so once its object is gone.
 
-    Taking the object away is offered, because the object is there to take,
-    and putting it back is what cannot be done. So the row that was cleared is
-    the one that says why, and the dict around it is an ordinary container
-    still: its other keys are entries that can be added and removed.
+    Choosing `None` is offered, because the object is there to take away, and
+    choosing the class again is what cannot be done. So the row that holds
+    nothing is the one that says why, and the dict around it is an ordinary
+    container still: its other keys are entries that can be added and removed.
     """
     model = EditModel(ExtraObjectsCfg())
-    model.remove_element(NAMED)
-    cleared = row_at(model=model, path=NAMED).offer
-    assert not cleared.extend
-    assert cleared.refusal == NO_CLASS_FORM.format(name='ExtraInnerCfg')
+    assert type_texts(row_at(model=model, path=NAMED)) == ['ExtraInnerCfg',
+                                                           'None']
+    model.set_type(path=NAMED, text='None')
+    row = row_at(model=model, path=NAMED)
+    assert type_texts(row) == ['None'] and not row.type_choosable
+    assert NOT_MADE.format(type='ExtraInnerCfg') in row.description
+    assert row.value_text == 'no ExtraInnerCfg'
     assert row_at(model=model, path=HOOKS).offer.extend
 
 
@@ -282,7 +298,7 @@ def test_unchecked_grows() -> None:
 
 
 def test_unchecked_shrinks() -> None:
-    """Test an entry of such a dict is taken out and not merely cleared.
+    """Test an entry of such a dict is taken out of it, leaving no row.
 
     Nothing checks which keys the member has, so its entries are elements of a
     container in both directions: one goes in under a key the user gives and
@@ -290,8 +306,7 @@ def test_unchecked_shrinks() -> None:
     """
     model = EditModel(ElementCfg())
     entry = (*LABELS, 'team')
-    offer = row_at(model=model, path=entry).offer
-    assert offer.remove and not offer.cleared
+    assert row_at(model=model, path=entry).offer.remove
     model.remove_element(entry)
     assert entry not in row_paths(model)
     assert row_at(model=model, path=LABELS).value == {}
@@ -603,11 +618,13 @@ def test_optional_added() -> None:
     """Test a declared member holding no object can be given one.
 
     No text typed into a field becomes a configuration object, so making one
-    is adding, and the member then has the rows of the object it holds.
+    is choosing its class as the type of the member, and the member then has
+    the rows of the object it holds.
     """
     model = EditModel(NullNestedCfg())
-    assert row_at(model=model, path=('inner',)).offer.extend
-    model.add_element(('inner',))
+    row = row_at(model=model, path=('inner',))
+    assert row.type_choosable and not row.offer.extend
+    model.set_type(path=('inner',), text='InnerCfg')
     assert row_paths(model) == [('inner',), ('inner', 'width'),
                                 ('inner', 'height'), ('answer',)]
 
@@ -615,8 +632,9 @@ def test_optional_added() -> None:
 def test_optional_cleared() -> None:
     """Test a declared optional member can be put back to holding none."""
     model = EditModel(NullNestedCfg())
-    model.add_element(('inner',))
-    model.remove_element(('inner',))
+    model.set_type(path=('inner',), text='InnerCfg')
+    assert not row_at(model=model, path=('inner',)).offer.remove
+    model.set_type(path=('inner',), text='None')
     assert row_paths(model) == [('inner',), ('answer',)]
     assert not model.dirty
 
@@ -631,8 +649,8 @@ def test_omitted_gets_object() -> None:
     """
     model = EditModel(OmitNestedCfg())
     assert row_paths(model) == [('inner',), ('answer',)]
-    assert row_at(model=model, path=('inner',)).offer.extend
-    model.add_element(path=('inner',))
+    assert row_at(model=model, path=('inner',)).type_choosable
+    model.set_type(path=('inner',), text='InnerCfg')
     assert row_at(model=model, path=('inner',)).is_object
     assert model.validate().valid
 
@@ -646,10 +664,9 @@ def test_omitted_is_cleared() -> None:
     """
     held = OmitNestedCfg(from_json_data_text=OMITTED_JSON)
     model = EditModel(held)
-    assert row_at(model=model, path=('inner',)).offer.remove
-    model.remove_element(path=('inner',))
+    model.set_type(path=('inner',), text='None')
     assert not row_at(model=model, path=('inner',)).is_object
-    assert row_at(model=model, path=('inner',)).offer.extend
+    assert 'InnerCfg' in type_texts(row_at(model=model, path=('inner',)))
     assert model.validate().valid
 
 
@@ -664,7 +681,7 @@ def test_omitted_gone_saved(tmp_path: Path) -> None:
     out_file = tmp_path / 'out.json'
     model = EditModel(OmitNestedCfg(from_json_data_text=OMITTED_JSON),
                       out_file=out_file)
-    model.remove_element(path=('inner',))
+    model.set_type(path=('inner',), text='None')
     assert model.save().saved
     assert written(out_file) == {'answer': 3}
 
@@ -723,7 +740,7 @@ def test_omitted_dict_refused() -> None:
     says why, and there is neither a field nor a control to give it one.
     """
     row = row_at(model=EditModel(OmitKindsCfg()), path=('limits',))
-    assert [option.text for option in row.types] == ['None']
+    assert type_texts(row) == ['None']
     assert row.holds_nothing and not row.editable and not row.offer.extend
     assert NO_DICT_YET.format(type='dict[str, int]') in row.description
 

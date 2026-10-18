@@ -21,6 +21,7 @@ from edit_cfg_json_textual.textual_elements import ADD_ACTION, \
 from edit_cfg_json_textual.textual_look import TREE_INDENT, \
     TYPE_ARROW_WIDTH, value_id
 from edit_cfg_json_textual.textual_member import TypeChooser
+from example.e11_add_remove import PipelineConfig
 from example.e18_declared_types import ReportConfig
 from example.e19_omitted_members import ReportConfig as OmittedReport
 from example.e20_union_types import ExportConfig
@@ -235,3 +236,28 @@ def test_list_by_type() -> None:
             return counted
     assert asyncio.run(run()) == [0, 1, 0]
     assert model_value(model, 'extra_hosts') is None
+
+
+def test_object_by_type() -> None:
+    """Test choosing a class gives the row an object, and `None` takes it.
+
+    The rows of the object appear below the row, and choosing `None` takes
+    them away again; neither has a control at the end of the row.
+    """
+    model = EditModel(PipelineConfig())
+    inside = ('audit', 'name')
+
+    async def run() -> list[tuple[bool, int]]:
+        app = EditorApp(model)
+        async with app.run_test(size=ROOMY_SIZE) as pilot:
+            await pilot.pause()
+            adding = f'#{element_id(index_of(app, "audit"), ADD_ACTION)}'
+            seen = []
+            for text in ('StageConfig', 'None'):
+                type_chooser_of(app, 'audit').value = text
+                await pilot.pause()
+                await pilot.pause()
+                seen.append((inside in [row.path for row in model.rows],
+                             len(app.query(adding))))
+            return seen
+    assert asyncio.run(run()) == [(True, 0), (False, 0)]

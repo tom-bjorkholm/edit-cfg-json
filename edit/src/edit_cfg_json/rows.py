@@ -33,7 +33,7 @@ from edit_cfg_json.tree import ConfigNode, NO_OBJECT_FORM, child_values, \
     config_nodes, container_text, flat_values, is_container, ordered_names, \
     path_text
 from edit_cfg_json.type_options import NONE_TYPE, SCALAR_KINDS, TypeOption, \
-    choosable, held_option, inferred_option, node_options, reading_kind
+    choosable, held_option, inferred_option, reading_kind
 from edit_cfg_json.validation import SubtreeAnswer
 
 NOT_A_MEMBER = ''
@@ -392,10 +392,8 @@ class MemberRow(NamedTuple):
         told apart from an empty text by being a state and not a text.
 
         Which state it is in is changed by choosing a type in the pull-down of
-        the types, by the two controls that change how many things a node
-        holds where its types are not all plain values, and by nothing else,
-        so a field can never take itself away from under the cursor that is
-        typing in it.
+        the types and by nothing else, so a field can never take itself away
+        from under the cursor that is typing in it.
         """
         return self.value is None and self.nothing_allowed
 
@@ -403,8 +401,9 @@ class MemberRow(NamedTuple):
     def type_choosable(self) -> bool:
         """Return whether the type this node holds is the user's to choose.
 
-        It is where the node may hold more than one type and every one of
-        them is a plain value or `None`, which `type_options.choosable` says.
+        It is where the node may hold more than one type and the editor can
+        make a value of at least one of them besides `None`, which
+        `type_options.choosable` says.
         """
         return choosable(self.types)
 
@@ -420,7 +419,8 @@ class MemberRow(NamedTuple):
         nothing, because the value it would hold is asked for and not typed.
 
         A node whose type the user chooses is edited exactly while the type it
-        holds is a plain value, which is what the choice says. Every other
+        holds is a plain value or a class of the application's own whose kind
+        only its value can say, which is what the choice says. Every other
         node asks the rows below it and the value it was compared against,
         because a member that may hold nothing held nothing then and holds a
         list of rows now. Neither of them is the value it holds this moment,
@@ -428,7 +428,7 @@ class MemberRow(NamedTuple):
         a list would otherwise take the field away while it was being typed.
         """
         if self.held is not None:
-            return self.held.kind in SCALAR_KINDS
+            return self.held.kind is None or self.held.kind in SCALAR_KINDS
         return not self.foldable and not is_container(self.original) \
             and self.config_type is None and not self.holds_nothing
 
@@ -440,35 +440,20 @@ class MemberRow(NamedTuple):
         it, which is `held`. Every other node holds the first of its types the
         value fits, in the order the declaration writes them, so `5` holds
         `int` where `int | float` is declared, and a member holding nothing
-        holds `None`. So does a place declared to hold
-        a configuration object and holding none, whether its declaration
-        allows `None` or not: a key that `DICT_VALUE_BY_KEY` names is one the
-        dict need not have, whatever the values of the dict are declared as.
-        A value that fits none of them holds the first that is not `None`,
-        which is what its text is read by.
+        holds `None`. A value that fits none of them holds the first that is
+        not `None`, which is what its text is read by. A place where a class
+        declared a configuration object is answered by that declaration, as
+        `member_types.object_types` says, so its class is known whatever its
+        member is annotated with.
 
         A node whose declaration names nothing usable holds the type of the
-        value it holds, and a configuration object the class of that object:
-        an object is declared by `nested_configs()` and not by an annotation,
-        so its class is known either way. What its text is read by is still
-        what it held when the file was last agreed with, which is `kind`.
+        value it holds. What its text is read by is still what it held when
+        the file was last agreed with, which is `kind`.
         """
         if self.held is not None:
             return self.held
-        if self.config_type is not None and not self.foldable:
-            return NONE_TYPE
-        held = held_option(self._possible_types, self.value)
-        if held is not None:
-            return held
-        if self.config_type is not None:
-            return TypeOption(text=self.config_type.__name__, kind=dict,
-                              of_class=self.config_type)
-        return inferred_option(self.value)
-
-    @property
-    def _possible_types(self) -> tuple[TypeOption, ...]:
-        """Return the types this node can be holding, as the tree has it."""
-        return node_options(self.types, self.config_type is not None)
+        held = held_option(self.types, self.value)
+        return inferred_option(self.value) if held is None else held
 
     @property
     def kind(self) -> Optional[type]:
@@ -483,11 +468,13 @@ class MemberRow(NamedTuple):
 
         A node whose type the user chooses takes the kind of the type it
         holds, which half typing cannot change either: it is the user's
-        choice and not a reading of the value.
+        choice and not a reading of the value. A class whose kind only its
+        value can say is read as every other node is.
         """
-        if self.held is not None and self.held != NONE_TYPE:
+        if self.held is not None and self.held != NONE_TYPE and \
+                self.held.kind is not None:
             return self.held.kind
-        return reading_kind(self._possible_types, self.original)
+        return reading_kind(self.types, self.original)
 
     @property
     def is_text(self) -> bool:
@@ -552,18 +539,20 @@ class MemberRow(NamedTuple):
         A nested configuration object says nothing here, because its class is
         what its type says and its value is on the rows below it: showing how
         many entries it serializes to would be showing it as the dictionary it
-        is not. A member that holds no object says which class is missing, and
-        a member that holds no value says that it holds none, unless its type
-        is chosen: its type then says `None`, and saying it twice would say
-        nothing more. A list or a dict says how much it holds, because its
+        is not. A node that holds nothing says nothing either where its type
+        is chosen, because its type then says `None` and saying it twice
+        would say nothing more; otherwise a place that holds no object says
+        which class is missing, and a member that holds no value says that it
+        holds none. A list or a dict says how much it holds, because its
         value is on the rows below it. Every other node shows the text of the
         value it holds.
         """
+        if self.is_object or (self.holds_nothing and self.type_choosable):
+            return ''
         if self.config_type is not None:
-            return '' if self.foldable else \
-                NO_OBJECT_FORM.format(name=self.config_type.__name__)
+            return NO_OBJECT_FORM.format(name=self.config_type.__name__)
         if self.holds_nothing:
-            return '' if self.type_choosable else NO_VALUE_TEXT
+            return NO_VALUE_TEXT
         if is_container(self.value):
             return container_text(self.value)
         return value_as_text(self.value)

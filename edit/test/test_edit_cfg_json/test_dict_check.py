@@ -18,7 +18,7 @@ from edit_cfg_json.dict_check import dict_check, dict_shape, keys_checked
 from edit_cfg_json.elements import FIXED_KEYS
 from edit_cfg_json.tree import config_nodes
 from .choice_cfg import ShapeCfg
-from .model_helpers import row_at
+from .model_helpers import row_at, type_texts
 
 CHECK = dict_check(config_nodes(ShapeCfg()))
 """What says where the check of a `ShapeCfg` reaches."""
@@ -82,4 +82,4 @@ def test_pass_keeps_shape() -> None:
     model = EditModel(ShapeCfg())
     assert model.validate().valid
     row = row_at(model, ('nothing',))
-    assert [option.text for option in row.types] == ['None']
+    assert type_texts(row) == ['None']

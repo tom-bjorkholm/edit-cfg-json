@@ -15,7 +15,8 @@ import pytest
 from edit_cfg_json import Descriptions, EditModel, model_as_text, \
     row_describes, row_description, row_diagnostic, row_subtree_text, \
     row_validates, row_value_text
-from .model_helpers import row_at, row_paths, shown_paths, written
+from .model_helpers import row_at, row_paths, shown_paths, type_texts, \
+    written
 from .container_cfg import CROSS_REFUSAL, ConfigDictCfg, ConfigListCfg, \
     DeepConfigCfg, DeepSubtreeCfg, FlagTreeCfg, INNER_LIMIT, InnerCfg, \
     NestedCfg, NoDocNestedCfg, NullNestedCfg, ORDER_REFUSAL, OmitNestedCfg, \
@@ -204,13 +205,19 @@ def test_own_optional_member() -> None:
 
 
 def test_missing_object_row() -> None:
-    """Test a declared member that holds no object says which class is gone."""
+    """Test a declared member that holds no object says so in its type.
+
+    Its type says `None` and offers the class beside it, so its value says
+    nothing more.
+    """
     model = EditModel(NullNestedCfg())
     row = row_at(model, ('inner',))
     assert row.config_type is InnerCfg
     assert not row.foldable
     assert not row.editable
-    assert row.value_text == 'no InnerCfg'
+    assert row.chosen_type.text == 'None'
+    assert type_texts(row) == ['InnerCfg', 'None']
+    assert row.value_text == ''
 
 
 def test_missing_not_edited() -> None:
@@ -225,8 +232,8 @@ def test_omitted_has_a_row() -> None:
 
     Nothing is written for it, so nothing about it reaches the values the rows
     are built from, and the object it belongs to is asked for it instead: the
-    row says which class is missing, exactly as the row of a member written as
-    `null` does.
+    row offers the class that is missing, exactly as the row of a member
+    written as `null` does.
     """
     model = EditModel(OmitNestedCfg())
     assert row_paths(model) == [('inner',), ('answer',)]

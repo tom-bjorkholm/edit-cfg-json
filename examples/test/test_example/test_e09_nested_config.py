@@ -78,11 +78,11 @@ The summary of its class rather than the whole docstring, because an object
 that is showing less of itself says less about itself.
 """
 
-MISSING_AUDIT = 'audit_output: None, no TableOutputConfig'
+MISSING_AUDIT = 'audit_output: None'
 """How a declared member that holds no object at all is shown.
 
 The type is the one it holds now, which is `None`, and the class it could hold
-is still named after it.
+is the other type it is offered, which the line below it says.
 """
 
 AUDIT_DECLARED = '    Declared as TableOutputConfig | None.'
@@ -129,7 +129,7 @@ def test_fold_key_folds_all(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_missing_object(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test an optional member holding no object says which class is gone."""
+    """Test an optional member holding no object says which class it takes."""
     printed = _dump(capsys)
     assert MISSING_AUDIT in printed
     assert f'{MISSING_AUDIT}\n    {ABOUT_AUDIT}\n{AUDIT_DECLARED}' in printed

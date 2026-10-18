@@ -1,13 +1,14 @@
 #! /usr/bin/env python3
 """Where a configuration object that a class declared is held, and putting one.
 
-Adding an element and removing one are changes of the edit buffer, and one of
-them is more: where the class of a configuration declares that something is a
-configuration object, the object of the session gains one or loses one with
-the values. The tree finds those objects by walking the real objects rather
-than by matching a declaration, so an element that existed only in the buffer
-would be shown as the dictionary it serializes to, with the member order of
-nobody, the parse converters of nobody and no badge of its own.
+Adding an element, removing one and choosing the type of a place are changes of
+the edit buffer, and each of them is more where the class of a configuration
+declares that something is a configuration object: the object of the session
+gains one or loses one with the values. The tree finds those objects by walking
+the real objects rather than by matching a declaration, so an element that
+existed only in the buffer would be shown as the dictionary it serializes to,
+with the member order of nobody, the parse converters of nobody and no badge of
+its own.
 
 The object that changes is the model's own copy, which the caller never sees,
 so principle 5 of section 3 of `doc/detailed_design.md` is untouched.
@@ -25,10 +26,11 @@ the key inside that member where there is one.
 # MIT License
 
 from typing import NamedTuple, Optional, TextIO
-from config_as_json import Config, ConfigNesting, ConfigNestingKind, ConfigPath
+from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
+    ConfigPath, JsonType
 from edit_cfg_json.constructing import built_config
 from edit_cfg_json.tree import by_key_nestings, config_nodes, \
-    member_nestings, owner_path
+    member_nestings, member_values, owner_path
 
 OBJECT_KINDS = (ConfigNestingKind.LIST_ELEMENT, ConfigNestingKind.DICT_VALUE)
 """The declarations that say every value inside one member is an object.
@@ -117,8 +119,8 @@ def _no_object_at(place: ObjectPlace) -> bool:
 
     A key that a `DICT_VALUE_BY_KEY` member does not declare holds an ordinary
     value, and `_validate_dict_by_key` is what refuses an object at one, so a
-    new entry of such a member is the buffer's alone unless it is added at the
-    row of a declared key.
+    new entry of such a member is the buffer's alone. A declared key is given
+    its object by `object_switched` instead.
     """
     return not place.key and \
         place.nesting.kind is ConfigNestingKind.DICT_VALUE_BY_KEY
@@ -136,19 +138,49 @@ def _put_object(place: ObjectPlace, key: str, made: Config) -> None:
         setattr(place.holder, place.member, made)
 
 
+def object_switched(config: Config, path: ConfigPath, made: bool,
+                    stream: TextIO) -> JsonType:
+    """Give one declared place an object of its class, or take it away.
+
+    It is what choosing the type of a place does: an `OPTIONAL_MEMBER` and a
+    key that `DICT_VALUE_BY_KEY` names hold one object of the class declared
+    for them or hold nothing, and choosing between the two is choosing between
+    that class and `None` (section 4.12 of `doc/detailed_design.md`).
+
+    Args:
+        config: Configuration object of the session, which this modifies. It
+            is the editor's own copy and never the caller's.
+        path: Path of the declared place.
+        made: Whether the place is to hold a new object rather than none.
+        stream: Stream that collects what the construction says.
+
+    Returns:
+        What the place holds now, in JSON space: the values of the new object,
+        or None where it holds none.
+
+    Raises:
+        TypeError: The declared class cannot be constructed this way.
+        ValueError: Its declared values are ones it refuses.
+        AttributeError: It declares no public member at all.
+    """
+    place = _declared_at(config=config, path=path)
+    assert place is not None
+    if not made:
+        _take_object(place)
+        return None
+    built = new_object(nesting=place.nesting, stream=stream)
+    _put_object(place=place, key='', made=built)
+    return member_values(config=built, stderr_file=stream)
+
+
 def object_removed(config: Config, path: ConfigPath) -> None:
     """Take the configuration object of a removed element out of the tree.
 
     Args:
         config: Configuration object of the session, which this modifies. It
             is the editor's own copy and never the caller's.
-        path: Path of the element that has been removed, or of the declared
-            place that has been put back to holding no object.
+        path: Path of the element that has been removed.
     """
-    cleared = _declared_at(config=config, path=path)
-    if cleared is not None:
-        _take_object(cleared)
-        return
     place = _declared_at(config=config, path=path[:-1])
     if place is None or place.key or place.nesting.kind not in OBJECT_KINDS:
         return

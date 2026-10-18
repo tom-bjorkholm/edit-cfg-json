@@ -25,7 +25,7 @@ from edit_cfg_json_textual.textual_elements import ADD_ACTION, ADD_LABEL, \
 from example.e11_add_remove import PipelineConfig
 from example.e18_declared_types import ReportConfig
 from .helpers import ENTER_KEY, ESCAPE_KEY, ROOMY_SIZE, \
-    VALIDATE_KEY
+    VALIDATE_KEY, type_chooser_of
 
 NEW_KEY = 'nightly'
 """Key that the question about a new entry is answered with."""
@@ -124,6 +124,26 @@ def _presser(model: EditModel, path: ConfigPath, action: str,
     return driving
 
 
+def _chooser(name: str, text: str
+             ) -> Callable[[EditorApp, Pilot[None]], Awaitable[None]]:
+    """Return a coroutine that picks one type in the pull-down of one node.
+
+    Args:
+        name: Name of the node, which no other node of the example has.
+        text: The type to pick, as the pull-down names it.
+
+    Returns:
+        A coroutine that picks that type and lets the application settle.
+    """
+    async def driving(app: EditorApp, pilot: Pilot[None]) -> None:
+        """Pick the type, which makes the rows again."""
+        await pilot.pause()
+        type_chooser_of(app, name).value = text
+        await pilot.pause()
+        await pilot.pause()
+    return driving
+
+
 def test_controls_are_offered() -> None:
     """Test a list that can grow has the controls its offer names."""
     model = EditModel(PipelineConfig())
@@ -182,22 +202,23 @@ def test_no_control_at_end() -> None:
 def test_named_key_cleared() -> None:
     """Test the named key of a dict of two kinds keeps its row when cleared.
 
-    Its object goes and its row stays, saying which class is missing, so the
-    key can be given an object again. Every other key of that dict is an
-    ordinary entry and is taken out of it.
+    Choosing `None` takes its object away and its row stays, its type saying
+    `None`, so the key can be given an object again. Every other key of that
+    dict is an ordinary entry and is taken out of it with its control.
     """
     model = EditModel(PipelineConfig())
-    _run(model, _presser(model, NAMED_HOOK, REMOVE_ACTION))
-    assert _value_of(model, NAMED_HOOK) == 'no StageConfig'
+    _run(model, _chooser(NAMED_HOOK[-1], 'None'))
+    row = {row.path: row for row in model.rows}[NAMED_HOOK]
+    assert row.holds_nothing and row_type_text(row) == 'None'
     _run(model, _presser(model, (*HOOKS, 'notify'), REMOVE_ACTION))
     assert _value_of(model, HOOKS) == '2 entries'
 
 
 def test_named_key_made() -> None:
-    """Test pressing the control of a cleared named key makes the object."""
+    """Test choosing the class for a cleared named key makes the object."""
     model = EditModel(PipelineConfig())
-    _run(model, _presser(model, NAMED_HOOK, REMOVE_ACTION))
-    _run(model, _presser(model, NAMED_HOOK, ADD_ACTION))
+    _run(model, _chooser(NAMED_HOOK[-1], 'None'))
+    _run(model, _chooser(NAMED_HOOK[-1], 'StageConfig'))
     made = {row.path: row for row in model.rows}[NAMED_HOOK]
     assert made.is_object and row_type_text(made) == 'StageConfig'
 

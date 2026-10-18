@@ -50,18 +50,15 @@ halves of it are answerable: the named key is a place that holds an object or
 holds nothing, and the rest of the dict is an ordinary container whose new
 entry is copied from what its own entries look like.
 
-**Where an object is added, an object is made.** `placing` is where that
-happens, because the model's own configuration object gains and loses the real
-objects as the buffer gains and loses their values.
+**Where an element is added, an object is made where one is declared.**
+`placing` is where that happens, because the model's own configuration object
+gains and loses the real objects as the buffer gains and loses their values.
 
-**How a member is written is not what decides whether it can be cleared.** A
-member the class leaves out of the file while it holds nothing has a row all
-the same, which `tree.shown_values` gives it, and so has a named key the dict
-has not got, which `tree.shown_entries` gives it; putting either of them back
-to holding nothing is therefore not a way of losing it. What the class does
-decide is what a value of it would be: a declared object for a place that
-holds one, and the emptiest value of its kind for a member declared to allow
-no value.
+**Holding nothing is not a matter of elements.** A member that may hold no
+value, and a place that holds one configuration object or none, move between
+those two states by the choice of a type (section 4.12 of
+`doc/detailed_design.md`), so the controls offered here are about elements
+and entries alone.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -81,7 +78,7 @@ from edit_cfg_json.member_types import KeptTypes, node_types, nothing_allowed
 from edit_cfg_json.placing import new_object
 from edit_cfg_json.tree import ConfigNode, by_key_nestings, member_nestings, \
     member_values, omitted_paths
-from edit_cfg_json.type_choice import offered_types
+from edit_cfg_json.type_choice import NodeFacts, offered_types
 from edit_cfg_json.type_options import TypeOption, choosable, \
     empty_option_value, fits, held_option, kept_choice, value_option
 
@@ -94,17 +91,6 @@ and declared values that a validator refuses raise a `ValueError` subclass.
 `NotImplementedError` is deliberately not one of them, for the same reason as
 in the validation of a buffer: it says the configuration class is incomplete,
 which is a defect of the application that no editing can put right.
-"""
-
-CLEARED_KINDS = (ConfigNestingKind.OPTIONAL_MEMBER,
-                 ConfigNestingKind.DICT_VALUE_BY_KEY)
-"""The declarations of a place that holds one object or holds nothing.
-
-They are the two that have the pair of states of design section 4.9 of
-`doc/detailed_design.md`: a member that may hold none, and a named key that the
-file need not have. `MEMBER` holds one always, and `LIST_ELEMENT` and
-`DICT_VALUE` are about everything inside a member rather than about one place
-in it.
 """
 
 NO_PATTERN = ('Nothing says what an element of this member would be: this '
@@ -206,10 +192,9 @@ class ElementOffer(NamedTuple):
     """Whether an element can be added here.
 
     It is true for a list that something can be copied for, for a dict whose
-    class says that every value in it is a configuration object, for a dict
-    where one named key of it does and something can be copied for the rest,
-    and for a declared place that holds no object yet, where adding is making
-    the one object that place is for.
+    class says that every value in it is a configuration object, and for a
+    dict where one named key of it does and something can be copied for the
+    rest.
     """
 
     keyed: bool = False
@@ -225,23 +210,10 @@ class ElementOffer(NamedTuple):
     """Whether removing this node is something the user may ask for.
 
     An element of a list and an entry of a dict whose keys its class does not
-    check can be taken out of what holds them. A declared place that holds an
-    object, and a member that its class declared to allow no value, are put
-    back to holding nothing instead, which `cleared` is what says. How the
-    class writes such a member is not asked: one it leaves out of the file
-    altogether keeps its row, which says that it holds nothing and offers to
-    give it something.
-    """
-
-    cleared: bool = False
-    """Whether removing puts this node back to holding nothing.
-
-    The two ways of removing something differ in what is left behind, and the
-    difference is not visible in the row: a declared place keeps its row and
-    holds nothing, and an element of a container is gone. A declared key of a
-    dict is the case that needs both to be said, because it is a place that
-    keeps its row while being one key of a container beside the ordinary keys
-    that are taken out of it.
+    check can be taken out of what holds them. A member, and a key that a
+    `DICT_VALUE_BY_KEY` declaration names, are not elements of anything: one
+    that may hold nothing is put back to holding nothing by choosing `None` as
+    its type, and keeps its row.
     """
 
     earlier: bool = False
@@ -322,7 +294,7 @@ class TreeFacts(NamedTuple):
     """The types each node is offered, those its class would refuse left out.
 
     It is what says what an element of a list its class declares empty would
-    be, and what a member allowed to hold nothing would hold instead.
+    be.
     """
 
     refusals: Mapping[ConfigPath, tuple[str, ...]]
@@ -408,13 +380,13 @@ def tree_facts(nodes: Mapping[ConfigPath, ConfigNode],
     converters = node_converters(nodes=nodes, flat=flat)
     omitted = omitted_paths(nodes)
     check = dict_check(nodes)
+    made: dict[ConfigNesting, Optional[JsonType]] = {}
     declared = node_types(nodes=nodes, flat=flat, kept=kept)
-    offered = {path: offered_types(options=options,
-                                   converter=converters.get(path),
-                                   omitted=path in omitted,
-                                   holds_dict=dict_shape(path=path,
-                                                         check=check))
-               for path, options in declared.items()}
+    offered = {path: offered_types(options=options, facts=NodeFacts(
+        value=values[path], converter=converters.get(path),
+        omitted=path in omitted, holds_dict=dict_shape(path=path, check=check),
+        placed=_placed(node=nodes.get(path), made=made)))
+        for path, options in declared.items()}
     types = {path: offer.offered for path, offer in offered.items()}
     return TreeFacts(values=values, nodes=nodes,
                      nestings=member_nestings(nodes),
@@ -423,12 +395,24 @@ def tree_facts(nodes: Mapping[ConfigPath, ConfigNode],
                      types=types,
                      refusals={path: offer.refusals
                                for path, offer in offered.items()},
-                     nothing=frozenset(
-                         path for path, options in types.items()
-                         if nothing_allowed(path=path, options=options,
-                                            nodes=nodes)),
+                     nothing=frozenset(path for path, options in types.items()
+                                       if nothing_allowed(options)),
                      held=_held_types(types=types, values=values, kept=kept),
-                     defaults=defaults, made={})
+                     defaults=defaults, made=made)
+
+
+def _placed(node: Optional[ConfigNode],
+            made: dict[ConfigNesting, Optional[JsonType]]) -> Optional[bool]:
+    """Return whether one node can hold the object declared at it.
+
+    It is None for a node where no object is declared, and otherwise whether
+    one is there or the class the declaration names can be constructed, which
+    is what choosing that class at the node would do.
+    """
+    if node is None:
+        return None
+    return node.config is not None or node.nesting is None or \
+        _declared_object(nesting=node.nesting, made=made) is not None
 
 
 def _held_types(types: Mapping[ConfigPath, tuple[TypeOption, ...]],
@@ -464,91 +448,28 @@ def element_offers(facts: TreeFacts) -> dict[ConfigPath, ElementOffer]:
 
 def _offer_of(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
     """Return what one node offers about the elements it holds."""
-    offer = _extending(path=path, facts=facts)
-    cleared = _clearable(path=path, facts=facts)
-    return offer._replace(
-        remove=cleared or _element_of(path=path, facts=facts) is not None,
-        cleared=cleared, earlier=_movable(path=path, facts=facts, later=False),
+    return _extending(path=path, facts=facts)._replace(
+        remove=_element_of(path=path, facts=facts) is not None,
+        earlier=_movable(path=path, facts=facts, later=False),
         later=_movable(path=path, facts=facts, later=True))
 
 
 def _extending(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
     """Return whether one node can be given an element, and why not.
 
-    A node where a class declared an object and none is there is the one node
-    that is grown without being a container: adding there is making the object
-    that the place is for, which design section 4.1 of `doc/detailed_design.md`
-    says belongs with adding an element of a list. A node that holds the object
-    is a configuration of its own, and the members of a configuration are the
-    ones its class declares.
+    A node where a class declared an object is a configuration of its own or
+    a place holding none, and neither holds elements: the members of a
+    configuration are the ones its class declares, and a place is given its
+    object by choosing its class as its type.
     """
-    node = facts.nodes.get(path)
-    if node is not None:
-        return ElementOffer() if node.config is not None \
-            else _new_object(path=path, facts=facts)
+    if path in facts.nodes:
+        return ElementOffer()
     value = facts.values[path]
     if isinstance(value, list):
         return _growing_list(path=path, facts=facts, value=value)
     if isinstance(value, dict):
         return _growing_dict(path=path, facts=facts)
-    return _new_value(path=path, facts=facts)
-
-
-def _new_value(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
-    """Return whether a member that holds nothing can be given a value.
-
-    A member whose class declares that it may hold nothing has two states, and
-    moving between them is the same pair of actions as making and clearing the
-    object of a member declared to hold one: adding is giving it a value of
-    the first type its declaration names, and removing is putting it back to
-    holding none. That is what settled the open question at the end of design
-    section 4.2 — the user chooses between the states the class allowed.
-
-    A type the class would refuse is not among the types of the member at
-    all, as `type_choice.offered_types` says, so the value it is given is one
-    the class accepts: a member declared to hold a dict, where the class holds
-    no dict to match one against, has no first type to give it.
-
-    A member whose type the user chooses is given a value by choosing one of
-    its types, so it offers neither of the two controls (section 4.12 of
-    `doc/detailed_design.md`).
-    """
-    types = facts.types.get(path, ())
-    first = value_option(types)
-    if facts.values[path] is not None or path not in facts.nothing \
-            or first is None or choosable(types):
-        return ElementOffer()
-    return ElementOffer(extend=True, template=empty_option_value(first))
-
-
-def _new_object(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
-    """Return whether a declared place holding no object can be given one.
-
-    Two declarations reach this. An `OPTIONAL_MEMBER` does, whether its class
-    writes `null` for the member or leaves it out of the file, and so does a
-    key that `DICT_VALUE_BY_KEY` names and the dict has not got. Every other
-    kind says that the member holds an object or a container of them, and
-    `config_as_json` refuses such a member holding nothing while it validates,
-    so no configuration the editor is given has one. Both of the two are
-    declared places, which is what the assertion below says: a node holding no
-    object that nothing declared is a node no configuration of this library
-    has.
-    """
-    nesting = _declared_place(path=path, facts=facts)
-    assert nesting is not None
-    return _from_class(nesting=nesting, facts=facts, keyed=False)
-
-
-def _declared_place(path: ConfigPath,
-                    facts: TreeFacts) -> Optional[ConfigNesting]:
-    """Return what declares one node to hold a configuration object.
-
-    A member is declared by the class that owns it and a named key of a dict
-    by the same class one step further in, and the two cannot be the same
-    node: a member is one step below the object that declares it and a named
-    key is two.
-    """
-    return facts.nestings.get(path) or facts.by_key.get(path)
+    return ElementOffer()
 
 
 def _growing_list(path: ConfigPath, facts: TreeFacts,
@@ -730,35 +651,6 @@ def _step_into(value: JsonType, step: str) -> JsonType:
     if isinstance(value, list) and step.isdigit() and int(step) < len(value):
         return value[int(step)]
     return None
-
-
-def _clearable(path: ConfigPath, facts: TreeFacts) -> bool:
-    """Return whether removing one node puts it back to holding nothing.
-
-    A member declared to allow no value is cleared by the same rule as a place
-    declared to hold a configuration object, and neither of them asks how its
-    class writes what it clears. A member that `_omit_none_from_json()` names
-    is left out of the file altogether, and a key that `DICT_VALUE_BY_KEY`
-    names is simply not there; each of them keeps a row all the same, so
-    clearing it is not a way of losing it: the row then says that it holds
-    nothing, exactly as it does for the member its class writes `null` for.
-
-    A node that a class declared is answered by that declaration alone, and
-    never by the type its member is annotated with. A nesting kind that
-    `CLEARED_KINDS` leaves out can never hold nothing — `config_as_json`
-    requires the list or the dict while it validates — so an annotation
-    allowing it says something no configuration the editor is given is in.
-
-    A node whose type the user chooses is put back to holding nothing by
-    choosing `None`, so it is never cleared by a control.
-    """
-    declared = _declared_place(path=path, facts=facts)
-    if declared is not None:
-        node = facts.nodes.get(path)
-        return declared.kind in CLEARED_KINDS and node is not None \
-            and node.config is not None
-    return path in facts.nothing and facts.values[path] is not None \
-        and not choosable(facts.types.get(path, ()))
 
 
 def _movable(path: ConfigPath, facts: TreeFacts, later: bool) -> bool:

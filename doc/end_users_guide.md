@@ -172,9 +172,9 @@ this row holds:
 | `3 elements`, `1 element` | A list holding that many things. They are the rows below it. |
 | `2 entries`, `1 entry` | A dict holding that many things. They are the rows below it. |
 | Nothing, beside a class name such as `PageOutput` as its type | An object. Its own members are the rows below it. |
-| `no PageOutput` | A place where an object of that class belongs, holding none. |
-| Nothing, beside `None` as its type | A member that is allowed to hold nothing, and holds nothing. This is **not** the same as an empty field. Choose another type to give it a value. See [1.6](#16-a-member-that-may-hold-nothing). |
-| `no value` | A member that holds nothing and has no other type you can choose here: the line under the row says why, or the controls at its end give it a value. See [1.6](#16-a-member-that-may-hold-nothing). |
+| Nothing, beside `None` as its type | A member that is allowed to hold nothing, and holds nothing. This is **not** the same as an empty field. Choose another type to give it a value, or a class name to give it an object. See [1.6](#16-a-member-that-may-hold-nothing). |
+| `no PageOutput` | A place where an object of that class belongs, holding none, that the editor cannot make an object for: the line under the row says why. |
+| `no value` | A member that holds nothing and has no other type you can choose here: the line under the row says why. See [1.6](#16-a-member-that-may-hold-nothing). |
 
 **The marks** follow the value and say what has happened to it. More than one
 can be there at once, and they are shown in the order in which they can
@@ -233,6 +233,8 @@ What the type of a member says below its row is one of these:
 | `int is not offered, because the parse converter of this member refuses 0.` | A type the member is declared to allow and that the application would refuse all the same, so it is left out of the pull-down of the types. |
 | `dict[str, int] is not offered, because the configuration class matches a dict written here against the dict it holds here, and it holds none.` | The application would refuse any dict here, even an empty one, so the member cannot be given one. |
 | `None is not offered, because the configuration class holds a dict here and refuses anything else written for it.` | The application would refuse anything but a dict here, so the member cannot be emptied. |
+| `PageOutput is not offered, because the configuration class reads one only where nested_configs() declares it, and it declares none here.` | The application makes an object of that class only at the places it declared for one, so a value here cannot be one. |
+| `Path is not offered, because the editor cannot make one on its own.` | The editor has no way of making a value of that type for you, so you are offered the others; a member that already holds one keeps it in its pull-down. |
 | `The type is taken from the value, because nothing declared says one the editor can use.` | The application never said what this member holds, so the type column shows what its value happens to be. |
 | `It may be left out of the file.` | The member may hold nothing, and the file then holds no key for it at all. |
 
@@ -323,13 +325,13 @@ you move between them by choosing rather than by typing:
 - **holding a value** — an ordinary field.
 - **holding nothing** — no field at all.
 
-Where the member holds a plain value — a text, a number, true or false — or
-a list or a dict of them, its type is `str | None`, `int | None`,
-`list[str] | None` and the like, and `None` is one of the types in its
-pull-down. Choose `None` to take the value away: the type then says `None` and
-there is nothing where the value was. Choose the other type to give it the
-empty value of that type — an empty text for you to type into, an empty list
-for its **Add** to grow.
+Its type is `str | None`, `int | None`, `list[str] | None`, `PageOutput | None`
+and the like, and `None` is one of the types in its pull-down. Choose `None` to
+take the value away: the type then says `None` and there is nothing where the
+value was. Choose the other type to give it the empty value of that type — an
+empty text for you to type into, an empty list for its **Add** to grow, or,
+where an **object** belongs, a new object of that class holding the values its
+class declares, whose rows appear below it.
 
 Where the application would refuse a dict for the member, the dict type is not
 in the pull-down: `None` is all it offers, and the line under the row says
@@ -339,14 +341,16 @@ This is why holding nothing and an empty field are different things and why
 you cannot type your way from one to the other. Typing `null` into a field
 types the four letters `null`; it does not empty the member.
 
-The same pair of controls does the same job one step up, for a place where an
-**object** belongs: a row saying `no PageOutput` offers **Add**, which puts a
-new object of that class there with the values its class declares, and a row
-holding one offers **Del**, which takes it away again.
+A type the editor cannot make a value of on its own — a class of the
+application's own, such as a `Path` — is not in the pull-down beside one it can
+make, unless the member already holds such a value; the line under the row
+says so. Once you choose another type, that one is gone from the pull-down
+until the file is read again.
 
 A member that the application never described well enough for the editor to
 know what an empty value of it would be stays an ordinary field, and shows
-whatever the file holds.
+whatever the file holds. So does one whose only other type is one the editor
+cannot make a value of, such as `Path | None`.
 
 ## 1.7 Changing how many values a member holds
 
@@ -356,8 +360,8 @@ change it. Up to four controls sit at the end of a row:
 
 | Control | What it does |
 | --- | --- |
-| **Add** | Puts one more element into this list or dict, or gives this member a value where it holds none. |
-| **Del** | Takes this element out of the list or dict it is in, or puts this member back to holding nothing. |
+| **Add** | Puts one more element into this list or dict. |
+| **Del** | Takes this element out of the list or dict it is in. |
 | **Up** | Moves this element one place towards the front of its list. |
 | **Down** | Moves this element one place towards the back. |
 
@@ -746,9 +750,9 @@ this row holds:
 | `3 elements`, `1 element` | A list holding that many things. They are the rows below it. |
 | `2 entries`, `1 entry` | A dict holding that many things. They are the rows below it. |
 | Nothing, beside a class name such as `PageOutput` as its type | An object. Its own members are the rows below it. |
-| `no PageOutput` | A place where an object of that class belongs, holding none. |
-| Nothing, beside `None` as its type | A member that is allowed to hold nothing, and holds nothing. This is **not** the same as an empty field. Choose another type to give it a value. See [2.6](#26-a-member-that-may-hold-nothing). |
-| `no value` | A member that holds nothing and has no other type you can choose here: the line under the row says why, or the controls at its end give it a value. See [2.6](#26-a-member-that-may-hold-nothing). |
+| Nothing, beside `None` as its type | A member that is allowed to hold nothing, and holds nothing. This is **not** the same as an empty field. Choose another type to give it a value, or a class name to give it an object. See [2.6](#26-a-member-that-may-hold-nothing). |
+| `no PageOutput` | A place where an object of that class belongs, holding none, that the editor cannot make an object for: the line under the row says why. |
+| `no value` | A member that holds nothing and has no other type you can choose here: the line under the row says why. See [2.6](#26-a-member-that-may-hold-nothing). |
 
 **The marks** follow the value and say what has happened to it. More than one
 can be there at once, and they are shown in the order in which they can
@@ -811,6 +815,8 @@ What the type of a member says below its row is one of these:
 | `int is not offered, because the parse converter of this member refuses 0.` | A type the member is declared to allow and that the application would refuse all the same, so it is left out of the pull-down of the types. |
 | `dict[str, int] is not offered, because the configuration class matches a dict written here against the dict it holds here, and it holds none.` | The application would refuse any dict here, even an empty one, so the member cannot be given one. |
 | `None is not offered, because the configuration class holds a dict here and refuses anything else written for it.` | The application would refuse anything but a dict here, so the member cannot be emptied. |
+| `PageOutput is not offered, because the configuration class reads one only where nested_configs() declares it, and it declares none here.` | The application makes an object of that class only at the places it declared for one, so a value here cannot be one. |
+| `Path is not offered, because the editor cannot make one on its own.` | The editor has no way of making a value of that type for you, so you are offered the others; a member that already holds one keeps it in its pull-down. |
 | `The type is taken from the value, because nothing declared says one the editor can use.` | The application never said what this member holds, so the type column shows what its value happens to be. |
 | `It may be left out of the file.` | The member may hold nothing, and the file then holds no key for it at all. |
 
@@ -904,13 +910,13 @@ you move between them by choosing rather than by typing:
 - **holding a value** — an ordinary field.
 - **holding nothing** — no field at all.
 
-Where the member holds a plain value — a text, a number, true or false — or
-a list or a dict of them, its type is `str | None`, `int | None`,
-`list[str] | None` and the like, and `None` is one of the types in its
-pull-down. Choose `None` to take the value away: the type then says `None` and
-there is nothing where the value was. Choose the other type to give it the
-empty value of that type — an empty text for you to type into, an empty list
-for its **Add** to grow.
+Its type is `str | None`, `int | None`, `list[str] | None`, `PageOutput | None`
+and the like, and `None` is one of the types in its pull-down. Choose `None` to
+take the value away: the type then says `None` and there is nothing where the
+value was. Choose the other type to give it the empty value of that type — an
+empty text for you to type into, an empty list for its **Add** to grow, or,
+where an **object** belongs, a new object of that class holding the values its
+class declares, whose rows appear below it.
 
 Where the application would refuse a dict for the member, the dict type is not
 in the pull-down: `None` is all it offers, and the line under the row says
@@ -920,14 +926,16 @@ This is why holding nothing and an empty field are different things and why
 you cannot type your way from one to the other. Typing `null` into a field
 types the four letters `null`; it does not empty the member.
 
-The same pair of controls does the same job one step up, for a place where an
-**object** belongs: a row saying `no PageOutput` offers **Add**, which puts a
-new object of that class there with the values its class declares, and a row
-holding one offers **Del**, which takes it away again.
+A type the editor cannot make a value of on its own — a class of the
+application's own, such as a `Path` — is not in the pull-down beside one it can
+make, unless the member already holds such a value; the line under the row
+says so. Once you choose another type, that one is gone from the pull-down
+until the file is read again.
 
 A member that the application never described well enough for the editor to
 know what an empty value of it would be stays an ordinary field, and shows
-whatever the file holds.
+whatever the file holds. So does one whose only other type is one the editor
+cannot make a value of, such as `Path | None`.
 
 ## 2.7 Changing how many values a member holds
 
@@ -937,8 +945,8 @@ change it. Up to four controls sit at the end of a row:
 
 | Control | What it does |
 | --- | --- |
-| **Add** | Puts one more element into this list or dict, or gives this member a value where it holds none. |
-| **Del** | Takes this element out of the list or dict it is in, or puts this member back to holding nothing. |
+| **Add** | Puts one more element into this list or dict. |
+| **Del** | Takes this element out of the list or dict it is in. |
 | **Up** | Moves this element one place towards the front of its list. |
 | **Down** | Moves this element one place towards the back. |
 
