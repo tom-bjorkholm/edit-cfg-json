@@ -51,16 +51,30 @@ TREE_INDENT = 24
 """Indentation in pixels of each step inside a list or a dict.
 
 The whole member is indented and not only its name, so that a name inside a
-container is never cut off by the column that the names share. What that costs
-is a value column that steps to the right with the tree, which is what a tree
-looks like.
+container is never cut off by the column that the names share. The pull-down
+of the types is narrower by as much on every step, so that the column of the
+types ends in one place and the values of every row begin in one column.
+"""
+
+TYPE_FONT = 'TkDefaultFont'
+"""Font of the pull-down of the types, which its width is measured in."""
+
+BLANK_WIDTH = 1
+"""Width and height in pixels of the blank image of a pull-down of the types.
+
+A menu button that shows an image is as wide as it is told in pixels, where
+one with only a text is told its width in widths of the character `0`, which
+is wider than most characters of a type and left much of the column empty.
+The image is what makes the width one in pixels, and it is blank and one pixel
+so that it takes nothing from the text but that pixel.
 """
 
 FOLD_WIDTH = 2
 """Width in characters of the control that folds one container.
 
-Every row has one that wide, and the rows that hold nothing to fold have an
-empty one, so that the names of a container and of a value beside it line up.
+Every row has one, and the rows that hold nothing to fold have an empty space
+as wide as it is in pixels, so that the names of a container and of a value
+beside it line up; see `fold_space`.
 """
 
 ELEMENT_WIDTH = 4
@@ -252,8 +266,44 @@ def choice_field(parent: tkinter.Misc, text: tkinter.StringVar,
     return pull_down
 
 
-def type_field(parent: tkinter.Misc, shown: str, width: int,
-               active: bool) -> tkinter.Menubutton:
+def fold_button(parent: tkinter.Misc) -> tkinter.Button:
+    """Return the control that folds one container, without what it does.
+
+    Args:
+        parent: Line of the node that is being shown.
+
+    Returns:
+        A button `FOLD_WIDTH` characters wide, not yet packed.
+    """
+    return tkinter.Button(parent, width=FOLD_WIDTH, relief='flat',
+                          borderwidth=0, highlightthickness=0, padx=0, pady=0)
+
+
+def fold_space(parent: tkinter.Misc) -> tkinter.Frame:
+    """Return the empty space that a row with nothing to fold begins with.
+
+    It is exactly as wide as the control that folds a container, which a
+    label of as many characters is not: a platform draws a button wider than
+    its text by its own frame, and on macOS a button of two characters takes
+    50 pixels where a label of two takes 24, which moved the name, the type
+    and the value of such a row to the left of those of a container beside
+    it. The width is asked of a button made for the purpose and destroyed
+    again, because Tk says how wide a widget is and not how wide one would be.
+
+    Args:
+        parent: Line of the node that is being shown.
+
+    Returns:
+        An empty frame as wide as the control, not yet packed.
+    """
+    probe = fold_button(parent)
+    width = probe.winfo_reqwidth()
+    probe.destroy()
+    return tkinter.Frame(parent, width=width, height=1)
+
+
+def type_field(parent: tkinter.Misc, shown: str, width: int, active: bool,
+               blank: tkinter.PhotoImage) -> tkinter.Menubutton:
     """Return the pull-down of the types one node may hold, without its menu.
 
     It is active only where the type of the node is the user's to choose, and
@@ -267,19 +317,26 @@ def type_field(parent: tkinter.Misc, shown: str, width: int,
     and as the pull-down of the values is, so the key goes from one value to
     the next and the focus the editor opens with stays on the first value.
 
+    It shows the blank image beside its text, which is what makes its width
+    one in pixels, and it is told the width of its text and of that image.
+
     Args:
         parent: Line of the node that is being shown.
         shown: The type that node holds now.
-        width: Width in characters of the column of the types.
+        width: Width in pixels of the text of the pull-down, written in
+            `TYPE_FONT`.
         active: Whether another type can be chosen in it.
+        blank: Image of `BLANK_WIDTH` pixels that shows nothing, which the
+            caller keeps alive for as long as the pull-down is.
 
     Returns:
         A pull-down showing that type.
     """
     return tkinter.Menubutton(parent, name=MEMBER_TYPE_NAME, text=shown,
-                              indicatoron=True, anchor='w', width=width,
-                              relief='flat', borderwidth=2,
-                              highlightthickness=0,
+                              font=TYPE_FONT, image=blank, compound='left',
+                              indicatoron=True, anchor='w',
+                              width=width + BLANK_WIDTH, relief='flat',
+                              borderwidth=2, highlightthickness=0,
                               state='normal' if active else 'disabled',
                               foreground=FIELD_FOREGROUND,
                               disabledforeground=TYPE_COLOUR)

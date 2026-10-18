@@ -205,9 +205,10 @@ TREE_INDENT = 4
 """Indentation in cells of each step inside a list or a dict.
 
 The whole node is indented and not only its name, so that a name inside a
-container is never cut off by the column that the names share. What that costs
-is a value column that steps to the right with the tree, which is what a tree
-looks like. The Tk backend indents by the same amount and for the same reason.
+container is never cut off by the column that the names share. The pull-down
+of the types is narrower by as much on every step, so that the column of the
+types ends in one place and the values of every row begin in one column. The Tk
+backend indents by the same amount and for the same reason.
 """
 
 DESCRIPTION_INDENT = 4
@@ -221,9 +222,10 @@ TYPE_ARROW_WIDTH = 3
 """Width in cells that a compact pull-down takes beside its text.
 
 That is the arrow, the cell before it and the cell after it, which is what
-`Select` lays out of its own accord in its compact form. The column of the
-types is as wide as its longest type and this, so that no type it holds is cut
-by the pull-down as well as by the core.
+`Select` lays out of its own accord in its compact form. A pull-down of the
+types is as wide as the text that `edit_cfg_json.type_column_widths` gives it
+and this, so that no type it holds is cut by the pull-down as well as by the
+core.
 """
 
 LEAST_VALUE_WIDTH = 8

@@ -460,3 +460,33 @@ class FakeVar:
         assert mode == 'write'
         self.callbacks.append(callback)
         return 'stub trace'
+
+
+class FakeImage:  # pylint: disable=too-few-public-methods
+    """Recording stand-in for a `tkinter.PhotoImage` in the stubbed tests.
+
+    It is not a stub widget, because an image is not one: it is never packed
+    and has no parent, and the tests that look for widgets must not find it.
+    """
+
+    def __init__(self, **options: object) -> None:
+        """Record the options this image was created with."""
+        self.options = options
+
+
+class FakeFont:  # pylint: disable=too-few-public-methods
+    """Stand-in for a named `tkinter.font.Font`, one unit per character.
+
+    A stub has no font to measure a text in, and one unit per character is
+    what a terminal measures in, so the widths a stubbed test sees are the
+    ones the core works out from the length of each type.
+    """
+
+    def __init__(self, **options: object) -> None:
+        """Record the options this font was looked up with."""
+        self.options = options
+
+    @staticmethod
+    def measure(text: str) -> int:
+        """Return how wide one text is, which is how long it is."""
+        return len(text)

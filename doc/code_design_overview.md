@@ -75,7 +75,7 @@ above. There are no cycles.
 | --- | --- |
 | Entry points | `cli`, `cli_target`, `dump`, `editing`, `launcher` |
 | Choosing a user interface | `ui_backend`, `ui_choice` |
-| Rendering | `model_text`, `emphasis`, `backend` |
+| Rendering | `model_text`, `type_column`, `emphasis`, `backend` |
 | The session | `edit_model` |
 | The edit buffer | `buffer` |
 | Operations | `rows`, `finding`, `elements`, `placing`, `type_choice`, `validation`, `loading`, `auto_change`, `saving`, `settings_file` |
@@ -132,6 +132,7 @@ Pure inspection. Nothing here knows that an editor exists.
 | [edit_model.py](../edit/src/edit_cfg_json/edit_model.py) | The session: the buffer, the load report, the verdict, where a save would go. Everything a backend calls is a method here. |
 | [editing.py](../edit/src/edit_cfg_json/editing.py) | `editor_model()` builds a session, `edit()` runs it in a backend, and `edit_in_ui()` runs it in whichever backend this machine can. The front door for an application. |
 | [model_text.py](../edit/src/edit_cfg_json/model_text.py) | Every string a backend shows, as plain text: row values, marks, descriptions, diagnostics, questions, and the whole model as one text. |
+| [type_column.py](../edit/src/edit_cfg_json/type_column.py) | The column of the types: what each type is shown as, which a row offers, whether it is chosen, and how wide each row's pull-down is so that the column ends in one place. |
 | [emphasis.py](../edit/src/edit_cfg_json/emphasis.py) | Which kind of text each part is — value, explanation, mark, diagnostic. The colour of a kind belongs to each backend. |
 | [backend.py](../edit/src/edit_cfg_json/backend.py) | The `EditorBackend` protocol, and `DumpEditor`, the non-interactive backend that prints the model once. |
 | [ui_backend.py](../edit/src/edit_cfg_json/ui_backend.py) | `UiBackend`, which is what a backend package registers about itself in the `edit_cfg_json.ui` entry point group, and `DUMP_UI`. |
@@ -164,7 +165,7 @@ Pure inspection. Nothing here knows that an editor exists.
 | A row shows the wrong value, state or mark | `rows.py`, then `buffer.py` |
 | The wrong explanation under a row | `descriptions.py`, then `model_text.py` |
 | A member's kind or declared type is wrong | `member_types.py`, then `type_options.py`, then `leaf_value.py` |
-| The type column of a row says the wrong thing | `rows.py` (`MemberRow.chosen_type`), then `model_text.py` |
+| The type column of a row says the wrong thing, or is the wrong width | `rows.py` (`MemberRow.chosen_type`), then `type_column.py` |
 | Choosing a type misbehaves, or offers the wrong types | `type_choice.py`, then `dict_check.py`, then `buffer.py` (`set_type`) |
 | Add, remove or move an element misbehaves | `elements.py`, then `placing.py` |
 | A nested object is shown as a plain dict | `tree.py` (`config_nodes`) |

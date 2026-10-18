@@ -13,14 +13,19 @@ can drift from what Tk really does.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Callable
+import operator
 import tkinter
+import tkinter.font
 from config_as_json import ConfigPath
 from edit_cfg_json import EditModel, row_chooses_type, row_type_text, \
-    row_type_texts, type_column_width
+    row_type_texts, type_column_widths
 from edit_cfg_json_tk.tk_editor import EditorWidgets
 from edit_cfg_json_tk.tk_elements import ADD_TEXT
+from edit_cfg_json_tk.tk_look import BLANK_WIDTH, TREE_INDENT, TYPE_FONT
 from example.e18_declared_types import ReportConfig
 from example.e19_omitted_members import ReportConfig as OmittedReport
+from example.e20_union_types import ExportConfig
 from .helpers import TwoTypesConfig, model_value, real_fields, real_types, \
     retype, stub_choices, stub_editor, stub_field_widgets, stub_pick, \
     stub_types
@@ -47,6 +52,16 @@ def _states(model: EditModel) -> list[str]:
             for row in model.rows]
 
 
+def _widths(model: EditModel, measure: Callable[[str], int]) -> list[int]:
+    """Return how wide each pull-down of the types is to be, in pixels.
+
+    That is the width of its text, which is narrower the deeper the row is,
+    and of the blank image that makes its width one in pixels.
+    """
+    widths = type_column_widths(model, measure=measure, indent=TREE_INDENT)
+    return [width + BLANK_WIDTH for width in widths]
+
+
 def _type_widget(model: EditModel, path: ConfigPath) -> FakeWidget:
     """Return the stub pull-down of the types of one node of one model."""
     paths = [row.path for row in model.rows]
@@ -56,9 +71,10 @@ def _type_widget(model: EditModel, path: ConfigPath) -> FakeWidget:
 def test_stub_every_row(stub_tk: None) -> None:
     """Test every row has a pull-down of its types, saying the one it holds.
 
-    They are all as wide as the column, so that the values beside them begin
-    in one place, and only those of a row whose type is the user's to choose
-    can be opened.
+    Each is as wide as the core says in the font they are written in, which
+    the stub measures one pixel per character, so that the column ends in one
+    place and the values beside it begin in one place. Only those of a row
+    whose type is the user's to choose can be opened.
     """
     _ = stub_tk
     model = _report()
@@ -66,8 +82,7 @@ def test_stub_every_row(stub_tk: None) -> None:
     found = stub_types()
     assert [widget.options['text'] for widget in found] == [
         row_type_text(row) for row in model.rows]
-    assert {widget.options['width'] for widget in found} == {
-        type_column_width(model)}
+    assert [widget.options['width'] for widget in found] == _widths(model, len)
     assert [widget.options['state'] for widget in found] == _states(model)
     assert 'normal' in _states(model) and 'disabled' in _states(model)
 
@@ -88,9 +103,37 @@ def test_real_every_row(root_or_skip: tkinter.Tk) -> None:
     found = real_types(root_or_skip)
     assert [str(widget.cget('text')) for widget in found] == [
         row_type_text(row) for row in model.rows]
-    assert {int(widget.cget('width')) for widget in found} == {
-        type_column_width(model)}
+    font = tkinter.font.Font(root=root_or_skip, name=TYPE_FONT, exists=True)
+    assert [int(widget.cget('width')) for widget in found] == _widths(
+        model, font.measure)
     assert [str(widget.cget('state')) for widget in found] == _states(model)
+
+
+def test_real_column_end(root_or_skip: tkinter.Tk) -> None:
+    """Test the column of real Tk ends in one place, with no space to spare.
+
+    The example of the complaint has a long type on its member and short ones
+    inside it, and containers beside values at every depth. Every pull-down
+    ends where the others do, as Tk lays the window out, which both the
+    indentation and the control that folds a container decide: an empty
+    space beside a value has to be exactly as wide as that control. A
+    pull-down is never narrower than Tk makes it on its own, which is what
+    width 0 asks for, and one of them is exactly that wide: Tk counts a width
+    given in characters in widths of `0`, and the column it gave this example
+    was nearly twice as wide as its longest type.
+    """
+    model = EditModel(ExportConfig())
+    EditorWidgets(parent=root_or_skip, model=model)
+    root_or_skip.update_idletasks()
+    found = real_types(root_or_skip)
+    ends = {widget.winfo_rootx() + widget.winfo_width() for widget in found}
+    given = [widget.winfo_reqwidth() for widget in found]
+    for widget in found:
+        widget.config(width=0)
+    natural = [widget.winfo_reqwidth() for widget in found]
+    assert len(ends) == 1
+    assert all(map(operator.ge, given, natural))
+    assert any(map(operator.eq, given, natural))
 
 
 def test_real_types_listed(root_or_skip: tkinter.Tk) -> None:

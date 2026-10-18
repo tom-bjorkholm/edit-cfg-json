@@ -1367,12 +1367,20 @@ names nothing usable shows the type of its value, and the class of its object
 for an object row. The whole declaration is said on the line below the row
 wherever the column cannot show it (section 4.3).
 
-**The column is one width for the whole editor**, so that the values of every
-row begin in one column: the longest type any row may hold, counting every row
-and not only those on the screen, so that folding moves nothing beside it.
-That was settled when choosing a container was built: a choice or an element
-that adds rows can widen the column, as adding an element always could, and
-folding never does. A type longer than 40 characters is cut to 40 with `…`,
+**The column ends in one place for the whole editor**, so that the values of
+every row begin in one column: where the longest type any row may hold ends,
+after the indentation of that row, counting every row and not only those on
+the screen, so that folding moves nothing beside it. A row is indented once
+per container it is inside and its pull-down is narrower by as much, because
+the types of a deep row are the short ones inside a container whose own type
+is long; a column of one width would end further to the right on every step
+for nothing. Each backend measures the types in its own unit, a cell of the
+terminal for Textual and a pixel of the font of the pull-down for Tk, whose
+fonts are proportional: a Tk width given in characters is counted in widths of
+`0`, and left a column of brackets and narrow letters nearly half empty. That
+was settled when choosing a container was built and corrected in its review:
+a choice or an element that adds rows can widen the column, as adding an
+element always could, and folding never does. A type longer than 40 characters is cut to 40 with `…`,
 and its whole text is
 then on the line below. The limit is a constant of the core for now, and making
 it follow the width the editor can have is a later step of the plan; no setting

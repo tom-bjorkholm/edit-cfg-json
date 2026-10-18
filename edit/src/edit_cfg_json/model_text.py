@@ -11,7 +11,7 @@ from edit_cfg_json.finding import looks_nowhere
 from edit_cfg_json.rows import MemberRow
 from edit_cfg_json.saving import kept_file
 from edit_cfg_json.tree import path_text
-from edit_cfg_json.type_options import cut_type_text
+from edit_cfg_json.type_column import row_type_text
 from edit_cfg_json.validation import ValidationVerdict
 
 FOLDED_MARK = ' (folded)'
@@ -401,99 +401,6 @@ def row_chooses(row: MemberRow) -> bool:
         of.
     """
     return row.editable and bool(row.choices)
-
-
-def row_type_text(row: MemberRow) -> str:
-    """Return the type one node holds, as the column of the types shows it.
-
-    It is the type the node holds now and not the whole of what its
-    declaration allows, which the line below it says where it allows more
-    than one. A type longer than the column is cut, and that line then says
-    the whole of it.
-
-    Args:
-        row: Node to render.
-
-    Returns:
-        The type that node holds, as the column shows it.
-    """
-    return cut_type_text(row.chosen_type.text)
-
-
-def row_type_choices(row: MemberRow) -> tuple[tuple[str, str], ...]:
-    """Return every type one node may hold, as shown and as it is named.
-
-    They are what the pull-down of the types offers, in the order the
-    declaration writes them, and then the type the node holds where that is
-    none of them: the one type its value has where nothing usable is
-    declared, and `None` for a place declared to hold an object and holding
-    none.
-
-    Each is given twice, because the column cuts a long type and two types
-    can be cut to the same text: what the pull-down shows, and the whole of
-    the type, which is what `EditModel.set_type` is given when it is chosen.
-
-    Args:
-        row: Node to render.
-
-    Returns:
-        One pair of the shown text and the whole text per type that node may
-        hold, the type it holds among them.
-    """
-    held = row.chosen_type
-    options = row.types if held in row.types else (*row.types, held)
-    return tuple((cut_type_text(option.text), option.text)
-                 for option in options)
-
-
-def row_type_texts(row: MemberRow) -> tuple[str, ...]:
-    """Return every type one node may hold, as the column shows each of them.
-
-    Args:
-        row: Node to render.
-
-    Returns:
-        The shown text of every type `row_type_choices` lists, among them
-        `row_type_text`.
-    """
-    return tuple(shown for shown, _ in row_type_choices(row))
-
-
-def row_chooses_type(row: MemberRow) -> bool:
-    """Return whether the type one node holds can be chosen in its pull-down.
-
-    Every node has the pull-down, so that every row says its type in the same
-    place, and this is what says whether it is active: a node whose
-    declaration allows more than one plain type, or a plain type and `None`.
-    A backend asks it whenever it makes the pull-down, because whether it is
-    active depends on the types the node may hold and on nothing a user types.
-
-    Args:
-        row: Node to ask about.
-
-    Returns:
-        Whether choosing another of its types is something the user may do.
-    """
-    return row.type_choosable
-
-
-def type_column_width(model: EditModel) -> int:
-    """Return how many characters wide the column of the types is.
-
-    It is one width for the whole editor, so that the values of every row
-    begin in one column: the longest type any row may hold, which the cut
-    keeps to `edit_cfg_json.type_options.TYPE_COLUMN_LIMIT`. Every row is
-    asked and not only the ones on the screen, so that folding a container
-    never moves the values of the rows beside it.
-
-    Args:
-        model: Model to ask about.
-
-    Returns:
-        The width of the column, in characters.
-    """
-    return max((len(text) for row in model.rows
-                for text in row_type_texts(row)), default=0)
 
 
 def row_validates(row: MemberRow) -> bool:

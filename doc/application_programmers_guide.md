@@ -1065,7 +1065,7 @@ focus, and offers what it accepts.
 
 `edit_cfg_json.TypeOption`, `MemberRow.types`, `MemberRow.chosen_type`,
 `MemberRow.type_choosable`, `row_type_text`, `row_type_texts`,
-`row_type_choices`, `row_chooses_type`, `type_column_width` and
+`row_type_choices`, `row_chooses_type`, `type_column_widths` and
 `EditModel.set_type` are what a user interface of your own reads it from and
 chooses with (section 4.6).
 

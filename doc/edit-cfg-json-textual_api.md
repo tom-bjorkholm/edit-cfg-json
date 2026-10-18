@@ -1362,9 +1362,10 @@ empty one, so that the names of a container and of a value beside it line up.
 Indentation in cells of each step inside a list or a dict.
 
 The whole node is indented and not only its name, so that a name inside a
-container is never cut off by the column that the names share. What that costs
-is a value column that steps to the right with the tree, which is what a tree
-looks like. The Tk backend indents by the same amount and for the same reason.
+container is never cut off by the column that the names share. The pull-down
+of the types is narrower by as much on every step, so that the column of the
+types ends in one place and the values of every row begin in one column. The Tk
+backend indents by the same amount and for the same reason.
 
 <a id="edit_cfg_json_textual.textual_look.DESCRIPTION_INDENT"></a>
 
@@ -1382,9 +1383,10 @@ rather than being a member of its own.
 Width in cells that a compact pull-down takes beside its text.
 
 That is the arrow, the cell before it and the cell after it, which is what
-`Select` lays out of its own accord in its compact form. The column of the
-types is as wide as its longest type and this, so that no type it holds is cut
-by the pull-down as well as by the core.
+`Select` lays out of its own accord in its compact form. A pull-down of the
+types is as wide as the text that `edit_cfg_json.type_column_widths` gives it
+and this, so that no type it holds is cut by the pull-down as well as by the
+core.
 
 <a id="edit_cfg_json_textual.textual_look.LEAST_VALUE_WIDTH"></a>
 
@@ -2840,8 +2842,9 @@ Create the pull-down of the types of one node.
 
 - `index` - Place of the node among the rows.
 - `row` - Node to create the pull-down for.
-- `width` - Width in characters of the column of the types, which every
-  one of these is as wide as so that the values beside them
+- `width` - Width in cells of the text of this pull-down, which is
+  what `edit_cfg_json.type_column_widths` gives the row, so
+  that the column of the types ends in one place and the values
   begin in one column.
 
 <a id="edit_cfg_json_textual.textual_member.TypeChooser.offered"></a>

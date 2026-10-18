@@ -15,8 +15,31 @@ this backend that is nearest to being too long to read.
 
 from collections.abc import Callable
 import tkinter
+import tkinter.font
 import edit_cfg_json as core
-from edit_cfg_json_tk.tk_look import fill_menu, menu_of, type_field
+from edit_cfg_json_tk.tk_look import BLANK_WIDTH, TREE_INDENT, TYPE_FONT, \
+    fill_menu, menu_of, type_field
+
+
+def type_widths(parent: tkinter.Misc,
+                model: core.EditModel) -> tuple[int, ...]:
+    """Return how wide in pixels the pull-down of the types of each row is.
+
+    They are measured in the font the pull-downs write their types in, because
+    the characters of that font are not all as wide as each other, and a type
+    is mostly narrow letters and brackets.
+
+    Args:
+        parent: Widget of the editor, whose interpreter has the font.
+        model: Model whose rows are being shown.
+
+    Returns:
+        The width of the text of the pull-down of each row, in the order of
+        `EditModel.rows`.
+    """
+    font = tkinter.font.Font(root=parent, name=TYPE_FONT, exists=True)
+    return core.type_column_widths(model, measure=font.measure,
+                                   indent=TREE_INDENT)
 
 
 class TypeWidget:  # pylint: disable=too-few-public-methods
@@ -35,9 +58,9 @@ class TypeWidget:  # pylint: disable=too-few-public-methods
         Args:
             parent: Line of the node that is being shown.
             row: Node to create the pull-down for.
-            width: Width in characters of the column of the types, which every
-                one of these is as wide as so that the values beside them
-                begin in one column.
+            width: Width in pixels of the text of this pull-down, which is
+                what `type_widths` gives the row, so that the column of the
+                types ends in one place and the values begin in one column.
             picked: What choosing a type does, given the whole of that type as
                 a Python type hint spells it. A menu entry says the type as the
                 column shows it, which is cut where it is long, so each entry
@@ -45,9 +68,12 @@ class TypeWidget:  # pylint: disable=too-few-public-methods
         """
         self._picked = picked
         self._offered = core.row_type_choices(row)
+        self._blank = tkinter.PhotoImage(master=parent, width=BLANK_WIDTH,
+                                         height=BLANK_WIDTH)
         self.button = type_field(parent=parent, shown=core.row_type_text(row),
                                  width=width,
-                                 active=core.row_chooses_type(row))
+                                 active=core.row_chooses_type(row),
+                                 blank=self._blank)
         self._menu = menu_of(pull_down=self.button, entries=self._offered,
                              picked=picked)
 

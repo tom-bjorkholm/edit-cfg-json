@@ -14,14 +14,16 @@ in one column, and that picking a type in the pull-down chooses it.
 import asyncio
 from textual.widgets import Input
 from edit_cfg_json import EditModel, row_chooses_type, row_type_text, \
-    row_type_texts, type_column_width
+    row_type_texts, type_column_widths
 from edit_cfg_json_textual.textual_editor import EditorApp
 from edit_cfg_json_textual.textual_elements import ADD_ACTION, \
     REMOVE_ACTION, element_id
-from edit_cfg_json_textual.textual_look import TYPE_ARROW_WIDTH, value_id
+from edit_cfg_json_textual.textual_look import TREE_INDENT, \
+    TYPE_ARROW_WIDTH, value_id
 from edit_cfg_json_textual.textual_member import TypeChooser
 from example.e18_declared_types import ReportConfig
 from example.e19_omitted_members import ReportConfig as OmittedReport
+from example.e20_union_types import ExportConfig
 from .helpers import ROOMY_SIZE, field_of, index_of, model_value, \
     panel_of, type_chooser_of, type_of
 
@@ -30,26 +32,50 @@ def test_every_row() -> None:
     """Test every row says the type it holds, in one column.
 
     A type is full of square brackets, which Textual would read as markup:
-    `tags` is the row that says `list[str]` and not `list`. Only the rows
-    whose type is the user's to choose have an active pull-down.
+    `tags` is the row that says `list[str]` and not `list`. Each pull-down is
+    as wide as the core says, which is narrower the deeper its row is, so
+    that every one of them ends in the same column of the screen. Only the
+    rows whose type is the user's to choose have an active pull-down.
     """
     model = EditModel(ReportConfig())
 
-    async def run() -> tuple[list[str], set[int], list[bool]]:
+    async def run() -> tuple[list[str], list[int], set[int], list[bool]]:
         app = EditorApp(model)
         async with app.run_test(size=ROOMY_SIZE) as pilot:
             await pilot.pause()
             names = [row.name for row in model.rows]
             choosers = [type_chooser_of(app, name) for name in names]
             return ([type_of(app, name) for name in names],
-                    {chooser.size.width for chooser in choosers},
+                    [chooser.size.width for chooser in choosers],
+                    {chooser.region.right for chooser in choosers},
                     [chooser.disabled for chooser in choosers])
-    shown, widths, disabled = asyncio.run(run())
+    shown, widths, ends, disabled = asyncio.run(run())
+    texts = type_column_widths(model, measure=len, indent=TREE_INDENT)
     assert shown == [row_type_text(row) for row in model.rows]
     assert 'list[str]' in shown
-    assert widths == {type_column_width(model) + TYPE_ARROW_WIDTH}
+    assert widths == [width + TYPE_ARROW_WIDTH for width in texts]
+    assert len(ends) == 1
     assert disabled == [not row_chooses_type(row) for row in model.rows]
     assert True in disabled and False in disabled
+
+
+def test_column_end() -> None:
+    """Test the pull-downs of nested rows end where the member's does.
+
+    The example of the complaint has a long type on its member and short
+    ones up to three containers inside it, all of them on the screen when it
+    opens.
+    """
+    model = EditModel(ExportConfig())
+
+    async def run() -> set[int]:
+        app = EditorApp(model)
+        async with app.run_test(size=ROOMY_SIZE) as pilot:
+            await pilot.pause()
+            return {chooser.region.right
+                    for chooser in app.query(TypeChooser)}
+    assert {row.depth for row in model.rows} == {0, 1, 2, 3}
+    assert len(asyncio.run(run())) == 1
 
 
 def _picked(name: str, text: str) -> EditModel:

@@ -1152,6 +1152,47 @@ their rows again after a choice.
   of its own rather than in it; `tk_editor` and `textual_panel` did not
   change.
 
+**What its review found.** The column of the types in Tk was far wider than
+its types, and ended further to the right on every step into a container,
+which e20 made plain: its member is `dict[str, list[str] | list[list[str]]]`
+and the rows inside it are `list[str]` and `str`.
+
+- **Tk counts a width in characters in widths of `0`.** A type is mostly
+  brackets and narrow letters, so the 38 characters of e20's member measured
+  182 pixels in `TkDefaultFont` and the button asked for 378. A menu button
+  that shows an image is told its width in pixels instead, so the pull-down
+  shows a blank image of one pixel beside its text, written in `TYPE_FONT`,
+  and is given the width of that text as `tkinter.font.Font.measure` says it.
+  Its height is what it was.
+- **The column ends in one place.** A row is indented once per container and
+  its pull-down is now narrower by as much, so the values of every row begin
+  in one column, which is what section 4.12 of the design already said they
+  did. The end is where the longest type of any row ends after its
+  indentation, so the deepest row decides where it is longest, and every row
+  is still counted, so folding moves nothing. Textual does the same in cells.
+- **A value's row began 26 pixels left of a container's beside it.** The
+  empty space where a value has no control to fold was a label of two
+  characters, 24 pixels, and the control is a button of two characters,
+  which macOS draws 50 pixels wide; the screenshot of the review shows it at
+  `separator`. That is older than this step, and it was found by measuring
+  where each pull-down of e20 ends. The space is now `tk_look.fold_space`, an
+  empty frame as wide as a fold button made to be measured and destroyed.
+- **`type_column_width` became `type_column_widths`**, one width per row,
+  given how to measure a text and how far a step indents: a cell for Textual
+  and a pixel of the font for Tk. It and the four other functions of the
+  column moved from `model_text`, which had passed 1000 lines, to a module
+  `type_column` of their own.
+- **The name column is too wide in Tk for the same reason**, 24 widths of `0`
+  where the names are mostly lower-case letters. It was left as it is, to keep
+  this correction to what the review asked for.
+
+| Name | Kind |
+| --- | --- |
+| `type_column_widths` | the width of the pull-down of the types of each row, replacing `type_column_width` |
+| `type_column` | the module of the column of the types, moved out of `model_text` |
+| `tk_look.TYPE_FONT`, `tk_look.BLANK_WIDTH`, `tk_types.type_widths` | the font the Tk pull-down is measured in, its blank image, and the widths measured in it |
+| `tk_look.fold_button`, `tk_look.fold_space` | the Tk control that folds a container, and the space as wide as it on a row with nothing to fold |
+
 #### Step 31D - Choosing between an object and `None`
 
 **What it does.** An `OPTIONAL_MEMBER` and a key that `DICT_VALUE_BY_KEY`

@@ -140,6 +140,7 @@
   * [\_tk\_key](#edit_cfg_json_tk.key_names._tk_key)
   * [tk\_sequence](#edit_cfg_json_tk.key_names.tk_sequence)
 * [edit\_cfg\_json\_tk.tk\_types](#edit_cfg_json_tk.tk_types)
+  * [type\_widths](#edit_cfg_json_tk.tk_types.type_widths)
   * [TypeWidget](#edit_cfg_json_tk.tk_types.TypeWidget)
     * [\_\_init\_\_](#edit_cfg_json_tk.tk_types.TypeWidget.__init__)
     * [show](#edit_cfg_json_tk.tk_types.TypeWidget.show)
@@ -149,6 +150,8 @@
   * [PADDING](#edit_cfg_json_tk.tk_look.PADDING)
   * [DESCRIPTION\_INDENT](#edit_cfg_json_tk.tk_look.DESCRIPTION_INDENT)
   * [TREE\_INDENT](#edit_cfg_json_tk.tk_look.TREE_INDENT)
+  * [TYPE\_FONT](#edit_cfg_json_tk.tk_look.TYPE_FONT)
+  * [BLANK\_WIDTH](#edit_cfg_json_tk.tk_look.BLANK_WIDTH)
   * [FOLD\_WIDTH](#edit_cfg_json_tk.tk_look.FOLD_WIDTH)
   * [ELEMENT\_WIDTH](#edit_cfg_json_tk.tk_look.ELEMENT_WIDTH)
   * [FIND\_WIDTH](#edit_cfg_json_tk.tk_look.FIND_WIDTH)
@@ -163,6 +166,8 @@
   * [MEMBER\_FIELD\_NAME](#edit_cfg_json_tk.tk_look.MEMBER_FIELD_NAME)
   * [edit\_field](#edit_cfg_json_tk.tk_look.edit_field)
   * [choice\_field](#edit_cfg_json_tk.tk_look.choice_field)
+  * [fold\_button](#edit_cfg_json_tk.tk_look.fold_button)
+  * [fold\_space](#edit_cfg_json_tk.tk_look.fold_space)
   * [type\_field](#edit_cfg_json_tk.tk_look.type_field)
   * [menu\_of](#edit_cfg_json_tk.tk_look.menu_of)
   * [fill\_menu](#edit_cfg_json_tk.tk_look.fill_menu)
@@ -1035,7 +1040,8 @@ after the scope was made.
 #### \_add\_row
 
 ```python
-def _add_row(parent: tkinter.Misc, row: core.MemberRow) -> RowWidgets
+def _add_row(parent: tkinter.Misc, row: core.MemberRow,
+             type_width: int) -> RowWidgets
 ```
 
 Create the widgets of one node, and its description below them.
@@ -1047,7 +1053,8 @@ also what folding takes out of the layout, which is why it is not
 packed here but by `_show_rows`.
 
 Its type stands between its name and its value, which reads as
-Python's `name: type = value`.
+Python's `name: type = value`, in a pull-down `type_width` pixels
+wide.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._rows_changed"></a>
 
@@ -1117,8 +1124,8 @@ def _add_fold(parent: tkinter.Misc,
 
 Create the control that folds one container, if it is one.
 
-A node that holds nothing gets a label of the same width instead of
-no widget at all, so that the names of a container and of a value
+A node that holds nothing gets an empty space of the same width instead
+of no widget at all, so that the names of a container and of a value
 beside it begin in the same column. A configuration with nothing to
 fold anywhere gets no column at all, because a column that could
 never hold anything is width taken from the values for nothing.
@@ -2266,6 +2273,32 @@ because it is a piece of window with a life of its own — a button, a menu, and
 what the two of them were last told — and because `tk_editor` is the module of
 this backend that is nearest to being too long to read.
 
+<a id="edit_cfg_json_tk.tk_types.type_widths"></a>
+
+#### type\_widths
+
+```python
+def type_widths(parent: tkinter.Misc,
+                model: core.EditModel) -> tuple[int, ...]
+```
+
+Return how wide in pixels the pull-down of the types of each row is.
+
+They are measured in the font the pull-downs write their types in, because
+the characters of that font are not all as wide as each other, and a type
+is mostly narrow letters and brackets.
+
+**Arguments**:
+
+- `parent` - Widget of the editor, whose interpreter has the font.
+- `model` - Model whose rows are being shown.
+  
+
+**Returns**:
+
+  The width of the text of the pull-down of each row, in the order of
+  `EditModel.rows`.
+
 <a id="edit_cfg_json_tk.tk_types.TypeWidget"></a>
 
 ## TypeWidget Objects
@@ -2296,9 +2329,9 @@ Create the pull-down of the types of one node.
 
 - `parent` - Line of the node that is being shown.
 - `row` - Node to create the pull-down for.
-- `width` - Width in characters of the column of the types, which every
-  one of these is as wide as so that the values beside them
-  begin in one column.
+- `width` - Width in pixels of the text of this pull-down, which is
+  what `type_widths` gives the row, so that the column of the
+  types ends in one place and the values begin in one column.
 - `picked` - What choosing a type does, given the whole of that type as
   a Python type hint spells it. A menu entry says the type as the
   column shows it, which is cut where it is long, so each entry
@@ -2376,9 +2409,27 @@ rather than being a member of its own.
 Indentation in pixels of each step inside a list or a dict.
 
 The whole member is indented and not only its name, so that a name inside a
-container is never cut off by the column that the names share. What that costs
-is a value column that steps to the right with the tree, which is what a tree
-looks like.
+container is never cut off by the column that the names share. The pull-down
+of the types is narrower by as much on every step, so that the column of the
+types ends in one place and the values of every row begin in one column.
+
+<a id="edit_cfg_json_tk.tk_look.TYPE_FONT"></a>
+
+#### TYPE\_FONT
+
+Font of the pull-down of the types, which its width is measured in.
+
+<a id="edit_cfg_json_tk.tk_look.BLANK_WIDTH"></a>
+
+#### BLANK\_WIDTH
+
+Width and height in pixels of the blank image of a pull-down of the types.
+
+A menu button that shows an image is as wide as it is told in pixels, where
+one with only a text is told its width in widths of the character `0`, which
+is wider than most characters of a type and left much of the column empty.
+The image is what makes the width one in pixels, and it is blank and one pixel
+so that it takes nothing from the text but that pixel.
 
 <a id="edit_cfg_json_tk.tk_look.FOLD_WIDTH"></a>
 
@@ -2386,8 +2437,9 @@ looks like.
 
 Width in characters of the control that folds one container.
 
-Every row has one that wide, and the rows that hold nothing to fold have an
-empty one, so that the names of a container and of a value beside it line up.
+Every row has one, and the rows that hold nothing to fold have an empty space
+as wide as it is in pixels, so that the names of a container and of a value
+beside it line up; see `fold_space`.
 
 <a id="edit_cfg_json_tk.tk_look.ELEMENT_WIDTH"></a>
 
@@ -2597,13 +2649,59 @@ switches between typing and choosing.
 
   A pull-down of those values, showing that variable.
 
+<a id="edit_cfg_json_tk.tk_look.fold_button"></a>
+
+#### fold\_button
+
+```python
+def fold_button(parent: tkinter.Misc) -> tkinter.Button
+```
+
+Return the control that folds one container, without what it does.
+
+**Arguments**:
+
+- `parent` - Line of the node that is being shown.
+  
+
+**Returns**:
+
+  A button `FOLD_WIDTH` characters wide, not yet packed.
+
+<a id="edit_cfg_json_tk.tk_look.fold_space"></a>
+
+#### fold\_space
+
+```python
+def fold_space(parent: tkinter.Misc) -> tkinter.Frame
+```
+
+Return the empty space that a row with nothing to fold begins with.
+
+It is exactly as wide as the control that folds a container, which a
+label of as many characters is not: a platform draws a button wider than
+its text by its own frame, and on macOS a button of two characters takes
+50 pixels where a label of two takes 24, which moved the name, the type
+and the value of such a row to the left of those of a container beside
+it. The width is asked of a button made for the purpose and destroyed
+again, because Tk says how wide a widget is and not how wide one would be.
+
+**Arguments**:
+
+- `parent` - Line of the node that is being shown.
+  
+
+**Returns**:
+
+  An empty frame as wide as the control, not yet packed.
+
 <a id="edit_cfg_json_tk.tk_look.type_field"></a>
 
 #### type\_field
 
 ```python
-def type_field(parent: tkinter.Misc, shown: str, width: int,
-               active: bool) -> tkinter.Menubutton
+def type_field(parent: tkinter.Misc, shown: str, width: int, active: bool,
+               blank: tkinter.PhotoImage) -> tkinter.Menubutton
 ```
 
 Return the pull-down of the types one node may hold, without its menu.
@@ -2619,12 +2717,18 @@ It is out of the order the Tab key goes in, as Tk leaves every menu button
 and as the pull-down of the values is, so the key goes from one value to
 the next and the focus the editor opens with stays on the first value.
 
+It shows the blank image beside its text, which is what makes its width
+one in pixels, and it is told the width of its text and of that image.
+
 **Arguments**:
 
 - `parent` - Line of the node that is being shown.
 - `shown` - The type that node holds now.
-- `width` - Width in characters of the column of the types.
+- `width` - Width in pixels of the text of the pull-down, written in
+  `TYPE_FONT`.
 - `active` - Whether another type can be chosen in it.
+- `blank` - Image of `BLANK_WIDTH` pixels that shows nothing, which the
+  caller keeps alive for as long as the pull-down is.
   
 
 **Returns**:

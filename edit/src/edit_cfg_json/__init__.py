@@ -30,11 +30,12 @@ from edit_cfg_json.settings_file import SETTINGS_VARIABLE, SHARED_SETTINGS, \
 from edit_cfg_json.validation import ValidationVerdict
 from edit_cfg_json.model_text import can_fold, close_question, \
     docstring_text, find_text, fold_hides, load_text, model_as_text, \
-    model_title, overwrite_question, row_chooses, row_chooses_type, \
-    row_describes, row_description, row_diagnostic, row_fold_text, \
-    row_marks, row_subtree_text, row_type_choices, row_type_text, \
-    row_type_texts, row_validates, row_value_text, rows_shape, save_text, \
-    type_column_width, verdict_text
+    model_title, overwrite_question, row_chooses, row_describes, \
+    row_description, row_diagnostic, row_fold_text, row_marks, \
+    row_subtree_text, row_validates, row_value_text, rows_shape, save_text, \
+    verdict_text
+from edit_cfg_json.type_column import row_chooses_type, row_type_choices, \
+    row_type_text, row_type_texts, type_column_widths
 from edit_cfg_json.tree import path_text, text_path
 from edit_cfg_json.type_options import TypeOption
 from edit_cfg_json.exit_code import ExitCode
@@ -63,7 +64,7 @@ __all__ = ['EditModel', 'MemberRow', 'EditorBackend', 'Descriptions', 'edit',
            'row_fold_text', 'row_marks', 'row_subtree_text', 'row_validates',
            'row_type_choices', 'row_type_text', 'row_type_texts',
            'row_value_text', 'rows_shape',
-           'type_column_width',
+           'type_column_widths',
            'save_text', 'verdict_text', 'path_text', 'text_path',
            'DumpEditor', 'EcajVersionReporter', 'ExitCode',
            'add_file_options', 'default_config',

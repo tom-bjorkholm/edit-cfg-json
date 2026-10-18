@@ -10,10 +10,12 @@ said below a row about what the column cannot show.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Callable
+import operator
 import pytest
 from config_as_json import Config, ConfigPath
 from edit_cfg_json import EditModel, model_as_text, row_type_choices, \
-    row_type_text, row_type_texts, type_column_width
+    row_type_text, row_type_texts, type_column_widths
 from edit_cfg_json.descriptions import DECLARED_FORM, INFERRED_TEXT
 from edit_cfg_json.type_options import CUT_MARK, TYPE_COLUMN_LIMIT
 from .container_cfg import ByKeyCfg, LooseDictCfg, NestedCfg, UnionCfg
@@ -147,16 +149,45 @@ def test_column_width(config: Config, expected: int) -> None:
 
     Every type a row may hold is counted, and not only the one it holds, so
     that a row holding nothing is as wide as it will be once it holds a value.
+    Without an indentation every row is as wide as the column.
     """
-    assert type_column_width(EditModel(config)) == expected
+    widths = type_column_widths(EditModel(config), measure=len, indent=0)
+    assert set(widths) == {expected}
+
+
+def _double(text: str) -> int:
+    """Return how wide a text is in a font twice as wide as a terminal."""
+    return 2 * len(text)
+
+
+@pytest.mark.parametrize('measure, indent', [(len, 4), (len, 30),
+                                             (_double, 4)])
+def test_column_end_aligned(measure: Callable[[str], int],
+                            indent: int) -> None:
+    """Test the column ends in one place whatever the depth of a row.
+
+    A deeper row is indented further and its pull-down is narrower by as
+    much. No type of any row is cut by it, and the row that decides where the
+    column ends is exactly as wide as its longest type: the column is no wider
+    than it has to be. An indentation of 30 makes the deepest row the one that
+    decides, and 4 the member whose type is cut to the limit.
+    """
+    model = EditModel(UnionCfg())
+    widths = type_column_widths(model, measure=measure, indent=indent)
+    widest = [max(map(measure, row_type_texts(row))) for row in model.rows]
+    ends = {row.depth * indent + width
+            for row, width in zip(model.rows, widths, strict=True)}
+    assert len(ends) == 1
+    assert all(map(operator.ge, widths, widest))
+    assert any(map(operator.eq, widths, widest))
 
 
 def test_column_kept_folded() -> None:
     """Test folding a container away leaves the column as wide as it was."""
     model = EditModel(UnionCfg())
-    width = type_column_width(model)
+    widths = type_column_widths(model, measure=len, indent=4)
     model.toggle_fold(('columns',))
-    assert type_column_width(model) == width
+    assert type_column_widths(model, measure=len, indent=4) == widths
 
 
 def test_dump_says_the_types() -> None:

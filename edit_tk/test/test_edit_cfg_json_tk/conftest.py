@@ -6,8 +6,9 @@
 
 from collections.abc import Iterator
 import tkinter
+import tkinter.font
 import pytest
-from .stubs import FakeFlag, FakeVar, FakeWidget
+from .stubs import FakeFlag, FakeFont, FakeImage, FakeVar, FakeWidget
 
 STUBBED_WIDGETS = ('Frame', 'Label', 'Button', 'Checkbutton', 'Entry',
                    'Canvas', 'Scrollbar', 'Toplevel', 'Menubutton', 'Menu')
@@ -23,7 +24,7 @@ menu button with a menu on it, so the values it offers are recorded by the
 
 @pytest.fixture(name='stub_tk')
 def fixture_stub_tk(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Replace the Tkinter widget and variable classes with stubs.
+    """Replace the Tkinter widget, variable, image and font classes.
 
     It lives here rather than in `helpers`, because a fixture is found by the
     tests of a package through its `conftest`, and the four test modules of
@@ -34,6 +35,8 @@ def fixture_stub_tk(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         monkeypatch.setattr(tkinter, widget_name, FakeWidget)
     monkeypatch.setattr(tkinter, 'StringVar', FakeVar)
     monkeypatch.setattr(tkinter, 'BooleanVar', FakeFlag)
+    monkeypatch.setattr(tkinter, 'PhotoImage', FakeImage)
+    monkeypatch.setattr(tkinter.font, 'Font', FakeFont)
     yield
     _forget_stubs()
 

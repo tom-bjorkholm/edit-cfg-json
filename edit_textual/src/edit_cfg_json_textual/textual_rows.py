@@ -104,8 +104,9 @@ class PanelRows:
         self._folds = {}
         self._elements = {}
         self._built = core.rows_shape(self._model)
-        width = core.type_column_width(self._model)
-        return [self._member_widget(index=index, row=row, width=width)
+        widths = core.type_column_widths(self._model, measure=len,
+                                         indent=TREE_INDENT)
+        return [self._member_widget(index=index, row=row, width=widths[index])
                 for index, row in enumerate(self._model.rows)]
 
     def _member_widget(self, index: int, row: core.MemberRow,
@@ -121,7 +122,9 @@ class PanelRows:
             index: Place of the node among the rows, which its widgets are
                 identified by.
             row: Node to show.
-            width: Width in characters of the column of the types.
+            width: Width in cells of the text of its pull-down of the
+                types, which is narrower the deeper the node is, so that the
+                column of the types ends in one place.
 
         Returns:
             A widget holding the line of that node and what is said below it.
@@ -173,7 +176,9 @@ class PanelRows:
         Args:
             index: Place of the node among the rows.
             row: Node to create the pull-down for.
-            width: Width in characters of the column of the types.
+            width: Width in cells of the text of its pull-down of the
+                types, which is narrower the deeper the node is, so that the
+                column of the types ends in one place.
 
         Returns:
             The pull-down of the types of that node.

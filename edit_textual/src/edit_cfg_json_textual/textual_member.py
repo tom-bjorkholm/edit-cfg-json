@@ -71,8 +71,9 @@ class TypeChooser(Select[str]):
         Args:
             index: Place of the node among the rows.
             row: Node to create the pull-down for.
-            width: Width in characters of the column of the types, which every
-                one of these is as wide as so that the values beside them
+            width: Width in cells of the text of this pull-down, which is
+                what `edit_cfg_json.type_column_widths` gives the row, so
+                that the column of the types ends in one place and the values
                 begin in one column.
         """
         self._offered = core.row_type_choices(row)
