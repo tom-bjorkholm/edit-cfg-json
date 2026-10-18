@@ -4,8 +4,9 @@
 What this example adds is the members a class leaves out of the file
 altogether. Nothing at all is written for one of them while it holds nothing,
 so what is asserted here is first that every one of them has a row, and then
-what each of them offers: a text and a list are given a value, a nested
-configuration object is built, and a dict says why it cannot be.
+what each of them offers: a text and a list are given a value by choosing
+their type, a nested configuration object is built, and a dict says why it
+cannot be.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -21,9 +22,9 @@ from .helpers import DUMP_TAIL, data_file, dump, head, open_tk_ui, \
 HEAD = head(ReportConfig())
 """The lines that every dump of this example begins with."""
 
-NO_DICT = ('    A dict written for a member that holds none is refused by the '
-           'configuration class itself, which matches it against the dict the '
-           'member holds. So this member cannot be given one.')
+NO_DICT = ('    Declared as dict[str, int] | None. dict[str, int] is not '
+           'offered, because the configuration class matches a dict written '
+           'here against the dict it holds here, and it holds none.')
 """What it says below the one member that cannot be given a value.
 
 It is written out here rather than read from an internal module of the core, in
@@ -79,7 +80,8 @@ def test_starts_as_nothing(capsys: pytest.CaptureFixture[str]) -> None:
     printed = _dump(capsys)
     assert '\nnote: None\n' in printed
     assert 'audit: None, no AuditConfig' in printed
-    assert 'extra_hosts: None, no value' in printed
+    assert '\nextra_hosts: None\n' in printed
+    assert 'limits: None, no value' in printed
     assert 'validation: valid' in printed
     assert printed.endswith(f'validation: valid\n{DUMP_TAIL}')
 
@@ -105,19 +107,22 @@ def test_object_cleared_again(capsys: pytest.CaptureFixture[str]) -> None:
     assert 'validation: valid' in printed
 
 
-def test_list_two_presses(capsys: pytest.CaptureFixture[str]) -> None:
+def test_list_two_steps(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a member holding no list is given one, and then an element.
 
-    The first press is the two states of the member and the second is the
-    ordinary growing of a list, which is why it is two presses and not a rule
-    of its own.
+    The first step is choosing the type of the member, which is one of its two
+    states, and the second is the ordinary growing of a list, which is why it
+    is two steps and not a rule of its own.
     """
-    once = _dump(capsys, '--add', 'extra_hosts')
+    once = _dump(capsys, '--set-type', 'extra_hosts=list[str]')
     assert 'extra_hosts: list[str], 0 elements (edited)' in once
-    twice = _dump(capsys, '--add', 'extra_hosts', '--add', 'extra_hosts',
-                  '--set', 'extra_hosts.0=build-01')
+    twice = _dump(capsys, '--set-type', 'extra_hosts=list[str]', '--add',
+                  'extra_hosts', '--set', 'extra_hosts.0=build-01')
     assert 'extra_hosts: list[str], 1 element (edited)' in twice
     assert '    0: str = build-01 (edited)' in twice
+    refusal = refused(e19_omitted_members.main, capsys, '--ui', 'dump',
+                      '--add', 'extra_hosts')
+    assert 'Nothing can be added to extra_hosts' in refusal
 
 
 def test_note_by_type(capsys: pytest.CaptureFixture[str]) -> None:
@@ -137,10 +142,13 @@ def test_dict_says_why_not(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the member holding no dict says why it cannot be given one.
 
     `Config.check_dict_parse` refuses a dict written for a member that holds
-    none, so the control would be one that produces a refusal and there is no
-    control at all instead.
+    none, so its dict type is not offered, `None` is the one type it has, and
+    there is no control that would give it a value either.
     """
     assert NO_DICT in _dump(capsys)
+    refusal = refused(e19_omitted_members.main, capsys, '--ui', 'dump',
+                      '--set-type', 'limits=dict[str, int]')
+    assert 'The type of limits is not one to choose' in refusal
     refusal = refused(e19_omitted_members.main, capsys, '--ui', 'dump',
                       '--add', 'limits')
     assert 'Nothing can be added to limits' in refusal
@@ -209,6 +217,6 @@ def test_tk_shows_it(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_textual_shows_it(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test the Textual backend opens on this example and can be left."""
-    titles = textual_titles(e19_omitted_members.main, monkeypatch, '--add',
-                            'extra_hosts')
+    titles = textual_titles(e19_omitted_members.main, monkeypatch,
+                            '--set-type', 'extra_hosts=list[str]')
     assert titles == ['ReportConfig *']

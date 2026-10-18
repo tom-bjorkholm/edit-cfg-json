@@ -18,6 +18,7 @@ from config_as_json import ConfigPath
 from edit_cfg_json import EditModel, row_chooses_type, row_type_text, \
     row_type_texts, type_column_width
 from edit_cfg_json_tk.tk_editor import EditorWidgets
+from edit_cfg_json_tk.tk_elements import ADD_TEXT
 from example.e18_declared_types import ReportConfig
 from example.e19_omitted_members import ReportConfig as OmittedReport
 from .helpers import TwoTypesConfig, model_value, real_fields, real_types, \
@@ -30,6 +31,9 @@ SUBTITLE: ConfigPath = ('subtitle',)
 
 FOOTER: ConfigPath = ('footer',)
 """The member of the example declared `Optional[str]` and holding a value."""
+
+HOSTS: ConfigPath = ('extra_hosts',)
+"""The member of example 19 declared `Optional[list[str]]`."""
 
 
 def _report() -> EditModel:
@@ -194,3 +198,43 @@ def test_real_offer_follows(root_or_skip: tkinter.Tk) -> None:
     assert isinstance(menu, tkinter.Menu)
     assert (str(legacy.cget('text')), menu.entrycget(0, 'label'),
             menu.index('end')) == ('str', 'str', 0)
+
+
+def _controls(model: EditModel, widgets: EditorWidgets,
+              path: ConfigPath) -> list[str]:
+    """Return what the controls at the end of one row of one model say."""
+    return dict(zip([row.path for row in model.rows], widgets.element_texts,
+                    strict=True))[path]
+
+
+def test_stub_list_by_type(stub_tk: None) -> None:
+    """Test choosing a list gives the row a list, and `None` takes it away.
+
+    The row is made again as a container, with the control that adds an
+    element to it, and choosing `None` takes the list and that control away.
+    """
+    _ = stub_tk
+    model = EditModel(OmittedReport())
+    widgets = stub_editor(model)
+    assert _controls(model, widgets, HOSTS) == []
+    stub_pick(_type_widget(model, HOSTS), 'list[str]')
+    assert model_value(model, 'extra_hosts') == []
+    assert _controls(model, widgets, HOSTS) == [ADD_TEXT]
+    stub_pick(_type_widget(model, HOSTS), 'None')
+    assert model_value(model, 'extra_hosts') is None
+    assert _controls(model, widgets, HOSTS) == []
+
+
+def test_real_list_by_type(root_or_skip: tkinter.Tk) -> None:
+    """Test choosing a list in a real menu makes the row a container."""
+    model = EditModel(OmittedReport())
+    widgets = EditorWidgets(parent=root_or_skip, model=model)
+    index = [row.path for row in model.rows].index(HOSTS)
+    menu = root_or_skip.nametowidget(
+        str(real_types(root_or_skip)[index].cget('menu')))
+    assert isinstance(menu, tkinter.Menu)
+    assert menu.entrycget(0, 'label') == 'list[str]'
+    menu.invoke(0)
+    assert model_value(model, 'extra_hosts') == []
+    assert str(real_types(root_or_skip)[index].cget('text')) == 'list[str]'
+    assert _controls(model, widgets, HOSTS) == [ADD_TEXT]

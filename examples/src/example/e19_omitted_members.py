@@ -36,20 +36,21 @@ so a run against that file starts with every one of them holding nothing:
   the one worth pressing in an editor: adding it builds an object of that
   class holding its own declared values, and the rows of that object appear
   below it.
-- `extra_hosts` — an `Optional[list[str]]`. It takes two presses to get an
-  element: the first gives the member the empty list, which is what its class
-  says the member holds, and the second gives that list an element, which is
-  what `list[str]` says an element of it is. That is not a special case; it is
-  the two states of the member and then the ordinary growing of a list.
+- `extra_hosts` — an `Optional[list[str]]`, which is `list[str] | None`. It
+  takes two steps to get an element: choosing `list[str]` in the pull-down of
+  its type gives the member the empty list, and the control of that list then
+  gives it an element, which is what `list[str]` says an element of it is.
+  That is not a special case; it is the two states of the member and then the
+  ordinary growing of a list.
 - `limits` — an `Optional[dict[str, int]]`, and the one member here that
-  cannot be given a value. It says why below its own row, which is the section
-  after next.
+  cannot be given a value. Its pull-down offers `None` alone, and the line
+  below its row says why, which is the section after next.
 - `legacy` — assigned with no annotation at all. Nothing says what it would
   hold, so it has no second state to move to and is an ordinary field showing
   `null`, which is a value the user can type over and type back.
 
-Run it, and press the controls at the end of each row and choose in the
-pull-down of the type of `note`:
+Run it, press the control at the end of the row of `audit`, and choose in the
+pull-downs of the types of `note` and `extra_hosts`:
 
 ````sh
 python3 examples/src/example/e19_omitted_members.py --ui tk
@@ -99,7 +100,7 @@ python3 e19_omitted_members.py --ui dump -i ../../data/e19_report.json
 python3 e19_omitted_members.py --ui tk -i ../../data/e19_report.json
 ````
 
-## Two presses for a list, and none at all for a dict
+## Two steps for a list, and none at all for a dict
 
 `extra_hosts` and `limits` are declared alike — a member that may hold nothing,
 holding a container of ordinary values — and one of them can be given a value
@@ -108,23 +109,28 @@ while the other cannot. The difference is not the editor's rule; it is what
 
 ````sh
 cd examples/src/example
-python3 e19_omitted_members.py --ui dump --add extra_hosts
-python3 e19_omitted_members.py --ui dump --add extra_hosts --add extra_hosts \
-    --set extra_hosts.0=build-01
-python3 e19_omitted_members.py --ui dump --add limits
+python3 e19_omitted_members.py --ui dump --set-type 'extra_hosts=list[str]'
+python3 e19_omitted_members.py --ui dump --set-type 'extra_hosts=list[str]' \
+    --add extra_hosts --set extra_hosts.0=build-01
+python3 e19_omitted_members.py --ui dump --set-type 'limits=dict[str, int]'
 ````
+
+The quotation marks are for the shell, which would otherwise read the square
+brackets as a pattern of file names.
 
 A **dict** written for a member that holds none is refused by the
 configuration class itself: `Config.check_dict_parse` matches a dict in the
 file against the dict the member holds, and a member holding nothing holds no
 dict to match it with. So even the empty dict would be refused, and the editor
-says so below the row instead of offering a control that produces a refusal.
-It is the same check that stops an ordinary dict member gaining a key, which
-example 11 is about.
+leaves `dict[str, int]` out of the pull-down of the row and says why below it,
+instead of offering a type that produces a refusal. It is the same check that
+stops an ordinary dict member gaining a key, which example 11 is about, and
+example 20 shows where it does not reach.
 
 A **list** has no such check, so the empty list reaches the file and the member
-can then be grown in the ordinary way. The last command above adds nothing and
-says so, because the control it presses does not exist.
+can then be grown in the ordinary way. The last command above changes nothing
+and says so, because `None` is the one type `limits` is offered: there is
+nothing to choose.
 
 ## What the application still decides
 
@@ -236,12 +242,13 @@ class ReportConfig(Config):
         # while there is none. This is the case that had no row at all before
         # the editor asked the object instead of the file.
         self.audit: Optional[AuditConfig] = None
-        # A list that may be absent rather than empty. Two presses reach an
-        # element: the member takes the empty list, and the list takes text.
+        # A list that may be absent rather than empty. Two steps reach an
+        # element: choosing `list[str]` gives the member the empty list, and
+        # the control of that list gives it text.
         self.extra_hosts: Optional[list[str]] = None
         # Declared exactly like the list above, and the one member here that
         # cannot be given a value: the class refuses a dict written for a
-        # member that holds none.
+        # member that holds none, so `None` is the one type it is offered.
         self.limits: Optional[dict[str, int]] = None
         # The one member with no annotation, so nothing says what it would
         # hold. It has one state rather than two, and shows `null` in a field.

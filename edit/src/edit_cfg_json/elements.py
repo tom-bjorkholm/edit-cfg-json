@@ -31,14 +31,15 @@ everything else explanatory.
 **Which dicts those are is a question about where the dict sits.**
 `Config.check_dict_parse` is applied once per member and recurses from there
 into the dict values of that member, so it reaches a dict only where it was
-applied to the member at all and where every step down was into a dict. Three
-things stop it, and `_holds_elements` is where all three are asked: a member
-named in `nested_configs()`, which `config_as_json` reads whole instead; a
-member named in `_unchecked_dicts`, whose key policy the class defines with
-validators of its own; and a list between the member and the dict, which the
-recursion cannot step into. A dict the check does not reach is an ordinary
-container here, and what the application's own validators make of a new key is
-the ordinary verdict.
+applied to the member at all and where every step down was into a dict that
+the object it checks against holds. What stops it is `dict_check`, which is
+also what says which types a node may be given: a member named in
+`nested_configs()`, which `config_as_json` reads whole instead; a place named
+in `_unchecked_dicts`, whose key policy the class defines with validators of
+its own; and a list between the member and the dict, which the recursion
+cannot step into. A dict the check does not reach is an ordinary container
+here, and what the application's own validators make of a new key is the
+ordinary verdict.
 
 **A member whose values are of two kinds is asked twice.** A
 `DICT_VALUE_BY_KEY` declaration names one key of a dict that holds a
@@ -72,14 +73,17 @@ from io import StringIO
 from typing import NamedTuple, Optional, TextIO
 from config_as_json import ConfigNesting, ConfigNestingKind, ConfigPath, \
     JsonType, ParseConverter
+from edit_cfg_json.converting import node_converters
+from edit_cfg_json.dict_check import DictCheck, dict_check, dict_shape, \
+    keys_checked
 from edit_cfg_json.loader import ConfigSource
-from edit_cfg_json.member_types import node_types, nothing_allowed
+from edit_cfg_json.member_types import KeptTypes, node_types, nothing_allowed
 from edit_cfg_json.placing import new_object
 from edit_cfg_json.tree import ConfigNode, by_key_nestings, member_nestings, \
-    member_values, owner_path, unchecked_members
+    member_values, omitted_paths
 from edit_cfg_json.type_choice import offered_types
 from edit_cfg_json.type_options import TypeOption, choosable, \
-    empty_option_value, held_option, value_option
+    empty_option_value, fits, held_option, kept_choice, value_option
 
 BUILD_ERRORS = (AttributeError, KeyError, TypeError, ValueError)
 """Every way in which constructing a configuration class can fail.
@@ -151,20 +155,6 @@ declared keys of it are answered by the class each of them names, and every
 other key holds an ordinary value that only the application can have said
 anything about. A member that says this can still be given the objects its
 declarations name, at the row of each of those keys.
-"""
-
-NO_DICT_YET = ('A dict written for a member that holds none is refused by '
-               'the configuration class itself, which matches it against the '
-               'dict the member holds. So this member cannot be given one.')
-"""What a member declared to allow no value says instead of taking a dict.
-
-`Config.check_dict_parse` refuses a dict written for a member whose value is
-not one — *Unexpected dictionary for X in JSON data* — whatever keys it has and
-even where it has none, so the empty dict of design section 4.2 of
-`doc/detailed_design.md` is the one kind of value that such a member cannot be
-given. It is the first bullet of section 4.9 one step up: what refuses a dict
-here is the same check that refuses a new key of one, and offering the control
-anyway would be offering one that produces a refusal.
 """
 
 NO_ENTRY_PATTERN = ('Nothing says what an entry of this dict would be: this '
@@ -311,8 +301,19 @@ class TreeFacts(NamedTuple):
     the mapping above answers for the member holding it.
     """
 
-    unchecked: frozenset[ConfigPath]
-    """Every dict member whose keys its own class does not check."""
+    check: DictCheck
+    """What says where the check of the dicts of a file reaches."""
+
+    converters: Mapping[ConfigPath, ParseConverter]
+    """One parse converter per node of the tree that has one."""
+
+    omitted: frozenset[ConfigPath]
+    """Every node that the file holds no key for while it holds nothing.
+
+    A member its own class may leave out is one, and a key that a class
+    declared a configuration object at is the other. No converter is ever
+    asked about either while it holds nothing.
+    """
 
     declared: Mapping[ConfigPath, tuple[TypeOption, ...]]
     """The types the class owning each node declares it to hold."""
@@ -328,9 +329,16 @@ class TreeFacts(NamedTuple):
     """Why each declared type that a node is not offered is left out."""
 
     nothing: frozenset[ConfigPath]
-    """Every member that has the two states of holding a value and nothing.
+    """Every node for which holding nothing is a state rather than a value.
 
-    `member_types.nothing_allowed` is what says which members those are.
+    `member_types.nothing_allowed` is what says which nodes those are.
+    """
+
+    held: Mapping[ConfigPath, TypeOption]
+    """The type each node whose type the user chooses holds, by its path.
+
+    It is what says what an element of a container of a chosen type is, where
+    the value cannot: `[]` is a `list[str]` and a `list[list[str]]`.
     """
 
     defaults: Mapping[str, JsonType]
@@ -383,33 +391,35 @@ def declared_values(source: ConfigSource, stream: TextIO) -> dict[str,
 
 def tree_facts(nodes: Mapping[ConfigPath, ConfigNode],
                flat: Sequence[tuple[ConfigPath, JsonType]],
-               defaults: Mapping[str, JsonType],
-               converters: Mapping[ConfigPath, ParseConverter],
-               omitted: frozenset[ConfigPath]) -> TreeFacts:
+               defaults: Mapping[str, JsonType], kept: KeptTypes) -> TreeFacts:
     """Return everything that saying what one tree offers needs.
 
     Args:
         nodes: Every configuration object of the tree, by its path.
         flat: The path and the value of every node, in row order.
         defaults: The values that the class of the configuration declares.
-        converters: One parse converter per node of the tree that has one,
-            which is what says which declared types the class would refuse.
-        omitted: Every node that the file holds no key for while it holds
-            nothing, which no converter is ever asked about.
+        kept: The types the user chose before these rows were built, and
+            whether a validation pass is what they are built from.
 
     Returns:
         The facts that one offer per node is made from.
     """
-    declared = node_types(nodes=nodes, flat=flat)
+    values = dict(flat)
+    converters = node_converters(nodes=nodes, flat=flat)
+    omitted = omitted_paths(nodes)
+    check = dict_check(nodes)
+    declared = node_types(nodes=nodes, flat=flat, kept=kept)
     offered = {path: offered_types(options=options,
                                    converter=converters.get(path),
-                                   omitted=path in omitted)
+                                   omitted=path in omitted,
+                                   holds_dict=dict_shape(path=path,
+                                                         check=check))
                for path, options in declared.items()}
     types = {path: offer.offered for path, offer in offered.items()}
-    return TreeFacts(values=dict(flat), nodes=nodes,
+    return TreeFacts(values=values, nodes=nodes,
                      nestings=member_nestings(nodes),
-                     by_key=by_key_nestings(nodes),
-                     unchecked=unchecked_members(nodes), declared=declared,
+                     by_key=by_key_nestings(nodes), check=check,
+                     converters=converters, omitted=omitted, declared=declared,
                      types=types,
                      refusals={path: offer.refusals
                                for path, offer in offered.items()},
@@ -417,7 +427,25 @@ def tree_facts(nodes: Mapping[ConfigPath, ConfigNode],
                          path for path, options in types.items()
                          if nothing_allowed(path=path, options=options,
                                             nodes=nodes)),
+                     held=_held_types(types=types, values=values, kept=kept),
                      defaults=defaults, made={})
+
+
+def _held_types(types: Mapping[ConfigPath, tuple[TypeOption, ...]],
+                values: Mapping[ConfigPath, JsonType],
+                kept: KeptTypes) -> dict[ConfigPath, TypeOption]:
+    """Return the type each node whose type the user chooses holds.
+
+    A node that has just appeared holds the first type its value fits, one
+    that was there keeps the type it held, and a validation pass that left a
+    node a value its type does not fit makes the value say which type it
+    holds, as `type_options.kept_choice` says.
+    """
+    found = ((path, kept_choice(options=options, value=values[path],
+                                chosen=kept.chosen.get(path),
+                                refreshing=kept.refreshing))
+             for path, options in types.items() if choosable(options))
+    return {path: held for path, held in found if held is not None}
 
 
 def element_offers(facts: TreeFacts) -> dict[ConfigPath, ElementOffer]:
@@ -476,10 +504,10 @@ def _new_value(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
     holding none. That is what settled the open question at the end of design
     section 4.2 — the user chooses between the states the class allowed.
 
-    A member declared to hold a dict is the one that cannot be given a value,
-    for the reason `NO_DICT_YET` gives: the class refuses a dict written for a
-    member that holds none, so the control would be one that produces a
-    refusal.
+    A type the class would refuse is not among the types of the member at
+    all, as `type_choice.offered_types` says, so the value it is given is one
+    the class accepts: a member declared to hold a dict, where the class holds
+    no dict to match one against, has no first type to give it.
 
     A member whose type the user chooses is given a value by choosing one of
     its types, so it offers neither of the two controls (section 4.12 of
@@ -490,8 +518,6 @@ def _new_value(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
     if facts.values[path] is not None or path not in facts.nothing \
             or first is None or choosable(types):
         return ElementOffer()
-    if first.kind is dict:
-        return ElementOffer(refusal=NO_DICT_YET)
     return ElementOffer(extend=True, template=empty_option_value(first))
 
 
@@ -531,9 +557,11 @@ def _growing_list(path: ConfigPath, facts: TreeFacts,
     nesting = facts.nestings.get(path)
     if nesting is not None and nesting.kind is ConfigNestingKind.LIST_ELEMENT:
         return _from_class(nesting=nesting, facts=facts, keyed=False)
-    pattern = _declared_element(path=path, facts=facts)
-    if pattern is None and value:
-        pattern = value[0]
+    held = (_declared_element(path=path, facts=facts),
+            value[0] if value else None)
+    pattern = next((one for one in held
+                    if _fits_inside(path=path, facts=facts, pattern=one)),
+                   None)
     if pattern is None:
         pattern = _typed_element(path=path, facts=facts)
     if pattern is None:
@@ -551,9 +579,38 @@ def _typed_element(path: ConfigPath, facts: TreeFacts) -> Optional[JsonType]:
     case design section 11 of `doc/detailed_design.md` had put out of scope
     while the kind of an element was unknowable.
     """
-    held = held_option(facts.types.get(path, ()), facts.values[path])
-    first = None if held is None else value_option(held.inside)
+    first = value_option(_inside(path=path, facts=facts))
     return None if first is None else empty_option_value(first)
+
+
+def _inside(path: ConfigPath, facts: TreeFacts) -> tuple[TypeOption, ...]:
+    """Return the types one element of one container may hold.
+
+    They are what is inside the type the container holds: the one the user
+    chose where its type is chosen, because `[]` is a `list[str]` and a
+    `list[list[str]]` alike, and the one its value is otherwise.
+    """
+    held = facts.held.get(path)
+    if held is None:
+        held = held_option(facts.types.get(path, ()), facts.values[path])
+    return () if held is None else held.inside
+
+
+def _fits_inside(path: ConfigPath, facts: TreeFacts,
+                 pattern: JsonType) -> bool:
+    """Return whether one value may be copied into one container as an element.
+
+    A container whose type the user chose takes a value of what that type
+    holds and nothing else: what the class declares for a `list[str]` is no
+    element of the `list[list[str]]` the user chose instead. Every other
+    container takes what the application wrote, which says more about what
+    belongs in it than its declared kind does.
+    """
+    if pattern is None:
+        return False
+    inside = _inside(path=path, facts=facts)
+    return path not in facts.held or not inside or \
+        any(fits(option, pattern) for option in inside)
 
 
 def _growing_dict(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
@@ -593,7 +650,7 @@ def _ordinary_entry(path: ConfigPath, facts: TreeFacts,
     """Return what an entry of one dict that no declaration names holds."""
     for held in (_at_path(path=path, facts=facts), facts.values[path]):
         found = _first_entry(value=held, named=named)
-        if found is not None:
+        if _fits_inside(path=path, facts=facts, pattern=found):
             return found
     return _typed_element(path=path, facts=facts)
 
@@ -675,18 +732,6 @@ def _step_into(value: JsonType, step: str) -> JsonType:
     return None
 
 
-def _member_path(path: ConfigPath, facts: TreeFacts) -> ConfigPath:
-    """Return the path of the member of a configuration one node is in.
-
-    A node is inside exactly one member of exactly one configuration object,
-    and that member is where the declared-keys check begins: `parse_json`
-    applies it once per member, so which member this is says whether the check
-    runs at all and the steps below it say how far it got.
-    """
-    owner = owner_path(path=path, nodes=facts.nodes)
-    return path[:len(owner) + 1]
-
-
 def _clearable(path: ConfigPath, facts: TreeFacts) -> bool:
     """Return whether removing one node puts it back to holding nothing.
 
@@ -750,52 +795,18 @@ def _holds_elements(path: ConfigPath, facts: TreeFacts) -> bool:
     """Return whether the entries of one dict are elements of it.
 
     They are wherever the check that matches a dict against the keys its class
-    declares does not reach that dict. `Config.check_dict_parse` is the check,
-    `parse_json` applies it once per member, and it recurses from there into
-    the dict values of that member, so where the dict sits is what decides and
-    not which member it is in. Three things stop it.
-
-    - The member is named in `nested_configs()`. `config_as_json` reads such a
-      member whole and the check is never applied to it, so nothing anywhere
-      inside it is checked: an entry of a `DICT_VALUE` member is one case, and
-      a dict at any depth under a key of a `DICT_VALUE_BY_KEY` member that no
-      declaration names is another.
-    - The member is named in `_unchecked_dicts`. The check returns at the
-      member before it looks at a key, so the whole of the member is
-      unchecked and its key policy is the application's own.
-    - A list lies between the member and this dict. The recursion steps into a
-      dict value and returns as soon as neither side is a dict, so a list
-      anywhere above stops it and never reaches what is below.
+    declares does not reach that dict, or reaches it and returns there. That
+    check is `Config.check_dict_parse`, and `dict_check.keys_checked` is where
+    it is asked whether it reaches one dict: not inside a member named in
+    `nested_configs()`, which `config_as_json` reads whole, not past a place
+    named in `_unchecked_dicts`, and not below a list.
 
     It is one question rather than three, because adding an entry and taking
     one out are the same question about the same dict: a dict that can gain a
     key can lose one, and the sentence that says why neither is offered is
     about the check that refuses both.
     """
-    member = _member_path(path=path, facts=facts)
-    return member in facts.nestings or member in facts.unchecked \
-        or _under_list(path=path, member=member, facts=facts)
-
-
-def _under_list(path: ConfigPath, member: ConfigPath,
-                facts: TreeFacts) -> bool:
-    """Return whether a list lies between one dict and its own member.
-
-    The value at each step is what is asked and not the step itself, because a
-    dict is free to have a key called `0`: an index is an index only where the
-    value holding it is a list.
-
-    Args:
-        path: Path of the dict to answer for.
-        member: Path of the member of a configuration object it is in.
-        facts: What the tree is, and what its class declares.
-
-    Returns:
-        Whether any of the values from that member down to the value holding
-        this dict is a list.
-    """
-    return any(isinstance(facts.values.get(path[:depth]), list)
-               for depth in range(len(member), len(path)))
+    return not keys_checked(path=path, check=facts.check)
 
 
 def grown(value: JsonType, key: str, template: JsonType) -> JsonType:

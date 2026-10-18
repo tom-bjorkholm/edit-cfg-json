@@ -234,15 +234,19 @@ def test_allowed_values(hint: object, expected: tuple[str, ...]) -> None:
                          [(int | str, True), (Optional[float], True),
                           (Optional[Colour], True), (bool | str, True),
                           (Literal['a'] | int, True), (int, False),
-                          (Optional[list[str]], False),
+                          (Optional[list[str]], True),
+                          (Optional[dict[str, int]], True),
+                          (int | list[int], True),
                           (Optional[InnerCfg], False), (Path | None, False),
-                          (list[str] | list[list[str]], False)])
+                          (InnerCfg | dict[str, int], False),
+                          (list[str] | list[list[str]], True)])
 def test_choosable(hint: object, expected: bool) -> None:
     """Test which declarations leave the type of a node to the user.
 
-    They are those of more than one type, every one of them a plain value or
-    `None`: an enum and a `Literal` are plain values, and a container, a
-    configuration class and another class of the application are not.
+    They are those of more than one type, every one of them a plain value, a
+    list, a dict or `None`: an enum and a `Literal` are plain values, and a
+    configuration class and another class of the application are not, even
+    though the first of them is written as a dict.
     """
     assert choosable(type_options(hint)) is expected
 

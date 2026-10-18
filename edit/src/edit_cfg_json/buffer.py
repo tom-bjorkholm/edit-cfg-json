@@ -33,9 +33,7 @@ from edit_cfg_json.leaf_value import text_as_value
 from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.rows import BufferState, MemberRow, built_rows, stamped
 from edit_cfg_json.tree import assembled, member_values, starts_folded
-from edit_cfg_json.type_choice import chosen_option, kept_choice, \
-    switched_value
-from edit_cfg_json.type_options import TypeOption
+from edit_cfg_json.type_choice import chosen_option, switched_value
 from edit_cfg_json.validation import SubtreeAnswer
 
 NOT_EDITABLE_ERROR = 'Member {name} is not a value that can be edited.'
@@ -200,7 +198,6 @@ class EditBuffer:
         self._folds_new = True
         self._search = FindState()
         self._answers: dict[ConfigPath, SubtreeAnswer] = {}
-        self._chosen_types: dict[ConfigPath, TypeOption] = {}
         self._rows: dict[ConfigPath, MemberRow] = {}
         self._rebuild(config=config, previous={},
                       members=member_values(config=config,
@@ -590,8 +587,9 @@ class EditBuffer:
         What it held is kept where its text means a value of the new type and
         is otherwise the empty value of that type, as `switched_value` says,
         and the rows are built again around it, as they are when an element
-        is added: a node that holds nothing and one that holds a value are
-        different rows.
+        is added: a node that holds nothing, one that holds a value and one
+        that holds a container are different rows, and what was held for a
+        node inside a container it held is gone with that node.
 
         Args:
             config: Configuration object of the session, which says which
@@ -613,8 +611,7 @@ class EditBuffer:
                                name=row.full_name)
         if option == row.chosen_type:
             return False
-        self._chosen_types[path] = option
-        self._rows[path] = row._replace(conversion='',
+        self._rows[path] = row._replace(held=option, conversion='',
                                         changed_by_validator=False)
         self._restructured(config=config, path=path,
                            value=switched_value(option, row.value), moved={})
@@ -654,8 +651,9 @@ class EditBuffer:
 
         Everything the buffer holds about a node is held under the path of
         that node, and an element of a list is addressed by where it is, so
-        the fold state, what each object said about itself, the type the user
-        chose and what each row is compared against all move with the values.
+        the fold state, what each object said about itself, and the row with
+        what it is compared against and the type the user chose all move with
+        the values.
 
         Args:
             config: Configuration object of the session, which now holds the
@@ -668,7 +666,6 @@ class EditBuffer:
         self._hold_again(path)
         self._folded = set(_new_paths(self._folded, moved).values())
         self._answers = _carried(self._answers, moved)
-        self._chosen_types = _carried(self._chosen_types, moved)
         self._follow(moved)
         self._rebuild(config=config, members=self.values(),
                       previous=_renamed(rows=self._rows, moved=moved))
@@ -751,31 +748,10 @@ class EditBuffer:
                                 descriptions=self._descriptions,
                                 previous=previous, defaults=self._defaults,
                                 refreshing=refreshing)
-        self._keep_held(refreshing)
         self._fold_new(previous)
         self._forget_gone()
         self._refind()
         self._stamp()
-
-    def _keep_held(self, refreshing: bool) -> None:
-        """Keep the type of every node whose type the user chooses.
-
-        A node that has just appeared holds the first type its value fits,
-        one that was there keeps the type it held, and a validation pass that
-        left a node a value its type does not fit makes the value say which
-        type it holds: a validator may change a value into one of another
-        type, and the editor then shows the type the application made of it.
-        A node that is gone is forgotten, exactly as its fold is.
-
-        Args:
-            refreshing: Whether the rows are what a validation pass left
-                behind.
-        """
-        self._chosen_types = {
-            path: kept_choice(options=row.types, value=row.value,
-                              chosen=self._chosen_types.get(path),
-                              refreshing=refreshing)
-            for path, row in self._rows.items() if row.type_choosable}
 
     def _forget_gone(self) -> None:
         """Forget what an object that a pass left no row at all said.
@@ -814,8 +790,7 @@ class EditBuffer:
         self._rows = stamped(rows=self._rows,
                              state=BufferState(folded=self._folded,
                                                answers=self._answers,
-                                               found=self._search.reached,
-                                               held=self._chosen_types))
+                                               found=self._search.reached))
 
     def _hold_again(self, path: ConfigPath) -> None:
         """Bring every container that one node is inside up to date with it.

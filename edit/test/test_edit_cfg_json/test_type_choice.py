@@ -9,12 +9,14 @@ of `EditModel.set_type`.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from pathlib import Path
 from typing import Literal, Optional
 import pytest
 from config_as_json import Config, JsonType, ParseConverter
-from edit_cfg_json.type_choice import NOT_CONVERTED_FORM, chosen_option, \
-    kept_choice, offered_types, switched_value
-from edit_cfg_json.type_options import NONE_TYPE, type_options
+from edit_cfg_json.type_choice import DICT_ONLY, NOT_CONVERTED_FORM, \
+    NO_DICT_YET, chosen_option, offered_types, switched_value
+from edit_cfg_json.type_options import NONE_TYPE, kept_choice, type_options
+from .container_cfg import InnerCfg
 from .sample_cfg import Colour
 
 COLOUR_CONVERTER = Config.get_converter_dict(Colour)
@@ -22,10 +24,11 @@ COLOUR_CONVERTER = Config.get_converter_dict(Colour)
 
 
 def _texts(hint: object, converter: Optional[ParseConverter],
-           omitted: bool = False) -> list[str]:
+           omitted: bool = False,
+           holds_dict: Optional[bool] = None) -> list[str]:
     """Return the text of every type offered for one annotation."""
     offer = offered_types(options=type_options(hint), converter=converter,
-                          omitted=omitted)
+                          omitted=omitted, holds_dict=holds_dict)
     return [option.text for option in offer.offered]
 
 
@@ -48,7 +51,8 @@ def test_converter_decides(hint: object, omitted: bool,
 def test_refusal_says_why() -> None:
     """Test each type left out is said, with the value it was refused for."""
     offer = offered_types(options=type_options(Colour | int | None),
-                          converter=COLOUR_CONVERTER, omitted=False)
+                          converter=COLOUR_CONVERTER, omitted=False,
+                          holds_dict=None)
     assert offer.refusals == (NOT_CONVERTED_FORM.format(type='int', value='0'),
                               NOT_CONVERTED_FORM.format(type='None',
                                                         value='null'))
@@ -58,7 +62,7 @@ def test_refusal_says_why() -> None:
 def test_no_converter_all(hint: object) -> None:
     """Test every declared type is offered where no converter says no."""
     offer = offered_types(options=type_options(hint), converter=None,
-                          omitted=False)
+                          omitted=False, holds_dict=None)
     assert offer.offered == type_options(hint) and offer.refusals == ()
 
 
@@ -77,7 +81,13 @@ def test_not_choosable_kept() -> None:
                           (int | str, 'abc', 'int', True, 'str'),
                           (int | float, 5, 'float', True, 'float'),
                           (Optional[str], None, 'str', True, 'None'),
-                          (int | float, 'abc', None, False, 'int')])
+                          (int | float, 'abc', None, False, 'int'),
+                          (list[str] | list[list[str]], [],
+                           'list[list[str]]', False, 'list[list[str]]'),
+                          (list[str] | list[list[str]], [],
+                           'list[list[str]]', True, 'list[list[str]]'),
+                          (list[str] | list[list[str]], ['x'],
+                           'list[list[str]]', True, 'list[str]')])
 def test_kept_choice(hint: object, value: JsonType, chosen: Optional[str],
                      refreshing: bool, expected: str) -> None:
     """Test the type a node holds outlives its value until a pass.
@@ -88,8 +98,9 @@ def test_kept_choice(hint: object, value: JsonType, chosen: Optional[str],
     """
     options = type_options(hint)
     held = next((option for option in options if option.text == chosen), None)
-    assert kept_choice(options=options, value=value, chosen=held,
-                       refreshing=refreshing).text == expected
+    kept = kept_choice(options=options, value=value, chosen=held,
+                       refreshing=refreshing)
+    assert kept is not None and kept.text == expected
 
 
 def test_chosen_option() -> None:
@@ -100,7 +111,8 @@ def test_chosen_option() -> None:
 
 
 @pytest.mark.parametrize('hint, text', [(int | str, 'float'), (int, 'int'),
-                                        (list[str] | None, 'None')])
+                                        (list[str] | None, 'list[int]'),
+                                        (InnerCfg | None, 'None')])
 def test_option_refused(hint: object, text: str) -> None:
     """Test a type not offered, and a node whose type is not chosen, refuse."""
     with pytest.raises(ValueError):
@@ -114,13 +126,17 @@ def test_option_refused(hint: object, text: str) -> None:
                           (str, None, ''), (int, None, 0),
                           (Colour, 'GREEN', 'GREEN'), (Colour, 'pink', 'RED'),
                           (Literal['a', 'b'], 'b', 'b'),
-                          (Literal['a', 'b'], 'c', 'a'), (None, 'x', None)])
+                          (Literal['a', 'b'], 'c', 'a'), (None, 'x', None),
+                          (list[str], ['a'], []), (list[str], 'a', []),
+                          (dict[str, int], {'a': 1}, {}), (int, [5], 0),
+                          (str, {'a': 'b'}, '')])
 def test_switched_value(hint: object, value: JsonType,
                         expected: JsonType) -> None:
     """Test switching keeps a text that means a value of the new type.
 
-    Everything else, and `None` on either side, is the empty value of the new
-    type: the first name of an enum and the first value of a `Literal`.
+    Everything else, and `None`, a list and a dict on either side, is the
+    empty value of the new type: the first name of an enum, the first value
+    of a `Literal`, and the empty list and dict.
     """
     option = type_options(hint)[0]
     assert switched_value(option, value) == expected
@@ -129,3 +145,51 @@ def test_switched_value(hint: object, value: JsonType,
 def test_switched_to_none() -> None:
     """Test choosing `None` takes the value away whatever it was."""
     assert switched_value(NONE_TYPE, 'kept') is None
+
+
+def test_kept_no_types() -> None:
+    """Test a node allowed no type at all holds none, rather than failing."""
+    assert kept_choice(options=(), value=5, chosen=None,
+                       refreshing=False) is None
+
+
+@pytest.mark.parametrize('holds_dict, expected',
+                         [(None, ['dict[str, int]', 'None']),
+                          (True, ['dict[str, int]']), (False, ['None'])])
+def test_dict_shape_decides(holds_dict: Optional[bool],
+                            expected: list[str]) -> None:
+    """Test a type of the wrong side of the dict-shape check is not offered.
+
+    The class refuses a dict where it holds none and anything else where it
+    holds one, `None` among it, and offers both where its check never asks.
+    """
+    assert _texts(Optional[dict[str, int]], None,
+                  holds_dict=holds_dict) == expected
+
+
+@pytest.mark.parametrize('holds_dict, form',
+                         [(True, DICT_ONLY), (False, NO_DICT_YET)])
+def test_shape_says_why(holds_dict: bool, form: str) -> None:
+    """Test each type the dict-shape check refuses is said, by its name."""
+    offer = offered_types(options=type_options(Optional[dict[str, int]]),
+                          converter=None, omitted=False, holds_dict=holds_dict)
+    left_out = 'None' if holds_dict else 'dict[str, int]'
+    assert offer.refusals == (form.format(type=left_out),)
+
+
+def test_shape_not_chosen() -> None:
+    """Test the dict-shape check is asked of a type that is not chosen too.
+
+    It decides what the control that gives a member a value gives it, so a
+    single declared dict where the class holds none is no type at all.
+    """
+    assert _texts(dict[str, int], None, holds_dict=False) == []
+
+
+def test_unknown_kind_kept() -> None:
+    """Test a class whose kind only its value says is never shape refused.
+
+    Nothing says whether its converters write it as a dict or not, so the
+    dict-shape check cannot be said to refuse it.
+    """
+    assert _texts(Path | None, None, holds_dict=True) == ['Path']

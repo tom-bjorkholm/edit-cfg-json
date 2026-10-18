@@ -512,29 +512,35 @@ in a field:
 - while it **holds a value** it is an ordinary field;
 - while it **holds nothing** it has no field at all.
 
-Where every type the member may hold is a plain value, `None` is one of the
-types in its pull-down: `Optional[str]` is `str | None`, the pull-down says
-`None` while the member holds nothing and the row says nothing more, and
-choosing `str` gives it the value of that type that says no more than which
-type it is. Where it may hold a list, a dict or a configuration object, the two
-controls that section 4.9 gives a declared member holding no configuration
-object move it between the two states instead, and the row says `no value`
-while it holds none (step 31C and 31D of the plan move those to the pull-down
-as well). **How the class writes such a member decides nothing about the two
+Where every type the member may hold is a plain value, a list or a dict,
+`None` is one of the types in its pull-down: `Optional[str]` is `str | None`
+and `Optional[list[str]]` is `list[str] | None`, the pull-down says `None`
+while the member holds nothing and the row says nothing more, and choosing
+`str` or `list[str]` gives it the value of that type that says no more than
+which type it is — the empty text, the empty list. Where it may hold a
+configuration object, the two controls that section 4.9 gives a declared
+member holding no configuration object move it between the two states instead,
+and the row says what it holds none of (step 31D of the plan moves those to the
+pull-down as well). **How the class writes such a member decides nothing about the two
 states**: `null` and a member that `_omit_none_from_json()` leaves out have the
 same pair of states and the same way of moving between them, and what differs
 is only the file. Both have a row while they hold nothing (section 4.1), and
 the line under the member says which of the two kinds of optional it is,
 because that is the difference there is.
 
-**A member declared to hold a dict is the one that cannot be given a value.**
-`Config.check_dict_parse` refuses a dict written for a member whose value is
-not one — *Unexpected dictionary for X in JSON data* — whatever keys it has and
-even where it has none, so the empty dict is the one value of a kind the editor
-cannot give such a member, and that member says so below its own row instead of
-offering a control that produces a refusal. It is section 4.9's check one step
-up. A list has no such check, so a member declared to hold one is given the
-empty list and grown from there.
+**Whether a member may hold a dict is the class's to say, and it says it with
+the object.** `Config.check_dict_parse` refuses a dict written for a member
+whose value is not one — *Unexpected dictionary for X in JSON data* — whatever
+keys it has and even where it has none, and refuses anything else, `None`
+among it, written for a member whose value is a dict — *Not dictionary for X in
+JSON data*. So a member declared `Optional[dict[str, int]]` that its class
+holds nothing in is offered `None` alone, has no field and no control, and says
+below its own row why `dict[str, int]` is not offered; and one that its class
+holds a dict in is offered the dict alone, which takes away the `remove` whose
+`null` that check refused. It is section 4.9's check one step up, and section
+4.12 says where it reaches. A list has no such check, so a member declared to
+hold one or nothing is given the empty list by choosing `list[str]`, and grown
+from there.
 
 **A field can therefore never put a member into that state.** Text that parses
 as JSON `null` is kept as the text it is for such a member, exactly as any
@@ -555,16 +561,18 @@ with: annotate the members of a configuration class.
 
 **Which nodes have the two states** is said by the types they are offered.
 A node whose type the user chooses has them wherever `None` is one of those
-types, which is `Optional[str]`, `Optional[int | str]` and `Optional[Colors]` —
+types, which is `Optional[str]`, `Optional[int | str]`, `Optional[Colors]` —
 an enum is a type the editor can make a value of, the name of its first member
-— and that holds for a value inside a list or a dict as much as for a member:
-an element of `list[Optional[str]]` that holds `null` has no field, and is
-given one by choosing `str`. Any other member has them where its types include
-`None` beside a first type the editor can make an empty value of, which is
-`Optional[list[str]]`. A member allowing `None` beside a configuration class
-or another class of the application's own has one state as before, because the
-editor cannot make a value of such a type on its own; the configuration class
-is the place section 4.9 gives its own two controls. Any other value inside a
+— and `Optional[list[str]]`, and that holds for a value inside a list or a dict
+as much as for a member: an element of `list[Optional[str]]` that holds `null`
+has no field, and is given one by choosing `str`. Any other member has them
+where its types include `None` beside a first type the editor can make an empty
+value of, which is `Optional[str | Path]`. A member allowing `None` beside a
+configuration class or another class of the application's own has one state as
+before, because the editor cannot make a value of such a type on its own; the
+configuration class is the place section 4.9 gives its own two controls. A node
+offered `None` and nothing else holds nothing as the one state its class would
+accept, with no field to type a refused value into. Any other value inside a
 list or a dict never has the two states, whatever its declaration allows, and
 its type column still says `None` while it holds `null`.
 
@@ -912,7 +920,12 @@ declares — which works for an *empty* container. Where it declares no such
 thing, the values the class declares for the member itself are the pattern: the
 first element of them, and failing that the first element the member holds now.
 That fallback makes a member the class declares nothing for extendable as soon
-as a file has put something in it.
+as a file has put something in it. **A container whose type the user chose
+takes a copy only where it is a value of that type**: what the class declares
+for a key that holds a `list[str]` is no element of the `list[list[str]]` the
+user chose for it instead, and the declared type of the next paragraph answers
+then. Every other container takes what the application wrote, which says more
+about it than its declared kind does.
 
 **Where no value says, the declared type of the member does.** `list[str]` says
 that an element of that list is text, and the empty text is the one value of
@@ -941,22 +954,27 @@ not for the empty dict.
 which member it belongs to.** `parse_json` applies that check once per member
 and recurses from there into the dict values of that member, so it reaches a
 dict only where it was applied to the member at all and where every step down
-to that dict was into a dict. Three things stop it, and each leaves an ordinary
-container behind.
+to that dict was into a dict that the object it checks against holds. Three
+things stop it, and each leaves an ordinary container behind. `dict_check` is
+where they are asked, and it is the same walk that says which types a node is
+offered (section 4.12).
 
 - **A member named in `nested_configs()`**, which `config_as_json` reads whole
   instead, so the check is never applied to it and never reaches anything
   inside it however deep: an entry of a `DICT_VALUE` member is one case, and a
   dict at any depth under a key of a `DICT_VALUE_BY_KEY` member that no
   declaration names is another.
-- **A member named in `_unchecked_dicts`**, where the check returns at the
-  member before it looks at a key.
+- **A place named in `_unchecked_dicts`**, where the check returns before it
+  looks at a key. It asks by the name of the last step and not by the member,
+  so a key deeper inside another member that has such a name stops it as well;
+  the editor does what the class does, and a dict at such a key is offered an
+  entry that a pass then accepts.
 - **A list between the member and the dict.** The recursion steps into a dict
   value and returns as soon as neither side is a dict, and a list is not one,
   so a dict inside an element of a `list[dict[str, int]]` really can gain a key
-  and be read back. It is the values along the path that answer and not the
-  steps: a dict is free to have a key called `0`, and an index is an index only
-  where the value holding it is a list.
+  and be read back. It is what the object holds along the path that answers and
+  not the steps: a dict is free to have a key called `0`, and an index is an
+  index only where the value holding it is a list.
 
 Confirmed against the implementation of `config_as_json`, which is what this
 has to be right about: a control offered where the check does reach would be
@@ -979,15 +997,14 @@ application's own validators then make of a key is the ordinary verdict of a
 validation pass: the editor runs the application's rules and has none of its
 own about keys.
 
-**A member holding nothing is grown by being given a value**, whether that
-value is a configuration object or a list (section 4.2). The two are the same
-pair of controls, because they are the same question one step apart, and how
-the class writes such a member decides nothing here: one that
-`_omit_none_from_json()` names keeps its row (section 4.1), so clearing it is
-not a way of losing it. A member whose types are all plain values has neither
-control: it is given a value, and has it taken away, by choosing a type in the
-pull-down of section 4.12, and the controls of this section are about elements
-and objects alone.
+**A member holding nothing is grown by being given a value** (section 4.2). A
+member declared to hold a configuration object or none has the pair of controls
+of this section for it, and how the class writes such a member decides nothing
+here: one that `_omit_none_from_json()` names keeps its row (section 4.1), so
+clearing it is not a way of losing it. A member whose types are all plain
+values, lists or dicts has neither control: it is given a value, and has it
+taken away, by choosing a type in the pull-down of section 4.12, and the
+controls of this section are about elements and objects alone.
 
 **A member whose values are of two kinds is asked twice.** A
 `DICT_VALUE_BY_KEY` declaration names one key of a dict as a configuration
@@ -1013,9 +1030,10 @@ holds, because its row is there whether the object is or not.
 
 **A member the editor cannot make a value for is offered nothing**: one whose
 kind nothing says stays the field it was (section 4.2), and one declared to
-hold a dict says why it cannot be given one. The check refuses the empty dict
-before it reaches the member whose keys it does not check, so a member of
-`_unchecked_dicts` that holds nothing is not given a dict either.
+hold a dict or nothing, that its class holds no dict in, is offered `None`
+alone and says why. The check refuses the empty dict before it reaches the
+member whose keys it does not check, so a member of `_unchecked_dicts` that
+holds nothing is not given a dict either.
 
 **Where an object is added, an object is made.** The tree finds the nested
 configuration objects by walking the real objects (section 4.1), so an element
@@ -1033,7 +1051,10 @@ Without that, removing the first element of a list would report every element
 after it as edited by a user who touched none of them. **What was held for an
 element that is taken out goes with it**: the element after it moves into its
 path, and is not folded, or of the type chosen, because the one taken out
-was.
+was. **What was held for the nodes inside a container whose type is changed
+goes with them** in the same way: a switch gives the node the empty value of
+its new type (section 4.12), so every node that was inside it is gone, and its
+fold, the type chosen for it and a search that had got to it go too.
 
 **A change of the elements is not a validation pass**, and the rows say so: a
 row that a validation pass created is marked as one a validator wrote and a row
@@ -1260,13 +1281,23 @@ and choosing another of the types in it is how the user changes what the row
 holds, where the type is the user's to choose.
 
 **The type is the user's to choose where every type a row may hold is a plain
-value or `None`**, and there are more than one of them: `int | str`,
-`float | None`, `Colors | None`, `Literal['fast', 'slow'] | int`. A plain value
-is one a field holds — a bool, a whole number, a number, a text, and an enum or
-a `Literal`, both of which are written as one of those. The pull-down is active
-on such a row and disabled on every other, which still says its type in the
-same place. A row whose types include a list, a dict or a configuration object
-is not chosen in yet; steps 31C and 31D of the plan are about those.
+value, a list, a dict or `None`**, and there are more than one of them:
+`int | str`, `float | None`, `Colors | None`, `Literal['fast', 'slow'] | int`,
+`list[str] | None`, `int | list[int]` and `list[str] | list[list[str]]`. A
+plain value is one a field holds — a bool, a whole number, a number, a text,
+and an enum or a `Literal`, both of which are written as one of those. The
+pull-down is active on such a row and disabled on every other, which still says
+its type in the same place. A row whose types include a configuration object is
+not chosen in yet; step 31D of the plan is about those.
+
+**A container chosen has rows of its own.** Choosing a list or a dict for a row
+that held something else, or the reverse, makes the rows below it again, as
+adding an element does, and both backends make their rows again after any
+choice. The type chosen is what the rows inside are read by: `[]` is a
+`list[str]` and a `list[list[str]]` alike, so only the choice says whether the
+control of that empty list adds a text or a list of text, and the choice is
+kept for that reason as much as for `5` being an `int` and a `float`. A node
+whose type is chosen is edited in a field exactly while it holds a plain value.
 
 **Switching keeps what still fits.** A plain value keeps its text where that
 text means a value of the new type, so the number `80` is the text `80` once
@@ -1274,12 +1305,32 @@ text means a value of the new type, so the number `80` is the text `80` once
 that means no value of the new type, and `None` on either side of the switch
 — is given the value of the new type that says no more than which type it is:
 `''`, `0`, `0.0`, `false`, the name of the first member of an enum, the first
-value of a `Literal`, or nothing at all. Nothing is remembered per type, and
+value of a `Literal`, `[]`, `{}`, or nothing at all. A list or a dict on either
+side of the switch keeps nothing, because nothing of a list of text is a list
+of lists of text, and guessing which part the user meant would be a guess. Nothing is remembered per type, and
 the type chosen is kept as section 4.2 says. `EditModel.set_type` is how a
 backend chooses one, and `--set-type PATH=TYPE` is how the example programs
 stand in for a user choosing, as `--set` stands in for one typing.
 
-**A type the class would refuse is not offered.** `config_as_json` hands every
+**A type the class would refuse is not offered**, for one of two reasons.
+
+**The dict-shape check.** `Config.check_dict_parse` matches a file against the
+object the class parses it into, member by member and down through the dicts
+that object holds, and refuses a dict where the object holds something else and
+anything else where it holds a dict (section 4.2). Where that check reaches a
+row, a dict type is offered only where the object holds a dict, and only a dict
+type where it does; below a place named in `_unchecked_dicts`, inside a member
+`nested_configs()` names and below a list it reaches nothing, and every
+declared type is offered (section 4.9 says where it stops). The object asked is
+the one the rows are built from, which is the model's own or one a validation
+pass accepted, and an accepted one holds a dict at exactly the checked places
+where the other does, so which rows may change between a dict and something
+else does not change while the editor is open. It is asked of every row and
+not only of one whose type is chosen, because it also decides what the control
+of section 4.9 would give a member holding nothing. A class of the
+application's own whose kind only its value can say is never refused by it.
+
+**The parse converter.** `config_as_json` hands every
 value of a member with a parse converter that is not already of the type the
 converter makes to that converter, and the converter it ships for an enum
 refuses everything that is not text. So the converter of a row is run on the
@@ -1289,9 +1340,13 @@ beside `Colors`, whose `0` it refuses, and `None` beside `Colors` where the
 class writes `null` for the member. `None` is offered where the class leaves
 the member out of the file while it holds nothing, because nothing is
 converted then, and an application whose own converter takes more is offered
-more. The line below the row names each type left out and the value it was
-refused for. A type left out is not shown disabled, because Textual's `Select`
-cannot disable one option and the two backends must not differ.
+more. It is asked only of a row whose type is chosen, because only there is a
+value of another type something the user could give it.
+
+The line below the row names each type left out and why: the value the
+converter refused, or the dict the class holds or does not hold. A type left
+out is not shown disabled, because Textual's `Select` cannot disable one option
+and the two backends must not differ.
 
 **The spelling is Python's, normalized from the resolved hint** and not copied
 from the source text, so a declaration read from source and one read with
@@ -1314,8 +1369,11 @@ wherever the column cannot show it (section 4.3).
 
 **The column is one width for the whole editor**, so that the values of every
 row begin in one column: the longest type any row may hold, counting every row
-and not only those on the screen, so that folding moves nothing beside it. A
-type longer than 40 characters is cut to 40 with `…`, and its whole text is
+and not only those on the screen, so that folding moves nothing beside it.
+That was settled when choosing a container was built: a choice or an element
+that adds rows can widen the column, as adding an element always could, and
+folding never does. A type longer than 40 characters is cut to 40 with `…`,
+and its whole text is
 then on the line below. The limit is a constant of the core for now, and making
 it follow the width the editor can have is a later step of the plan; no setting
 says it, so the settings file format does not change (section 9.10).
@@ -3157,10 +3215,12 @@ version rather than assumed.
   `Config.check_dict_parse` would accept the key beside it, so the control
   would produce a refusal. Where that check does not reach, the entry is
   offered. Section 4.9.
-- **The empty dict given to a member declared to allow no value.** The same
-  check one step up refuses a dict written for a member whose value is not one,
-  even an empty dict, so the member says so instead of offering the control. A
-  list is unaffected. Sections 4.2 and 4.9.
+- **A dict type offered where the class holds no dict, or anything else where
+  it holds one.** The same check one step up refuses a dict written for a
+  member whose value is not one, even an empty dict, and refuses `null` written
+  for one whose value is a dict, so such a type is left out of the pull-down
+  and the line below says why. A list is unaffected. Sections 4.2, 4.9 and
+  4.12.
 - **A named key of a dict that vanishes when its object is taken away.** It is
   what the file does, but nothing would then name that key again, so clearing
   it would be a way of losing it. Sections 4.1 and 4.9.

@@ -21,18 +21,19 @@ from collections.abc import Container, Mapping, Sequence
 from types import MappingProxyType
 from typing import NamedTuple, Optional
 from config_as_json import Config, ConfigPath, JsonType, ParseConverter
-from edit_cfg_json.converting import node_converters
 from edit_cfg_json.descriptions import Descriptions, MemberFacts, \
     enum_names, member_description
-from edit_cfg_json.elements import ElementOffer, element_offers, tree_facts
+from edit_cfg_json.elements import ElementOffer, TreeFacts, \
+    element_offers, tree_facts
 from edit_cfg_json.leaf_value import BOOL_NAMES, NO_VALUE_TEXT, \
     value_as_text, values_differ
 from edit_cfg_json.loading import LoadReport
+from edit_cfg_json.member_types import KeptTypes
 from edit_cfg_json.tree import ConfigNode, NO_OBJECT_FORM, child_values, \
-    config_nodes, container_text, flat_values, is_container, omitted_paths, \
-    ordered_names, path_text
-from edit_cfg_json.type_options import NONE_TYPE, TypeOption, choosable, \
-    held_option, inferred_option, node_options, reading_kind
+    config_nodes, container_text, flat_values, is_container, ordered_names, \
+    path_text
+from edit_cfg_json.type_options import NONE_TYPE, SCALAR_KINDS, TypeOption, \
+    choosable, held_option, inferred_option, node_options, reading_kind
 from edit_cfg_json.validation import SubtreeAnswer
 
 NOT_A_MEMBER = ''
@@ -308,20 +309,23 @@ class MemberRow(NamedTuple):
     """
 
     nothing_allowed: bool = False
-    """Whether this node has the two states of a value and of nothing.
+    """Whether holding nothing is a state of this node rather than a value.
 
     `member_types.nothing_allowed` says which nodes those are: a node whose
-    type the user chooses and that may hold `None`, and a member that allows
-    `None` beside a type the editor can make a value of.
+    type the user chooses and that may hold `None`, a member that allows
+    `None` beside a type the editor can make a value of, and a node offered
+    `None` and nothing else.
     """
 
     held: Optional[TypeOption] = None
-    """The type this node holds where the buffer keeps it, None elsewhere.
+    """The type this node holds where it is kept, None elsewhere.
 
     It is kept for every node whose type the user chooses, because the value
-    cannot say it: `5` is an `int` and a `float`. It is written onto the rows
-    rather than carried by them, exactly as the fold state is, because it is
-    what the user chose and outlives the rows a validation pass replaces.
+    cannot say it: `5` is an `int` and a `float`, and `[]` is a `list[str]`
+    and a `list[list[str]]`. Each build of the rows takes it from the row
+    that was at the same path before, which is what makes it go with an
+    element that changes places and go away with one that is taken out, and
+    what the rows inside a container are built by.
     """
 
     offer: ElementOffer = ElementOffer()
@@ -415,13 +419,16 @@ class MemberRow(NamedTuple):
         becomes a configuration object, and neither is a member that holds
         nothing, because the value it would hold is asked for and not typed.
 
-        The rows below it are asked as well as the value it was compared
-        against, because a member that may hold nothing held nothing then and
-        holds a list of rows now. Neither of them is the value it holds this
-        moment, which is what every keystroke changes: text that happens to be
-        JSON for a list would otherwise take the field away while it was being
-        typed.
+        A node whose type the user chooses is edited exactly while the type it
+        holds is a plain value, which is what the choice says. Every other
+        node asks the rows below it and the value it was compared against,
+        because a member that may hold nothing held nothing then and holds a
+        list of rows now. Neither of them is the value it holds this moment,
+        which is what every keystroke changes: text that happens to be JSON for
+        a list would otherwise take the field away while it was being typed.
         """
+        if self.held is not None:
+            return self.held.kind in SCALAR_KINDS
         return not self.foldable and not is_container(self.original) \
             and self.config_type is None and not self.holds_nothing
 
@@ -568,10 +575,10 @@ class RowContext(NamedTuple):
     It is one object rather than one argument each, because every one of them
     is read once per node and none of them changes while the rows are built.
 
-    The last three are by path and not by name, because the class that answers
-    for a node is the class that owns it: a nested configuration object parses
-    its own JSON, applies its own parse converters and decides for itself which
-    of its members it may leave out of a file.
+    What the class says about each node is by path and not by name, because
+    the class that answers for a node is the class that owns it: a nested
+    configuration object parses its own JSON, applies its own parse converters
+    and decides for itself which of its members it may leave out of a file.
     """
 
     report: LoadReport
@@ -580,38 +587,16 @@ class RowContext(NamedTuple):
     descriptions: Descriptions
     """What the application says about the members it declares."""
 
-    nodes: Mapping[ConfigPath, ConfigNode]
-    """Every configuration object of the tree, by its path.
+    facts: TreeFacts
+    """What the tree is and what its classes declare, by the path of a node.
 
-    The configuration itself is one of them, under the empty path, so a node
-    is answered the same way whether it is a member of the configuration or a
-    member of something nested inside it.
-    """
-
-    converters: Mapping[ConfigPath, ParseConverter]
-    """One parse converter per node of the tree that has one."""
-
-    optional: frozenset[ConfigPath]
-    """Every node that the file holds no key for while it holds nothing.
-
-    A member its own class may leave out is one, and a key that a class
-    declared a configuration object at is the other.
+    The configuration itself is one of its objects, under the empty path, so a
+    node is answered the same way whether it is a member of the configuration
+    or a member of something nested inside it.
     """
 
     offers: Mapping[ConfigPath, ElementOffer]
     """What each node offers about the elements it holds, by its path."""
-
-    declared: Mapping[ConfigPath, tuple[TypeOption, ...]]
-    """The types the class owning each node declares it to hold."""
-
-    types: Mapping[ConfigPath, tuple[TypeOption, ...]]
-    """The types each node is offered, those its class refuses left out."""
-
-    refusals: Mapping[ConfigPath, tuple[str, ...]]
-    """Why each declared type that a node is not offered is left out."""
-
-    nothing: frozenset[ConfigPath]
-    """Every member that has the two states of holding a value and nothing."""
 
     refreshing: bool
     """Whether these rows are what a validation pass left behind.
@@ -701,27 +686,27 @@ def _row_of(path: ConfigPath, value: JsonType, context: RowContext,
         The row of that node, with what an earlier row knew carried over.
     """
     member = path[0] if len(path) == 1 else NOT_A_MEMBER
-    node = context.nodes.get(path)
-    converter = context.converters.get(path)
-    types = context.types.get(path, ())
+    facts = context.facts
+    node = facts.nodes.get(path)
+    converter = facts.converters.get(path)
     was = previous.get(path)
     return MemberRow(
-        path=path, full_name=path_text(path, context.nodes), value=value,
+        path=path, full_name=path_text(path, facts.nodes), value=value,
         original=value if was is None else was.original,
         children=_children_of(path=path, value=value, node=node),
         config_type=None if node is None else node.config_type,
         changed_by_validator=_rewritten(was=was, value=value,
                                         refreshing=context.refreshing),
-        offer=context.offers[path], types=types,
-        nothing_allowed=path in context.nothing,
+        offer=context.offers[path], types=facts.types.get(path, ()),
+        nothing_allowed=path in facts.nothing, held=facts.held.get(path),
         filled_from_default=member in context.report.filled,
         load_reason=context.report.reasons.get(member, ''),
         description=member_description(
             descriptions=context.descriptions, path=path,
-            facts=MemberFacts(types=context.declared.get(path, ()),
-                              refused=context.refusals.get(path, ()),
+            facts=MemberFacts(types=facts.declared.get(path, ()),
+                              refused=facts.refusals.get(path, ()),
                               converter=converter,
-                              optional=path in context.optional,
+                              optional=path in facts.omitted,
                               nested=node is not None)),
         converter=converter, conversion='' if was is None else was.conversion)
 
@@ -755,27 +740,27 @@ def built_rows(config: Config, *, members: Mapping[str, JsonType],
         descriptions: What the application says about its members.
         previous: The rows as they were before, empty for the first build.
             A node that had a row keeps what that row was compared against
-            and is marked when a validation pass changed it; a node that had
-            none is a node a validation pass created.
+            and the type it held where that is the user's to choose, and is
+            marked when a validation pass changed it; a node that had none is
+            a node a validation pass created.
         defaults: The values that the class of the configuration declares,
             which is what a new element of an ordinary list is copied from.
         refreshing: Whether these rows are what a validation pass left behind,
-            which is what decides whether a node it changed is marked.
+            which is what decides whether a node it changed is marked, and
+            whether a type the user chose gives way to a value it does not
+            fit.
 
     Returns:
         The rows of that configuration, by path.
     """
     nodes = config_nodes(config)
     flat = flat_values(members=members, nodes=nodes)
-    converters = node_converters(nodes=nodes, flat=flat)
-    optional = omitted_paths(nodes)
-    facts = tree_facts(nodes=nodes, flat=flat, defaults=defaults,
-                       converters=converters, omitted=optional)
-    context = RowContext(report=report, descriptions=descriptions, nodes=nodes,
-                         converters=converters, optional=optional,
-                         offers=element_offers(facts), declared=facts.declared,
-                         types=facts.types, refusals=facts.refusals,
-                         nothing=facts.nothing, refreshing=refreshing)
+    kept = KeptTypes(chosen={path: row.held for path, row in previous.items()
+                             if row.held is not None},
+                     refreshing=refreshing)
+    facts = tree_facts(nodes=nodes, flat=flat, defaults=defaults, kept=kept)
+    context = RowContext(report=report, descriptions=descriptions, facts=facts,
+                         offers=element_offers(facts), refreshing=refreshing)
     return {path: _row_of(path=path, value=value, context=context,
                           previous=previous)
             for path, value in flat}
@@ -845,8 +830,8 @@ class BufferState(NamedTuple):
     Each of these outlives the rows it is about, because the rows are built
     again after every validation pass and after every change of how many
     elements a container holds: what the user folded, what each object said
-    about itself, what a search has got to and which types the user chose are
-    all older than the rows they are written onto.
+    about itself and what a search has got to are all older than the rows
+    they are written onto.
     """
 
     folded: Container[ConfigPath]
@@ -858,25 +843,21 @@ class BufferState(NamedTuple):
     found: Optional[ConfigPath]
     """Path of the node the search has got to, None when it is at none."""
 
-    held: Mapping[ConfigPath, TypeOption]
-    """The type each node whose type the user chooses holds, by its path."""
-
 
 def stamped(rows: Mapping[ConfigPath, MemberRow],
             state: BufferState) -> dict[ConfigPath, MemberRow]:
     """Return the rows with the state of the buffer written onto them.
 
     A backend reads what is folded, what is shown, what the configuration
-    objects amount to, what a search has got to and which type a node holds
-    from the row each of those is about, exactly as it reads the marks and the
-    description from there, so that the two backends cannot fold, hide, judge,
-    find or type different things.
+    objects amount to and what a search has got to from the row each of those
+    is about, exactly as it reads the marks and the description from there,
+    so that the two backends cannot fold, hide, judge or find different
+    things.
 
     They are written here rather than carried by the rows they are about,
     because they belong to the buffer: the rows are built again after every
-    validation pass, and a fold the user asked for, an answer an object gave,
-    a node a search reached and a type the user chose all outlive the rows
-    that were there then.
+    validation pass, and a fold the user asked for, an answer an object gave
+    and a node a search reached all outlive the rows that were there then.
 
     Args:
         rows: The rows of the configuration, by path.
@@ -884,9 +865,8 @@ def stamped(rows: Mapping[ConfigPath, MemberRow],
 
     Returns:
         The same rows, each saying whether it is folded, whether it shows,
-        what the configuration objects at or inside it are on their own,
-        whether it is the node the search has got to, and which type it holds
-        where that is the user's to choose.
+        what the configuration objects at or inside it are on their own, and
+        whether it is the node the search has got to.
     """
     below = _objects_below(rows)
     refused = {path: message for answer in state.answers.values()
@@ -904,4 +884,4 @@ def _stamped_row(row: MemberRow, state: BufferState,
         shown=_shown(path=row.path, folded=state.folded),
         subtree_valid=_state_of(row=row, held=held, answers=state.answers),
         subtree_refusal=refusal, has_objects=row.is_object or bool(held),
-        found=row.path == state.found, held=state.held.get(row.path))
+        found=row.path == state.found)

@@ -145,13 +145,17 @@ type too long for it is cut short with `…`, and the line under the row then
 says the whole of it. Where the member may hold more than one type, the column
 says the one it holds now, and the line under the row says all of them.
 
-**Where every type a member may hold is a plain value** — a text, a number,
-true or false, or one of a set of names — the type is a pull-down you choose
+**Where every type a member may hold is a plain value, a list or a dict** —
+a text, a number, true or false, one of a set of names, or a container of
+them — the type is a pull-down you choose
 from by clicking it, and choosing another type is how you change what the member
 holds: `5` is the number five while `int` is chosen and the text `5` while
 `str` is. What the member held is kept where it still means a value of the
 new type, so the number `80` becomes the text `80`, and is otherwise replaced
-by the empty value of the new type. Typing never changes the type: a text
+by the empty value of the new type. A list or a dict on either side of the
+change keeps nothing: choosing `list[list[str]]` for a `list[str]` gives it an
+empty list, whose **Add** then adds an empty `list[str]`, and the rows that
+were below it are gone. Typing never changes the type: a text
 typed while `int` is chosen is a wrong value, not a choice of `str`. A type
 the application would refuse is not offered at all, and the line under the row
 says which one and why. On every other row the pull-down is greyed out: it is
@@ -168,7 +172,7 @@ this row holds:
 | Nothing, beside a class name such as `PageOutput` as its type | An object. Its own members are the rows below it. |
 | `no PageOutput` | A place where an object of that class belongs, holding none. |
 | Nothing, beside `None` as its type | A member that is allowed to hold nothing, and holds nothing. This is **not** the same as an empty field. Choose another type to give it a value. See [1.6](#16-a-member-that-may-hold-nothing). |
-| `no value` | A member that may hold a list or nothing, and holds nothing. See [1.6](#16-a-member-that-may-hold-nothing). |
+| `no value` | A member that holds nothing and has no other type you can choose here: the line under the row says why, or the controls at its end give it a value. See [1.6](#16-a-member-that-may-hold-nothing). |
 
 **The marks** follow the value and say what has happened to it. More than one
 can be there at once, and they are shown in the order in which they can
@@ -225,6 +229,8 @@ What the type of a member says below its row is one of these:
 | `One of: DAILY, WEEKLY, MONTHLY.` | The value is one of a fixed set of names. |
 | `Declared as str \| None.` | Every type the member may hold. The type column shows only the one it holds now, or was too narrow for the whole type. |
 | `int is not offered, because the parse converter of this member refuses 0.` | A type the member is declared to allow and that the application would refuse all the same, so it is left out of the pull-down of the types. |
+| `dict[str, int] is not offered, because the configuration class matches a dict written here against the dict it holds here, and it holds none.` | The application would refuse any dict here, even an empty one, so the member cannot be given one. |
+| `None is not offered, because the configuration class holds a dict here and refuses anything else written for it.` | The application would refuse anything but a dict here, so the member cannot be emptied. |
 | `The type is taken from the value, because nothing declared says one the editor can use.` | The application never said what this member holds, so the type column shows what its value happens to be. |
 | `It may be left out of the file.` | The member may hold nothing, and the file then holds no key for it at all. |
 
@@ -315,16 +321,17 @@ you move between them by choosing rather than by typing:
 - **holding a value** — an ordinary field.
 - **holding nothing** — no field at all.
 
-Where the member holds a plain value — a text, a number, true or false — its
-type is `str | None`, `int | None` and the like, and `None` is one of the
-types in its pull-down. Choose `None` to take the value away: the type then
-says `None` and there is nothing where the value was. Choose the other type to
-give it the empty value of that type for you to type into.
+Where the member holds a plain value — a text, a number, true or false — or
+a list or a dict of them, its type is `str | None`, `int | None`,
+`list[str] | None` and the like, and `None` is one of the types in its
+pull-down. Choose `None` to take the value away: the type then says `None` and
+there is nothing where the value was. Choose the other type to give it the
+empty value of that type — an empty text for you to type into, an empty list
+for its **Add** to grow.
 
-Where the member holds a list, the controls at the end of the row do the same
-job instead. While it holds nothing the row says `no value` and offers
-**Add**, which gives it an empty list; while it holds one the row offers
-**Del**, which puts it back to holding nothing.
+Where the application would refuse a dict for the member, the dict type is not
+in the pull-down: `None` is all it offers, and the line under the row says
+why.
 
 This is why holding nothing and an empty field are different things and why
 you cannot type your way from one to the other. Typing `null` into a field
@@ -385,9 +392,6 @@ to see it. It reads like one of these:
   application never said what belongs in this list and never put anything in
   it, so the editor has nothing to copy. Adding one has to be done in a text
   editor.
-- *A dict written for a member that holds none is refused by the
-  configuration class itself ...* — this member could hold a dict, but not an
-  empty one, so there is no first entry for the editor to make.
 
 The editor says these things instead of offering a control that would fail
 every time you pressed it.
@@ -712,14 +716,18 @@ type too long for it is cut short with `…`, and the line under the row then
 says the whole of it. Where the member may hold more than one type, the column
 says the one it holds now, and the line under the row says all of them.
 
-**Where every type a member may hold is a plain value** — a text, a number,
-true or false, or one of a set of names — the type is a pull-down you choose
+**Where every type a member may hold is a plain value, a list or a dict** —
+a text, a number, true or false, one of a set of names, or a container of
+them — the type is a pull-down you choose
 from, by moving to it with `Tab` and pressing `Enter`,
 or by clicking it, and choosing another type is how you change what the member
 holds: `5` is the number five while `int` is chosen and the text `5` while
 `str` is. What the member held is kept where it still means a value of the
 new type, so the number `80` becomes the text `80`, and is otherwise replaced
-by the empty value of the new type. Typing never changes the type: a text
+by the empty value of the new type. A list or a dict on either side of the
+change keeps nothing: choosing `list[list[str]]` for a `list[str]` gives it an
+empty list, whose **Add** then adds an empty `list[str]`, and the rows that
+were below it are gone. Typing never changes the type: a text
 typed while `int` is chosen is a wrong value, not a choice of `str`. A type
 the application would refuse is not offered at all, and the line under the row
 says which one and why. On every other row the pull-down is greyed out: it is
@@ -736,7 +744,7 @@ this row holds:
 | Nothing, beside a class name such as `PageOutput` as its type | An object. Its own members are the rows below it. |
 | `no PageOutput` | A place where an object of that class belongs, holding none. |
 | Nothing, beside `None` as its type | A member that is allowed to hold nothing, and holds nothing. This is **not** the same as an empty field. Choose another type to give it a value. See [2.6](#26-a-member-that-may-hold-nothing). |
-| `no value` | A member that may hold a list or nothing, and holds nothing. See [2.6](#26-a-member-that-may-hold-nothing). |
+| `no value` | A member that holds nothing and has no other type you can choose here: the line under the row says why, or the controls at its end give it a value. See [2.6](#26-a-member-that-may-hold-nothing). |
 
 **The marks** follow the value and say what has happened to it. More than one
 can be there at once, and they are shown in the order in which they can
@@ -797,6 +805,8 @@ What the type of a member says below its row is one of these:
 | `One of: DAILY, WEEKLY, MONTHLY.` | The value is one of a fixed set of names. |
 | `Declared as str \| None.` | Every type the member may hold. The type column shows only the one it holds now, or was too narrow for the whole type. |
 | `int is not offered, because the parse converter of this member refuses 0.` | A type the member is declared to allow and that the application would refuse all the same, so it is left out of the pull-down of the types. |
+| `dict[str, int] is not offered, because the configuration class matches a dict written here against the dict it holds here, and it holds none.` | The application would refuse any dict here, even an empty one, so the member cannot be given one. |
+| `None is not offered, because the configuration class holds a dict here and refuses anything else written for it.` | The application would refuse anything but a dict here, so the member cannot be emptied. |
 | `The type is taken from the value, because nothing declared says one the editor can use.` | The application never said what this member holds, so the type column shows what its value happens to be. |
 | `It may be left out of the file.` | The member may hold nothing, and the file then holds no key for it at all. |
 
@@ -890,16 +900,17 @@ you move between them by choosing rather than by typing:
 - **holding a value** — an ordinary field.
 - **holding nothing** — no field at all.
 
-Where the member holds a plain value — a text, a number, true or false — its
-type is `str | None`, `int | None` and the like, and `None` is one of the
-types in its pull-down. Choose `None` to take the value away: the type then
-says `None` and there is nothing where the value was. Choose the other type to
-give it the empty value of that type for you to type into.
+Where the member holds a plain value — a text, a number, true or false — or
+a list or a dict of them, its type is `str | None`, `int | None`,
+`list[str] | None` and the like, and `None` is one of the types in its
+pull-down. Choose `None` to take the value away: the type then says `None` and
+there is nothing where the value was. Choose the other type to give it the
+empty value of that type — an empty text for you to type into, an empty list
+for its **Add** to grow.
 
-Where the member holds a list, the controls at the end of the row do the same
-job instead. While it holds nothing the row says `no value` and offers
-**Add**, which gives it an empty list; while it holds one the row offers
-**Del**, which puts it back to holding nothing.
+Where the application would refuse a dict for the member, the dict type is not
+in the pull-down: `None` is all it offers, and the line under the row says
+why.
 
 This is why holding nothing and an empty field are different things and why
 you cannot type your way from one to the other. Typing `null` into a field
@@ -964,9 +975,6 @@ see it. It reads like one of these:
   application never said what belongs in this list and never put anything in
   it, so the editor has nothing to copy. Adding one has to be done in a text
   editor.
-- *A dict written for a member that holds none is refused by the
-  configuration class itself ...* — this member could hold a dict, but not an
-  empty one, so there is no first entry for the editor to make.
 
 The editor says these things instead of offering a control that would fail
 every time you pressed it.

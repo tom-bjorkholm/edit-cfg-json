@@ -16,11 +16,11 @@ from typing import Optional
 import pytest
 from config_as_json import Config, ConfigPath, JsonType
 from edit_cfg_json.leaf_value import empty_value
-from edit_cfg_json.member_types import attribute_texts, declared_hints, \
-    member_types, node_types, nothing_allowed
+from edit_cfg_json.member_types import KeptTypes, attribute_texts, \
+    declared_hints, member_types, node_types, nothing_allowed
 from edit_cfg_json.tree import ConfigNode, config_nodes, flat_values, \
     member_values
-from edit_cfg_json.type_options import TypeOption
+from edit_cfg_json.type_options import NONE_TYPE, TypeOption, type_options
 from .container_cfg import LooseDictCfg, UnionCfg
 
 
@@ -309,3 +309,29 @@ def test_nothing_allowed(path: ConfigPath, expected: bool) -> None:
     nodes, flat = _tree(UnionCfg())
     options = node_types(nodes=nodes, flat=flat).get(path, ())
     assert nothing_allowed(path=path, options=options, nodes=nodes) is expected
+
+
+@pytest.mark.parametrize('refreshing, expected',
+                         [(False, ['list[str]']), (True, ['str'])])
+def test_steps_through_choice(refreshing: bool, expected: list[str]) -> None:
+    """Test a container is stepped into through the type the user chose.
+
+    The choice stands while the user edits, whatever the value says, and a
+    validation pass that leaves a value the choice does not fit makes the
+    value say which type it is, for the rows inside it as well.
+    """
+    nodes, flat = _tree(UnionCfg())
+    chosen = type_options(list[list[str]])[0]
+    kept = KeptTypes(chosen={('columns', 'flat'): chosen},
+                     refreshing=refreshing)
+    found = node_types(nodes=nodes, flat=flat, kept=kept)
+    assert _texts(found[('columns', 'flat', '0')]) == expected
+
+
+def test_only_none_is_state() -> None:
+    """Test a node offered `None` and nothing else holds nothing as a state.
+
+    The class would accept nothing else there, so no field is given it.
+    """
+    nodes, _ = _tree(UnionCfg())
+    assert nothing_allowed(path=('count',), options=(NONE_TYPE,), nodes=nodes)

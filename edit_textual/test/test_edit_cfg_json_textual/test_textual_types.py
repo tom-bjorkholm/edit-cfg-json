@@ -184,3 +184,28 @@ def test_offer_follows() -> None:
             return (before, type_of(app, 'legacy'),
                     type_chooser_of(app, 'legacy').offered)
     assert asyncio.run(run()) == ('None', 'str', ('str',))
+
+
+def test_list_by_type() -> None:
+    """Test choosing a list gives the row a list, and `None` takes it away.
+
+    The row is made again as a container, with the control that adds an
+    element to it, and choosing `None` takes the list and that control away.
+    """
+    model = EditModel(OmittedReport())
+
+    async def run() -> list[int]:
+        app = EditorApp(model)
+        async with app.run_test(size=ROOMY_SIZE) as pilot:
+            await pilot.pause()
+            index = index_of(app, 'extra_hosts')
+            adding = f'#{element_id(index, ADD_ACTION)}'
+            counted = [len(app.query(adding))]
+            for text in ('list[str]', 'None'):
+                type_chooser_of(app, 'extra_hosts').value = text
+                await pilot.pause()
+                await pilot.pause()
+                counted.append(len(app.query(adding)))
+            return counted
+    assert asyncio.run(run()) == [0, 1, 0]
+    assert model_value(model, 'extra_hosts') is None

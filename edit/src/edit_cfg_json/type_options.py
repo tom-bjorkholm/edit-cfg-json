@@ -107,6 +107,14 @@ only its value can say are not.
 """
 
 
+CHOOSABLE_KINDS: tuple[type, ...] = (*SCALAR_KINDS, list, dict)
+"""The kinds of JSON value that a type the user chooses between is written as.
+
+A plain value is chosen in the same field, and a list or a dict is a container
+whose rows are built again below it when it is chosen.
+"""
+
+
 class _Unusable(Exception):
     """Raised where one part of a declaration names nothing usable."""
 
@@ -316,6 +324,29 @@ def held_option(options: Sequence[TypeOption],
     return value_option(options) or next(iter(options), None)
 
 
+def kept_choice(options: Sequence[TypeOption], value: JsonType,
+                chosen: Optional[TypeOption],
+                refreshing: bool) -> Optional[TypeOption]:
+    """Return the type one node holds once its rows have been built again.
+
+    Args:
+        options: The types the user may choose between for that node.
+        value: The value it holds now.
+        chosen: The type it held before, None for a node that had none.
+        refreshing: Whether the rows are what a validation pass left behind,
+            which is the one change that gives the value a say again.
+
+    Returns:
+        The type it held, where it still may and the value has no say, the
+        first type its value fits otherwise, and None where no type is
+        allowed at all.
+    """
+    if chosen is not None and chosen in options and \
+            (not refreshing or fits(chosen, value)):
+        return chosen
+    return held_option(options, value)
+
+
 def node_options(options: Sequence[TypeOption],
                  is_object: bool) -> tuple[TypeOption, ...]:
     """Return the types one node can be holding, as the tree has it.
@@ -438,9 +469,16 @@ def choosable(options: Sequence[TypeOption]) -> bool:
     """Return whether the user may choose which of some types a node holds.
 
     They may where there is more than one type to choose from and every one
-    of them is a plain value or `None`, which is what `int | str`,
-    `float | None` and `Colors | None` are. A choice of the user's between
-    them is a value of the other type in the same field, or no value at all.
+    of them is a plain value, a list, a dict or `None`, which is what
+    `int | str`, `float | None`, `Colors | None`, `list[str] | None` and
+    `list[str] | list[list[str]]` are. A choice of the user's between them is
+    a value of the other type in the same field, a container of the other
+    type with rows of its own below it, or no value at all.
+
+    A configuration class is not one of them yet, and neither is a class of
+    the application's own whose kind only its value can say: the editor
+    cannot make a value of the second, and the first is made and taken away
+    by the controls of section 4.9 of `doc/detailed_design.md`.
 
     Args:
         options: The types a node may hold.
@@ -449,5 +487,6 @@ def choosable(options: Sequence[TypeOption]) -> bool:
         Whether the type that node holds is the user's to choose.
     """
     return len(options) > 1 and all(
-        option == NONE_TYPE or option.kind in SCALAR_KINDS
+        option == NONE_TYPE or (option.kind in CHOOSABLE_KINDS
+                                and not _names_config(option))
         for option in options)

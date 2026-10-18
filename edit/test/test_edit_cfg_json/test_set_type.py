@@ -130,25 +130,35 @@ def test_element_nothing() -> None:
 @pytest.mark.parametrize('path, expected',
                          [(('width',), True), (('maybe',), True),
                           (('levels', '0'), True), (('levels',), False),
-                          (('hosts',), False)])
+                          (('hosts',), True)])
 def test_who_chooses(path: ConfigPath, expected: bool) -> None:
     """Test which nodes offer their type to be chosen.
 
-    A member declared to allow a list or nothing offers the controls that add
-    and remove instead, because a list is not a plain value.
+    A member declared to allow a list or nothing is one of them, and offers
+    neither of the controls that add and remove for its two states.
     """
     row = row_at(EditModel(ChoiceCfg()), path)
     assert row_chooses_type(row) is expected
     assert not (expected and (row.offer.extend or row.offer.cleared))
 
 
-def test_list_member_controls() -> None:
-    """Test a member that may hold a list or nothing keeps its two controls."""
-    assert row_at(EditModel(ChoiceCfg()), ('hosts',)).offer.extend
+def test_list_member_chosen() -> None:
+    """Test a member that may hold a list or nothing is given one by type.
+
+    Choosing `list[str]` gives it the empty list, whose own control then adds
+    the element its type says, and choosing `None` takes the list away again.
+    """
+    model = _chosen(path=('hosts',), text='list[str]')
+    assert row_at(model, ('hosts',)).value == []
+    model.add_element(path=('hosts',))
+    assert row_at(model, ('hosts',)).value == ['']
+    model.set_type(path=('hosts',), text='None')
+    assert row_at(model, ('hosts',)).holds_nothing
+    assert ('hosts', '0') not in [row.path for row in model.rows]
 
 
 @pytest.mark.parametrize('path, text',
-                         [(('width',), 'float'), (('hosts',), 'None'),
+                         [(('width',), 'float'), (('hosts',), 'list[int]'),
                           (('levels',), 'list[int | str]')])
 def test_choice_refused(path: ConfigPath, text: str) -> None:
     """Test a type a node is not offered, and a node offering none, refuse."""

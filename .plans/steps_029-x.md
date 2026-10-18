@@ -2,7 +2,7 @@
 
 ## Where everything is
 
-Steps 1 to 30, 31A and 31B are implemented and committed, step 23 with the
+Steps 1 to 30 and 31A to 31C are implemented and committed, step 23 with the
 corrections its review asked for. Steps 1 to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md), steps 10 to 21 in
 [steps_010-021_done.md](steps_010-021_done.md) and steps 22 to 28 in
@@ -119,6 +119,10 @@ the plan says only *when* that decision gets built.
 - [Step 31B](#step-31b---choosing-between-the-types-of-a-plain-value) — the
   type of a plain value chosen in that column, `None` among the types instead
   of the add and remove controls, and a type the class would refuse left out.
+- [Step 31C](#step-31c---choosing-between-lists-and-dicts) — a list and a dict
+  chosen in the same column, the rows below a row made again by a choice, and
+  the dict-shape check of the class asked of every row before a type is
+  offered.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -175,7 +179,7 @@ decision gets built.
 - Every step touches all three packages where the capability is
   user-visible, so `edit_cfg_json`, `edit_cfg_json_tk` and
   `edit_cfg_json_textual` never drift apart by more than one review.
-- Steps 1 to 30, 31A and 31B are built. Steps 1 to 28 are written up in
+- Steps 1 to 30 and 31A to 31C are built. Steps 1 to 28 are written up in
   [steps_001-009_done.md](steps_001-009_done.md), in
   [steps_010-021_done.md](steps_010-021_done.md) or in
   [steps_022-028_done.md](steps_022-028_done.md), and steps 29 to 30 in
@@ -628,7 +632,7 @@ deserves one message.
 
 ### Step 31 - The type of every row, and choosing between the types allowed
 
-Status: **Split into sub-steps 31A to 31E. 31A and 31B implemented, the
+Status: **Split into sub-steps 31A to 31E. 31A to 31C implemented, the
 rest planned.**
 
 Two complaints from users, and one answer to both.
@@ -1034,6 +1038,8 @@ rows again after a choice, as after an element change.
 
 #### Step 31C - Choosing between lists and dicts
 
+Status: **Implemented, committed.**
+
 **What it does.** The types of a row may now include lists and dicts, and
 changing between a container and anything else builds the rows again, as an
 element added or removed does. The refused types are worked out here: wherever
@@ -1066,6 +1072,85 @@ saying why.
   than the member's, so the column is decided by the longest *shown* text and
   changes with folding; decide whether it may, or whether it is computed over
   every row.
+
+**What it decided.** Seven things.
+
+- **The dict-shape check is asked of every row, the parse converter only of a
+  row whose type is chosen.** The check also decides what the control of a
+  member holding nothing would give it, so `NO_DICT_YET` is no longer a
+  refusal of that control but the reason a dict type is left out, beside a new
+  `DICT_ONLY` for anything else left out where the class holds a dict. A member
+  offered `None` alone holds nothing as a state, with no field and no control,
+  and its row still says `no value`.
+- **The check is mirrored as `config_as_json` makes it**, quirk included: it
+  stops below any place whose *last step* is named in `_unchecked_dicts`, so a
+  key deeper inside another member that has such a name stops it too.
+- **It is read from the objects the rows are built from**, with no object of
+  its own passed down. Those are the model's own object or what a validation
+  pass accepted, and an accepted one holds a dict at exactly the checked places
+  where the object it was matched against does.
+- **The column is counted over every row**, which answers the open question of
+  section 4: folding moves nothing, and a choice or an element that adds rows
+  can widen it, as adding an element always could.
+- **The type chosen lives on the rows and is resolved while they are built.**
+  The types of the rows inside a container depend on the type it holds, and
+  `[]` fits both lists, so the choice is needed during the build and not after
+  it. Each build takes it from the row that was at the same path before, which
+  moves with an element and goes with one taken out exactly as before, so the
+  buffer's own map of chosen types, its `_keep_held` and `BufferState.held` are
+  gone, and `kept_choice` moved down to `type_options`, because `member_types`
+  steps through it and must not import upwards.
+- **A copy is only what fits a container's chosen type.** A default written
+  for a `list[str]` entry is no element of the `list[list[str]]` chosen for it,
+  so where a container's type is chosen, what the class declares and what the
+  container holds are copied only where they are values of what that type
+  holds, and the declared type answers otherwise. Every other container copies
+  what the application wrote, as before.
+- **A node whose type is chosen is edited in a field exactly while it holds a
+  plain value**, whatever it held when the file was last agreed with.
+
+**Core.** A new `dict_check` walks the object down a path and answers whether
+the check demands a dict there, refuses one, or does not reach it, and whether
+the keys of a dict are matched; `elements._holds_elements` is that last answer,
+and `_member_path` and `_under_list` are gone. `type_options.choosable` takes
+lists and dicts that are not configuration classes, and `kept_choice` lives
+there now and answers None where no type is allowed. `type_choice.offered_types`
+takes `holds_dict`, gives one reason per type left out, and `switched_value`
+gives the empty value to and from a container. `member_types.node_types` takes
+`KeptTypes`, the previous choices and whether a pass is being taken in, and
+steps into a container through the type it holds; `nothing_allowed` makes
+`None` alone a state. `elements.tree_facts` computes the converters, the
+omitted paths and the dict check itself, and carries the held types, which
+`_typed_element` and the new `_fits_inside` read; `rows.RowContext` reads all
+of it from the facts. The two backends needed no change: both already made
+their rows again after a choice.
+
+| Name | Kind |
+| --- | --- |
+| `dict_check.DictCheck`, `dict_check`, `dict_shape`, `keys_checked` | where the dict-shape check of a tree reaches, and what it demands |
+| `type_choice.NO_DICT_YET`, `type_choice.DICT_ONLY` | why a dict type, or a type beside a dict, is not offered |
+| `member_types.KeptTypes` | the types chosen before a build, and whether it takes in a pass |
+| `type_options.kept_choice` | moved from `type_choice` |
+
+**What building it found.**
+
+- **The examples' command line could not say it.** `--add`, `--remove`,
+  `--move` and `--set-type` were applied in that fixed order, and a new entry
+  given a type and then an element is an add, a choice and an add. They are now
+  applied in the order the command line gives them, still all before `--set`.
+- **`config_as_json` reads `_unchecked_dicts` by the name of a step**, not of
+  a member, because `check_dict_parse` passes the inner key to itself as `key`.
+  The editor mirrors it, and `test_dict_check` shows a pass accepting a new key
+  of such an inner dict; it looks like a defect of that library worth reporting
+  there.
+- **The README row of e18 still described 31A's add and remove controls**, and
+  now says the pull-down.
+- **e20's map opened folded** with paths of two or three keys, because it added
+  more than eight rows; its paths are one key each, so the complaint is on the
+  screen when it opens.
+- **`elements` is 950 lines**, with the walk of the shape check in a module
+  of its own rather than in it; `tk_editor` and `textual_panel` did not
+  change.
 
 #### Step 31D - Choosing between an object and `None`
 
@@ -1207,5 +1292,5 @@ step that needs it. They are listed here so they are not forgotten.
 | Question | Answer needed by |
 | --- | --- |
 | Is an enum offered beside a type that is not `None` (`Colors \| int`), given that the parse converter runs on every value of the member? (31B: the converter of the member is run on the value each type would give, and a type it refuses is not offered, with the reason below the row.) | answered |
-| Is the width of the type column decided over the rows on the screen, and so changed by folding, or over every row? (31A counts every row, so that folding moves nothing; 31C confirms or changes it.) | 31C |
+| Is the width of the type column decided over the rows on the screen, and so changed by folding, or over every row? (31A counts every row, so that folding moves nothing; 31C confirmed it.) | answered |
 | Should the width of the type column change when the Tk window is resized, or only be worked out when the editor opens? | 35 |

@@ -39,15 +39,15 @@ converter of the class answers for its names.
 
 from collections.abc import Mapping, Sequence
 from textwrap import dedent
-from typing import Optional, get_type_hints
+from types import MappingProxyType
+from typing import NamedTuple, Optional, get_type_hints
 import ast
 import inspect
 import sys
 from config_as_json import ConfigPath, JsonType
 from edit_cfg_json.tree import ConfigNode, owner_path
 from edit_cfg_json.type_options import NONE_TYPE, TypeOption, choosable, \
-    empty_option_value, held_option, node_options, type_options, \
-    value_option
+    empty_option_value, kept_choice, node_options, type_options, value_option
 
 SELF_NAME = 'self'
 """What the first argument of a method is called, by every convention."""
@@ -217,9 +217,24 @@ def member_types(described: type[object]) -> dict[str,
     return {name: options for name, options in found if options}
 
 
+class KeptTypes(NamedTuple):
+    """The types the user chose, as the rows are about to be built again."""
+
+    chosen: Mapping[ConfigPath, TypeOption] = MappingProxyType({})
+    """The type each node whose type is chosen held before, by its path."""
+
+    refreshing: bool = False
+    """Whether the rows are what a validation pass left behind.
+
+    That is the one build in which the value has a say again over the type
+    the user chose, as `type_options.kept_choice` says.
+    """
+
+
 def _type_at(path: ConfigPath, nodes: Mapping[ConfigPath, ConfigNode],
              owned: Mapping[ConfigPath, Mapping[str, tuple[TypeOption, ...]]],
-             values: Mapping[ConfigPath, JsonType]) -> tuple[TypeOption, ...]:
+             values: Mapping[ConfigPath, JsonType],
+             kept: KeptTypes) -> tuple[TypeOption, ...]:
     """Return the types the class owning one node allows that node to hold.
 
     The class that answers is the one that owns the subtree, exactly as it is
@@ -227,15 +242,19 @@ def _type_at(path: ConfigPath, nodes: Mapping[ConfigPath, ConfigNode],
     object declares its own members. What it declares is about the member, and
     a node inside that member is reached by stepping into what the member
     allows inside it, once per step. Where a container is allowed to be more
-    than one type, the step goes through the one its value is, which is what
-    makes the inside of `list[str] | list[list[str]]` either of the two, and
-    through a configuration class only where the tree has an object.
+    than one type, the step goes through the one it holds, which is what makes
+    the inside of `list[str] | list[list[str]]` either of the two, and through
+    a configuration class only where the tree has an object. The type it holds
+    is the one the user chose where there is one, because `[]` is both of
+    those lists and only the choice says which, and the one its value is
+    otherwise.
 
     Args:
         path: Path of the node to answer for.
         nodes: Every configuration object of the tree, by its path.
         owned: What each of those objects declares, by the path of the object.
         values: The value of every node of the tree, by its path.
+        kept: The types the user chose, and whether a pass is being taken in.
 
     Returns:
         The types that node may hold, and none where nothing usable says.
@@ -244,20 +263,27 @@ def _type_at(path: ConfigPath, nodes: Mapping[ConfigPath, ConfigNode],
     member = path[:len(owner) + 1]
     options = owned.get(owner, {}).get(member[-1], ())
     for depth in range(len(member), len(path)):
-        held = held_option(node_options(options, path[:depth] in nodes),
-                           values.get(path[:depth]))
+        step = path[:depth]
+        held = kept_choice(options=node_options(options, step in nodes),
+                           value=values.get(step),
+                           chosen=kept.chosen.get(step),
+                           refreshing=kept.refreshing)
         options = () if held is None else held.inside
     return options
 
 
 def node_types(nodes: Mapping[ConfigPath, ConfigNode],
-               flat: Sequence[tuple[ConfigPath, JsonType]]
+               flat: Sequence[tuple[ConfigPath, JsonType]],
+               kept: KeptTypes = KeptTypes()
                ) -> dict[ConfigPath, tuple[TypeOption, ...]]:
     """Return the types the classes of one tree allow each node of it.
 
     Args:
         nodes: Every configuration object of the tree, by its path.
         flat: The path and the value of every node, in row order.
+        kept: The types the user chose, and whether a pass is being taken in,
+            which is what says which type a container whose value fits more
+            than one of its types holds.
 
     Returns:
         The alternatives of every node whose declaration names any usable
@@ -267,22 +293,22 @@ def node_types(nodes: Mapping[ConfigPath, ConfigNode],
              for path, node in nodes.items() if node.config is not None}
     values = dict(flat)
     found = ((path, _type_at(path=path, nodes=nodes, owned=owned,
-                             values=values)) for path, _ in flat)
+                             values=values, kept=kept)) for path, _ in flat)
     return {path: options for path, options in found if options}
 
 
 def nothing_allowed(path: ConfigPath, options: Sequence[TypeOption],
                     nodes: Mapping[ConfigPath, ConfigNode]) -> bool:
-    """Return whether one node has the two states of a value and of nothing.
+    """Return whether holding nothing is a state of one node, not a value.
 
-    A member does where its declaration allows `None` beside a type the editor
-    can make an empty value of, which is what `Optional[str]` and
-    `Optional[list[str]]` are (section 4.2 of `doc/detailed_design.md`).
-    Where every type is a plain value the pull-down of the types moves it
-    between the two, and otherwise the controls that add and remove do. A
-    member that allows nothing beside a configuration class or another class
-    of the application's own has one state as before: the editor cannot make
-    a value of such a type on its own.
+    A member has the two states of a value and of nothing where its
+    declaration allows `None` beside a type the editor can make an empty value
+    of (section 4.2 of `doc/detailed_design.md`). Where every type is a plain
+    value, a list or a dict, the pull-down of the types moves it between the
+    two, and otherwise the controls that add and remove do. A member that
+    allows nothing beside a configuration class or another class of the
+    application's own has one state as before: the editor cannot make a value
+    of such a type on its own.
 
     A node whose type the user chooses has them wherever `None` is one of the
     types offered, a value inside a list or a dict as much as a member: `None`
@@ -293,6 +319,11 @@ def nothing_allowed(path: ConfigPath, options: Sequence[TypeOption],
     element that could be taken out of what holds it already has a control
     that means that.
 
+    A node offered `None` and nothing else holds nothing as the one state its
+    class would accept, wherever it is: `Optional[dict[str, int]]` where the
+    class holds no dict to match one against is that. It is a state for the
+    same reason, so that no field is given it to type a refused value into.
+
     Args:
         path: Path of the node to answer for.
         options: The types it is offered, the ones its class would refuse
@@ -300,12 +331,13 @@ def nothing_allowed(path: ConfigPath, options: Sequence[TypeOption],
         nodes: Every configuration object of the tree, by its path.
 
     Returns:
-        Whether that node has those two states.
+        Whether that node holding nothing is a state of it.
     """
-    if choosable(options):
-        return NONE_TYPE in options
-    if NONE_TYPE not in options or \
-            len(path) != len(owner_path(path=path, nodes=nodes)) + 1:
+    if NONE_TYPE not in options:
         return False
     first = value_option(options)
-    return first is not None and empty_option_value(first) is not None
+    if first is None or choosable(options):
+        return True
+    if len(path) != len(owner_path(path=path, nodes=nodes)) + 1:
+        return False
+    return empty_option_value(first) is not None

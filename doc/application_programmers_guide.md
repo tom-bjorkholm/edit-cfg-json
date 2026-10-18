@@ -1019,20 +1019,40 @@ union such as `Optional[str]` or a long type such as
 `dict[str, StageConfig | str | dict[str, int]]` is said whole on the line below
 the row.
 
-**Where every type a member is declared to allow is a plain value, the user
-chooses between them.** `self.width: int | str = 80` takes either a number or a
-text, and the column is a pull-down of the two: the text in the field is read
-as a value of the type chosen. `Optional[str]` is `str | None`, so `None` is
+**Where every type a member is declared to allow is a plain value, a list or a
+dict, the user chooses between them.** `self.width: int | str = 80` takes
+either a number or a text, and the column is a pull-down of the two: the text
+in the field is read as a value of the type chosen. `Optional[str]` is
+`str | None` and `Optional[list[str]]` is `list[str] | None`, so `None` is
 chosen in the same pull-down, which is what the add and remove controls did
-for such a member before; a member that may hold a list, a dict or a nested
-object and nothing keeps those controls for now. A plain value is a text, a
-number, true or false, an enum or a `Literal`. Switching keeps what still fits
-— the number `80` becomes the text `80` — and gives the empty value of the new
-type otherwise. The choice lasts until a validation pass leaves a value it does
-not fit, so a validator of yours that turns `"7"` into `7` makes the row an
-`int` again, and the editor shows the type your validator chose.
+for such a member before; a member that may hold a nested object or nothing
+keeps those controls for now. A plain value is a text, a number, true or false,
+an enum or a `Literal`. Switching keeps what still fits — the number `80`
+becomes the text `80` — and gives the empty value of the new type otherwise,
+which a list or a dict on either side of the switch always is. The choice lasts
+until a validation pass leaves a value it does not fit, so a validator of yours
+that turns `"7"` into `7` makes the row an `int` again, and the editor shows the
+type your validator chose.
 
-**A type your class would refuse is not offered.** `config_as_json` hands every
+**A container chosen is what its elements are made of.**
+`self.jira_column_map: dict[str, list[str] | list[list[str]]]` lets each entry
+be a list of text or a list of lists of text, and `[]` is both: the type the
+user chose is what decides whether **Add** on an empty entry adds a text or a
+list of text, so it is kept for as long as the value fits it. A new element is
+still copied from what you declared or what the container holds (section 4.9 of
+the design), but only where that is a value of the type chosen, so a default
+you wrote for a `list[str]` entry is not copied into a `list[list[str]]` the user
+chose for it instead. Worked example:
+[e20_union_types.py](../examples/src/example/e20_union_types.py).
+
+**A type your class would refuse is not offered.** `Config.check_dict_parse`
+matches a file against the object your class parses it into, and refuses a
+dict where that object holds something else and anything else, `None` among
+it, where it holds a dict. So `Optional[dict[str, int]]` is offered `None`
+alone where your object holds no dict, and the dict alone where it holds one.
+That check does not reach inside a member you name in `_unchecked_dicts`, a
+member `nested_configs()` names or anything below a list, and there every
+declared type is offered. Separately, `config_as_json` hands every
 value of a member with a parse converter that is not already of the type the
 converter makes to that converter, and `Config.get_converter_dict` refuses
 anything that is not text. So `Colors | int` is offered `Colors` alone, and

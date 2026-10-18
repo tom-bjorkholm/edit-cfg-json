@@ -74,15 +74,19 @@ more entry into a dict, which needs a key because nothing but the person
 configuring the application knows what a new entry is called. `--remove PATH`
 takes one element out again, and `--move PATH=up` and `--move PATH=down` make
 one element of a list change places with a neighbour. All four stand in for
-pressing the control on that row, and all four are applied before `--set`, so
-that a value inside a new element can be typed into in the same run.
+pressing the control on that row.
 
 `--set-type PATH=TYPE` stands in for choosing a type in the pull-down between
 the name and the value of a row, as in `--set-type subtitle=str`. The type is
 written as the pull-down shows it, which is how a Python type hint spells it,
-so one with a space or a bracket in it has to be quoted for the shell. It is
-applied after the four above and before `--set`, so that a value of the type
-just chosen can be typed in the same run.
+so one with a space or a bracket in it has to be quoted for the shell.
+
+Those five change what rows there are, and each of them can need what one of
+the others did: a new entry of a dict can be given another type, and a list
+chosen for it can then be given an element. So they are applied in the order
+the command line gives them, as a user would press them, and all of them are
+applied before `--set`, so that a value inside a new element, or a value of
+the type just chosen, can be typed into in the same run.
 
 `-i/--input` names the file that the values are read from, and `--policy`
 says what to do about a declared value that the file does not hold. There is
@@ -193,8 +197,9 @@ them edit.
 # MIT License
 
 import argparse
+from collections.abc import Callable, Sequence
 from dataclasses import fields, replace
-from typing import Optional
+from typing import Any, Optional
 from config_as_json import Config
 from edit_cfg_json import ActionSettings, ConfigLoadError, ConfigLoader, \
     Descriptions, DumpEditor, EditModel, EditorBackend, FindOptions, \
@@ -312,16 +317,16 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
     parser.add_argument('--fold', action='append', dest='folds',
                         metavar='PATH',
                         help='Fold or open one list or dict. Repeatable.')
-    parser.add_argument('--add', action='append', dest='adds',
+    parser.add_argument('--add', action=InOrder, dest='changes',
                         metavar='PATH[=KEY]',
                         help='Add one element or entry. Repeatable.')
-    parser.add_argument('--remove', action='append', dest='removes',
+    parser.add_argument('--remove', action=InOrder, dest='changes',
                         metavar='PATH',
                         help='Remove one element or entry. Repeatable.')
-    parser.add_argument('--move', action='append', dest='moves',
+    parser.add_argument('--move', action=InOrder, dest='changes',
                         metavar='PATH=up|down',
                         help='Move one element of a list. Repeatable.')
-    parser.add_argument('--set-type', action='append', dest='types',
+    parser.add_argument('--set-type', action=InOrder, dest='changes',
                         metavar='PATH=TYPE',
                         help='Choose the type one value holds. Repeatable.')
     parser.add_argument('--find', default='', metavar='TEXT',
@@ -413,90 +418,91 @@ def _apply_edits(parser: argparse.ArgumentParser, model: EditModel,
         _set_member(parser=parser, model=model, name=name, text=text)
 
 
-def _apply_adds(parser: argparse.ArgumentParser, model: EditModel,
-                adds: Optional[list[str]]) -> None:
-    """Put one more element into every node that one command line names.
+def _add_one(model: EditModel, value: str) -> None:
+    """Put one more element into the node that one `--add` names.
 
     A list is named on its own and a dict is named with the key of the new
     entry after an equals sign, because a new entry of a dict has to be
     called something and nothing but the person configuring the application
     knows what. It is the same notation as `--set`, for the same reason: what
     follows the equals sign is what the user would have typed.
-
-    Args:
-        parser: Parser used to report the error and exit.
-        model: Model whose buffer is edited.
-        adds: The `--add` values, or None when the option was not used.
     """
-    for value in adds or []:
-        name, _, key = value.partition('=')
-        try:
-            model.add_element(path=text_path(name), key=key)
-        except KeyError:
-            parser.error(NO_MEMBER_MESSAGE.format(name=name))
-        except ValueError as error:
-            parser.error(str(error))
+    name, _, key = value.partition('=')
+    model.add_element(path=text_path(name), key=key)
 
 
-def _apply_removes(parser: argparse.ArgumentParser, model: EditModel,
-                   removes: Optional[list[str]]) -> None:
-    """Take one element out of what holds it, for every name of one run.
-
-    Args:
-        parser: Parser used to report the error and exit.
-        model: Model whose buffer is edited.
-        removes: The `--remove` values, or None when unused.
-    """
-    for name in removes or []:
-        try:
-            model.remove_element(text_path(name))
-        except KeyError:
-            parser.error(NO_MEMBER_MESSAGE.format(name=name))
-        except ValueError as error:
-            parser.error(str(error))
+def _remove_one(model: EditModel, value: str) -> None:
+    """Take the element that one `--remove` names out of what holds it."""
+    model.remove_element(text_path(value))
 
 
-def _apply_moves(parser: argparse.ArgumentParser, model: EditModel,
-                 moves: Optional[list[str]]) -> None:
-    """Move one element of a list by one place, for every name of one run.
-
-    Args:
-        parser: Parser used to report the error and exit.
-        model: Model whose buffer is edited.
-        moves: The `--move` values, or None when the option was not used.
-    """
-    for value in moves or []:
-        name, separator, direction = value.partition('=')
-        if not separator or direction not in (MOVE_UP, MOVE_DOWN):
-            parser.error(MOVE_FORM_MESSAGE.format(value=value, up=MOVE_UP,
+def _move_one(model: EditModel, value: str) -> None:
+    """Move the element that one `--move` names by one place."""
+    name, separator, direction = value.partition('=')
+    if not separator or direction not in (MOVE_UP, MOVE_DOWN):
+        raise ValueError(MOVE_FORM_MESSAGE.format(value=value, up=MOVE_UP,
                                                   down=MOVE_DOWN))
-        try:
-            model.move_element(path=text_path(name),
-                               later=direction == MOVE_DOWN)
-        except KeyError:
-            parser.error(NO_MEMBER_MESSAGE.format(name=name))
-        except ValueError as error:
-            parser.error(str(error))
+    model.move_element(path=text_path(name), later=direction == MOVE_DOWN)
 
 
-def _apply_types(parser: argparse.ArgumentParser, model: EditModel,
-                 types: Optional[list[str]]) -> None:
-    """Choose the type of one node, for every `--set-type` of one run.
+def _choose_type(model: EditModel, value: str) -> None:
+    """Choose the type of the node that one `--set-type` names."""
+    name, separator, text = value.partition('=')
+    if not separator:
+        raise ValueError(SET_TYPE_FORM_MESSAGE.format(value=value))
+    model.set_type(path=text_path(name), text=text)
+
+
+CHANGES: dict[str, Callable[[EditModel, str], None]] = {
+    '--add': _add_one, '--remove': _remove_one, '--move': _move_one,
+    '--set-type': _choose_type}
+"""What each option that changes which rows there are does, by its name."""
+
+
+class InOrder(argparse.Action):  # pylint: disable=too-few-public-methods
+    """Keep each option that changes the rows in the order it was given.
+
+    `action='append'` keeps the order of one option, and these options have
+    to keep their order among each other as well: a new entry is given a type
+    and then an element, which is three presses of two kinds.
+    """
+
+    # The type of `values` is the one `argparse.Action` declares, and this
+    # method has to take what its base class may pass.
+    def __call__(self, parser: argparse.ArgumentParser,
+                 namespace: argparse.Namespace,
+                 values: str | Sequence[Any] | None,
+                 option_string: Optional[str] = None) -> None:
+        """Add one option and its value to the changes of this run.
+
+        Args:
+            parser: Parser that read the option.
+            namespace: What the parser has read so far.
+            values: The value given to the option.
+            option_string: The option as it was written.
+        """
+        assert isinstance(values, str)
+        changes = list(getattr(namespace, self.dest, None) or [])
+        changes.append((self.option_strings[0], values))
+        setattr(namespace, self.dest, changes)
+
+
+def _apply_changes(parser: argparse.ArgumentParser, model: EditModel,
+                   changes: Optional[list[tuple[str, str]]]) -> None:
+    """Apply every option that changes the rows, in the order it was given.
 
     Args:
         parser: Parser used to report the error and exit.
         model: Model whose buffer is edited.
-        types: The `--set-type` values, or None when the option was not
-            used.
+        changes: Each option and its value, in the order of the command line,
+            or None when none of them was used.
     """
-    for value in types or []:
-        name, separator, text = value.partition('=')
-        if not separator:
-            parser.error(SET_TYPE_FORM_MESSAGE.format(value=value))
+    for option, value in changes or []:
         try:
-            model.set_type(path=text_path(name), text=text)
+            CHANGES[option](model, value)
         except KeyError:
-            parser.error(NO_MEMBER_MESSAGE.format(name=name))
+            parser.error(NO_MEMBER_MESSAGE.format(
+                name=value.partition('=')[0]))
         except ValueError as error:
             parser.error(str(error))
 
@@ -639,10 +645,11 @@ class StandInUser:  # pylint: disable=too-few-public-methods
     editor that is already open.
 
     How many elements there are and which type a value holds are changed
-    before anything is typed, so that a value inside a new element, or a value
-    of the type just chosen, can be set in the same run, and the search comes
-    after the folding, because a search opens what hides what it found. That is
-    also the order a user would work in.
+    before anything is typed, in the order the command line gives them, so
+    that a value inside a new element, or a value of the type just chosen, can
+    be set in the same run, and the search comes after the folding, because a
+    search opens what hides what it found. That is also the order a user would
+    work in.
 
     Saving is here rather than in `DumpEditor` for the same reason as the other
     two: the dump prints the model it is given, and pressing Save is not
@@ -673,13 +680,8 @@ class StandInUser:  # pylint: disable=too-few-public-methods
         Args:
             model: Model to edit and then to show.
         """
-        _apply_adds(parser=self._parser, model=model, adds=self._parsed.adds)
-        _apply_removes(parser=self._parser, model=model,
-                       removes=self._parsed.removes)
-        _apply_moves(parser=self._parser, model=model,
-                     moves=self._parsed.moves)
-        _apply_types(parser=self._parser, model=model,
-                     types=self._parsed.types)
+        _apply_changes(parser=self._parser, model=model,
+                       changes=self._parsed.changes)
         _apply_edits(parser=self._parser, model=model,
                      edits=self._parsed.edits)
         for _ in range(self._parsed.toggle_explain):

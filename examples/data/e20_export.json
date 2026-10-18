@@ -1,0 +1,14 @@
+{
+    "jira_column_map": {
+        "Created": [
+            "created"
+        ],
+        "Labels": [
+            [
+                "labels"
+            ]
+        ],
+        "Watchers": []
+    },
+    "separator": " / "
+}

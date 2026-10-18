@@ -669,15 +669,20 @@ class EditModel:
     def set_type(self, path: ConfigPath, text: str) -> None:
         """Make one node hold another of the types its declaration allows.
 
-        A node whose declaration allows more than one plain type, or a plain
-        type and `None`, holds the one the user chooses, and `None` is chosen
-        like any other type: it is what the controls that remove and add were
-        for such a member. The choice is kept, because a value can fit more
-        than one type, until a validation pass leaves a value it does not fit.
+        A node whose declaration allows more than one plain type, list or
+        dict, or one of them and `None`, holds the one the user chooses, and
+        `None` is chosen like any other type: it is what the controls that
+        remove and add were for such a member. A type the class would refuse
+        is not offered, as `MemberRow.types` says. The choice is kept, because
+        a value can fit more than one type, until a validation pass leaves a
+        value it does not fit.
 
         Switching keeps what still fits: a text that means a value of the new
         type is read as one, so `5` becomes a number when `str` is changed to
-        `int`, and everything else is given the empty value of the new type.
+        `int`, and everything else is given the empty value of the new type,
+        `[]` and `{}` among them. A node that changes between a container and
+        anything else has other rows below it afterwards, so a backend makes
+        its rows again, as it does after an element is added.
 
         Which nodes offer this is on the rows, as `MemberRow.type_choosable`
         and `MemberRow.types`, so that two user interfaces of one application

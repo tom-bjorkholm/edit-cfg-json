@@ -79,8 +79,8 @@ above. There are no cycles.
 | The session | `edit_model` |
 | The edit buffer | `buffer` |
 | Operations | `rows`, `finding`, `elements`, `placing`, `type_choice`, `validation`, `loading`, `auto_change`, `saving`, `settings_file` |
-| Facts about one `Config` | `descriptions`, `member_types`, `converting`, `settings_config` |
-| Foundations | `tree`, `leaf_value`, `constructing`, `settings`, `loader`, `exit_code`, `version_report` |
+| Facts about one `Config` | `descriptions`, `member_types`, `converting`, `dict_check`, `settings_config` |
+| Foundations | `tree`, `leaf_value`, `type_options`, `constructing`, `settings`, `loader`, `exit_code`, `version_report` |
 
 Section 4 groups the same files by concern instead, which is the grouping to
 use when hunting for one.
@@ -97,8 +97,9 @@ Pure inspection. Nothing here knows that an editor exists.
 | --- | --- |
 | [tree.py](../edit/src/edit_cfg_json/tree.py) | Takes the values of one configuration apart into one node per path, and puts the buffer back together again. The two are inverses. Also answers where the nested objects, the containers and the omitted nodes are. |
 | [leaf_value.py](../edit/src/edit_cfg_json/leaf_value.py) | What one leaf holds in JSON space: its kind, the empty value of that kind, and text to value and back. |
-| [type_options.py](../edit/src/edit_cfg_json/type_options.py) | A resolved annotation read into the types it allows, one `TypeOption` per alternative of a union, spelled as Python spells a type hint; which of them a value fits, and how a type is cut to its column. |
-| [member_types.py](../edit/src/edit_cfg_json/member_types.py) | The declared types of every member and of every node inside one, from annotations, and which members have the two states of a value and of nothing. |
+| [type_options.py](../edit/src/edit_cfg_json/type_options.py) | A resolved annotation read into the types it allows, one `TypeOption` per alternative of a union, spelled as Python spells a type hint; which of them a value fits, which one a node holds as the buffer changes, and how a type is cut to its column. |
+| [member_types.py](../edit/src/edit_cfg_json/member_types.py) | The declared types of every member and of every node inside one, from annotations, stepping into a container through the type the user chose for it, and which members have the two states of a value and of nothing. |
+| [dict_check.py](../edit/src/edit_cfg_json/dict_check.py) | Where the dict-shape check of `config_as_json` reaches: whether a node has to be a dict, must not be one, or is not checked, and whether the keys of a dict are matched. |
 | [descriptions.py](../edit/src/edit_cfg_json/descriptions.py) | The explanatory text a row is shown with: the class docstring, the application's mapping, and what the type itself says. |
 | [converting.py](../edit/src/edit_cfg_json/converting.py) | Runs the class's own parse converter over the text of one leaf (enums, in practice) and words the refusal. |
 | [constructing.py](../edit/src/edit_cfg_json/constructing.py) | The two ways a configuration object is built: on the class's declared values, and on the buffer through `parse_json`. |
@@ -118,9 +119,9 @@ Pure inspection. Nothing here knows that an editor exists.
 | --- | --- |
 | [rows.py](../edit/src/edit_cfg_json/rows.py) | One row per node, with its value, its state and its marks. Built when the model is built and rebuilt after every validation pass. |
 | [buffer.py](../edit/src/edit_cfg_json/buffer.py) | The values as the user is typing them, and which containers are folded. The one part of a session the user changes directly. No input or output, and no knowledge of any backend. |
-| [elements.py](../edit/src/edit_cfg_json/elements.py) | What a container offers — add, remove, move — and what a new element would be copied from. Says why where it can offer nothing. |
+| [elements.py](../edit/src/edit_cfg_json/elements.py) | What a container offers — add, remove, move — and what a new element would be copied from, which for a container of a chosen type is a value of that type. Says why where it can offer nothing. |
 | [placing.py](../edit/src/edit_cfg_json/placing.py) | Where a class declares that a nested object belongs, and putting one there or taking it away as the buffer gains and loses elements. |
-| [type_choice.py](../edit/src/edit_cfg_json/type_choice.py) | Which of the declared types of a node the user may choose — the ones its parse converter would refuse left out, with the reason — which one it holds as the buffer changes, and what it holds once another is chosen. |
+| [type_choice.py](../edit/src/edit_cfg_json/type_choice.py) | Which of the declared types of a node are offered — the ones the dict-shape check or its parse converter would refuse left out, with the reason — which one it holds as the buffer changes, and what it holds once another is chosen. |
 | [finding.py](../edit/src/edit_cfg_json/finding.py) | Which nodes a search text is about. It opens nothing, focuses nothing and scrolls nothing. |
 | [validation.py](../edit/src/edit_cfg_json/validation.py) | Four passes: convert each text, apply the whole buffer to a candidate object, attribute a refusal to the member it was about, and ask every nested object on its own. |
 
@@ -164,7 +165,7 @@ Pure inspection. Nothing here knows that an editor exists.
 | The wrong explanation under a row | `descriptions.py`, then `model_text.py` |
 | A member's kind or declared type is wrong | `member_types.py`, then `type_options.py`, then `leaf_value.py` |
 | The type column of a row says the wrong thing | `rows.py` (`MemberRow.chosen_type`), then `model_text.py` |
-| Choosing a type misbehaves, or offers the wrong types | `type_choice.py`, then `buffer.py` (`set_type`) |
+| Choosing a type misbehaves, or offers the wrong types | `type_choice.py`, then `dict_check.py`, then `buffer.py` (`set_type`) |
 | Add, remove or move an element misbehaves | `elements.py`, then `placing.py` |
 | A nested object is shown as a plain dict | `tree.py` (`config_nodes`) |
 | Folding, or what a fold hides | `tree.py` (`starts_folded`, `rows_below`), then `buffer.py` |
@@ -186,8 +187,8 @@ Pure inspection. Nothing here knows that an editor exists.
 The tests are in
 [edit/test/test_edit_cfg_json/](../edit/test/test_edit_cfg_json/), mostly one
 `test_<module>.py` per module.
-[examples/src/example/](../examples/src/example/) holds twenty-two worked
-examples, each one a small program: nineteen that teach the library one idea
+[examples/src/example/](../examples/src/example/) holds twenty-three worked
+examples, each one a small program: twenty that teach the library one idea
 at a time, and three more that answer which call an application writes. They
 are the quickest way to see what a feature is for.
 

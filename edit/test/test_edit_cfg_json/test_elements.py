@@ -16,7 +16,8 @@ import pytest
 from config_as_json import ConfigPath
 from edit_cfg_json import EditModel, model_as_text, row_description
 from edit_cfg_json.elements import BY_KEY_PATTERN, FIXED_KEYS, NO_CLASS_FORM, \
-    NO_DICT_YET, NO_ENTRY_PATTERN, NO_PATTERN
+    NO_ENTRY_PATTERN, NO_PATTERN
+from edit_cfg_json.type_choice import NO_DICT_YET
 from .container_cfg import ByKeyCfg, ByKeyDictCfg, ConfigDictCfg, \
     ConfigListCfg, DictPlaceCfg, ElementCfg, EmptyObjectsCfg, \
     ExtraObjectsCfg, NullNestedCfg, OmitNestedCfg, OnlyNamedCfg, TreeCfg, \
@@ -672,12 +673,13 @@ def test_omitted_list_grows() -> None:
     """Test a list member left out of the file is given the empty list.
 
     How the class writes such a member decides nothing about the two states:
-    it holds nothing, and adding gives it the value of its kind that says no
-    more than which kind it is.
+    it holds nothing, and choosing its list type gives it the value of that
+    type that says no more than which type it is.
     """
     model = EditModel(OmitKindsCfg())
-    assert row_at(model=model, path=('hosts',)).holds_nothing
-    model.add_element(path=('hosts',))
+    row = row_at(model=model, path=('hosts',))
+    assert row.holds_nothing and not row.offer.extend
+    model.set_type(path=('hosts',), text='list[str]')
     assert row_at(model=model, path=('hosts',)).value == []
     assert model.validate().valid
 
@@ -716,12 +718,14 @@ def test_omitted_dict_refused() -> None:
     """Test a member holding no dict says why it cannot be given one.
 
     `Config.check_dict_parse` refuses a dict written for a member whose value
-    is not one, whatever keys it has and even where it has none, so the
-    control would produce a refusal and there is none.
+    is not one, whatever keys it has and even where it has none, so its dict
+    type is not offered, and `None` is all it may hold. The line below it
+    says why, and there is neither a field nor a control to give it one.
     """
     row = row_at(model=EditModel(OmitKindsCfg()), path=('limits',))
-    assert not row.offer.extend
-    assert row.offer.refusal == NO_DICT_YET
+    assert [option.text for option in row.types] == ['None']
+    assert row.holds_nothing and not row.editable and not row.offer.extend
+    assert NO_DICT_YET.format(type='dict[str, int]') in row.description
 
 
 def test_omitted_dict_fails() -> None:

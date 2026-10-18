@@ -178,6 +178,16 @@ about that member.
 | --- | --- |
 | [e19_report.json](e19_report.json) | Opens with one key and six rows. Every member but the title is left out of this file, which is the state each of them holds nothing in, and the rows come from the configuration object rather than from the file: a file with no key for a member is exactly the file in which that member has to be reachable. |
 
+## Files for `e20_union_types.py`
+
+`ExportConfig` declares a dict of columns whose every value may be a list of
+text or a list of lists of text, and leaves the keys of that dict to the
+application with `_unchecked_dicts`.
+
+| File | What happens |
+| --- | --- |
+| [e20_export.json](e20_export.json) | Opens with three columns whose types are said by their values alone. `Labels` holds one path written as a list of paths, so it holds `list[list[str]]`, and `Watchers` holds the empty list, which is a value of both types and so holds the first of them the declaration writes, `list[str]`, until the user chooses the other. |
+
 ## Why a file with a bad value cannot be opened
 
 An editor that refused to open the very file that has to be repaired would
