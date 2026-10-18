@@ -296,14 +296,15 @@ def test_steps_through_union(path: ConfigPath, expected: list[str]) -> None:
 
 @pytest.mark.parametrize('path, expected',
                          [(('maybe',), True), (('count',), False),
-                          (('colour',), False), (('items', '0'), False)])
+                          (('colour',), True), (('items', '0'), True),
+                          (('columns', 'flat'), False)])
 def test_nothing_allowed(path: ConfigPath, expected: bool) -> None:
-    """Test which members have the two states of a value and of nothing.
+    """Test which nodes have the two states of a value and of nothing.
 
-    `Optional[int | str]` does, because the editor can make an empty value
-    of the first of its types. An optional enum does not yet, because the
-    editor can make no value of an enum on its own, and an element of a list
-    never does, whatever its declaration allows.
+    A node whose type the user chooses has them wherever `None` is one of its
+    types, which is `Optional[int | str]`, an optional enum, and an element of
+    `list[Optional[str]]` as much as a member. A value inside a container
+    whose type is not chosen never has them.
     """
     nodes, flat = _tree(UnionCfg())
     options = node_types(nodes=nodes, flat=flat).get(path, ())

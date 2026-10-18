@@ -184,7 +184,9 @@
     * [nestings](#edit_cfg_json.elements.TreeFacts.nestings)
     * [by\_key](#edit_cfg_json.elements.TreeFacts.by_key)
     * [unchecked](#edit_cfg_json.elements.TreeFacts.unchecked)
+    * [declared](#edit_cfg_json.elements.TreeFacts.declared)
     * [types](#edit_cfg_json.elements.TreeFacts.types)
+    * [refusals](#edit_cfg_json.elements.TreeFacts.refusals)
     * [nothing](#edit_cfg_json.elements.TreeFacts.nothing)
     * [defaults](#edit_cfg_json.elements.TreeFacts.defaults)
     * [made](#edit_cfg_json.elements.TreeFacts.made)
@@ -353,6 +355,8 @@
     * [message](#edit_cfg_json.buffer.ChoiceReport.message)
     * [edited](#edit_cfg_json.buffer.ChoiceReport.edited)
   * [\_swapped\_order](#edit_cfg_json.buffer._swapped_order)
+  * [\_new\_paths](#edit_cfg_json.buffer._new_paths)
+  * [\_carried](#edit_cfg_json.buffer._carried)
   * [\_renamed](#edit_cfg_json.buffer._renamed)
   * [EditBuffer](#edit_cfg_json.buffer.EditBuffer)
     * [\_\_init\_\_](#edit_cfg_json.buffer.EditBuffer.__init__)
@@ -381,6 +385,7 @@
     * [add\_element](#edit_cfg_json.buffer.EditBuffer.add_element)
     * [remove\_element](#edit_cfg_json.buffer.EditBuffer.remove_element)
     * [move\_element](#edit_cfg_json.buffer.EditBuffer.move_element)
+    * [set\_type](#edit_cfg_json.buffer.EditBuffer.set_type)
     * [\_moved](#edit_cfg_json.buffer.EditBuffer._moved)
     * [\_restructured](#edit_cfg_json.buffer.EditBuffer._restructured)
     * [\_follow](#edit_cfg_json.buffer.EditBuffer._follow)
@@ -388,6 +393,7 @@
     * [keep\_saved](#edit_cfg_json.buffer.EditBuffer.keep_saved)
     * [take\_validated](#edit_cfg_json.buffer.EditBuffer.take_validated)
     * [\_rebuild](#edit_cfg_json.buffer.EditBuffer._rebuild)
+    * [\_keep\_held](#edit_cfg_json.buffer.EditBuffer._keep_held)
     * [\_forget\_gone](#edit_cfg_json.buffer.EditBuffer._forget_gone)
     * [\_fold\_new](#edit_cfg_json.buffer.EditBuffer._fold_new)
     * [\_stamp](#edit_cfg_json.buffer.EditBuffer._stamp)
@@ -591,7 +597,9 @@
   * [row\_description](#edit_cfg_json.model_text.row_description)
   * [row\_chooses](#edit_cfg_json.model_text.row_chooses)
   * [row\_type\_text](#edit_cfg_json.model_text.row_type_text)
+  * [row\_type\_choices](#edit_cfg_json.model_text.row_type_choices)
   * [row\_type\_texts](#edit_cfg_json.model_text.row_type_texts)
+  * [row\_chooses\_type](#edit_cfg_json.model_text.row_chooses_type)
   * [type\_column\_width](#edit_cfg_json.model_text.type_column_width)
   * [row\_validates](#edit_cfg_json.model_text.row_validates)
   * [row\_subtree\_text](#edit_cfg_json.model_text.row_subtree_text)
@@ -671,6 +679,7 @@
     * [add\_element](#edit_cfg_json.edit_model.EditModel.add_element)
     * [remove\_element](#edit_cfg_json.edit_model.EditModel.remove_element)
     * [move\_element](#edit_cfg_json.edit_model.EditModel.move_element)
+    * [set\_type](#edit_cfg_json.edit_model.EditModel.set_type)
     * [\_changed](#edit_cfg_json.edit_model.EditModel._changed)
     * [check\_field](#edit_cfg_json.edit_model.EditModel.check_field)
     * [set\_out\_file](#edit_cfg_json.edit_model.EditModel.set_out_file)
@@ -693,6 +702,7 @@
   * [CUT\_MARK](#edit_cfg_json.type_options.CUT_MARK)
   * [UNION\_ORIGINS](#edit_cfg_json.type_options.UNION_ORIGINS)
   * [UNUSABLE\_CLASSES](#edit_cfg_json.type_options.UNUSABLE_CLASSES)
+  * [SCALAR\_KINDS](#edit_cfg_json.type_options.SCALAR_KINDS)
   * [\_Unusable](#edit_cfg_json.type_options._Unusable)
   * [type\_options](#edit_cfg_json.type_options.type_options)
   * [\_alternatives](#edit_cfg_json.type_options._alternatives)
@@ -712,7 +722,9 @@
   * [value\_option](#edit_cfg_json.type_options.value_option)
   * [inferred\_option](#edit_cfg_json.type_options.inferred_option)
   * [reading\_kind](#edit_cfg_json.type_options.reading_kind)
+  * [allowed\_values](#edit_cfg_json.type_options.allowed_values)
   * [empty\_option\_value](#edit_cfg_json.type_options.empty_option_value)
+  * [choosable](#edit_cfg_json.type_options.choosable)
 * [edit\_cfg\_json.rows](#edit_cfg_json.rows)
   * [NOT\_A\_MEMBER](#edit_cfg_json.rows.NOT_A_MEMBER)
   * [MemberRow](#edit_cfg_json.rows.MemberRow)
@@ -736,12 +748,14 @@
     * [found](#edit_cfg_json.rows.MemberRow.found)
     * [types](#edit_cfg_json.rows.MemberRow.types)
     * [nothing\_allowed](#edit_cfg_json.rows.MemberRow.nothing_allowed)
+    * [held](#edit_cfg_json.rows.MemberRow.held)
     * [offer](#edit_cfg_json.rows.MemberRow.offer)
     * [name](#edit_cfg_json.rows.MemberRow.name)
     * [depth](#edit_cfg_json.rows.MemberRow.depth)
     * [foldable](#edit_cfg_json.rows.MemberRow.foldable)
     * [is\_object](#edit_cfg_json.rows.MemberRow.is_object)
     * [holds\_nothing](#edit_cfg_json.rows.MemberRow.holds_nothing)
+    * [type\_choosable](#edit_cfg_json.rows.MemberRow.type_choosable)
     * [editable](#edit_cfg_json.rows.MemberRow.editable)
     * [chosen\_type](#edit_cfg_json.rows.MemberRow.chosen_type)
     * [\_possible\_types](#edit_cfg_json.rows.MemberRow._possible_types)
@@ -758,7 +772,9 @@
     * [converters](#edit_cfg_json.rows.RowContext.converters)
     * [optional](#edit_cfg_json.rows.RowContext.optional)
     * [offers](#edit_cfg_json.rows.RowContext.offers)
+    * [declared](#edit_cfg_json.rows.RowContext.declared)
     * [types](#edit_cfg_json.rows.RowContext.types)
+    * [refusals](#edit_cfg_json.rows.RowContext.refusals)
     * [nothing](#edit_cfg_json.rows.RowContext.nothing)
     * [refreshing](#edit_cfg_json.rows.RowContext.refreshing)
   * [\_children\_of](#edit_cfg_json.rows._children_of)
@@ -772,6 +788,7 @@
     * [folded](#edit_cfg_json.rows.BufferState.folded)
     * [answers](#edit_cfg_json.rows.BufferState.answers)
     * [found](#edit_cfg_json.rows.BufferState.found)
+    * [held](#edit_cfg_json.rows.BufferState.held)
   * [stamped](#edit_cfg_json.rows.stamped)
   * [\_stamped\_row](#edit_cfg_json.rows._stamped_row)
 * [edit\_cfg\_json.ui\_backend](#edit_cfg_json.ui_backend)
@@ -786,6 +803,18 @@
     * [home\_settings](#edit_cfg_json.ui_backend.UiBackend.home_settings)
   * [\_always](#edit_cfg_json.ui_backend._always)
   * [DUMP\_UI](#edit_cfg_json.ui_backend.DUMP_UI)
+* [edit\_cfg\_json.type\_choice](#edit_cfg_json.type_choice)
+  * [NOT\_CONVERTED\_FORM](#edit_cfg_json.type_choice.NOT_CONVERTED_FORM)
+  * [NOT\_CHOOSABLE](#edit_cfg_json.type_choice.NOT_CHOOSABLE)
+  * [NOT\_OFFERED](#edit_cfg_json.type_choice.NOT_OFFERED)
+  * [TypeOffer](#edit_cfg_json.type_choice.TypeOffer)
+    * [offered](#edit_cfg_json.type_choice.TypeOffer.offered)
+    * [refusals](#edit_cfg_json.type_choice.TypeOffer.refusals)
+  * [offered\_types](#edit_cfg_json.type_choice.offered_types)
+  * [\_converts](#edit_cfg_json.type_choice._converts)
+  * [kept\_choice](#edit_cfg_json.type_choice.kept_choice)
+  * [chosen\_option](#edit_cfg_json.type_choice.chosen_option)
+  * [switched\_value](#edit_cfg_json.type_choice.switched_value)
 * [edit\_cfg\_json.constructing](#edit_cfg_json.constructing)
   * [STREAM\_NAME](#edit_cfg_json.constructing.STREAM_NAME)
   * [FILE\_NAME](#edit_cfg_json.constructing.FILE_NAME)
@@ -808,6 +837,7 @@
   * [enum\_text](#edit_cfg_json.descriptions.enum_text)
   * [MemberFacts](#edit_cfg_json.descriptions.MemberFacts)
     * [types](#edit_cfg_json.descriptions.MemberFacts.types)
+    * [refused](#edit_cfg_json.descriptions.MemberFacts.refused)
     * [converter](#edit_cfg_json.descriptions.MemberFacts.converter)
     * [optional](#edit_cfg_json.descriptions.MemberFacts.optional)
     * [nested](#edit_cfg_json.descriptions.MemberFacts.nested)
@@ -3896,14 +3926,26 @@ the mapping above answers for the member holding it.
 
 Every dict member whose keys its own class does not check.
 
+<a id="edit_cfg_json.elements.TreeFacts.declared"></a>
+
+#### declared
+
+The types the class owning each node declares it to hold.
+
 <a id="edit_cfg_json.elements.TreeFacts.types"></a>
 
 #### types
 
-The types the class owning each node allows it to hold.
+The types each node is offered, those its class would refuse left out.
 
 It is what says what an element of a list its class declares empty would
 be, and what a member allowed to hold nothing would hold instead.
+
+<a id="edit_cfg_json.elements.TreeFacts.refusals"></a>
+
+#### refusals
+
+Why each declared type that a node is not offered is left out.
 
 <a id="edit_cfg_json.elements.TreeFacts.nothing"></a>
 
@@ -3973,8 +4015,11 @@ nothing else.
 
 ```python
 def tree_facts(nodes: Mapping[ConfigPath, ConfigNode],
-               flat: Sequence[tuple[ConfigPath, JsonType]],
-               defaults: Mapping[str, JsonType]) -> TreeFacts
+               flat: Sequence[tuple[ConfigPath,
+                                    JsonType]], defaults: Mapping[str,
+                                                                  JsonType],
+               converters: Mapping[ConfigPath, ParseConverter],
+               omitted: frozenset[ConfigPath]) -> TreeFacts
 ```
 
 Return everything that saying what one tree offers needs.
@@ -3984,6 +4029,10 @@ Return everything that saying what one tree offers needs.
 - `nodes` - Every configuration object of the tree, by its path.
 - `flat` - The path and the value of every node, in row order.
 - `defaults` - The values that the class of the configuration declares.
+- `converters` - One parse converter per node of the tree that has one,
+  which is what says which declared types the class would refuse.
+- `omitted` - Every node that the file holds no key for while it holds
+  nothing, which no converter is ever asked about.
   
 
 **Returns**:
@@ -4059,6 +4108,10 @@ A member declared to hold a dict is the one that cannot be given a value,
 for the reason `NO_DICT_YET` gives: the class refuses a dict written for a
 member that holds none, so the control would be one that produces a
 refusal.
+
+A member whose type the user chooses is given a value by choosing one of
+its types, so it offers neither of the two controls (section 4.12 of
+`doc/detailed_design.md`).
 
 <a id="edit_cfg_json.elements._new_object"></a>
 
@@ -4296,6 +4349,9 @@ never by the type its member is annotated with. A nesting kind that
 `CLEARED_KINDS` leaves out can never hold nothing — `config_as_json`
 requires the list or the dict while it validates — so an annotation
 allowing it says something no configuration the editor is given is in.
+
+A node whose type the user chooses is put back to holding nothing by
+choosing `None`, so it is never cleared by a control.
 
 <a id="edit_cfg_json.elements._movable"></a>
 
@@ -5760,28 +5816,34 @@ def nothing_allowed(path: ConfigPath, options: Sequence[TypeOption],
 Return whether one node has the two states of a value and of nothing.
 
 A member does where its declaration allows `None` beside a type the editor
-can make an empty value of, which is what `Optional[str]` is, and those
-two states are what the controls that add and remove move it between
-(section 4.2 of `doc/detailed_design.md`). A member that allows nothing
-beside an enum, a configuration class or another class of the
-application's own has one state as before: the editor cannot make a value
-of such a type on its own.
+can make an empty value of, which is what `Optional[str]` and
+`Optional[list[str]]` are (section 4.2 of `doc/detailed_design.md`).
+Where every type is a plain value the pull-down of the types moves it
+between the two, and otherwise the controls that add and remove do. A
+member that allows nothing beside a configuration class or another class
+of the application's own has one state as before: the editor cannot make
+a value of such a type on its own.
 
-A value inside a list or a dict never has them, whatever its declaration
-allows, because what may hold nothing is something a class says about a
-member of its own and an element that could be taken out of what holds it
-already has a control that means that.
+A node whose type the user chooses has them wherever `None` is one of the
+types offered, a value inside a list or a dict as much as a member: `None`
+is then chosen in the pull-down of its types like any other type, and the
+node holding it holds nothing. Every other value inside a list or a dict
+never has them, whatever its declaration allows, because what may hold
+nothing is something a class says about a member of its own and an
+element that could be taken out of what holds it already has a control
+that means that.
 
 **Arguments**:
 
 - `path` - Path of the node to answer for.
-- `options` - The types its declaration allows.
+- `options` - The types it is offered, the ones its class would refuse
+  left out.
 - `nodes` - Every configuration object of the tree, by its path.
   
 
 **Returns**:
 
-  Whether that node is a member with those two states.
+  Whether that node has those two states.
 
 <a id="edit_cfg_json.cli"></a>
 
@@ -7124,6 +7186,57 @@ Return the order of one list with one element moved by one place.
 
   The index each element of the new list had in the old one.
 
+<a id="edit_cfg_json.buffer._new_paths"></a>
+
+#### \_new\_paths
+
+```python
+def _new_paths(
+        paths: Iterable[ConfigPath],
+        moved: Mapping[ConfigPath,
+                       ConfigPath]) -> dict[ConfigPath, ConfigPath]
+```
+
+Return where each path the buffer holds something for goes in a change.
+
+A path that moved goes where it moved to, and every other path stays,
+except a path that another node moved into: that path is the other node
+now, and what was held for the node that was there is not about it. An
+element taken out of a list is what leaves one behind, because the element
+after it moves into its place.
+
+**Arguments**:
+
+- `paths` - The paths something is held for.
+- `moved` - The new path of every node whose path has changed.
+  
+
+**Returns**:
+
+  The new path of each of those paths that is still about its node, by
+  the old one.
+
+<a id="edit_cfg_json.buffer._carried"></a>
+
+#### \_carried
+
+```python
+def _carried(state: Mapping[ConfigPath, T],
+             moved: Mapping[ConfigPath, ConfigPath]) -> dict[ConfigPath, T]
+```
+
+Return what the buffer holds by path, under the paths after a change.
+
+**Arguments**:
+
+- `state` - What is held, by the path of the node it is about.
+- `moved` - The new path of every node whose path has changed.
+  
+
+**Returns**:
+
+  The same, by the path each node has now, as `_new_paths` says.
+
 <a id="edit_cfg_json.buffer._renamed"></a>
 
 #### \_renamed
@@ -7670,6 +7783,42 @@ Make one element of a list change places with a neighbour.
 - `KeyError` - The path is not a node of this configuration.
 - `ValueError` - That node cannot be moved that way.
 
+<a id="edit_cfg_json.buffer.EditBuffer.set_type"></a>
+
+#### set\_type
+
+```python
+def set_type(config: Config, path: ConfigPath, text: str) -> bool
+```
+
+Make one node hold another of the types the user may choose for it.
+
+What it held is kept where its text means a value of the new type and
+is otherwise the empty value of that type, as `switched_value` says,
+and the rows are built again around it, as they are when an element
+is added: a node that holds nothing and one that holds a value are
+different rows.
+
+**Arguments**:
+
+- `config` - Configuration object of the session, which says which
+  nodes are configuration objects when the rows are built again.
+- `path` - Path of the node.
+- `text` - The type as a Python type hint spells it, which is how the
+  pull-down of the types names each of them.
+  
+
+**Returns**:
+
+  Whether the node holds another type than before.
+  
+
+**Raises**:
+
+- `KeyError` - The path is not a node of this configuration.
+- `ValueError` - The type of that node is not the user's to choose, or
+  the text names none of the types it is offered.
+
 <a id="edit_cfg_json.buffer.EditBuffer._moved"></a>
 
 #### \_moved
@@ -7715,8 +7864,8 @@ Give one node a new value and build the rows around it again.
 
 Everything the buffer holds about a node is held under the path of
 that node, and an element of a list is addressed by where it is, so
-the fold state, what each object said about itself and what each row
-is compared against all move with the values.
+the fold state, what each object said about itself, the type the user
+chose and what each row is compared against all move with the values.
 
 **Arguments**:
 
@@ -7823,6 +7972,28 @@ Build the rows from one set of values, keeping what was known.
 - `refreshing` - Whether these values are what a validation pass
   accepted, which is what decides whether a node it changed is
   marked as one a validator wrote.
+
+<a id="edit_cfg_json.buffer.EditBuffer._keep_held"></a>
+
+#### \_keep\_held
+
+```python
+def _keep_held(refreshing: bool) -> None
+```
+
+Keep the type of every node whose type the user chooses.
+
+A node that has just appeared holds the first type its value fits,
+one that was there keeps the type it held, and a validation pass that
+left a node a value its type does not fit makes the value say which
+type it holds: a validator may change a value into one of another
+type, and the editor then shows the type the application made of it.
+A node that is gone is forgotten, exactly as its fold is.
+
+**Arguments**:
+
+- `refreshing` - Whether the rows are what a validation pass left
+  behind.
 
 <a id="edit_cfg_json.buffer.EditBuffer._forget_gone"></a>
 
@@ -11059,6 +11230,36 @@ the whole of it.
 
   The type that node holds, as the column shows it.
 
+<a id="edit_cfg_json.model_text.row_type_choices"></a>
+
+#### row\_type\_choices
+
+```python
+def row_type_choices(row: MemberRow) -> tuple[tuple[str, str], ...]
+```
+
+Return every type one node may hold, as shown and as it is named.
+
+They are what the pull-down of the types offers, in the order the
+declaration writes them, and then the type the node holds where that is
+none of them: the one type its value has where nothing usable is
+declared, and `None` for a place declared to hold an object and holding
+none.
+
+Each is given twice, because the column cuts a long type and two types
+can be cut to the same text: what the pull-down shows, and the whole of
+the type, which is what `EditModel.set_type` is given when it is chosen.
+
+**Arguments**:
+
+- `row` - Node to render.
+  
+
+**Returns**:
+
+  One pair of the shown text and the whole text per type that node may
+  hold, the type it holds among them.
+
 <a id="edit_cfg_json.model_text.row_type_texts"></a>
 
 #### row\_type\_texts
@@ -11069,12 +11270,6 @@ def row_type_texts(row: MemberRow) -> tuple[str, ...]
 
 Return every type one node may hold, as the column shows each of them.
 
-They are what the pull-down of the types offers, in the order the
-declaration writes them, and then the type the node holds where that is
-none of them: the one type its value has where nothing usable is
-declared, and `None` for a place declared to hold an object and holding
-none.
-
 **Arguments**:
 
 - `row` - Node to render.
@@ -11082,7 +11277,33 @@ none.
 
 **Returns**:
 
-  One text per type that node may hold, among them `row_type_text`.
+  The shown text of every type `row_type_choices` lists, among them
+  `row_type_text`.
+
+<a id="edit_cfg_json.model_text.row_chooses_type"></a>
+
+#### row\_chooses\_type
+
+```python
+def row_chooses_type(row: MemberRow) -> bool
+```
+
+Return whether the type one node holds can be chosen in its pull-down.
+
+Every node has the pull-down, so that every row says its type in the same
+place, and this is what says whether it is active: a node whose
+declaration allows more than one plain type, or a plain type and `None`.
+A backend asks it whenever it makes the pull-down, because whether it is
+active depends on the types the node may hold and on nothing a user types.
+
+**Arguments**:
+
+- `row` - Node to ask about.
+  
+
+**Returns**:
+
+  Whether choosing another of its types is something the user may do.
 
 <a id="edit_cfg_json.model_text.type_column_width"></a>
 
@@ -11194,7 +11415,7 @@ Return what says that one container is folded, empty when it is not.
 #### rows\_shape
 
 ```python
-def rows_shape(model: EditModel) -> tuple[tuple[ConfigPath, bool], ...]
+def rows_shape(model: EditModel) -> tuple[tuple[ConfigPath, bool, bool], ...]
 ```
 
 Return what the widgets a backend builds for the rows depend on.
@@ -11206,7 +11427,8 @@ from what it was, which a validator that answers `None` for a member
 allowed to hold nothing does: that row had a field and now has none. A
 backend that only wrote the values back would then be showing a field for
 a member that holds nothing, and the next key typed into it would be
-refused.
+refused. A validator can also change the type a row holds, and a row that
+changes from text to true or false gains a pull-down of the two values.
 
 So a backend compares this before and after, and makes its widgets again
 where it differs. It is here rather than in each backend for the same
@@ -11221,8 +11443,11 @@ different editor.
 
 **Returns**:
 
-  The path of every row and whether that row is a value with a field,
-  in the order the rows are shown.
+  The path of every row, whether that row is a value with a field and
+  whether it has a pull-down of its values, in the order the rows are
+  shown. The type of a row is not in it as a text, because a row whose
+  type only its value says changes type as it is typed into and has the
+  same widgets either way.
 
 <a id="edit_cfg_json.model_text.can_fold"></a>
 
@@ -12715,8 +12940,9 @@ adding rather than editing, for the reason a field cannot do it: no
 text typed into a field becomes a configuration object, and holding
 nothing is a state of a member rather than a text in a field. It is
 the same pair of actions for a declared member holding no
-configuration object and for one the declaration allows to hold no
-value at all.
+configuration object and for one the declaration allows to hold a
+list or no value at all. A member whose types are all plain values is
+given a value by `set_type` instead, and offers no adding.
 
 Which nodes offer this is on the rows, as `MemberRow.offer`, so that
 two user interfaces of one application cannot offer different things.
@@ -12748,7 +12974,9 @@ Take one element out of the node that holds it.
 A member that may hold nothing and holds something is put back to
 holding nothing, which is the other half of what adding does. It is
 what tells a value the class allowed to be absent apart from an empty
-text of the same member, which no field could do. A member that its
+list of the same member, which no field could do. A member whose types
+are all plain values is put back to holding nothing by choosing `None`
+with `set_type` instead. A member that its
 class leaves out of the file altogether is not offered this: it would
 then have no row at all, and a member the editor had taken off the
 screen could never be given a value again.
@@ -12788,6 +13016,43 @@ such question, because it is written in the sorted order of its keys.
 
 - `KeyError` - The path is not a node of this configuration.
 - `ValueError` - That node cannot be moved that way.
+
+<a id="edit_cfg_json.edit_model.EditModel.set_type"></a>
+
+#### set\_type
+
+```python
+def set_type(path: ConfigPath, text: str) -> None
+```
+
+Make one node hold another of the types its declaration allows.
+
+A node whose declaration allows more than one plain type, or a plain
+type and `None`, holds the one the user chooses, and `None` is chosen
+like any other type: it is what the controls that remove and add were
+for such a member. The choice is kept, because a value can fit more
+than one type, until a validation pass leaves a value it does not fit.
+
+Switching keeps what still fits: a text that means a value of the new
+type is read as one, so `5` becomes a number when `str` is changed to
+`int`, and everything else is given the empty value of the new type.
+
+Which nodes offer this is on the rows, as `MemberRow.type_choosable`
+and `MemberRow.types`, so that two user interfaces of one application
+cannot offer different types.
+
+**Arguments**:
+
+- `path` - Path of the node.
+- `text` - The type as a Python type hint spells it, which is the text
+  of one of `MemberRow.types`.
+  
+
+**Raises**:
+
+- `KeyError` - The path is not a node of this configuration.
+- `ValueError` - The type of that node is not the user's to choose, or
+  the text names none of the types it is offered.
 
 <a id="edit_cfg_json.edit_model.EditModel._changed"></a>
 
@@ -13139,6 +13404,16 @@ Plain classes that say nothing the editor can use.
 `typing.Any` is among them because it is a class from Python 3.11 on, and
 would otherwise be read as a class of the application's own.
 
+<a id="edit_cfg_json.type_options.SCALAR_KINDS"></a>
+
+#### SCALAR\_KINDS
+
+The kinds of JSON value that a field holds, rather than rows below it.
+
+An enum and a `Literal` are written as one of them, so a type of either is a
+plain value too. A list, a dict, a configuration object and a class whose kind
+only its value can say are not.
+
 <a id="edit_cfg_json.type_options._Unusable"></a>
 
 ## \_Unusable Objects
@@ -13305,8 +13580,11 @@ Return whether one value is a value of one type.
 
 A whole number is a number as well, because JSON has one kind of number
 and `config_as_json` reads `0` into a member declared `float`; true and
-false are not whole numbers, although Python says they are. A container
-fits where everything inside it fits one of the types inside it, which is
+false are not whole numbers, although Python says they are. A type whose
+values are a known set, an enum and a `Literal`, is fitted by those values
+alone: the name of a member of that enum, and one of those literals. A
+container fits where everything inside it fits one of the types inside it,
+which is
 what tells `[['x']]` from `['x']` where both `list[str]` and
 `list[list[str]]` are allowed.
 
@@ -13464,6 +13742,27 @@ is read by what the value says.
 
   The kind of value that text is read as, None where nothing says.
 
+<a id="edit_cfg_json.type_options.allowed_values"></a>
+
+#### allowed\_values
+
+```python
+def allowed_values(option: TypeOption) -> tuple[str | int | bool, ...]
+```
+
+Return the values one type allows, where they are a known set.
+
+**Arguments**:
+
+- `option` - The type asked about.
+  
+
+**Returns**:
+
+  The values a `Literal` allows, the names of the members of an enum in
+  the order the enum declares them, which is how `config_as_json` writes
+  one, and nothing for every other type.
+
 <a id="edit_cfg_json.type_options.empty_option_value"></a>
 
 #### empty\_option\_value
@@ -13481,9 +13780,34 @@ Return the value of one type that says no more than its type.
 
 **Returns**:
 
-  That value for a type of JSON the editor can make one of, and None for
-  every other type: a class of the application's own and a `Literal`
-  are types the editor cannot make a value of on its own.
+  That value for a type of JSON the editor can make one of, the first of
+  the values of a type whose values are a known set, and None for every
+  other type: a class of the application's own is a type the editor
+  cannot make a value of on its own, and so is an enum with no members.
+
+<a id="edit_cfg_json.type_options.choosable"></a>
+
+#### choosable
+
+```python
+def choosable(options: Sequence[TypeOption]) -> bool
+```
+
+Return whether the user may choose which of some types a node holds.
+
+They may where there is more than one type to choose from and every one
+of them is a plain value or `None`, which is what `int | str`,
+`float | None` and `Colors | None` are. A choice of the user's between
+them is a value of the other type in the same field, or no value at all.
+
+**Arguments**:
+
+- `options` - The types a node may hold.
+  
+
+**Returns**:
+
+  Whether the type that node holds is the user's to choose.
 
 <a id="edit_cfg_json.rows"></a>
 
@@ -13805,14 +14129,16 @@ search outlives the rows that a validation pass replaces.
 
 #### types
 
-The types the class that owns this node allows it to hold.
+The types this node may hold, the ones its class would refuse left out.
 
 They are read from the declaration rather than from the value, one per
 alternative of a union, in the order the declaration writes them:
 `self.ratio: float = 0` allows `float` however its default is written, and
 `self.title: Optional[str] = None` allows `str` and `None` while it holds
 nothing at all. A value inside a list or a dict is allowed what the
-declaration of the member says is inside it.
+declaration of the member says is inside it. A declared type the parse
+converter of the node refuses is not among them, and its description says
+why.
 
 It is empty wherever nothing usable is declared, which is a member with no
 annotation, a class whose source cannot be read, and an annotation naming
@@ -13823,11 +14149,22 @@ the value has, which is what answered before anything was declared.
 
 #### nothing\_allowed
 
-Whether this member has the two states of a value and of nothing.
+Whether this node has the two states of a value and of nothing.
 
-`member_types.nothing_allowed` says which members those are: a member that
-allows `None` beside a type the editor can make a value of, and never a
-value inside a list or a dict.
+`member_types.nothing_allowed` says which nodes those are: a node whose
+type the user chooses and that may hold `None`, and a member that allows
+`None` beside a type the editor can make a value of.
+
+<a id="edit_cfg_json.rows.MemberRow.held"></a>
+
+#### held
+
+The type this node holds where the buffer keeps it, None elsewhere.
+
+It is kept for every node whose type the user chooses, because the value
+cannot say it: `5` is an `int` and a `float`. It is written onto the rows
+rather than carried by them, exactly as the fold state is, because it is
+what the user chose and outlives the rows a validation pass replaces.
 
 <a id="edit_cfg_json.rows.MemberRow.offer"></a>
 
@@ -13921,9 +14258,25 @@ being typed and it is not a value of the wrong kind: it is the member
 holding nothing, which is what the class allowed it to do, and it is
 told apart from an empty text by being a state and not a text.
 
-Which state it is in is changed by the two controls that change how
-many things a node holds and by nothing else, so a field can never
-take itself away from under the cursor that is typing in it.
+Which state it is in is changed by choosing a type in the pull-down of
+the types, by the two controls that change how many things a node
+holds where its types are not all plain values, and by nothing else,
+so a field can never take itself away from under the cursor that is
+typing in it.
+
+<a id="edit_cfg_json.rows.MemberRow.type_choosable"></a>
+
+#### type\_choosable
+
+```python
+@property
+def type_choosable() -> bool
+```
+
+Return whether the type this node holds is the user's to choose.
+
+It is where the node may hold more than one type and every one of
+them is a plain value or `None`, which `type_options.choosable` says.
 
 <a id="edit_cfg_json.rows.MemberRow.editable"></a>
 
@@ -13961,9 +14314,11 @@ def chosen_type() -> TypeOption
 
 Return the one of its types that this node holds now.
 
-It is the first of them the value fits, in the order the declaration
-writes them, so `5` holds `int` where `int | float` is declared, and a
-member holding nothing holds `None`. So does a place declared to hold
+A node whose type the user chooses holds the type the buffer keeps for
+it, which is `held`. Every other node holds the first of its types the
+value fits, in the order the declaration writes them, so `5` holds
+`int` where `int | float` is declared, and a member holding nothing
+holds `None`. So does a place declared to hold
 a configuration object and holding none, whether its declaration
 allows `None` or not: a key that `DICT_VALUE_BY_KEY` names is one the
 dict need not have, whatever the values of the dict are declared as.
@@ -14004,6 +14359,10 @@ takes a number however its default was written, and a member that
 holds nothing still says what it would hold. It is read by what the
 node held when the file was last agreed with and not by what it holds
 now, so that a text half typed into it cannot change it.
+
+A node whose type the user chooses takes the kind of the type it
+holds, which half typing cannot change either: it is the user's
+choice and not a reading of the value.
 
 <a id="edit_cfg_json.rows.MemberRow.is_text"></a>
 
@@ -14094,9 +14453,11 @@ A nested configuration object says nothing here, because its class is
 what its type says and its value is on the rows below it: showing how
 many entries it serializes to would be showing it as the dictionary it
 is not. A member that holds no object says which class is missing, and
-a member that holds no value says that it holds none. A list or a dict
-says how much it holds, because its value is on the rows below it.
-Every other node shows the text of the value it holds.
+a member that holds no value says that it holds none, unless its type
+is chosen: its type then says `None`, and saying it twice would say
+nothing more. A list or a dict says how much it holds, because its
+value is on the rows below it. Every other node shows the text of the
+value it holds.
 
 <a id="edit_cfg_json.rows.RowContext"></a>
 
@@ -14159,11 +14520,23 @@ declared a configuration object at is the other.
 
 What each node offers about the elements it holds, by its path.
 
+<a id="edit_cfg_json.rows.RowContext.declared"></a>
+
+#### declared
+
+The types the class owning each node declares it to hold.
+
 <a id="edit_cfg_json.rows.RowContext.types"></a>
 
 #### types
 
-The types the class owning each node allows it to hold.
+The types each node is offered, those its class refuses left out.
+
+<a id="edit_cfg_json.rows.RowContext.refusals"></a>
+
+#### refusals
+
+Why each declared type that a node is not offered is left out.
 
 <a id="edit_cfg_json.rows.RowContext.nothing"></a>
 
@@ -14398,8 +14771,8 @@ What the buffer knows about the rows rather than about one row.
 Each of these outlives the rows it is about, because the rows are built
 again after every validation pass and after every change of how many
 elements a container holds: what the user folded, what each object said
-about itself and what a search has got to are all older than the rows they
-are written onto.
+about itself, what a search has got to and which types the user chose are
+all older than the rows they are written onto.
 
 <a id="edit_cfg_json.rows.BufferState.folded"></a>
 
@@ -14419,6 +14792,12 @@ What each object that has been asked said about itself, by path.
 
 Path of the node the search has got to, None when it is at none.
 
+<a id="edit_cfg_json.rows.BufferState.held"></a>
+
+#### held
+
+The type each node whose type the user chooses holds, by its path.
+
 <a id="edit_cfg_json.rows.stamped"></a>
 
 #### stamped
@@ -14431,14 +14810,16 @@ def stamped(rows: Mapping[ConfigPath, MemberRow],
 Return the rows with the state of the buffer written onto them.
 
 A backend reads what is folded, what is shown, what the configuration
-objects amount to and what a search has got to from the row each of those
-is about, exactly as it reads the marks and the description from there, so
-that the two backends cannot fold, hide, judge or find different things.
+objects amount to, what a search has got to and which type a node holds
+from the row each of those is about, exactly as it reads the marks and the
+description from there, so that the two backends cannot fold, hide, judge,
+find or type different things.
 
 They are written here rather than carried by the rows they are about,
 because they belong to the buffer: the rows are built again after every
-validation pass, and a fold the user asked for, an answer an object gave
-and a node a search reached all outlive the rows that were there then.
+validation pass, and a fold the user asked for, an answer an object gave,
+a node a search reached and a type the user chose all outlive the rows
+that were there then.
 
 **Arguments**:
 
@@ -14449,8 +14830,9 @@ and a node a search reached all outlive the rows that were there then.
 **Returns**:
 
   The same rows, each saying whether it is folded, whether it shows,
-  what the configuration objects at or inside it are on their own, and
-  whether it is the node the search has got to.
+  what the configuration objects at or inside it are on their own,
+  whether it is the node the search has got to, and which type it holds
+  where that is the user's to choose.
 
 <a id="edit_cfg_json.rows._stamped_row"></a>
 
@@ -14621,6 +15003,198 @@ configuration once is not an editor and somebody who asked for an editor and
 got a printout would have been misled by the answer rather than by anything
 they typed. `--ui dump` reaches it, which is what registering it is for: a
 machine that can run no editor at all can still be asked for the printout.
+
+<a id="edit_cfg_json.type_choice"></a>
+
+# edit\_cfg\_json.type\_choice
+
+Which types the user may choose between, and what choosing one does.
+
+A node whose declaration allows more than one plain type, or a plain type and
+`None`, holds the one of them that the user chose (section 4.12 of
+`doc/detailed_design.md`). This module answers the three questions choosing
+raises: which of the declared types are offered at all, which of them a node
+holds as the buffer changes, and what a node holds once another is chosen.
+
+**A type the class would refuse is not offered.** `config_as_json` hands the
+value of a member with a parse converter to that converter whenever the value
+is not already of the type the converter makes, and the converter it ships for
+an enum refuses everything that is not text: `3` beside `Colors`, and the
+`null` of an `Optional[Colors]` that its class writes as `null`. So the
+converter is run on the value that choosing a type would give, as it is run on
+a field losing the focus, and a type whose value it refuses is left out with a
+sentence saying why. An application whose own converter takes more is offered
+more, which is principle 1 of section 3 of the design.
+
+**The choice outlives the value**, because a value can fit more than one type:
+`5` is an `int` and a `float`, and `''` is a `str` and may be a `Literal` of
+text. So the type a node holds is first read from its value, then kept, and
+read from the value again only where a validation pass left a value that the
+kept type does not fit. Typing never changes it: a text that is no number,
+typed while `int` is chosen, is a value of the wrong type and not a choice.
+
+**Switching keeps what still fits.** A plain value keeps its text where that
+text means a value of the new type, so the text `5` becomes the number `5`
+when `str` is changed to `int`, and everything else is given the empty value
+of the new type: `''`, `0`, the first name of an enum, the first value of a
+`Literal`, or nothing at all.
+
+<a id="edit_cfg_json.type_choice.NOT_CONVERTED_FORM"></a>
+
+#### NOT\_CONVERTED\_FORM
+
+What is said below a node about a declared type the class would refuse.
+
+The value is written in JSON, so that the empty text is `""` and no value at
+all is `null`, which is what the converter would be given.
+
+<a id="edit_cfg_json.type_choice.NOT_CHOOSABLE"></a>
+
+#### NOT\_CHOOSABLE
+
+Message of the error raised when the type of a node cannot be chosen.
+
+<a id="edit_cfg_json.type_choice.NOT_OFFERED"></a>
+
+#### NOT\_OFFERED
+
+Message of the error raised when a node is given a type it is not offered.
+
+<a id="edit_cfg_json.type_choice.TypeOffer"></a>
+
+## TypeOffer Objects
+
+```python
+class TypeOffer(NamedTuple)
+```
+
+The types one node is offered, and why any declared one is not.
+
+<a id="edit_cfg_json.type_choice.TypeOffer.offered"></a>
+
+#### offered
+
+The declared types the class would accept, in declared order.
+
+<a id="edit_cfg_json.type_choice.TypeOffer.refusals"></a>
+
+#### refusals
+
+One sentence per declared type that is left out, saying why.
+
+<a id="edit_cfg_json.type_choice.offered_types"></a>
+
+#### offered\_types
+
+```python
+def offered_types(options: Sequence[TypeOption],
+                  converter: Optional[ParseConverter],
+                  omitted: bool) -> TypeOffer
+```
+
+Return which of the types one node may hold its class would accept.
+
+Only a node whose type is the user's to choose is asked, because only
+there would a refused type be something to choose: every other node holds
+what its value is.
+
+**Arguments**:
+
+- `options` - The types the declaration of that node allows.
+- `converter` - How the text of that node becomes the value it holds, or
+  None for a node that holds what the file holds.
+- `omitted` - Whether its class leaves it out of the file while it holds
+  nothing, which is when `config_as_json` converts nothing at all.
+  
+
+**Returns**:
+
+  The types offered, and why each of the others is not.
+
+<a id="edit_cfg_json.type_choice._converts"></a>
+
+#### \_converts
+
+```python
+def _converts(option: TypeOption, converter: ParseConverter,
+              omitted: bool) -> bool
+```
+
+Return whether one converter takes the empty value of one type.
+
+<a id="edit_cfg_json.type_choice.kept_choice"></a>
+
+#### kept\_choice
+
+```python
+def kept_choice(options: Sequence[TypeOption], value: JsonType,
+                chosen: Optional[TypeOption], refreshing: bool) -> TypeOption
+```
+
+Return the type one node holds once its rows have been built again.
+
+**Arguments**:
+
+- `options` - The types the user may choose between for that node.
+- `value` - The value it holds now.
+- `chosen` - The type it held before, None for a node that had none.
+- `refreshing` - Whether the rows are what a validation pass left behind,
+  which is the one change that gives the value a say again.
+  
+
+**Returns**:
+
+  The type it held, where it still may and the value has no say, and
+  the first type its value fits otherwise.
+
+<a id="edit_cfg_json.type_choice.chosen_option"></a>
+
+#### chosen\_option
+
+```python
+def chosen_option(options: Sequence[TypeOption], text: str,
+                  name: str) -> TypeOption
+```
+
+Return the type one text names among those one node is offered.
+
+**Arguments**:
+
+- `options` - The types that node is offered.
+- `text` - The type as a Python type hint spells it.
+- `name` - What the node is called, for the message.
+  
+
+**Returns**:
+
+  The type that text names.
+  
+
+**Raises**:
+
+- `ValueError` - The type of that node is not the user's to choose, or the
+  text names none of its types.
+
+<a id="edit_cfg_json.type_choice.switched_value"></a>
+
+#### switched\_value
+
+```python
+def switched_value(option: TypeOption, value: JsonType) -> JsonType
+```
+
+Return what one node holds once the user has chosen one of its types.
+
+**Arguments**:
+
+- `option` - The type chosen.
+- `value` - The value the node held before.
+  
+
+**Returns**:
+
+  That value read again as a value of the new type, where its text
+  means one, and the empty value of the new type otherwise.
 
 <a id="edit_cfg_json.constructing"></a>
 
@@ -14837,8 +15411,8 @@ rest.
 What a type is, is said by the column of the types on the row itself, so what
 is said here is what that column cannot say: the summary and the names of an
 enum, the whole of a declaration that allows more than one type or that the
-column had to cut, and that the type shown was taken from the value because
-nothing usable was declared.
+column had to cut, why a declared type is not offered to be chosen, and that
+the type shown was taken from the value because nothing usable was declared.
 
 It takes a mapping for the members because a member has no docstring at
 runtime. A class has one and every reader of the code can see it, while a
@@ -15094,7 +15668,17 @@ this node that the application did not say and its row cannot show.
 
 #### types
 
-The types the class that owns this node allows it to hold.
+The types the class that owns this node declares it to hold.
+
+<a id="edit_cfg_json.descriptions.MemberFacts.refused"></a>
+
+#### refused
+
+Why each declared type this node is not offered is left out.
+
+The pull-down of the types cannot say it, because what it cannot offer is
+not in it at all: Textual cannot disable one option of a pull-down, and
+the two backends must not differ.
 
 <a id="edit_cfg_json.descriptions.MemberFacts.converter"></a>
 
@@ -15152,8 +15736,8 @@ Return everything the type of one node says that its row does not.
 
 An enum says the most: the summary of its docstring and the names it
 accepts, which no column of a row has room for. Then comes what the
-column of the types cannot say, and last that the class above it may
-leave it out of the file altogether.
+column of the types cannot say, then why a declared type is not offered,
+and last that the class above it may leave it out of the file altogether.
 
 A declared nested configuration object says no names, because it holds no
 value: it says its class, which its row shows, and its docstring, which is

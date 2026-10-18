@@ -1017,14 +1017,37 @@ have, with a line below them saying that is where it came from.
 The column shows the one type a row holds and is cut at 40 characters, so a
 union such as `Optional[str]` or a long type such as
 `dict[str, StageConfig | str | dict[str, int]]` is said whole on the line below
-the row. In this version nothing can be chosen in the column; a member that may
-hold nothing is still moved between holding a value and holding nothing with
-the add and remove controls.
+the row.
+
+**Where every type a member is declared to allow is a plain value, the user
+chooses between them.** `self.width: int | str = 80` takes either a number or a
+text, and the column is a pull-down of the two: the text in the field is read
+as a value of the type chosen. `Optional[str]` is `str | None`, so `None` is
+chosen in the same pull-down, which is what the add and remove controls did
+for such a member before; a member that may hold a list, a dict or a nested
+object and nothing keeps those controls for now. A plain value is a text, a
+number, true or false, an enum or a `Literal`. Switching keeps what still fits
+— the number `80` becomes the text `80` — and gives the empty value of the new
+type otherwise. The choice lasts until a validation pass leaves a value it does
+not fit, so a validator of yours that turns `"7"` into `7` makes the row an
+`int` again, and the editor shows the type your validator chose.
+
+**A type your class would refuse is not offered.** `config_as_json` hands every
+value of a member with a parse converter that is not already of the type the
+converter makes to that converter, and `Config.get_converter_dict` refuses
+anything that is not text. So `Colors | int` is offered `Colors` alone, and
+`Optional[Colors]` is offered `None` only where `_omit_none_from_json()` names
+the member, because `config_as_json` converts nothing for a member it leaves
+out. The line below the row says which type was left out and why. If your
+application really accepts more, give the member a converter that takes it:
+the editor runs your converter, exactly as it does for a field losing the
+focus, and offers what it accepts.
 
 `edit_cfg_json.TypeOption`, `MemberRow.types`, `MemberRow.chosen_type`,
-`row_type_text`, `row_type_texts` and `type_column_width` are what a user
-interface of your own reads it from (section 4.6). They replace `LeafType` and
-`MemberRow.declared`, which are gone.
+`MemberRow.type_choosable`, `row_type_text`, `row_type_texts`,
+`row_type_choices`, `row_chooses_type`, `type_column_width` and
+`EditModel.set_type` are what a user interface of your own reads it from and
+chooses with (section 4.6).
 
 ## 4.3 The files a save writes
 

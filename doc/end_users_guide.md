@@ -143,9 +143,19 @@ name of a class such as `PageOutput`, or `None` for a row that holds nothing.
 The type column is the same width on every row, so the values line up too. A
 type too long for it is cut short with `…`, and the line under the row then
 says the whole of it. Where the member may hold more than one type, the column
-says the one it holds now, and the line under the row says all of them. It is
-a pull-down, but nothing can be chosen in it yet: it is there so that every
-row says its type in the same place.
+says the one it holds now, and the line under the row says all of them.
+
+**Where every type a member may hold is a plain value** — a text, a number,
+true or false, or one of a set of names — the type is a pull-down you choose
+from by clicking it, and choosing another type is how you change what the member
+holds: `5` is the number five while `int` is chosen and the text `5` while
+`str` is. What the member held is kept where it still means a value of the
+new type, so the number `80` becomes the text `80`, and is otherwise replaced
+by the empty value of the new type. Typing never changes the type: a text
+typed while `int` is chosen is a wrong value, not a choice of `str`. A type
+the application would refuse is not offered at all, and the line under the row
+says which one and why. On every other row the pull-down is greyed out: it is
+there so that every row says its type in the same place.
 
 **The value** is either a field you can type into, or text that says what
 this row holds:
@@ -157,7 +167,8 @@ this row holds:
 | `2 entries`, `1 entry` | A dict holding that many things. They are the rows below it. |
 | Nothing, beside a class name such as `PageOutput` as its type | An object. Its own members are the rows below it. |
 | `no PageOutput` | A place where an object of that class belongs, holding none. |
-| `no value` | A member that is allowed to hold nothing, and holds nothing. This is **not** the same as an empty field. See [1.6](#16-a-member-that-may-hold-nothing). |
+| Nothing, beside `None` as its type | A member that is allowed to hold nothing, and holds nothing. This is **not** the same as an empty field. Choose another type to give it a value. See [1.6](#16-a-member-that-may-hold-nothing). |
+| `no value` | A member that may hold a list or nothing, and holds nothing. See [1.6](#16-a-member-that-may-hold-nothing). |
 
 **The marks** follow the value and say what has happened to it. More than one
 can be there at once, and they are shown in the order in which they can
@@ -213,6 +224,7 @@ What the type of a member says below its row is one of these:
 | --- | --- |
 | `One of: DAILY, WEEKLY, MONTHLY.` | The value is one of a fixed set of names. |
 | `Declared as str \| None.` | Every type the member may hold. The type column shows only the one it holds now, or was too narrow for the whole type. |
+| `int is not offered, because the parse converter of this member refuses 0.` | A type the member is declared to allow and that the application would refuse all the same, so it is left out of the pull-down of the types. |
 | `The type is taken from the value, because nothing declared says one the editor can use.` | The application never said what this member holds, so the type column shows what its value happens to be. |
 | `It may be left out of the file.` | The member may hold nothing, and the file then holds no key for it at all. |
 
@@ -298,18 +310,25 @@ it did that to.
 ## 1.6 A member that may hold nothing
 
 Some members are allowed to hold nothing at all. Those have two states, and
-you move between them with the controls at the end of the row rather than by
-typing:
+you move between them by choosing rather than by typing:
 
-- **holding a value** — an ordinary field. The row offers **Del**, which puts
-  the member back to holding nothing.
-- **holding nothing** — the row says `no value` where the value would be, has
-  no field at all, and offers **Add**, which gives it an empty value of its
-  kind for you to type into.
+- **holding a value** — an ordinary field.
+- **holding nothing** — no field at all.
 
-This is why `no value` and an empty field are different things and why you
-cannot type your way from one to the other. Typing `null` into a field types
-the four letters `null`; it does not empty the member.
+Where the member holds a plain value — a text, a number, true or false — its
+type is `str | None`, `int | None` and the like, and `None` is one of the
+types in its pull-down. Choose `None` to take the value away: the type then
+says `None` and there is nothing where the value was. Choose the other type to
+give it the empty value of that type for you to type into.
+
+Where the member holds a list, the controls at the end of the row do the same
+job instead. While it holds nothing the row says `no value` and offers
+**Add**, which gives it an empty list; while it holds one the row offers
+**Del**, which puts it back to holding nothing.
+
+This is why holding nothing and an empty field are different things and why
+you cannot type your way from one to the other. Typing `null` into a field
+types the four letters `null`; it does not empty the member.
 
 The same pair of controls does the same job one step up, for a place where an
 **object** belongs: a row saying `no PageOutput` offers **Add**, which puts a
@@ -691,9 +710,20 @@ name of a class such as `PageOutput`, or `None` for a row that holds nothing.
 The type column is the same width on every row, so the values line up too. A
 type too long for it is cut short with `…`, and the line under the row then
 says the whole of it. Where the member may hold more than one type, the column
-says the one it holds now, and the line under the row says all of them. It is
-a pull-down, but nothing can be chosen in it yet: it is there so that every
-row says its type in the same place.
+says the one it holds now, and the line under the row says all of them.
+
+**Where every type a member may hold is a plain value** — a text, a number,
+true or false, or one of a set of names — the type is a pull-down you choose
+from, by moving to it with `Tab` and pressing `Enter`,
+or by clicking it, and choosing another type is how you change what the member
+holds: `5` is the number five while `int` is chosen and the text `5` while
+`str` is. What the member held is kept where it still means a value of the
+new type, so the number `80` becomes the text `80`, and is otherwise replaced
+by the empty value of the new type. Typing never changes the type: a text
+typed while `int` is chosen is a wrong value, not a choice of `str`. A type
+the application would refuse is not offered at all, and the line under the row
+says which one and why. On every other row the pull-down is greyed out: it is
+there so that every row says its type in the same place.
 
 **The value** is either a field you can type into, or text that says what
 this row holds:
@@ -705,7 +735,8 @@ this row holds:
 | `2 entries`, `1 entry` | A dict holding that many things. They are the rows below it. |
 | Nothing, beside a class name such as `PageOutput` as its type | An object. Its own members are the rows below it. |
 | `no PageOutput` | A place where an object of that class belongs, holding none. |
-| `no value` | A member that is allowed to hold nothing, and holds nothing. This is **not** the same as an empty field. See [2.6](#26-a-member-that-may-hold-nothing). |
+| Nothing, beside `None` as its type | A member that is allowed to hold nothing, and holds nothing. This is **not** the same as an empty field. Choose another type to give it a value. See [2.6](#26-a-member-that-may-hold-nothing). |
+| `no value` | A member that may hold a list or nothing, and holds nothing. See [2.6](#26-a-member-that-may-hold-nothing). |
 
 **The marks** follow the value and say what has happened to it. More than one
 can be there at once, and they are shown in the order in which they can
@@ -765,6 +796,7 @@ What the type of a member says below its row is one of these:
 | --- | --- |
 | `One of: DAILY, WEEKLY, MONTHLY.` | The value is one of a fixed set of names. |
 | `Declared as str \| None.` | Every type the member may hold. The type column shows only the one it holds now, or was too narrow for the whole type. |
+| `int is not offered, because the parse converter of this member refuses 0.` | A type the member is declared to allow and that the application would refuse all the same, so it is left out of the pull-down of the types. |
 | `The type is taken from the value, because nothing declared says one the editor can use.` | The application never said what this member holds, so the type column shows what its value happens to be. |
 | `It may be left out of the file.` | The member may hold nothing, and the file then holds no key for it at all. |
 
@@ -853,18 +885,25 @@ did that to; press `Enter` or the control on it to go back to editing.
 ## 2.6 A member that may hold nothing
 
 Some members are allowed to hold nothing at all. Those have two states, and
-you move between them with the controls at the end of the row rather than by
-typing:
+you move between them by choosing rather than by typing:
 
-- **holding a value** — an ordinary field. The row offers **Del**, which puts
-  the member back to holding nothing.
-- **holding nothing** — the row says `no value` where the value would be, has
-  no field at all, and offers **Add**, which gives it an empty value of its
-  kind for you to type into.
+- **holding a value** — an ordinary field.
+- **holding nothing** — no field at all.
 
-This is why `no value` and an empty field are different things and why you
-cannot type your way from one to the other. Typing `null` into a field types
-the four letters `null`; it does not empty the member.
+Where the member holds a plain value — a text, a number, true or false — its
+type is `str | None`, `int | None` and the like, and `None` is one of the
+types in its pull-down. Choose `None` to take the value away: the type then
+says `None` and there is nothing where the value was. Choose the other type to
+give it the empty value of that type for you to type into.
+
+Where the member holds a list, the controls at the end of the row do the same
+job instead. While it holds nothing the row says `no value` and offers
+**Add**, which gives it an empty list; while it holds one the row offers
+**Del**, which puts it back to holding nothing.
+
+This is why holding nothing and an empty field are different things and why
+you cannot type your way from one to the other. Typing `null` into a field
+types the four letters `null`; it does not empty the member.
 
 The same pair of controls does the same job one step up, for a place where an
 **object** belongs: a row saying `no PageOutput` offers **Add**, which puts a

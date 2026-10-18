@@ -27,7 +27,7 @@ from edit_cfg_json_textual.textual_elements import element_id, \
     offered_actions
 from edit_cfg_json_textual.textual_look import MARK_CLASS, MEMBER_CLASS, \
     NAME_CLASS, ROW_CLASS, TREE_INDENT, choice_id, fold_id, mark_id, \
-    member_id, plain_widget, value_id
+    member_id, plain_widget, type_id, value_id
 from edit_cfg_json_textual.textual_member import description_widgets, \
     TypeChooser, diagnostic_widget, element_widgets, fold_widget, \
     subtree_widgets, value_widgets
@@ -50,9 +50,10 @@ class PanelRows:
         self._model = model
         self._fields: dict[str, core.MemberRow] = {}
         self._choosers: dict[str, int] = {}
+        self._types: dict[str, int] = {}
         self._folds: dict[str, core.MemberRow] = {}
         self._elements: dict[str, tuple[core.MemberRow, str]] = {}
-        self._built: tuple[tuple[ConfigPath, bool], ...] = ()
+        self._built: tuple[tuple[ConfigPath, bool, bool], ...] = ()
 
     @property
     def fields(self) -> Mapping[str, core.MemberRow]:
@@ -65,6 +66,11 @@ class PanelRows:
         return self._choosers
 
     @property
+    def types(self) -> Mapping[str, int]:
+        """Return the place of the node of every active pull-down of types."""
+        return self._types
+
+    @property
     def folds(self) -> Mapping[str, core.MemberRow]:
         """Return the node of every control that folds a container."""
         return self._folds
@@ -75,7 +81,7 @@ class PanelRows:
         return self._elements
 
     @property
-    def built(self) -> tuple[tuple[ConfigPath, bool], ...]:
+    def built(self) -> tuple[tuple[ConfigPath, bool, bool], ...]:
         """Return what the rows were made for, as `rows_shape` says it."""
         return self._built
 
@@ -94,6 +100,7 @@ class PanelRows:
         self._model.settle_choices()
         self._fields = {}
         self._choosers = {}
+        self._types = {}
         self._folds = {}
         self._elements = {}
         self._built = core.rows_shape(self._model)
@@ -122,7 +129,7 @@ class PanelRows:
         marks = plain_widget(core.row_marks(row), mark_id(index), MARK_CLASS,
                              core.MEMBER_MARK)
         beside = [Label(row.name, classes=NAME_CLASS),
-                  TypeChooser(index=index, row=row, width=width),
+                  self._added_types(index=index, row=row, width=width),
                   *self._added_values(index=index, row=row), marks,
                   *subtree_widgets(index=index, row=row),
                   *self._added_elements(index=index, row=row)]
@@ -154,6 +161,26 @@ class PanelRows:
             self._elements[element_id(index=index, action=action)] = (row,
                                                                       action)
         return list(element_widgets(index=index, row=row))
+
+    def _added_types(self, index: int, row: core.MemberRow,
+                     width: int) -> Widget:
+        """Create the pull-down of the types of one node, and remember it.
+
+        Only an active one is remembered, because only an active one posts a
+        message that is about anything: a disabled one posts it as well, when
+        it is given the type the node holds.
+
+        Args:
+            index: Place of the node among the rows.
+            row: Node to create the pull-down for.
+            width: Width in characters of the column of the types.
+
+        Returns:
+            The pull-down of the types of that node.
+        """
+        if core.row_chooses_type(row):
+            self._types[type_id(index)] = index
+        return TypeChooser(index=index, row=row, width=width)
 
     def _added_values(self, index: int, row: core.MemberRow) -> list[Widget]:
         """Create the ways of editing one value, and remember whose they are.

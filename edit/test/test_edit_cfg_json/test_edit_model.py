@@ -80,26 +80,28 @@ def test_none_holds_nothing() -> None:
 
     It is not a field holding the text `null`: the member has two states, and
     this is the one in which it holds nothing. What it would hold is still
-    known, because `Optional[str]` says it, and the row offers to give it a
-    value rather than asking anyone to type one.
+    known, because `Optional[str]` says it, and the row offers to choose a
+    type for it rather than asking anyone to type a value. Choosing is the
+    whole of it, so neither of the controls that add and remove is offered.
     """
     row = _row(EditModel(NoneCfg()), 'name')
     assert row.value is None
     assert row.holds_nothing
     assert not row.editable
     assert row.is_text
-    assert row.offer.extend
+    assert row.type_choosable
+    assert not row.offer.extend
     assert not row.offer.remove
 
 
 def test_nothing_gets_value() -> None:
-    """Test such a member is given the empty value of the kind declared."""
+    """Test such a member is given the empty value of the type chosen."""
     model = EditModel(NoneCfg())
-    model.add_element(('name',))
+    model.set_type(path=('name',), text='str')
     row = _row(model, 'name')
     assert row.value == ''
     assert row.editable
-    assert row.offer.remove
+    assert not row.offer.remove
 
 
 def test_value_gets_cleared() -> None:
@@ -109,9 +111,9 @@ def test_value_gets_cleared() -> None:
     question at the end of design section 4.2 of `doc/detailed_design.md`.
     """
     model = EditModel(NoneCfg())
-    model.add_element(('name',))
+    model.set_type(path=('name',), text='str')
     model.set_text(('name',), 'something')
-    model.remove_element(('name',))
+    model.set_type(path=('name',), text='None')
     assert _row(model, 'name').value is None
 
 

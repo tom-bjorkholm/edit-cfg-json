@@ -155,6 +155,7 @@
     * [model](#edit_cfg_json_textual.textual_panel.ModelPanel.model)
     * [saved\_config](#edit_cfg_json_textual.textual_panel.ModelPanel.saved_config)
     * [compose](#edit_cfg_json_textual.textual_panel.ModelPanel.compose)
+    * [on\_mount](#edit_cfg_json_textual.textual_panel.ModelPanel.on_mount)
     * [command\_entries](#edit_cfg_json_textual.textual_panel.ModelPanel.command_entries)
     * [on\_input\_changed](#edit_cfg_json_textual.textual_panel.ModelPanel.on_input_changed)
     * [on\_select\_changed](#edit_cfg_json_textual.textual_panel.ModelPanel.on_select_changed)
@@ -191,6 +192,7 @@
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_rows.PanelRows.__init__)
     * [fields](#edit_cfg_json_textual.textual_rows.PanelRows.fields)
     * [choosers](#edit_cfg_json_textual.textual_rows.PanelRows.choosers)
+    * [types](#edit_cfg_json_textual.textual_rows.PanelRows.types)
     * [folds](#edit_cfg_json_textual.textual_rows.PanelRows.folds)
     * [elements](#edit_cfg_json_textual.textual_rows.PanelRows.elements)
     * [built](#edit_cfg_json_textual.textual_rows.PanelRows.built)
@@ -2140,6 +2142,24 @@ the application makes of the values and where they would be written
 stay below it, where a user who has just edited something looks for
 them.
 
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.on_mount"></a>
+
+#### on\_mount
+
+```python
+def on_mount() -> None
+```
+
+Give the first value of the configuration the keyboard focus.
+
+That is a rule for both ways of running the editor, and the Tk backend
+keeps it in the same way. Textual would otherwise give the focus to
+the first widget that takes it, which can be the control that folds
+the first row or the pull-down of its types rather than its value.
+Which widget it is, is the one a search reaches for that node, and a
+configuration whose every row is a container has none, so the focus is
+then left where it was.
+
 <a id="edit_cfg_json_textual.textual_panel.ModelPanel.command_entries"></a>
 
 #### command\_entries
@@ -2187,7 +2207,7 @@ as no edit at all.
 def on_select_changed(event: Select.Changed) -> None
 ```
 
-Write the value that was picked from one pull-down into the model.
+Write what was picked from one pull-down into the model.
 
 A pull-down posts this message when it is given its initial value as
 well, which the model handles by treating a set that changes no text
@@ -2196,9 +2216,10 @@ as no edit at all.
 Every value it can post is one of the ones that member takes, because
 that is all a pull-down offers and it has no unselected state.
 
-The pull-down of the types of a node posts it too, when it is given
-the type the node holds, and nothing can be chosen in one of those
-yet: that message is about nothing the model has to be told.
+The pull-down of the types of a node posts it too, and an active one
+is a type the user chose. A disabled one posts it only when it is given
+the type the node holds, which is about nothing the model has to be
+told.
 
 <a id="edit_cfg_json_textual.textual_panel.ModelPanel.on_input_blurred"></a>
 
@@ -2684,6 +2705,17 @@ def choosers() -> Mapping[str, int]
 
 Return the place of the node of every pull-down of the values.
 
+<a id="edit_cfg_json_textual.textual_rows.PanelRows.types"></a>
+
+#### types
+
+```python
+@property
+def types() -> Mapping[str, int]
+```
+
+Return the place of the node of every active pull-down of types.
+
 <a id="edit_cfg_json_textual.textual_rows.PanelRows.folds"></a>
 
 #### folds
@@ -2712,7 +2744,7 @@ Return the node and the action of every element control.
 
 ```python
 @property
-def built() -> tuple[tuple[ConfigPath, bool], ...]
+def built() -> tuple[tuple[ConfigPath, bool, bool], ...]
 ```
 
 Return what the rows were made for, as `rows_shape` says it.
@@ -2772,11 +2804,12 @@ a module of functions so that `textual_panel` stays short enough to read.
 class TypeChooser(Select[str])
 ```
 
-The pull-down of the types one node may hold, inactive for now.
+The pull-down of the types one node may hold.
 
-It shows the type the node holds now and lists every type it may hold, and
-it is disabled on every row: the types cannot be chosen yet. Every row has
-one all the same, so that every row says its type in the same place.
+It shows the type the node holds now and lists every type it may hold. It
+is active where the type is the user's to choose and disabled everywhere
+else, and every row has one all the same, so that every row says its type
+in the same place.
 
 It remembers what it offers, because that can change while the editor is
 open: a node whose declaration names nothing usable offers the one type
@@ -2785,11 +2818,13 @@ type is given as plain content rather than as text, because Textual reads
 text as markup and a type is full of square brackets: `list[str]` would be
 shown as `list`.
 
-The value of each option is the text of its type and not its place among
-them, because a pull-down given new options shows the one it holds again
-only where its value changes: with places for values, the one type of
-`None` replaced by the one type of `str` would both be place 0, and the
-pull-down would go on saying `None`.
+The value of each option is the whole text of its type and not its place
+among them, because a pull-down given new options shows the one it holds
+again only where its value changes: with places for values, the one type
+of `None` replaced by the one type of `str` would both be place 0, and the
+pull-down would go on saying `None`. It is the whole text rather than the
+text shown, because the column cuts a long type and two types can be cut
+to the same text, while the whole text is what the model is given.
 
 <a id="edit_cfg_json_textual.textual_member.TypeChooser.__init__"></a>
 

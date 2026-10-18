@@ -248,53 +248,20 @@ def test_question_is_a_screen() -> None:
     assert asked == [1]
 
 
-NOTHING_HELD: ConfigPath = ('subtitle',)
-"""The member of the other example that holds nothing to begin with."""
-
 CLEARED: ConfigPath = ('footer',)
-"""The member of it that a validation pass can move to holding nothing.
+"""The member of the other example that a validation pass can clear.
 
 A member validator returns the value that is stored back into the member, so
 one of them can take a field away from a row that had one. It is the one thing
 a backend has to mount its widgets afresh for beyond a pass that changed how
-many rows there are.
+many rows there are. Giving the member a value and taking it away by choice
+is the pull-down of its types, which the tests of that pull-down are about.
 """
 
 
 def _fields(app: EditorApp) -> int:
     """Return how many nodes of one application are shown with a field."""
     return len(app.query(Input))
-
-
-def test_nothing_offers_add() -> None:
-    """Test a member holding nothing has an add control and no field."""
-    model = EditModel(ReportConfig())
-    seen: list[object] = []
-
-    async def look(app: EditorApp, pilot: Pilot[None]) -> None:
-        """Collect what that row has and what it says."""
-        _ = pilot
-        index = _index_of(model, NOTHING_HELD)
-        seen.append(len(app.query(f'#{element_id(index, ADD_ACTION)}')))
-        seen.append(len(app.query(Input)
-                        .filter(f'#{value_id(index)}')))
-    _run(model, look)
-    assert seen == [1, 0]
-    assert _value_of(model, NOTHING_HELD) == 'no value'
-
-
-def test_add_gives_a_value() -> None:
-    """Test pressing the control gives that member the value of its kind."""
-    model = EditModel(ReportConfig())
-    _run(model, _presser(model, NOTHING_HELD, ADD_ACTION))
-    assert _value_of(model, NOTHING_HELD) == ''
-
-
-def test_value_is_cleared() -> None:
-    """Test the control of a member holding a value puts it back to none."""
-    model = EditModel(ReportConfig())
-    _run(model, _presser(model, CLEARED, REMOVE_ACTION))
-    assert _value_of(model, CLEARED) == 'no value'
 
 
 def test_pass_takes_a_field() -> None:
@@ -318,7 +285,9 @@ def test_pass_takes_a_field() -> None:
         await pilot.pause()
         counted.append(_fields(app))
     _run(model, clear)
-    assert _value_of(model, CLEARED) == 'no value'
+    assert _value_of(model, CLEARED) == ''
+    assert row_type_text({row.path: row
+                          for row in model.rows}[CLEARED]) == 'None'
     assert counted[1] == counted[0] - 1
 
 

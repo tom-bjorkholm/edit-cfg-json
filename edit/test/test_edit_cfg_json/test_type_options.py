@@ -16,9 +16,9 @@ from typing import Any, Dict, List, Literal, Optional, Union
 import pytest
 from config_as_json import JsonType
 from edit_cfg_json.type_options import CUT_MARK, NONE_TYPE, \
-    TYPE_COLUMN_LIMIT, TypeOption, cut_type_text, empty_option_value, \
-    fits, held_option, inferred_option, node_options, reading_kind, \
-    spelled, type_options
+    TYPE_COLUMN_LIMIT, TypeOption, allowed_values, choosable, \
+    cut_type_text, empty_option_value, fits, held_option, inferred_option, \
+    node_options, reading_kind, spelled, type_options
 from .container_cfg import InnerCfg
 from .sample_cfg import Colour
 
@@ -133,14 +133,17 @@ STR_LIST, NESTED_LIST = type_options(list[str] | list[list[str]])
                           (NESTED_LIST, [], True),
                           (type_options(Literal['a', 'b'])[0], 'a', True),
                           (type_options(Literal['a', 'b'])[0], 'c', False),
-                          (type_options(Literal[1])[0], True, False)])
+                          (type_options(Literal[1])[0], True, False),
+                          (type_options(Colour)[0], 'GREEN', True),
+                          (type_options(Colour)[0], 'gr', False)])
 def test_value_fits(option: TypeOption, value: JsonType,
                     expected: bool) -> None:
     """Test which values are values of which types.
 
     A whole number is a number, true is not a whole number, and a container
     fits where everything inside it fits, which is what tells the two lists
-    of the complaint apart.
+    of the complaint apart. The values of an enum are the names of its
+    members and nothing else.
     """
     assert fits(option, value) is expected
 
@@ -205,16 +208,43 @@ def test_objects_apart() -> None:
 @pytest.mark.parametrize('hint, expected',
                          [(str, ''), (int, 0), (float, 0.0), (bool, False),
                           (list[str], []), (dict[str, int], {}),
-                          (Colour, None), (InnerCfg, None), (Path, None),
-                          (Literal['a'], None), (None, None)])
+                          (Colour, 'RED'), (InnerCfg, None), (Path, None),
+                          (Literal['a', 'b'], 'a'), (None, None)])
 def test_empty_option_value(hint: object, expected: JsonType) -> None:
     """Test the value of each type that says no more than its type.
 
-    A class of the application's own and a `Literal` are types the editor
-    cannot make a value of on its own.
+    A type whose values are a known set is given the first of them, which is
+    the name of the first member of an enum. A class of the application's own
+    is a type the editor cannot make a value of on its own.
     """
     found = empty_option_value(type_options(hint)[0])
     assert found == expected and type(found) is type(expected)
+
+
+@pytest.mark.parametrize('hint, expected',
+                         [(Colour, ('RED', 'GREEN')),
+                          (Literal['a', 'b'], ('a', 'b')), (str, ()),
+                          (InnerCfg, ())])
+def test_allowed_values(hint: object, expected: tuple[str, ...]) -> None:
+    """Test the values of a type whose values are a known set."""
+    assert allowed_values(type_options(hint)[0]) == expected
+
+
+@pytest.mark.parametrize('hint, expected',
+                         [(int | str, True), (Optional[float], True),
+                          (Optional[Colour], True), (bool | str, True),
+                          (Literal['a'] | int, True), (int, False),
+                          (Optional[list[str]], False),
+                          (Optional[InnerCfg], False), (Path | None, False),
+                          (list[str] | list[list[str]], False)])
+def test_choosable(hint: object, expected: bool) -> None:
+    """Test which declarations leave the type of a node to the user.
+
+    They are those of more than one type, every one of them a plain value or
+    `None`: an enum and a `Literal` are plain values, and a container, a
+    configuration class and another class of the application are not.
+    """
+    assert choosable(type_options(hint)) is expected
 
 
 @pytest.mark.parametrize('value, expected',

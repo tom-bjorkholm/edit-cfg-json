@@ -85,15 +85,15 @@ def test_text_has_no_quotes() -> None:
 
 
 def test_none_text() -> None:
-    """Test a member holding nothing says so where its value would be.
+    """Test a member holding nothing says so with its type and nothing else.
 
     It is written without the equals sign that a row with a value of its own
     uses, because holding nothing is a state of the member and not a text
-    that anybody typed into it. The type it holds is `None`, and the line
-    below it says the whole of what it is declared as.
+    that anybody typed into it. The type it holds is `None`, which says it
+    all, and the line below it says the whole of what it is declared as.
     """
     text = model_as_text(EditModel(NoneCfg()))
-    assert 'name: None, no value\n    Declared as str | None.\n' in text
+    assert 'name: None\n    Declared as str | None.\n' in text
 
 
 def test_container_text() -> None:
@@ -668,9 +668,13 @@ def test_described_element() -> None:
 
 
 def test_shape_of_the_rows() -> None:
-    """Test the shape says the path of every row and whether it has a field."""
-    assert rows_shape(EditModel(NoneCfg())) == ((('name',), False),
-                                                (('answer',), True))
+    """Test the shape says the path of every row and which widgets it has.
+
+    That is whether it has a field and whether it has a pull-down of its
+    values, which a row whose type changes can gain or lose.
+    """
+    assert rows_shape(EditModel(NoneCfg())) == ((('name',), False, False),
+                                                (('answer',), True, False))
 
 
 def test_shape_after_clearing() -> None:
@@ -686,4 +690,4 @@ def test_shape_after_clearing() -> None:
     before = rows_shape(model)
     assert model.validate().valid
     assert rows_shape(model) != before
-    assert rows_shape(model)[0] == (('title',), False)
+    assert rows_shape(model)[0] == (('title',), False, False)

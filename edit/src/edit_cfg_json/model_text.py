@@ -420,8 +420,8 @@ def row_type_text(row: MemberRow) -> str:
     return cut_type_text(row.chosen_type.text)
 
 
-def row_type_texts(row: MemberRow) -> tuple[str, ...]:
-    """Return every type one node may hold, as the column shows each of them.
+def row_type_choices(row: MemberRow) -> tuple[tuple[str, str], ...]:
+    """Return every type one node may hold, as shown and as it is named.
 
     They are what the pull-down of the types offers, in the order the
     declaration writes them, and then the type the node holds where that is
@@ -429,15 +429,52 @@ def row_type_texts(row: MemberRow) -> tuple[str, ...]:
     declared, and `None` for a place declared to hold an object and holding
     none.
 
+    Each is given twice, because the column cuts a long type and two types
+    can be cut to the same text: what the pull-down shows, and the whole of
+    the type, which is what `EditModel.set_type` is given when it is chosen.
+
     Args:
         row: Node to render.
 
     Returns:
-        One text per type that node may hold, among them `row_type_text`.
+        One pair of the shown text and the whole text per type that node may
+        hold, the type it holds among them.
     """
     held = row.chosen_type
     options = row.types if held in row.types else (*row.types, held)
-    return tuple(cut_type_text(option.text) for option in options)
+    return tuple((cut_type_text(option.text), option.text)
+                 for option in options)
+
+
+def row_type_texts(row: MemberRow) -> tuple[str, ...]:
+    """Return every type one node may hold, as the column shows each of them.
+
+    Args:
+        row: Node to render.
+
+    Returns:
+        The shown text of every type `row_type_choices` lists, among them
+        `row_type_text`.
+    """
+    return tuple(shown for shown, _ in row_type_choices(row))
+
+
+def row_chooses_type(row: MemberRow) -> bool:
+    """Return whether the type one node holds can be chosen in its pull-down.
+
+    Every node has the pull-down, so that every row says its type in the same
+    place, and this is what says whether it is active: a node whose
+    declaration allows more than one plain type, or a plain type and `None`.
+    A backend asks it whenever it makes the pull-down, because whether it is
+    active depends on the types the node may hold and on nothing a user types.
+
+    Args:
+        row: Node to ask about.
+
+    Returns:
+        Whether choosing another of its types is something the user may do.
+    """
+    return row.type_choosable
 
 
 def type_column_width(model: EditModel) -> int:
@@ -523,7 +560,8 @@ def row_fold_text(row: MemberRow) -> str:
     return FOLDED_MARK if row.folded else ''
 
 
-def rows_shape(model: EditModel) -> tuple[tuple[ConfigPath, bool], ...]:
+def rows_shape(model: EditModel) -> tuple[tuple[ConfigPath, bool, bool],
+                                          ...]:
     """Return what the widgets a backend builds for the rows depend on.
 
     A validation pass is not read only, and neither is it only about values.
@@ -533,7 +571,8 @@ def rows_shape(model: EditModel) -> tuple[tuple[ConfigPath, bool], ...]:
     allowed to hold nothing does: that row had a field and now has none. A
     backend that only wrote the values back would then be showing a field for
     a member that holds nothing, and the next key typed into it would be
-    refused.
+    refused. A validator can also change the type a row holds, and a row that
+    changes from text to true or false gains a pull-down of the two values.
 
     So a backend compares this before and after, and makes its widgets again
     where it differs. It is here rather than in each backend for the same
@@ -545,10 +584,14 @@ def rows_shape(model: EditModel) -> tuple[tuple[ConfigPath, bool], ...]:
         model: Model to ask about.
 
     Returns:
-        The path of every row and whether that row is a value with a field,
-        in the order the rows are shown.
+        The path of every row, whether that row is a value with a field and
+        whether it has a pull-down of its values, in the order the rows are
+        shown. The type of a row is not in it as a text, because a row whose
+        type only its value says changes type as it is typed into and has the
+        same widgets either way.
     """
-    return tuple((row.path, row.editable) for row in model.rows)
+    return tuple((row.path, row.editable, row_chooses(row))
+                 for row in model.rows)
 
 
 def can_fold(model: EditModel) -> bool:

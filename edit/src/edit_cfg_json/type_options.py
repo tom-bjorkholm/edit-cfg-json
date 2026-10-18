@@ -98,6 +98,14 @@ UNUSABLE_CLASSES: tuple[object, ...] = (tuple, set, frozenset, object, Any)
 would otherwise be read as a class of the application's own.
 """
 
+SCALAR_KINDS: tuple[type, ...] = (bool, int, float, str)
+"""The kinds of JSON value that a field holds, rather than rows below it.
+
+An enum and a `Literal` are written as one of them, so a type of either is a
+plain value too. A list, a dict, a configuration object and a class whose kind
+only its value can say are not.
+"""
+
 
 class _Unusable(Exception):
     """Raised where one part of a declaration names nothing usable."""
@@ -249,8 +257,11 @@ def fits(option: TypeOption, value: JsonType) -> bool:
 
     A whole number is a number as well, because JSON has one kind of number
     and `config_as_json` reads `0` into a member declared `float`; true and
-    false are not whole numbers, although Python says they are. A container
-    fits where everything inside it fits one of the types inside it, which is
+    false are not whole numbers, although Python says they are. A type whose
+    values are a known set, an enum and a `Literal`, is fitted by those values
+    alone: the name of a member of that enum, and one of those literals. A
+    container fits where everything inside it fits one of the types inside it,
+    which is
     what tells `[['x']]` from `['x']` where both `list[str]` and
     `list[list[str]]` are allowed.
 
@@ -265,8 +276,9 @@ def fits(option: TypeOption, value: JsonType) -> bool:
         return value is not None
     if not _kind_fits(kind=option.kind, value=value):
         return False
-    if option.literals:
-        return value in option.literals
+    allowed = allowed_values(option)
+    if allowed:
+        return value in allowed
     held = list(value.values()) if isinstance(value, dict) else \
         value if isinstance(value, list) else []
     return not option.inside or all(
@@ -384,6 +396,24 @@ def reading_kind(options: Sequence[TypeOption],
     return held.kind
 
 
+def allowed_values(option: TypeOption) -> tuple[str | int | bool, ...]:
+    """Return the values one type allows, where they are a known set.
+
+    Args:
+        option: The type asked about.
+
+    Returns:
+        The values a `Literal` allows, the names of the members of an enum in
+        the order the enum declares them, which is how `config_as_json` writes
+        one, and nothing for every other type.
+    """
+    if option.literals:
+        return option.literals
+    if option.of_class is not None and issubclass(option.of_class, Enum):
+        return tuple(option.of_class.__members__)
+    return ()
+
+
 def empty_option_value(option: TypeOption) -> Optional[JsonType]:
     """Return the value of one type that says no more than its type.
 
@@ -391,10 +421,33 @@ def empty_option_value(option: TypeOption) -> Optional[JsonType]:
         option: Type to make a value of.
 
     Returns:
-        That value for a type of JSON the editor can make one of, and None for
-        every other type: a class of the application's own and a `Literal`
-        are types the editor cannot make a value of on its own.
+        That value for a type of JSON the editor can make one of, the first of
+        the values of a type whose values are a known set, and None for every
+        other type: a class of the application's own is a type the editor
+        cannot make a value of on its own, and so is an enum with no members.
     """
-    if option.of_class is not None or option.literals:
+    allowed = allowed_values(option)
+    if allowed:
+        return allowed[0]
+    if option.of_class is not None:
         return None
     return empty_value(option.kind)
+
+
+def choosable(options: Sequence[TypeOption]) -> bool:
+    """Return whether the user may choose which of some types a node holds.
+
+    They may where there is more than one type to choose from and every one
+    of them is a plain value or `None`, which is what `int | str`,
+    `float | None` and `Colors | None` are. A choice of the user's between
+    them is a value of the other type in the same field, or no value at all.
+
+    Args:
+        options: The types a node may hold.
+
+    Returns:
+        Whether the type that node holds is the user's to choose.
+    """
+    return len(options) > 1 and all(
+        option == NONE_TYPE or option.kind in SCALAR_KINDS
+        for option in options)

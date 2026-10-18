@@ -360,15 +360,31 @@ whole number while the member takes a number, and a member whose default is
 the other way: a number member that is half typed holds text until its text is
 a number, and it would stop being a number member for the rest of the session.
 
-**Which of its types a row holds and what its text is read by are two
-answers.** The type a row holds is the first of its types its *current* value
-fits, in the order the declaration writes them, so the column follows a value
-typed into `int | str` from one to the other; a value that fits none of them —
-a number half typed — holds the first type that is not `None`. What its text
-is read by is asked of the value it held when the file was last agreed with,
-for the reason the paragraph above gives, so that half typing cannot change
-it. Until the user can choose a type (step 31B of the plan) nothing else
-depends on which one a row holds.
+**Where the user chooses the type, the type chosen is what the text is read
+by.** A row whose declaration allows more than one plain type, or a plain type
+and `None` (section 4.12), holds the type the user chose, and that is state of
+the buffer rather than a reading of the value: `5` is an `int` and a `float`,
+so no value could say which of the two was chosen. It is kept by path the way
+the fold state is — carried over when the rows are built again, moved with an
+element that changes places, dropped with one that is taken out (section 4.9)
+— and it is first read from the value, as the first type the value fits. Its
+text is read by the type chosen, so `5` typed while `int` is chosen is a
+number and while `str` is chosen a text, and half typing changes nothing:
+`wide` typed while `int` is chosen is a value of the wrong type, not a choice
+of `str`. **A validation pass that leaves a value the type chosen does not fit
+makes the value say which type the row holds**, because a validator may change
+the type of a value as well as the value, and the editor shows the type the
+application made of it; `config_as_json` checks no value against its
+annotation, so `wide` accepted by a pass is a `str` afterwards.
+
+**Elsewhere, which of its types a row holds and what its text is read by are
+two answers.** The type a row holds is the first of its types its *current*
+value fits, in the order the declaration writes them, and a value that fits
+none of them holds the first type that is not `None`. What its text is read by
+is asked of the value it held when the file was last agreed with, for the
+reason the paragraph above gives, so that half typing cannot change it. That is
+every row whose type is not chosen: one of a single type, and one whose type
+only its value says.
 
 The kept value also answers whether the user changed the leaf. That comparison
 is made on the JSON notation rather than with `==`, because Python considers
@@ -480,30 +496,36 @@ cannot drift:
   and no more. It is never set together with the mark above it, which says the
   same thing more precisely.
 
-**The user never changes what kind of value a leaf takes.** The one thing that
-would have been useful for — telling a `None` apart from an empty text in an
-`Optional[str]` — is answered by the two states below without letting anybody
-change the kind of anything.
+**The user chooses among the kinds the application declared, and never any
+other.** This sentence used to say that the user never changes what kind of
+value a leaf takes, and it is reversed here on purpose (step 31 of the plan).
+What was rejected was a user choosing a kind; what is built is the user
+choosing among the types the declaration allows, in the pull-down of section
+4.12, with every type the class would refuse left out of it. A member declared
+`str` takes text and there is nothing to choose; a member declared `int | str`
+takes either, and which one is the user's to say.
 
 **A member the class declared to allow no value has two states.** It holds a
 value, or it holds nothing, and both are states of the member rather than texts
 in a field:
 
-- while it **holds a value** it is an ordinary field, and it offers *removing*,
-  which puts it back to holding nothing;
-- while it **holds nothing** its row says so where the value would be, has no
-  field at all, and offers *adding*, which gives it the value of its kind that
-  says no more than which kind it is.
+- while it **holds a value** it is an ordinary field;
+- while it **holds nothing** it has no field at all.
 
-Those are the two controls that section 4.9 gives a declared member holding no
-configuration object, so nothing new is added to either backend, to the keys or
-to the command line — which is most of why this is the answer. **How the class
-writes such a member decides nothing about the two states**: `null` and a
-member that `_omit_none_from_json()` leaves out have the same pair of states
-and the same pair of controls, and what differs is only the file. Both have a
-row while they hold nothing (section 4.1), and the line under the member says
-which of the two kinds of optional it is, because that is the difference there
-is.
+Where every type the member may hold is a plain value, `None` is one of the
+types in its pull-down: `Optional[str]` is `str | None`, the pull-down says
+`None` while the member holds nothing and the row says nothing more, and
+choosing `str` gives it the value of that type that says no more than which
+type it is. Where it may hold a list, a dict or a configuration object, the two
+controls that section 4.9 gives a declared member holding no configuration
+object move it between the two states instead, and the row says `no value`
+while it holds none (step 31C and 31D of the plan move those to the pull-down
+as well). **How the class writes such a member decides nothing about the two
+states**: `null` and a member that `_omit_none_from_json()` leaves out have the
+same pair of states and the same way of moving between them, and what differs
+is only the file. Both have a row while they hold nothing (section 4.1), and
+the line under the member says which of the two kinds of optional it is,
+because that is the difference there is.
 
 **A member declared to hold a dict is the one that cannot be given a value.**
 `Config.check_dict_parse` refuses a dict written for a member whose value is
@@ -518,8 +540,8 @@ empty list and grown from there.
 as JSON `null` is kept as the text it is for such a member, exactly as any
 other text of the wrong type is. Without that, four characters typed into a
 field would take the field away from under the cursor that typed them, and the
-state is one the user asks for with a control rather than one they type. A
-member with no such state reads `null` as the JSON it is.
+state is one the user chooses rather than one they type. A member with no such
+state reads `null` as the JSON it is.
 
 **A member that holds nothing while its class does not allow it to** is an
 editable field showing `null`: the two states exist only where the class said
@@ -531,15 +553,27 @@ however its class writes it. Such a member is still reachable — the field take
 a value and takes `null` back again — and the moral is the one section 4.1 ends
 with: annotate the members of a configuration class.
 
-**Which members have the two states** is now said by the alternatives of the
-declaration: a member whose types include `None` beside a first other type the
-editor can make an empty value of, which is `Optional[str]`, `Optional[int |
-str]` and `Optional[list[str]]`. A member allowing `None` beside an enum, a
-configuration class or another class of the application's own has one state as
-before, because the editor cannot make a value of such a type on its own; the
-configuration class is the place section 4.9 gives its own two controls. A
-value inside a list or a dict never has the two states, whatever its
-declaration allows, and its type column still says `None` while it holds `null`.
+**Which nodes have the two states** is said by the types they are offered.
+A node whose type the user chooses has them wherever `None` is one of those
+types, which is `Optional[str]`, `Optional[int | str]` and `Optional[Colors]` —
+an enum is a type the editor can make a value of, the name of its first member
+— and that holds for a value inside a list or a dict as much as for a member:
+an element of `list[Optional[str]]` that holds `null` has no field, and is
+given one by choosing `str`. Any other member has them where its types include
+`None` beside a first type the editor can make an empty value of, which is
+`Optional[list[str]]`. A member allowing `None` beside a configuration class
+or another class of the application's own has one state as before, because the
+editor cannot make a value of such a type on its own; the configuration class
+is the place section 4.9 gives its own two controls. Any other value inside a
+list or a dict never has the two states, whatever its declaration allows, and
+its type column still says `None` while it holds `null`.
+
+**`None` the class would refuse is not one of them.** `config_as_json` hands
+`null` to the parse converter of a member it writes as `null`, and the
+converter it ships for an enum refuses it, so `Optional[Colors]` written as
+`null` is offered `Colors` alone and says why below its row; one that
+`_omit_none_from_json()` names is never converted while it holds nothing, and
+is offered both (section 4.12).
 
 ### 4.3 Descriptions and docstrings
 
@@ -946,11 +980,14 @@ validation pass: the editor runs the application's rules and has none of its
 own about keys.
 
 **A member holding nothing is grown by being given a value**, whether that
-value is a configuration object or an ordinary one (section 4.2). The two are
-the same pair of controls, because they are the same question one step apart,
-and how the class writes such a member decides nothing here: one that
+value is a configuration object or a list (section 4.2). The two are the same
+pair of controls, because they are the same question one step apart, and how
+the class writes such a member decides nothing here: one that
 `_omit_none_from_json()` names keeps its row (section 4.1), so clearing it is
-not a way of losing it.
+not a way of losing it. A member whose types are all plain values has neither
+control: it is given a value, and has it taken away, by choosing a type in the
+pull-down of section 4.12, and the controls of this section are about elements
+and objects alone.
 
 **A member whose values are of two kinds is asked twice.** A
 `DICT_VALUE_BY_KEY` declaration names one key of a dict as a configuration
@@ -991,9 +1028,12 @@ is untouched: it is the editor's copy that changes.
 **What the editor holds about a node is held under the path of that node**, and
 an element of a list is addressed by where it is, so a removal or a move takes
 all of it along: what each row is compared against, which containers are
-folded, and what each object said about itself. Without that, removing the
-first element of a list would report every element after it as edited by a user
-who touched none of them.
+folded, what each object said about itself and which type the user chose.
+Without that, removing the first element of a list would report every element
+after it as edited by a user who touched none of them. **What was held for an
+element that is taken out goes with it**: the element after it moves into its
+path, and is not folded, or of the type chosen, because the one taken out
+was.
 
 **A change of the elements is not a validation pass**, and the rows say so: a
 row that a validation pass created is marked as one a validator wrote and a row
@@ -1200,13 +1240,58 @@ nothing to edit (section 5.2). So the values the editor starts from are members
 and booleans already, and the only thing that has ever been able to make one of
 them anything else is a field being typed in.
 
+**A member whose type is chosen has the values of the type it holds.** A
+member declared `bool | str` holding `true` is offered the two words, and once
+`str` is chosen for it it is a field of text with nothing to choose from; a
+member declared `Colors | None` is offered the names of the enum while it holds
+one. A switch to such a type gives the member one of its values — its text
+where that is one of them, the first otherwise — so there is nothing for
+`settle_choices` to replace, and the rows are made again around the new type
+(section 4.12), which gives the row the pull-down of its values or takes it
+away. `rows_shape` says whether a row has such a pull-down, so a validator that
+changes the type of a value is followed the same way.
+
 ### 4.12 The type of every row
 
 Every row says the type it holds, in a column between its name and its value,
 spelled in the vocabulary of Python type hints: `int`, `list[str]`, `Colors`,
 `dict[str, list[str] | list[list[str]]]`. It is a pull-down in both backends,
-and in this version nothing can be chosen in it on any row; choosing between
-the types a declaration allows is the rest of step 31 of the plan.
+and choosing another of the types in it is how the user changes what the row
+holds, where the type is the user's to choose.
+
+**The type is the user's to choose where every type a row may hold is a plain
+value or `None`**, and there are more than one of them: `int | str`,
+`float | None`, `Colors | None`, `Literal['fast', 'slow'] | int`. A plain value
+is one a field holds — a bool, a whole number, a number, a text, and an enum or
+a `Literal`, both of which are written as one of those. The pull-down is active
+on such a row and disabled on every other, which still says its type in the
+same place. A row whose types include a list, a dict or a configuration object
+is not chosen in yet; steps 31C and 31D of the plan are about those.
+
+**Switching keeps what still fits.** A plain value keeps its text where that
+text means a value of the new type, so the number `80` is the text `80` once
+`str` is chosen and the number again once `int` is. Everything else — a text
+that means no value of the new type, and `None` on either side of the switch
+— is given the value of the new type that says no more than which type it is:
+`''`, `0`, `0.0`, `false`, the name of the first member of an enum, the first
+value of a `Literal`, or nothing at all. Nothing is remembered per type, and
+the type chosen is kept as section 4.2 says. `EditModel.set_type` is how a
+backend chooses one, and `--set-type PATH=TYPE` is how the example programs
+stand in for a user choosing, as `--set` stands in for one typing.
+
+**A type the class would refuse is not offered.** `config_as_json` hands every
+value of a member with a parse converter that is not already of the type the
+converter makes to that converter, and the converter it ships for an enum
+refuses everything that is not text. So the converter of a row is run on the
+value choosing each type would give, exactly as it is run on a field losing the
+focus, and a type whose value it refuses is left out of the pull-down: `int`
+beside `Colors`, whose `0` it refuses, and `None` beside `Colors` where the
+class writes `null` for the member. `None` is offered where the class leaves
+the member out of the file while it holds nothing, because nothing is
+converted then, and an application whose own converter takes more is offered
+more. The line below the row names each type left out and the value it was
+refused for. A type left out is not shown disabled, because Textual's `Select`
+cannot disable one option and the two backends must not differ.
 
 **The spelling is Python's, normalized from the resolved hint** and not copied
 from the source text, so a declaration read from source and one read with
@@ -1239,15 +1324,23 @@ says it, so the settings file format does not change (section 9.10).
 says its type in the same place, and a nested configuration object, whose type
 is its class, says nothing where its value would be: its value is its rows.
 
-**The two backends build it alike.** Tk has a disabled `Menubutton` per row, in
-the muted colour of the explanations rather than the faint grey Tk gives a
-disabled widget, and Textual a compact, disabled `Select` whose options are
-given as plain content: Textual reads a text as markup, and `list[str]` would be
-shown as `list`. Both are made again with the rows and shown again with the
-marks, so a value typed into `int | str` moves the column from one to the other,
-and a row whose type only its value says changes what it lists as well. The
-text rendering writes the same thing as `name: type = value`, and as `name:
-type, 2 elements` for a row that is not edited in a field.
+**The two backends build it alike.** Tk has a `Menubutton` per row, active
+and in the colour of a value where the type is chosen, and disabled in the
+muted colour of the explanations elsewhere rather than in the faint grey Tk
+gives a disabled widget. Textual has a compact `Select`, disabled where the
+type is not chosen, whose options are given as plain content: Textual reads a
+text as markup, and `list[str]` would be shown as `list`. Each option is the
+whole of its type behind the text the column shows, because two long types can
+be cut to the same text, and the whole text is what the model is given. Both
+are made again with the rows and shown again with the marks, so a row whose
+type only its value says changes what it lists as its value changes, and both
+make every row again after a type is chosen, as they do after an element is
+added: a row holding nothing and one holding a value are different rows. A
+Tk menu button is out of the order the Tab key goes in, as the pull-down of the
+values is, so the key goes from one value to the next. The text rendering
+writes the same thing as `name: type = value`, as `name: type, 2 elements` for
+a row that is not edited in a field, and as `name: None` for a row whose type
+is chosen and which holds nothing.
 
 ## 5. Loading
 
@@ -1865,14 +1958,18 @@ wrappers are a signature and one call; if either ever grows a decision of its
 own, that decision belongs here instead.
 
 **When a backend has to make its widgets again** is one answer and not two, so
-the core gives it: `rows_shape` is the path of every row and whether that row
-is a value with a field, and a backend that finds it changed rebuilds instead
-of writing the values back. Both halves of it are needed. A validation pass
-that normalizes a list changes how many rows there are, and one that answers
-`None` for a member allowed to hold nothing leaves the same rows with one of
-them not a field any more (section 4.2). A backend comparing the paths alone
-would leave a field on the screen for a member that holds nothing, and the
-next key typed into it would be refused.
+the core gives it: `rows_shape` is the path of every row, whether that row is
+a value with a field and whether it has a pull-down of its values, and a
+backend that finds it changed rebuilds instead of writing the values back.
+Every part of it is needed. A validation pass that normalizes a list changes
+how many rows there are, one that answers `None` for a member allowed to hold
+nothing leaves the same rows with one of them not a field any more (section
+4.2), and one that changes the type of a value can give a row the pull-down of
+the two words of true and false or take it away (section 4.11). A backend
+comparing the paths alone would leave a field on the screen for a member that
+holds nothing, and the next key typed into it would be refused. Choosing a
+type and changing the elements always make the widgets again, without asking
+it.
 
 A practical consequence of the split: the backends must stay thin. All three
 packages share a single pylint invocation, and this repository forbids
@@ -2220,8 +2317,8 @@ Three Textual constraints the split rests on, none of them obvious:
 
 **What the split costs an application that shows the editor and nothing else is
 deliberate**: the footer names the actions of the editor while the focus is
-inside the editor, because that is where the bindings are. Textual focuses the
-first focusable widget of a screen, which is inside the panel.
+inside the editor, because that is where the bindings are. The panel puts the
+focus on its first value when it is mounted, which is inside the panel.
 
 #### 8.2.5 Three rules that hold for both ways of running the editor
 
@@ -2235,8 +2332,11 @@ first focusable widget of a screen, which is inside the panel.
   An editor that opened with the focus nowhere inside it is one a user types
   into and sees nothing happen: the keys the editor bound still work, because
   they are on a bind tag rather than on the focused widget, and nothing else
-  does. Textual focuses the first focusable widget of a screen already, so this
-  is the same editor in both toolkits. Which widget it is, is the one a search
+  does. Textual on its own focuses the first widget of a screen that takes the
+  focus, which can be the control that folds the first row or an active
+  pull-down of its types rather than its value, so its panel focuses the first
+  value when it is mounted, as the Tk widgets do once they are shown: it is
+  the same editor in both toolkits. Which widget it is, is the one a search
   reaches for that node — the way of editing it that is on the window — and a
   configuration whose every row is a container has none, so the focus is left
   where the application had it. Tk cannot be told this while the editor is
@@ -3074,10 +3174,15 @@ version rather than assumed.
   a control that refuses every press. An editing surface for a whole *subtree*
   — a text area holding the JSON of one node — is a different question, and one
   the editor has not answered yet.
-- **The user changing the type metadata of a leaf.** The one thing it would
-  have been useful for — telling a `None` apart from an empty text in an
-  `Optional[str]` — is answered by the two states of section 4.2, and a kind
-  chosen by the user would mostly produce a value the application refuses.
+- **The user changing the type metadata of a leaf to a kind of their own.**
+  The one thing it would have been useful for — telling a `None` apart from an
+  empty text in an `Optional[str]` — is answered by the two states of section
+  4.2, and a kind chosen by the user would mostly produce a value the
+  application refuses. This entry used to reject the user changing the type of
+  a leaf at all, and step 31 of the plan narrowed it on purpose: what is built
+  is the user choosing among the types the application *declared*, with every
+  type the class would refuse left out of the choice (section 4.12), which is
+  the answer to the worry this entry recorded.
 - **A `parent` argument on the backend classes.** `TkEditor(parent=...)` reads
   well until `run_editor` has to mean "run to completion" with no parent and
   "mount and return" with one, which makes `edit()` return `None` before the

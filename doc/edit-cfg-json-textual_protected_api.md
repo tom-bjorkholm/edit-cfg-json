@@ -166,11 +166,13 @@
     * [\_choose\_name](#edit_cfg_json_textual.textual_panel.ModelPanel._choose_name)
     * [\_fold\_name](#edit_cfg_json_textual.textual_panel.ModelPanel._fold_name)
     * [compose](#edit_cfg_json_textual.textual_panel.ModelPanel.compose)
+    * [on\_mount](#edit_cfg_json_textual.textual_panel.ModelPanel.on_mount)
     * [command\_entries](#edit_cfg_json_textual.textual_panel.ModelPanel.command_entries)
     * [\_load\_widgets](#edit_cfg_json_textual.textual_panel.ModelPanel._load_widgets)
     * [\_docstring\_widgets](#edit_cfg_json_textual.textual_panel.ModelPanel._docstring_widgets)
     * [on\_input\_changed](#edit_cfg_json_textual.textual_panel.ModelPanel.on_input_changed)
     * [on\_select\_changed](#edit_cfg_json_textual.textual_panel.ModelPanel.on_select_changed)
+    * [\_choose\_type](#edit_cfg_json_textual.textual_panel.ModelPanel._choose_type)
     * [on\_input\_blurred](#edit_cfg_json_textual.textual_panel.ModelPanel.on_input_blurred)
     * [action\_close](#edit_cfg_json_textual.textual_panel.ModelPanel.action_close)
     * [close](#edit_cfg_json_textual.textual_panel.ModelPanel.close)
@@ -194,7 +196,7 @@
     * [on\_button\_pressed](#edit_cfg_json_textual.textual_panel.ModelPanel.on_button_pressed)
     * [\_change\_elements](#edit_cfg_json_textual.textual_panel.ModelPanel._change_elements)
     * [\_ask\_key](#edit_cfg_json_textual.textual_panel.ModelPanel._ask_key)
-    * [\_rebuilt\_elements](#edit_cfg_json_textual.textual_panel.ModelPanel._rebuilt_elements)
+    * [\_rows\_changed](#edit_cfg_json_textual.textual_panel.ModelPanel._rows_changed)
     * [\_show\_folding](#edit_cfg_json_textual.textual_panel.ModelPanel._show_folding)
     * [\_show\_explanations](#edit_cfg_json_textual.textual_panel.ModelPanel._show_explanations)
     * [action\_save\_as](#edit_cfg_json_textual.textual_panel.ModelPanel.action_save_as)
@@ -230,12 +232,14 @@
     * [\_\_init\_\_](#edit_cfg_json_textual.textual_rows.PanelRows.__init__)
     * [fields](#edit_cfg_json_textual.textual_rows.PanelRows.fields)
     * [choosers](#edit_cfg_json_textual.textual_rows.PanelRows.choosers)
+    * [types](#edit_cfg_json_textual.textual_rows.PanelRows.types)
     * [folds](#edit_cfg_json_textual.textual_rows.PanelRows.folds)
     * [elements](#edit_cfg_json_textual.textual_rows.PanelRows.elements)
     * [built](#edit_cfg_json_textual.textual_rows.PanelRows.built)
     * [widgets](#edit_cfg_json_textual.textual_rows.PanelRows.widgets)
     * [\_member\_widget](#edit_cfg_json_textual.textual_rows.PanelRows._member_widget)
     * [\_added\_elements](#edit_cfg_json_textual.textual_rows.PanelRows._added_elements)
+    * [\_added\_types](#edit_cfg_json_textual.textual_rows.PanelRows._added_types)
     * [\_added\_values](#edit_cfg_json_textual.textual_rows.PanelRows._added_values)
     * [\_added\_fold](#edit_cfg_json_textual.textual_rows.PanelRows._added_fold)
 * [edit\_cfg\_json\_textual.\_\_main\_\_](#edit_cfg_json_textual.__main__)
@@ -2346,6 +2350,24 @@ the application makes of the values and where they would be written
 stay below it, where a user who has just edited something looks for
 them.
 
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel.on_mount"></a>
+
+#### on\_mount
+
+```python
+def on_mount() -> None
+```
+
+Give the first value of the configuration the keyboard focus.
+
+That is a rule for both ways of running the editor, and the Tk backend
+keeps it in the same way. Textual would otherwise give the focus to
+the first widget that takes it, which can be the control that folds
+the first row or the pull-down of its types rather than its value.
+Which widget it is, is the one a search reaches for that node, and a
+configuration whose every row is a container has none, so the focus is
+then left where it was.
+
 <a id="edit_cfg_json_textual.textual_panel.ModelPanel.command_entries"></a>
 
 #### command\_entries
@@ -2413,7 +2435,7 @@ as no edit at all.
 def on_select_changed(event: Select.Changed) -> None
 ```
 
-Write the value that was picked from one pull-down into the model.
+Write what was picked from one pull-down into the model.
 
 A pull-down posts this message when it is given its initial value as
 well, which the model handles by treating a set that changes no text
@@ -2422,9 +2444,30 @@ as no edit at all.
 Every value it can post is one of the ones that member takes, because
 that is all a pull-down offers and it has no unselected state.
 
-The pull-down of the types of a node posts it too, when it is given
-the type the node holds, and nothing can be chosen in one of those
-yet: that message is about nothing the model has to be told.
+The pull-down of the types of a node posts it too, and an active one
+is a type the user chose. A disabled one posts it only when it is given
+the type the node holds, which is about nothing the model has to be
+told.
+
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._choose_type"></a>
+
+#### \_choose\_type
+
+```python
+def _choose_type(index: int, text: str) -> None
+```
+
+Make one node hold the type picked from its pull-down of types.
+
+The pull-down posts the type the node already holds when it is made,
+which is no choice at all, and the rows are mounted afresh only after
+a type that is another one: a node that holds nothing and one that
+holds a value are different rows.
+
+**Arguments**:
+
+- `index` - Place of the node among the rows.
+- `text` - The type picked, as a Python type hint spells it.
 
 <a id="edit_cfg_json_textual.textual_panel.ModelPanel.on_input_blurred"></a>
 
@@ -2777,20 +2820,21 @@ person configuring the application knows what.
 
 - `row` - Node that is about to be given an entry.
 
-<a id="edit_cfg_json_textual.textual_panel.ModelPanel._rebuilt_elements"></a>
+<a id="edit_cfg_json_textual.textual_panel.ModelPanel._rows_changed"></a>
 
-#### \_rebuilt\_elements
+#### \_rows\_changed
 
 ```python
-def _rebuilt_elements() -> None
+def _rows_changed() -> None
 ```
 
-Show the rows the model has now, after an element changed.
+Show the rows the model has now, after an element or a type changed.
 
 The widgets are always mounted afresh, and not only where the paths
 differ as a validation pass leaves them: which controls a row offers
-changes with the elements, so a row that is still at the same path is
-not necessarily still offering the same things.
+changes with the elements, and which widgets a row has changes with
+its type, so a row that is still at the same path is not necessarily
+still the same row.
 
 <a id="edit_cfg_json_textual.textual_panel.ModelPanel._show_folding"></a>
 
@@ -3310,6 +3354,17 @@ def choosers() -> Mapping[str, int]
 
 Return the place of the node of every pull-down of the values.
 
+<a id="edit_cfg_json_textual.textual_rows.PanelRows.types"></a>
+
+#### types
+
+```python
+@property
+def types() -> Mapping[str, int]
+```
+
+Return the place of the node of every active pull-down of types.
+
 <a id="edit_cfg_json_textual.textual_rows.PanelRows.folds"></a>
 
 #### folds
@@ -3338,7 +3393,7 @@ Return the node and the action of every element control.
 
 ```python
 @property
-def built() -> tuple[tuple[ConfigPath, bool], ...]
+def built() -> tuple[tuple[ConfigPath, bool, bool], ...]
 ```
 
 Return what the rows were made for, as `rows_shape` says it.
@@ -3410,6 +3465,31 @@ Create the controls of one node, and remember whose they are.
 
   The controls that node offers, and none at all for one that
   offers none, which is most nodes of most configurations.
+
+<a id="edit_cfg_json_textual.textual_rows.PanelRows._added_types"></a>
+
+#### \_added\_types
+
+```python
+def _added_types(index: int, row: core.MemberRow, width: int) -> Widget
+```
+
+Create the pull-down of the types of one node, and remember it.
+
+Only an active one is remembered, because only an active one posts a
+message that is about anything: a disabled one posts it as well, when
+it is given the type the node holds.
+
+**Arguments**:
+
+- `index` - Place of the node among the rows.
+- `row` - Node to create the pull-down for.
+- `width` - Width in characters of the column of the types.
+  
+
+**Returns**:
+
+  The pull-down of the types of that node.
 
 <a id="edit_cfg_json_textual.textual_rows.PanelRows._added_values"></a>
 
@@ -3535,11 +3615,12 @@ a module of functions so that `textual_panel` stays short enough to read.
 class TypeChooser(Select[str])
 ```
 
-The pull-down of the types one node may hold, inactive for now.
+The pull-down of the types one node may hold.
 
-It shows the type the node holds now and lists every type it may hold, and
-it is disabled on every row: the types cannot be chosen yet. Every row has
-one all the same, so that every row says its type in the same place.
+It shows the type the node holds now and lists every type it may hold. It
+is active where the type is the user's to choose and disabled everywhere
+else, and every row has one all the same, so that every row says its type
+in the same place.
 
 It remembers what it offers, because that can change while the editor is
 open: a node whose declaration names nothing usable offers the one type
@@ -3548,11 +3629,13 @@ type is given as plain content rather than as text, because Textual reads
 text as markup and a type is full of square brackets: `list[str]` would be
 shown as `list`.
 
-The value of each option is the text of its type and not its place among
-them, because a pull-down given new options shows the one it holds again
-only where its value changes: with places for values, the one type of
-`None` replaced by the one type of `str` would both be place 0, and the
-pull-down would go on saying `None`.
+The value of each option is the whole text of its type and not its place
+among them, because a pull-down given new options shows the one it holds
+again only where its value changes: with places for values, the one type
+of `None` replaced by the one type of `str` would both be place 0, and the
+pull-down would go on saying `None`. It is the whole text rather than the
+text shown, because the column cuts a long type and two types can be cut
+to the same text, while the whole text is what the model is given.
 
 <a id="edit_cfg_json_textual.textual_member.TypeChooser.__init__"></a>
 
@@ -3589,7 +3672,8 @@ Return the types this pull-down lists, as the column shows each.
 
 ```python
 @staticmethod
-def _options_of(texts: tuple[str, ...]) -> list[tuple[Content, str]]
+def _options_of(
+        offered: tuple[tuple[str, str], ...]) -> list[tuple[Content, str]]
 ```
 
 Return the options of a pull-down offering those types.

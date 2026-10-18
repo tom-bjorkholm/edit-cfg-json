@@ -42,11 +42,12 @@ from edit_cfg_json_textual.textual_look import DESCRIPTION_CLASS, \
 
 
 class TypeChooser(Select[str]):
-    """The pull-down of the types one node may hold, inactive for now.
+    """The pull-down of the types one node may hold.
 
-    It shows the type the node holds now and lists every type it may hold, and
-    it is disabled on every row: the types cannot be chosen yet. Every row has
-    one all the same, so that every row says its type in the same place.
+    It shows the type the node holds now and lists every type it may hold. It
+    is active where the type is the user's to choose and disabled everywhere
+    else, and every row has one all the same, so that every row says its type
+    in the same place.
 
     It remembers what it offers, because that can change while the editor is
     open: a node whose declaration names nothing usable offers the one type
@@ -55,11 +56,13 @@ class TypeChooser(Select[str]):
     text as markup and a type is full of square brackets: `list[str]` would be
     shown as `list`.
 
-    The value of each option is the text of its type and not its place among
-    them, because a pull-down given new options shows the one it holds again
-    only where its value changes: with places for values, the one type of
-    `None` replaced by the one type of `str` would both be place 0, and the
-    pull-down would go on saying `None`.
+    The value of each option is the whole text of its type and not its place
+    among them, because a pull-down given new options shows the one it holds
+    again only where its value changes: with places for values, the one type
+    of `None` replaced by the one type of `str` would both be place 0, and the
+    pull-down would go on saying `None`. It is the whole text rather than the
+    text shown, because the column cuts a long type and two types can be cut
+    to the same text, while the whole text is what the model is given.
     """
 
     def __init__(self, index: int, row: core.MemberRow, width: int) -> None:
@@ -72,21 +75,23 @@ class TypeChooser(Select[str]):
                 one of these is as wide as so that the values beside them
                 begin in one column.
         """
-        self._offered = core.row_type_texts(row)
+        self._offered = core.row_type_choices(row)
         super().__init__(self._options_of(self._offered), allow_blank=False,
-                         compact=True, value=core.row_type_text(row),
-                         disabled=True, id=type_id(index), classes=TYPE_CLASS)
+                         compact=True, value=row.chosen_type.text,
+                         disabled=not core.row_chooses_type(row),
+                         id=type_id(index), classes=TYPE_CLASS)
         self.styles.width = width + TYPE_ARROW_WIDTH
 
     @property
     def offered(self) -> tuple[str, ...]:
         """Return the types this pull-down lists, as the column shows each."""
-        return self._offered
+        return tuple(shown for shown, _ in self._offered)
 
     @staticmethod
-    def _options_of(texts: tuple[str, ...]) -> list[tuple[Content, str]]:
+    def _options_of(offered: tuple[tuple[str, str], ...]
+                    ) -> list[tuple[Content, str]]:
         """Return the options of a pull-down offering those types."""
-        return [(Content(text), text) for text in texts]
+        return [(Content(shown), whole) for shown, whole in offered]
 
     def show(self, row: core.MemberRow) -> None:
         """Show the type the node holds now, among what it may hold now.
@@ -94,11 +99,11 @@ class TypeChooser(Select[str]):
         Args:
             row: Node whose type is being shown, as the model holds it now.
         """
-        offered = core.row_type_texts(row)
+        offered = core.row_type_choices(row)
         if offered != self._offered:
             self._offered = offered
             self.set_options(self._options_of(offered))
-        self.value = core.row_type_text(row)
+        self.value = row.chosen_type.text
 
 
 def value_widgets(index: int, row: core.MemberRow,

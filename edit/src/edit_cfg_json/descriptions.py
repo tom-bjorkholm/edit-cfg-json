@@ -11,8 +11,8 @@ rest.
 What a type is, is said by the column of the types on the row itself, so what
 is said here is what that column cannot say: the summary and the names of an
 enum, the whole of a declaration that allows more than one type or that the
-column had to cut, and that the type shown was taken from the value because
-nothing usable was declared.
+column had to cut, why a declared type is not offered to be chosen, and that
+the type shown was taken from the value because nothing usable was declared.
 
 It takes a mapping for the members because a member has no docstring at
 runtime. A class has one and every reader of the code can see it, while a
@@ -249,7 +249,15 @@ class MemberFacts(NamedTuple):
     """
 
     types: tuple[TypeOption, ...] = ()
-    """The types the class that owns this node allows it to hold."""
+    """The types the class that owns this node declares it to hold."""
+
+    refused: tuple[str, ...] = ()
+    """Why each declared type this node is not offered is left out.
+
+    The pull-down of the types cannot say it, because what it cannot offer is
+    not in it at all: Textual cannot disable one option of a pull-down, and
+    the two backends must not differ.
+    """
 
     converter: Optional[ParseConverter] = None
     """How the text of this node becomes the value it holds, or None."""
@@ -291,8 +299,8 @@ def type_text(facts: MemberFacts) -> str:
 
     An enum says the most: the summary of its docstring and the names it
     accepts, which no column of a row has room for. Then comes what the
-    column of the types cannot say, and last that the class above it may
-    leave it out of the file altogether.
+    column of the types cannot say, then why a declared type is not offered,
+    and last that the class above it may leave it out of the file altogether.
 
     A declared nested configuration object says no names, because it holds no
     value: it says its class, which its row shows, and its docstring, which is
@@ -306,7 +314,8 @@ def type_text(facts: MemberFacts) -> str:
         nothing its row does not.
     """
     said = ['' if facts.nested else enum_text(facts.converter),
-            declared_text(facts), OPTIONAL_TEXT if facts.optional else '']
+            declared_text(facts), *facts.refused,
+            OPTIONAL_TEXT if facts.optional else '']
     return ' '.join(part for part in said if part)
 
 

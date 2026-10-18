@@ -207,7 +207,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._members = tkinter.Frame(body)
         self._members.pack(fill='x')
         self._rows: list[RowWidgets] = []
-        self._shape: tuple[tuple[ConfigPath, bool], ...] = ()
+        self._shape: tuple[tuple[ConfigPath, bool, bool], ...] = ()
         self._create_rows()
         finding = FindPanel(fixed, model, searched=self._searched,
                             reached=self._reach_found)
@@ -596,7 +596,8 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         tkinter.Label(line, text=row.name, width=NAME_COLUMN_WIDTH,
                       anchor='w').pack(side='left')
         types = TypeWidget(parent=line, row=row,
-                           width=core.type_column_width(self._model))
+                           width=core.type_column_width(self._model),
+                           picked=self._type_setter(row.path))
         types.button.pack(side='left')
         field = self._add_value(parent=line, row=row)
         mark = shown_text(line, core.row_marks(row), core.MEMBER_MARK,
@@ -608,20 +609,29 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
             description=self._add_description(parent=frame, row=row),
             diagnostic=shown_text(frame, '', core.MEMBER_DIAGNOSTIC),
             elements=element_controls(parent=line, row=row, model=self._model,
-                                      after=self._element_changed))
+                                      after=self._rows_changed))
         self._show_row_texts(row=row, widgets=widgets)
         return widgets
 
-    def _element_changed(self) -> None:
-        """Show the rows that the model has after an element changed.
+    def _rows_changed(self) -> None:
+        """Show the rows that the model has after an element or a type changed.
 
         The widgets are always made again, and not only where the paths
         differ as a validation pass leaves them: which controls a row offers
-        changes with the elements, so a row that is still at the same path is
-        not necessarily still offering the same things.
+        changes with the elements, and which widgets a row has changes with
+        its type, so a row that is still at the same path is not necessarily
+        still the same row.
         """
         self._build_rows()
         self._show_state()
+
+    def _type_setter(self, path: ConfigPath) -> Callable[[str], None]:
+        """Return what choosing a type in the pull-down of one node does."""
+        def set_type(text: str) -> None:
+            """Make that node hold the type chosen, and show the rows again."""
+            self._model.set_type(path=path, text=text)
+            self._rows_changed()
+        return set_type
 
     @staticmethod
     def _add_subtree(parent: tkinter.Misc,

@@ -31,8 +31,8 @@ from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.tree import ConfigNode, NO_OBJECT_FORM, child_values, \
     config_nodes, container_text, flat_values, is_container, omitted_paths, \
     ordered_names, path_text
-from edit_cfg_json.type_options import NONE_TYPE, TypeOption, held_option, \
-    inferred_option, node_options, reading_kind
+from edit_cfg_json.type_options import NONE_TYPE, TypeOption, choosable, \
+    held_option, inferred_option, node_options, reading_kind
 from edit_cfg_json.validation import SubtreeAnswer
 
 NOT_A_MEMBER = ''
@@ -290,14 +290,16 @@ class MemberRow(NamedTuple):
     """
 
     types: tuple[TypeOption, ...] = ()
-    """The types the class that owns this node allows it to hold.
+    """The types this node may hold, the ones its class would refuse left out.
 
     They are read from the declaration rather than from the value, one per
     alternative of a union, in the order the declaration writes them:
     `self.ratio: float = 0` allows `float` however its default is written, and
     `self.title: Optional[str] = None` allows `str` and `None` while it holds
     nothing at all. A value inside a list or a dict is allowed what the
-    declaration of the member says is inside it.
+    declaration of the member says is inside it. A declared type the parse
+    converter of the node refuses is not among them, and its description says
+    why.
 
     It is empty wherever nothing usable is declared, which is a member with no
     annotation, a class whose source cannot be read, and an annotation naming
@@ -306,11 +308,20 @@ class MemberRow(NamedTuple):
     """
 
     nothing_allowed: bool = False
-    """Whether this member has the two states of a value and of nothing.
+    """Whether this node has the two states of a value and of nothing.
 
-    `member_types.nothing_allowed` says which members those are: a member that
-    allows `None` beside a type the editor can make a value of, and never a
-    value inside a list or a dict.
+    `member_types.nothing_allowed` says which nodes those are: a node whose
+    type the user chooses and that may hold `None`, and a member that allows
+    `None` beside a type the editor can make a value of.
+    """
+
+    held: Optional[TypeOption] = None
+    """The type this node holds where the buffer keeps it, None elsewhere.
+
+    It is kept for every node whose type the user chooses, because the value
+    cannot say it: `5` is an `int` and a `float`. It is written onto the rows
+    rather than carried by them, exactly as the fold state is, because it is
+    what the user chose and outlives the rows a validation pass replaces.
     """
 
     offer: ElementOffer = ElementOffer()
@@ -376,11 +387,22 @@ class MemberRow(NamedTuple):
         holding nothing, which is what the class allowed it to do, and it is
         told apart from an empty text by being a state and not a text.
 
-        Which state it is in is changed by the two controls that change how
-        many things a node holds and by nothing else, so a field can never
-        take itself away from under the cursor that is typing in it.
+        Which state it is in is changed by choosing a type in the pull-down of
+        the types, by the two controls that change how many things a node
+        holds where its types are not all plain values, and by nothing else,
+        so a field can never take itself away from under the cursor that is
+        typing in it.
         """
         return self.value is None and self.nothing_allowed
+
+    @property
+    def type_choosable(self) -> bool:
+        """Return whether the type this node holds is the user's to choose.
+
+        It is where the node may hold more than one type and every one of
+        them is a plain value or `None`, which `type_options.choosable` says.
+        """
+        return choosable(self.types)
 
     @property
     def editable(self) -> bool:
@@ -407,9 +429,11 @@ class MemberRow(NamedTuple):
     def chosen_type(self) -> TypeOption:
         """Return the one of its types that this node holds now.
 
-        It is the first of them the value fits, in the order the declaration
-        writes them, so `5` holds `int` where `int | float` is declared, and a
-        member holding nothing holds `None`. So does a place declared to hold
+        A node whose type the user chooses holds the type the buffer keeps for
+        it, which is `held`. Every other node holds the first of its types the
+        value fits, in the order the declaration writes them, so `5` holds
+        `int` where `int | float` is declared, and a member holding nothing
+        holds `None`. So does a place declared to hold
         a configuration object and holding none, whether its declaration
         allows `None` or not: a key that `DICT_VALUE_BY_KEY` names is one the
         dict need not have, whatever the values of the dict are declared as.
@@ -422,6 +446,8 @@ class MemberRow(NamedTuple):
         so its class is known either way. What its text is read by is still
         what it held when the file was last agreed with, which is `kind`.
         """
+        if self.held is not None:
+            return self.held
         if self.config_type is not None and not self.foldable:
             return NONE_TYPE
         held = held_option(self._possible_types, self.value)
@@ -447,7 +473,13 @@ class MemberRow(NamedTuple):
         holds nothing still says what it would hold. It is read by what the
         node held when the file was last agreed with and not by what it holds
         now, so that a text half typed into it cannot change it.
+
+        A node whose type the user chooses takes the kind of the type it
+        holds, which half typing cannot change either: it is the user's
+        choice and not a reading of the value.
         """
+        if self.held is not None and self.held != NONE_TYPE:
+            return self.held.kind
         return reading_kind(self._possible_types, self.original)
 
     @property
@@ -514,15 +546,17 @@ class MemberRow(NamedTuple):
         what its type says and its value is on the rows below it: showing how
         many entries it serializes to would be showing it as the dictionary it
         is not. A member that holds no object says which class is missing, and
-        a member that holds no value says that it holds none. A list or a dict
-        says how much it holds, because its value is on the rows below it.
-        Every other node shows the text of the value it holds.
+        a member that holds no value says that it holds none, unless its type
+        is chosen: its type then says `None`, and saying it twice would say
+        nothing more. A list or a dict says how much it holds, because its
+        value is on the rows below it. Every other node shows the text of the
+        value it holds.
         """
         if self.config_type is not None:
             return '' if self.foldable else \
                 NO_OBJECT_FORM.format(name=self.config_type.__name__)
         if self.holds_nothing:
-            return NO_VALUE_TEXT
+            return '' if self.type_choosable else NO_VALUE_TEXT
         if is_container(self.value):
             return container_text(self.value)
         return value_as_text(self.value)
@@ -567,8 +601,14 @@ class RowContext(NamedTuple):
     offers: Mapping[ConfigPath, ElementOffer]
     """What each node offers about the elements it holds, by its path."""
 
+    declared: Mapping[ConfigPath, tuple[TypeOption, ...]]
+    """The types the class owning each node declares it to hold."""
+
     types: Mapping[ConfigPath, tuple[TypeOption, ...]]
-    """The types the class owning each node allows it to hold."""
+    """The types each node is offered, those its class refuses left out."""
+
+    refusals: Mapping[ConfigPath, tuple[str, ...]]
+    """Why each declared type that a node is not offered is left out."""
 
     nothing: frozenset[ConfigPath]
     """Every member that has the two states of holding a value and nothing."""
@@ -678,7 +718,9 @@ def _row_of(path: ConfigPath, value: JsonType, context: RowContext,
         load_reason=context.report.reasons.get(member, ''),
         description=member_description(
             descriptions=context.descriptions, path=path,
-            facts=MemberFacts(types=types, converter=converter,
+            facts=MemberFacts(types=context.declared.get(path, ()),
+                              refused=context.refusals.get(path, ()),
+                              converter=converter,
                               optional=path in context.optional,
                               nested=node is not None)),
         converter=converter, conversion='' if was is None else was.conversion)
@@ -725,11 +767,14 @@ def built_rows(config: Config, *, members: Mapping[str, JsonType],
     """
     nodes = config_nodes(config)
     flat = flat_values(members=members, nodes=nodes)
-    facts = tree_facts(nodes=nodes, flat=flat, defaults=defaults)
+    converters = node_converters(nodes=nodes, flat=flat)
+    optional = omitted_paths(nodes)
+    facts = tree_facts(nodes=nodes, flat=flat, defaults=defaults,
+                       converters=converters, omitted=optional)
     context = RowContext(report=report, descriptions=descriptions, nodes=nodes,
-                         converters=node_converters(nodes=nodes, flat=flat),
-                         optional=omitted_paths(nodes),
-                         offers=element_offers(facts), types=facts.types,
+                         converters=converters, optional=optional,
+                         offers=element_offers(facts), declared=facts.declared,
+                         types=facts.types, refusals=facts.refusals,
                          nothing=facts.nothing, refreshing=refreshing)
     return {path: _row_of(path=path, value=value, context=context,
                           previous=previous)
@@ -800,8 +845,8 @@ class BufferState(NamedTuple):
     Each of these outlives the rows it is about, because the rows are built
     again after every validation pass and after every change of how many
     elements a container holds: what the user folded, what each object said
-    about itself and what a search has got to are all older than the rows they
-    are written onto.
+    about itself, what a search has got to and which types the user chose are
+    all older than the rows they are written onto.
     """
 
     folded: Container[ConfigPath]
@@ -813,20 +858,25 @@ class BufferState(NamedTuple):
     found: Optional[ConfigPath]
     """Path of the node the search has got to, None when it is at none."""
 
+    held: Mapping[ConfigPath, TypeOption]
+    """The type each node whose type the user chooses holds, by its path."""
+
 
 def stamped(rows: Mapping[ConfigPath, MemberRow],
             state: BufferState) -> dict[ConfigPath, MemberRow]:
     """Return the rows with the state of the buffer written onto them.
 
     A backend reads what is folded, what is shown, what the configuration
-    objects amount to and what a search has got to from the row each of those
-    is about, exactly as it reads the marks and the description from there, so
-    that the two backends cannot fold, hide, judge or find different things.
+    objects amount to, what a search has got to and which type a node holds
+    from the row each of those is about, exactly as it reads the marks and the
+    description from there, so that the two backends cannot fold, hide, judge,
+    find or type different things.
 
     They are written here rather than carried by the rows they are about,
     because they belong to the buffer: the rows are built again after every
-    validation pass, and a fold the user asked for, an answer an object gave
-    and a node a search reached all outlive the rows that were there then.
+    validation pass, and a fold the user asked for, an answer an object gave,
+    a node a search reached and a type the user chose all outlive the rows
+    that were there then.
 
     Args:
         rows: The rows of the configuration, by path.
@@ -834,8 +884,9 @@ def stamped(rows: Mapping[ConfigPath, MemberRow],
 
     Returns:
         The same rows, each saying whether it is folded, whether it shows,
-        what the configuration objects at or inside it are on their own, and
-        whether it is the node the search has got to.
+        what the configuration objects at or inside it are on their own,
+        whether it is the node the search has got to, and which type it holds
+        where that is the user's to choose.
     """
     below = _objects_below(rows)
     refused = {path: message for answer in state.answers.values()
@@ -853,4 +904,4 @@ def _stamped_row(row: MemberRow, state: BufferState,
         shown=_shown(path=row.path, folded=state.folded),
         subtree_valid=_state_of(row=row, held=held, answers=state.answers),
         subtree_refusal=refusal, has_objects=row.is_object or bool(held),
-        found=row.path == state.found)
+        found=row.path == state.found, held=state.held.get(row.path))

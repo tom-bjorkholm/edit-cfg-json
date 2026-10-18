@@ -56,7 +56,8 @@
     * [\_create\_rows](#edit_cfg_json_tk.tk_editor.EditorWidgets._create_rows)
     * [\_build\_rows](#edit_cfg_json_tk.tk_editor.EditorWidgets._build_rows)
     * [\_add\_row](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_row)
-    * [\_element\_changed](#edit_cfg_json_tk.tk_editor.EditorWidgets._element_changed)
+    * [\_rows\_changed](#edit_cfg_json_tk.tk_editor.EditorWidgets._rows_changed)
+    * [\_type\_setter](#edit_cfg_json_tk.tk_editor.EditorWidgets._type_setter)
     * [\_add\_subtree](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_subtree)
     * [\_add\_fold](#edit_cfg_json_tk.tk_editor.EditorWidgets._add_fold)
     * [\_folder](#edit_cfg_json_tk.tk_editor.EditorWidgets._folder)
@@ -1048,20 +1049,31 @@ packed here but by `_show_rows`.
 Its type stands between its name and its value, which reads as
 Python's `name: type = value`.
 
-<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._element_changed"></a>
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._rows_changed"></a>
 
-#### \_element\_changed
+#### \_rows\_changed
 
 ```python
-def _element_changed() -> None
+def _rows_changed() -> None
 ```
 
-Show the rows that the model has after an element changed.
+Show the rows that the model has after an element or a type changed.
 
 The widgets are always made again, and not only where the paths
 differ as a validation pass leaves them: which controls a row offers
-changes with the elements, so a row that is still at the same path is
-not necessarily still offering the same things.
+changes with the elements, and which widgets a row has changes with
+its type, so a row that is still at the same path is not necessarily
+still the same row.
+
+<a id="edit_cfg_json_tk.tk_editor.EditorWidgets._type_setter"></a>
+
+#### \_type\_setter
+
+```python
+def _type_setter(path: ConfigPath) -> Callable[[str], None]
+```
+
+Return what choosing a type in the pull-down of one node does.
 
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._add_subtree"></a>
 
@@ -2244,14 +2256,15 @@ Return one key combination as the event sequence that Tk binds by.
 
 # edit\_cfg\_json\_tk.tk\_types
 
-The pull-down that says which type one node holds.
+The pull-down that says which type one node holds, and lets it be chosen.
 
 Every row says the type it holds between its name and its value, which reads
 as Python's `name: type = value`, and lists every type its declaration allows.
-Nothing can be chosen in it yet: it is disabled on every row. It is a module
-of its own because it is a piece of window with a life of its own — a button,
-a menu, and what the two of them were last told — and because `tk_editor` is
-the module of this backend that is nearest to being too long to read.
+Where the type is the user's to choose, picking one of them is what changes
+it; everywhere else the pull-down is disabled. It is a module of its own
+because it is a piece of window with a life of its own — a button, a menu, and
+what the two of them were last told — and because `tk_editor` is the module of
+this backend that is nearest to being too long to read.
 
 <a id="edit_cfg_json_tk.tk_types.TypeWidget"></a>
 
@@ -2273,7 +2286,8 @@ its value has, and a value typed into it can be of another type.
 #### \_\_init\_\_
 
 ```python
-def __init__(parent: tkinter.Misc, row: core.MemberRow, width: int) -> None
+def __init__(parent: tkinter.Misc, row: core.MemberRow, width: int,
+             picked: Callable[[str], None]) -> None
 ```
 
 Create the pull-down of the types of one node.
@@ -2285,6 +2299,10 @@ Create the pull-down of the types of one node.
 - `width` - Width in characters of the column of the types, which every
   one of these is as wide as so that the values beside them
   begin in one column.
+- `picked` - What choosing a type does, given the whole of that type as
+  a Python type hint spells it. A menu entry says the type as the
+  column shows it, which is cut where it is long, so each entry
+  carries the whole type it stands for.
 
 <a id="edit_cfg_json_tk.tk_types.TypeWidget.show"></a>
 
@@ -2584,22 +2602,29 @@ switches between typing and choosing.
 #### type\_field
 
 ```python
-def type_field(parent: tkinter.Misc, shown: str,
-               width: int) -> tkinter.Menubutton
+def type_field(parent: tkinter.Misc, shown: str, width: int,
+               active: bool) -> tkinter.Menubutton
 ```
 
 Return the pull-down of the types one node may hold, without its menu.
 
-Nothing can be chosen in it yet, so it is disabled on every row, and it
-is coloured as an explanation is rather than greyed out as Tk would. It is
-left aligned for the reason the pull-down of the values is, and it is not
-packed here, because where it goes on its line is the editor's.
+It is active only where the type of the node is the user's to choose, and
+is then written in the colour of a value, because what it shows can be
+changed as a value can. Everywhere else it is disabled and coloured as an
+explanation is, rather than greyed out as Tk would. It is left aligned for
+the reason the pull-down of the values is, and it is not packed here,
+because where it goes on its line is the editor's.
+
+It is out of the order the Tab key goes in, as Tk leaves every menu button
+and as the pull-down of the values is, so the key goes from one value to
+the next and the focus the editor opens with stays on the first value.
 
 **Arguments**:
 
 - `parent` - Line of the node that is being shown.
 - `shown` - The type that node holds now.
 - `width` - Width in characters of the column of the types.
+- `active` - Whether another type can be chosen in it.
   
 
 **Returns**:
@@ -2611,19 +2636,18 @@ packed here, because where it goes on its line is the editor's.
 #### menu\_of
 
 ```python
-def menu_of(pull_down: tkinter.Menubutton,
-            labels: Sequence[str],
-            picked: Optional[Callable[[str], None]] = None) -> tkinter.Menu
+def menu_of(pull_down: tkinter.Menubutton, entries: Sequence[tuple[str, str]],
+            picked: Callable[[str], None]) -> tkinter.Menu
 ```
 
-Give one pull-down the menu it opens, one entry per label.
+Give one pull-down the menu it opens, one entry per pair.
 
 **Arguments**:
 
 - `pull_down` - The menu button the menu belongs to.
-- `labels` - What the entries of the menu say, in their order.
-- `picked` - What picking an entry does with its label, or None for a menu
-  of which nothing can be picked yet.
+- `entries` - What each entry of the menu says and what picking it hands
+  on, in their order.
+- `picked` - What picking an entry does with what it hands on.
   
 
 **Returns**:
@@ -2635,19 +2659,21 @@ Give one pull-down the menu it opens, one entry per label.
 #### fill\_menu
 
 ```python
-def fill_menu(menu: tkinter.Menu,
-              labels: Sequence[str],
-              picked: Optional[Callable[[str], None]] = None) -> None
+def fill_menu(menu: tkinter.Menu, entries: Sequence[tuple[str, str]],
+              picked: Callable[[str], None]) -> None
 ```
 
-Add one entry per label to one menu.
+Add one entry per pair to one menu.
+
+What an entry says and what it hands on are two texts, because the
+pull-down of the types says a long type cut to its column and hands on the
+whole of it, while the pull-down of the values hands on what it says.
 
 **Arguments**:
 
 - `menu` - The menu to add the entries to.
-- `labels` - What the entries say, in their order.
-- `picked` - What picking an entry does with its label, or None for a menu
-  of which nothing can be picked yet.
+- `entries` - What each entry says and what picking it hands on.
+- `picked` - What picking an entry does with what it hands on.
 
 <a id="edit_cfg_json_tk.tk_look.shown_text"></a>
 

@@ -71,14 +71,15 @@ from copy import deepcopy
 from io import StringIO
 from typing import NamedTuple, Optional, TextIO
 from config_as_json import ConfigNesting, ConfigNestingKind, ConfigPath, \
-    JsonType
+    JsonType, ParseConverter
 from edit_cfg_json.loader import ConfigSource
 from edit_cfg_json.member_types import node_types, nothing_allowed
 from edit_cfg_json.placing import new_object
 from edit_cfg_json.tree import ConfigNode, by_key_nestings, member_nestings, \
     member_values, owner_path, unchecked_members
-from edit_cfg_json.type_options import TypeOption, empty_option_value, \
-    held_option, value_option
+from edit_cfg_json.type_choice import offered_types
+from edit_cfg_json.type_options import TypeOption, choosable, \
+    empty_option_value, held_option, value_option
 
 BUILD_ERRORS = (AttributeError, KeyError, TypeError, ValueError)
 """Every way in which constructing a configuration class can fail.
@@ -313,12 +314,18 @@ class TreeFacts(NamedTuple):
     unchecked: frozenset[ConfigPath]
     """Every dict member whose keys its own class does not check."""
 
+    declared: Mapping[ConfigPath, tuple[TypeOption, ...]]
+    """The types the class owning each node declares it to hold."""
+
     types: Mapping[ConfigPath, tuple[TypeOption, ...]]
-    """The types the class owning each node allows it to hold.
+    """The types each node is offered, those its class would refuse left out.
 
     It is what says what an element of a list its class declares empty would
     be, and what a member allowed to hold nothing would hold instead.
     """
+
+    refusals: Mapping[ConfigPath, tuple[str, ...]]
+    """Why each declared type that a node is not offered is left out."""
 
     nothing: frozenset[ConfigPath]
     """Every member that has the two states of holding a value and nothing.
@@ -376,22 +383,36 @@ def declared_values(source: ConfigSource, stream: TextIO) -> dict[str,
 
 def tree_facts(nodes: Mapping[ConfigPath, ConfigNode],
                flat: Sequence[tuple[ConfigPath, JsonType]],
-               defaults: Mapping[str, JsonType]) -> TreeFacts:
+               defaults: Mapping[str, JsonType],
+               converters: Mapping[ConfigPath, ParseConverter],
+               omitted: frozenset[ConfigPath]) -> TreeFacts:
     """Return everything that saying what one tree offers needs.
 
     Args:
         nodes: Every configuration object of the tree, by its path.
         flat: The path and the value of every node, in row order.
         defaults: The values that the class of the configuration declares.
+        converters: One parse converter per node of the tree that has one,
+            which is what says which declared types the class would refuse.
+        omitted: Every node that the file holds no key for while it holds
+            nothing, which no converter is ever asked about.
 
     Returns:
         The facts that one offer per node is made from.
     """
-    types = node_types(nodes=nodes, flat=flat)
+    declared = node_types(nodes=nodes, flat=flat)
+    offered = {path: offered_types(options=options,
+                                   converter=converters.get(path),
+                                   omitted=path in omitted)
+               for path, options in declared.items()}
+    types = {path: offer.offered for path, offer in offered.items()}
     return TreeFacts(values=dict(flat), nodes=nodes,
                      nestings=member_nestings(nodes),
                      by_key=by_key_nestings(nodes),
-                     unchecked=unchecked_members(nodes), types=types,
+                     unchecked=unchecked_members(nodes), declared=declared,
+                     types=types,
+                     refusals={path: offer.refusals
+                               for path, offer in offered.items()},
                      nothing=frozenset(
                          path for path, options in types.items()
                          if nothing_allowed(path=path, options=options,
@@ -459,10 +480,15 @@ def _new_value(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
     for the reason `NO_DICT_YET` gives: the class refuses a dict written for a
     member that holds none, so the control would be one that produces a
     refusal.
+
+    A member whose type the user chooses is given a value by choosing one of
+    its types, so it offers neither of the two controls (section 4.12 of
+    `doc/detailed_design.md`).
     """
-    first = value_option(facts.types.get(path, ()))
+    types = facts.types.get(path, ())
+    first = value_option(types)
     if facts.values[path] is not None or path not in facts.nothing \
-            or first is None:
+            or first is None or choosable(types):
         return ElementOffer()
     if first.kind is dict:
         return ElementOffer(refusal=NO_DICT_YET)
@@ -677,13 +703,17 @@ def _clearable(path: ConfigPath, facts: TreeFacts) -> bool:
     `CLEARED_KINDS` leaves out can never hold nothing — `config_as_json`
     requires the list or the dict while it validates — so an annotation
     allowing it says something no configuration the editor is given is in.
+
+    A node whose type the user chooses is put back to holding nothing by
+    choosing `None`, so it is never cleared by a control.
     """
     declared = _declared_place(path=path, facts=facts)
     if declared is not None:
         node = facts.nodes.get(path)
         return declared.kind in CLEARED_KINDS and node is not None \
             and node.config is not None
-    return path in facts.nothing and facts.values[path] is not None
+    return path in facts.nothing and facts.values[path] is not None \
+        and not choosable(facts.types.get(path, ()))
 
 
 def _movable(path: ConfigPath, facts: TreeFacts, later: bool) -> bool:

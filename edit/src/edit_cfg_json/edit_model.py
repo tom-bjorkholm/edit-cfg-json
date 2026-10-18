@@ -601,8 +601,9 @@ class EditModel:
         text typed into a field becomes a configuration object, and holding
         nothing is a state of a member rather than a text in a field. It is
         the same pair of actions for a declared member holding no
-        configuration object and for one the declaration allows to hold no
-        value at all.
+        configuration object and for one the declaration allows to hold a
+        list or no value at all. A member whose types are all plain values is
+        given a value by `set_type` instead, and offers no adding.
 
         Which nodes offer this is on the rows, as `MemberRow.offer`, so that
         two user interfaces of one application cannot offer different things.
@@ -628,7 +629,9 @@ class EditModel:
         A member that may hold nothing and holds something is put back to
         holding nothing, which is the other half of what adding does. It is
         what tells a value the class allowed to be absent apart from an empty
-        text of the same member, which no field could do. A member that its
+        list of the same member, which no field could do. A member whose types
+        are all plain values is put back to holding nothing by choosing `None`
+        with `set_type` instead. A member that its
         class leaves out of the file altogether is not offered this: it would
         then have no row at all, and a member the editor had taken off the
         screen could never be given a value again.
@@ -662,6 +665,37 @@ class EditModel:
         self._buffer.move_element(config=self._source.config, path=path,
                                   later=later)
         self._changed()
+
+    def set_type(self, path: ConfigPath, text: str) -> None:
+        """Make one node hold another of the types its declaration allows.
+
+        A node whose declaration allows more than one plain type, or a plain
+        type and `None`, holds the one the user chooses, and `None` is chosen
+        like any other type: it is what the controls that remove and add were
+        for such a member. The choice is kept, because a value can fit more
+        than one type, until a validation pass leaves a value it does not fit.
+
+        Switching keeps what still fits: a text that means a value of the new
+        type is read as one, so `5` becomes a number when `str` is changed to
+        `int`, and everything else is given the empty value of the new type.
+
+        Which nodes offer this is on the rows, as `MemberRow.type_choosable`
+        and `MemberRow.types`, so that two user interfaces of one application
+        cannot offer different types.
+
+        Args:
+            path: Path of the node.
+            text: The type as a Python type hint spells it, which is the text
+                of one of `MemberRow.types`.
+
+        Raises:
+            KeyError: The path is not a node of this configuration.
+            ValueError: The type of that node is not the user's to choose, or
+                the text names none of the types it is offered.
+        """
+        if self._buffer.set_type(config=self._source.config, path=path,
+                                 text=text):
+            self._changed()
 
     def _changed(self) -> None:
         """Drop what was true of the buffer before this change.

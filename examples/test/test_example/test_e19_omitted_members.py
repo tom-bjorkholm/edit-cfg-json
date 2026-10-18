@@ -77,7 +77,7 @@ def test_every_member_a_row(capsys: pytest.CaptureFixture[str]) -> None:
 def test_starts_as_nothing(capsys: pytest.CaptureFixture[str]) -> None:
     """Test each of those members starts in the state that holds nothing."""
     printed = _dump(capsys)
-    assert 'note: None, no value' in printed
+    assert '\nnote: None\n' in printed
     assert 'audit: None, no AuditConfig' in printed
     assert 'extra_hosts: None, no value' in printed
     assert 'validation: valid' in printed
@@ -118,6 +118,19 @@ def test_list_two_presses(capsys: pytest.CaptureFixture[str]) -> None:
                   '--set', 'extra_hosts.0=build-01')
     assert 'extra_hosts: list[str], 1 element (edited)' in twice
     assert '    0: str = build-01 (edited)' in twice
+
+
+def test_note_by_type(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the text member is given a value by choosing its type.
+
+    Its types are all plain values, so it has no control of its own: choosing
+    `str` gives it the empty text, and the class leaves it out of the file
+    again once `None` is chosen.
+    """
+    assert 'note: str =  (edited)' in _dump(capsys, '--set-type', 'note=str')
+    refusal = refused(e19_omitted_members.main, capsys, '--ui', 'dump',
+                      '--add', 'note')
+    assert 'Nothing can be added to note' in refusal
 
 
 def test_dict_says_why_not(capsys: pytest.CaptureFixture[str]) -> None:
@@ -174,7 +187,7 @@ def test_bare_file_read(capsys: pytest.CaptureFixture[str]) -> None:
     """
     printed = _dump(capsys, '-i', data_file(DATA_NAME))
     assert 'title: str = Monthly report' in printed
-    assert 'note: None, no value' in printed
+    assert '\nnote: None\n' in printed
     assert 'audit: None, no AuditConfig' in printed
     assert 'validation: valid' in printed
 

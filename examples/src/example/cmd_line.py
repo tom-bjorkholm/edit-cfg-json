@@ -77,6 +77,13 @@ one element of a list change places with a neighbour. All four stand in for
 pressing the control on that row, and all four are applied before `--set`, so
 that a value inside a new element can be typed into in the same run.
 
+`--set-type PATH=TYPE` stands in for choosing a type in the pull-down between
+the name and the value of a row, as in `--set-type subtitle=str`. The type is
+written as the pull-down shows it, which is how a Python type hint spells it,
+so one with a space or a bracket in it has to be quoted for the shell. It is
+applied after the four above and before `--set`, so that a value of the type
+just chosen can be typed in the same run.
+
 `-i/--input` names the file that the values are read from, and `--policy`
 says what to do about a declared value that the file does not hold. There is
 a file for every case in [examples/data/](../../data/), including the ones
@@ -235,6 +242,9 @@ MOVE_FORM_MESSAGE = ('--move needs PATH={up} or PATH={down}, and got '
                      '{value}.')
 """Message used to refuse a `--move` that says no direction."""
 
+SET_TYPE_FORM_MESSAGE = '--set-type needs PATH=TYPE, and got {value}.'
+"""Message used to refuse a `--set-type` that names no type."""
+
 MOVE_UP = 'up'
 """What `--move` is told to make an element change places with the one
 before it."""
@@ -275,7 +285,7 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
 
     Returns:
         A parser for `--ui`, `--set`, `--add`, `--remove`, `--move`,
-        `--toggle-explain`, `--toggle-fold`, `--fold`, `--find`,
+        `--set-type`, `--toggle-explain`, `--toggle-fold`, `--fold`, `--find`,
         `--find-next`, `--find-in`, `--find-case`, `--find-whole`,
         `--policy`, `--save`, `--extension`, `--enforce-extension`, `--key`,
         `-i/--input` and `-o/--output`.
@@ -311,6 +321,9 @@ def _create_parser(example_name: str) -> argparse.ArgumentParser:
     parser.add_argument('--move', action='append', dest='moves',
                         metavar='PATH=up|down',
                         help='Move one element of a list. Repeatable.')
+    parser.add_argument('--set-type', action='append', dest='types',
+                        metavar='PATH=TYPE',
+                        help='Choose the type one value holds. Repeatable.')
     parser.add_argument('--find', default='', metavar='TEXT',
                         help='Look for one text, as typing in the search '
                              'field does.')
@@ -466,6 +479,28 @@ def _apply_moves(parser: argparse.ArgumentParser, model: EditModel,
             parser.error(str(error))
 
 
+def _apply_types(parser: argparse.ArgumentParser, model: EditModel,
+                 types: Optional[list[str]]) -> None:
+    """Choose the type of one node, for every `--set-type` of one run.
+
+    Args:
+        parser: Parser used to report the error and exit.
+        model: Model whose buffer is edited.
+        types: The `--set-type` values, or None when the option was not
+            used.
+    """
+    for value in types or []:
+        name, separator, text = value.partition('=')
+        if not separator:
+            parser.error(SET_TYPE_FORM_MESSAGE.format(value=value))
+        try:
+            model.set_type(path=text_path(name), text=text)
+        except KeyError:
+            parser.error(NO_MEMBER_MESSAGE.format(name=name))
+        except ValueError as error:
+            parser.error(str(error))
+
+
 def _apply_folds(parser: argparse.ArgumentParser, model: EditModel,
                  folds: Optional[list[str]]) -> None:
     """Fold away every container that one command line names.
@@ -597,13 +632,15 @@ class StandInUser:  # pylint: disable=too-few-public-methods
     because `edit()` owns the model: it reads the file and builds the model
     itself, which is what gives a load its policy and its change reporting.
     `--set` stands in for a user typing, `--add`, `--remove` and `--move` for a
-    user pressing the controls of a row, `--toggle-explain` for a user pressing
+    user pressing the controls of a row, `--set-type` for a user choosing a
+    type in the pull-down of a row, `--toggle-explain` for a user pressing
     the explain key, `--find` for a user typing into the search field, and
     `--save` for a user pressing Save, and every one of those happens in an
     editor that is already open.
 
-    How many elements there are is changed before anything is typed, so that a
-    value inside a new element can be set in the same run, and the search comes
+    How many elements there are and which type a value holds are changed
+    before anything is typed, so that a value inside a new element, or a value
+    of the type just chosen, can be set in the same run, and the search comes
     after the folding, because a search opens what hides what it found. That is
     also the order a user would work in.
 
@@ -641,6 +678,8 @@ class StandInUser:  # pylint: disable=too-few-public-methods
                        removes=self._parsed.removes)
         _apply_moves(parser=self._parser, model=model,
                      moves=self._parsed.moves)
+        _apply_types(parser=self._parser, model=model,
+                     types=self._parsed.types)
         _apply_edits(parser=self._parser, model=model,
                      edits=self._parsed.edits)
         for _ in range(self._parsed.toggle_explain):

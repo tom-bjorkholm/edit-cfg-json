@@ -247,23 +247,31 @@ def choice_field(parent: tkinter.Misc, text: tkinter.StringVar,
                                    background=FIELD_BACKGROUND,
                                    foreground=FIELD_FOREGROUND,
                                    highlightbackground=FIELD_BORDER)
-    menu_of(pull_down=pull_down, labels=choices, picked=text.set)
+    menu_of(pull_down=pull_down,
+            entries=[(choice, choice) for choice in choices], picked=text.set)
     return pull_down
 
 
-def type_field(parent: tkinter.Misc, shown: str,
-               width: int) -> tkinter.Menubutton:
+def type_field(parent: tkinter.Misc, shown: str, width: int,
+               active: bool) -> tkinter.Menubutton:
     """Return the pull-down of the types one node may hold, without its menu.
 
-    Nothing can be chosen in it yet, so it is disabled on every row, and it
-    is coloured as an explanation is rather than greyed out as Tk would. It is
-    left aligned for the reason the pull-down of the values is, and it is not
-    packed here, because where it goes on its line is the editor's.
+    It is active only where the type of the node is the user's to choose, and
+    is then written in the colour of a value, because what it shows can be
+    changed as a value can. Everywhere else it is disabled and coloured as an
+    explanation is, rather than greyed out as Tk would. It is left aligned for
+    the reason the pull-down of the values is, and it is not packed here,
+    because where it goes on its line is the editor's.
+
+    It is out of the order the Tab key goes in, as Tk leaves every menu button
+    and as the pull-down of the values is, so the key goes from one value to
+    the next and the focus the editor opens with stays on the first value.
 
     Args:
         parent: Line of the node that is being shown.
         shown: The type that node holds now.
         width: Width in characters of the column of the types.
+        active: Whether another type can be chosen in it.
 
     Returns:
         A pull-down showing that type.
@@ -271,43 +279,46 @@ def type_field(parent: tkinter.Misc, shown: str,
     return tkinter.Menubutton(parent, name=MEMBER_TYPE_NAME, text=shown,
                               indicatoron=True, anchor='w', width=width,
                               relief='flat', borderwidth=2,
-                              highlightthickness=0, state='disabled',
+                              highlightthickness=0,
+                              state='normal' if active else 'disabled',
+                              foreground=FIELD_FOREGROUND,
                               disabledforeground=TYPE_COLOUR)
 
 
-def menu_of(pull_down: tkinter.Menubutton, labels: Sequence[str],
-            picked: Optional[Callable[[str], None]] = None) -> tkinter.Menu:
-    """Give one pull-down the menu it opens, one entry per label.
+def menu_of(pull_down: tkinter.Menubutton, entries: Sequence[tuple[str, str]],
+            picked: Callable[[str], None]) -> tkinter.Menu:
+    """Give one pull-down the menu it opens, one entry per pair.
 
     Args:
         pull_down: The menu button the menu belongs to.
-        labels: What the entries of the menu say, in their order.
-        picked: What picking an entry does with its label, or None for a menu
-            of which nothing can be picked yet.
+        entries: What each entry of the menu says and what picking it hands
+            on, in their order.
+        picked: What picking an entry does with what it hands on.
 
     Returns:
         The menu, so that its entries can be given again later.
     """
     menu = tkinter.Menu(pull_down, tearoff=0)
-    fill_menu(menu=menu, labels=labels, picked=picked)
+    fill_menu(menu=menu, entries=entries, picked=picked)
     pull_down.config(menu=menu)
     return menu
 
 
-def fill_menu(menu: tkinter.Menu, labels: Sequence[str],
-              picked: Optional[Callable[[str], None]] = None) -> None:
-    """Add one entry per label to one menu.
+def fill_menu(menu: tkinter.Menu, entries: Sequence[tuple[str, str]],
+              picked: Callable[[str], None]) -> None:
+    """Add one entry per pair to one menu.
+
+    What an entry says and what it hands on are two texts, because the
+    pull-down of the types says a long type cut to its column and hands on the
+    whole of it, while the pull-down of the values hands on what it says.
 
     Args:
         menu: The menu to add the entries to.
-        labels: What the entries say, in their order.
-        picked: What picking an entry does with its label, or None for a menu
-            of which nothing can be picked yet.
+        entries: What each entry says and what picking it hands on.
+        picked: What picking an entry does with what it hands on.
     """
-    for label in labels:
-        # An empty text is how Tk spells a command that does nothing.
-        menu.add_command(label=label, command='' if picked is None
-                         else partial(picked, label))
+    for label, value in entries:
+        menu.add_command(label=label, command=partial(picked, value))
 
 
 def shown_text(parent: tkinter.Misc, text: str,

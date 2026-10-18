@@ -252,6 +252,22 @@ class ModelPanel(Widget):
         yield plain_widget(core.save_text(self._model), SAVE_ID,
                            emphasis=core.save_emphasis(self._model))
 
+    def on_mount(self) -> None:
+        """Give the first value of the configuration the keyboard focus.
+
+        That is a rule for both ways of running the editor, and the Tk backend
+        keeps it in the same way. Textual would otherwise give the focus to
+        the first widget that takes it, which can be the control that folds
+        the first row or the pull-down of its types rather than its value.
+        Which widget it is, is the one a search reaches for that node, and a
+        configuration whose every row is a container has none, so the focus is
+        then left where it was.
+        """
+        for index in range(len(self._model.rows)):
+            if value_id(index) in self._rows.fields:
+                self._reached_value(index).focus()
+                return
+
     def command_entries(self) -> tuple[EditorCommand, ...]:
         """Return the actions of the editor, for a command palette.
 
@@ -312,7 +328,7 @@ class ModelPanel(Widget):
         self._show_state()
 
     def on_select_changed(self, event: Select.Changed) -> None:
-        """Write the value that was picked from one pull-down into the model.
+        """Write what was picked from one pull-down into the model.
 
         A pull-down posts this message when it is given its initial value as
         well, which the model handles by treating a set that changes no text
@@ -321,20 +337,43 @@ class ModelPanel(Widget):
         Every value it can post is one of the ones that member takes, because
         that is all a pull-down offers and it has no unselected state.
 
-        The pull-down of the types of a node posts it too, when it is given
-        the type the node holds, and nothing can be chosen in one of those
-        yet: that message is about nothing the model has to be told.
+        The pull-down of the types of a node posts it too, and an active one
+        is a type the user chose. A disabled one posts it only when it is given
+        the type the node holds, which is about nothing the model has to be
+        told.
         """
         widget_id = event.select.id
         assert widget_id is not None
         event.stop()
+        assert isinstance(event.value, str)
+        if widget_id in self._rows.types:
+            self._choose_type(index=self._rows.types[widget_id],
+                              text=event.value)
+            return
         if widget_id not in self._rows.choosers:
             return
         index = self._rows.choosers[widget_id]
-        assert isinstance(event.value, str)
         self._model.set_text(path=self._model.rows[index].path,
                              text=event.value)
         self._show_state()
+
+    def _choose_type(self, index: int, text: str) -> None:
+        """Make one node hold the type picked from its pull-down of types.
+
+        The pull-down posts the type the node already holds when it is made,
+        which is no choice at all, and the rows are mounted afresh only after
+        a type that is another one: a node that holds nothing and one that
+        holds a value are different rows.
+
+        Args:
+            index: Place of the node among the rows.
+            text: The type picked, as a Python type hint spells it.
+        """
+        row = self._model.rows[index]
+        if text == row.chosen_type.text:
+            return
+        self._model.set_type(path=row.path, text=text)
+        self._rows_changed()
 
     def on_input_blurred(self, event: Input.Blurred) -> None:
         """Ask the model about the member whose field the user has just left.
@@ -609,16 +648,16 @@ class ModelPanel(Widget):
         """
         if action == REMOVE_ACTION:
             self._model.remove_element(row.path)
-            self._rebuilt_elements()
+            self._rows_changed()
             return
         if action != ADD_ACTION:
             self._model.move_element(path=row.path,
                                      later=action != EARLIER_ACTION)
-            self._rebuilt_elements()
+            self._rows_changed()
             return
         if not row.offer.keyed:
             self._model.add_element(row.path)
-            self._rebuilt_elements()
+            self._rows_changed()
             return
         self._ask_key(row)
 
@@ -650,17 +689,18 @@ class ModelPanel(Widget):
                 self._ask_key(row)
                 return
             self._model.add_element(path=row.path, key=key)
-            self._rebuilt_elements()
+            self._rows_changed()
         self.app.push_screen(AskScreen(prompt=prompt, field_id=ASK_KEY_ID,
                                        cancel_keys=cancel), add_named)
 
-    def _rebuilt_elements(self) -> None:
-        """Show the rows the model has now, after an element changed.
+    def _rows_changed(self) -> None:
+        """Show the rows the model has now, after an element or a type changed.
 
         The widgets are always mounted afresh, and not only where the paths
         differ as a validation pass leaves them: which controls a row offers
-        changes with the elements, so a row that is still at the same path is
-        not necessarily still offering the same things.
+        changes with the elements, and which widgets a row has changes with
+        its type, so a row that is still at the same path is not necessarily
+        still the same row.
         """
         self.call_next(self._rebuild_rows)
 

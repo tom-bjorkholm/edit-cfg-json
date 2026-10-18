@@ -2,7 +2,7 @@
 
 ## Where everything is
 
-Steps 1 to 30 and 31A are implemented and committed, step 23 with the
+Steps 1 to 30, 31A and 31B are implemented and committed, step 23 with the
 corrections its review asked for. Steps 1 to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md), steps 10 to 21 in
 [steps_010-021_done.md](steps_010-021_done.md) and steps 22 to 28 in
@@ -116,6 +116,9 @@ the plan says only *when* that decision gets built.
 - [Step 31A](#step-31a---every-row-says-its-type) — every row saying the type
   it holds in the words of a Python type hint, in a column between its name
   and its value, and the prose about the kind of a value gone from below it.
+- [Step 31B](#step-31b---choosing-between-the-types-of-a-plain-value) — the
+  type of a plain value chosen in that column, `None` among the types instead
+  of the add and remove controls, and a type the class would refuse left out.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -172,7 +175,7 @@ decision gets built.
 - Every step touches all three packages where the capability is
   user-visible, so `edit_cfg_json`, `edit_cfg_json_tk` and
   `edit_cfg_json_textual` never drift apart by more than one review.
-- Steps 1 to 30 and 31A are built. Steps 1 to 28 are written up in
+- Steps 1 to 30, 31A and 31B are built. Steps 1 to 28 are written up in
   [steps_001-009_done.md](steps_001-009_done.md), in
   [steps_010-021_done.md](steps_010-021_done.md) or in
   [steps_022-028_done.md](steps_022-028_done.md), and steps 29 to 30 in
@@ -625,8 +628,8 @@ deserves one message.
 
 ### Step 31 - The type of every row, and choosing between the types allowed
 
-Status: **Split into sub-steps 31A to 31E. 31A implemented, the rest
-planned.**
+Status: **Split into sub-steps 31A to 31E. 31A and 31B implemented, the
+rest planned.**
 
 Two complaints from users, and one answer to both.
 
@@ -759,6 +762,7 @@ sub-step that builds it, as every step so far has done.
 | `type_column_width` | how wide the column is for this model | 31A |
 | `EditModel.set_type` | change the type of a row | 31B |
 | `--set-type PATH=TYPE` | the examples' stand-in for a user choosing a type, as `--set` is for typing | 31B |
+| `MemberRow.type_choosable`, `row_chooses_type`, `row_type_choices` | whether a row's type is chosen, and what its pull-down offers | 31B |
 
 `LeafType` and `MemberRow.declared` are replaced by the first three, which is
 why 31A is mostly a change of the core with one visible result.
@@ -897,6 +901,8 @@ the muted colour, and Textual `textual_member.TypeChooser`, a compact disabled
 
 #### Step 31B - Choosing between the types of a plain value
 
+Status: **Implemented, committed.**
+
 **What it does.** The type a row holds becomes state of the buffer where the
 value cannot answer for it, kept by path the way the fold state is: carried
 over when the rows are built again, moved with an element that changes places,
@@ -936,6 +942,95 @@ with no `-` pressed. A new member of that example declared `int | str` takes
 - A validatator may change both the value and the type of an attribute/field.
   When a validator has changed the type the editor need to show the new type
   resulting from the validation.
+
+**What it decided.** Six things.
+
+- **The type chosen is state for every row whose type is chosen, from the
+  start, and typing never changes it.** It is read from the value when the row
+  first appears, as the first type the value fits, and kept from then on; the
+  text is read by it, so the two answers of 31A are one answer on such a row.
+  `wide` typed while `int` is chosen is a value of the wrong type and not a
+  choice of `str`. A validation pass that leaves a value the choice does not fit
+  makes the value answer again, and since `config_as_json` checks no value
+  against its annotation, a pass that accepts `wide` makes the row a `str`.
+- **An enum beside another type is offered where the converter of the member
+  takes it.** That answers the open question of section 4. The converter is run
+  on the empty value of each type, `None` is not converted at all where the
+  class leaves the member out of the file, and a type whose value it refuses is
+  left out with *X is not offered, because the parse converter of this member
+  refuses V.* below the row. Checked against `config_as_json` first: its enum
+  converter refuses `3` in `Colors | int`, `"xyz"` in `Colors | str`, and the
+  `null` of an `Optional[Colors]` that the class writes as `null` — so that
+  last declaration is offered `Colors` alone, and never `None`.
+- **A row whose type is chosen has the two states wherever `None` is one of
+  its types, an element as much as a member.** An element of
+  `list[Optional[str]]` holding `null` has no field and nothing where its value
+  would be, and its type says `None`; the rule of section 4.2 that elements
+  never have the two states is kept for every other element.
+- **A `Literal` is a plain value now.** Switching to one keeps a text that is
+  one of its values and gives the first otherwise; 31E adds the pull-down of
+  its values and the refusal.
+- **An enum is a type the editor can make a value of**, the name of its first
+  member, and so is a `Literal`, its first value. That is what gives
+  `Optional[Colors]` the two states, and an empty `list[Colors]` an element.
+- **The value of a row whose type is chosen and that holds nothing is empty**,
+  and the dump writes it `name: None`, because the type says it; a member that
+  may hold a list or nothing still says `no value` with its two controls.
+
+**Core.** A new `type_choice` says which declared types a node is offered and
+why the others are not, which type it holds after a rebuild, which type a text
+names, and what a node holds after a switch. `type_options` gained `choosable`
+and `allowed_values`, `fits` takes the names of an enum as its values, and
+`empty_option_value` gives the first value of an enum and of a `Literal`.
+`elements.tree_facts` filters the declared types through the converter and
+keeps the reasons, `member_types.nothing_allowed` gives every chosen row with
+`None` the two states, and `elements` offers no *add* or *remove* to one.
+`EditBuffer` keeps the chosen types by path and `stamped` writes them onto the
+rows as `MemberRow.held`, which `chosen_type` and `kind` read first.
+`rows_shape` is now the path, whether the row is a field and whether it has a
+pull-down of its values. Tk's `TypeWidget` is active on a chosen row and calls
+`set_type` from its menu, whose entries carry the whole type; `menu_of` and
+`fill_menu` take pairs of what an entry says and what it hands on. Textual's
+`TypeChooser` is enabled on a chosen row with the whole type as the value of
+each option, and the panel sends its `Changed` to `set_type`. Both make the
+rows again after a choice, as after an element change.
+
+| Name | Kind |
+| --- | --- |
+| `EditModel.set_type` | make one node hold another of the types it is offered |
+| `MemberRow.type_choosable` | whether the type of a node is the user's to choose |
+| `MemberRow.held` | the type the buffer keeps for such a node |
+| `row_chooses_type` | whether the pull-down of the types of a row is active |
+| `row_type_choices` | every type a pull-down offers, as shown and as it is named |
+| `--set-type PATH=TYPE` | the examples' stand-in for a user choosing a type |
+
+**What building it found.**
+
+- **A latent defect, fixed on the way:** when an element of a list was taken
+  out, the element after it moved into its path and inherited what was held
+  for the one taken out — its fold, and what its object had said about itself.
+  Removing a folded dict from the front of a list folded the one after it. One
+  helper now carries all three, the chosen types among them, and drops what was
+  held at a path another node moved into.
+- **The Tk focus order needed nothing.** Tk leaves a menu button out of the
+  order Tab goes in, as the pull-down of the values already is, so the focus
+  goes from value to value and the first one keeps it at start.
+- **Textual did need something.** It focuses the first widget that takes the
+  focus, which already was the fold control of a configuration whose first row
+  is a container, and would now be an active pull-down of types. The panel now
+  focuses its first value when it is mounted, as Tk does, and design section
+  8.2.5 says so.
+- **`settle_choices` has nothing to do after a switch**, because a switch to
+  `bool` or an enum gives one of its values; `rows_shape` follows a validator
+  that turns a text into `true`, because it says whether a row has a pull-down
+  of its values.
+- **e18 needed its data file changed.** The new `width` member was missing from
+  `examples/data/e18_report.json`, so the load filled in every missing member
+  from the defaults, `note` among them. The file now holds `"width": "auto"`,
+  which also shows that a member of two types loaded from a file holds the type
+  of its value.
+- **`ReportConfig` of e18 has eight members now**, one more than pylint likes;
+  it says why where pylint is told.
 
 #### Step 31C - Choosing between lists and dicts
 
@@ -1111,6 +1206,6 @@ step that needs it. They are listed here so they are not forgotten.
 
 | Question | Answer needed by |
 | --- | --- |
-| Is an enum offered beside a type that is not `None` (`Colors \| int`), given that the parse converter runs on every value of the member? | 31B |
+| Is an enum offered beside a type that is not `None` (`Colors \| int`), given that the parse converter runs on every value of the member? (31B: the converter of the member is run on the value each type would give, and a type it refuses is not offered, with the reason below the row.) | answered |
 | Is the width of the type column decided over the rows on the screen, and so changed by folding, or over every row? (31A counts every row, so that folding moves nothing; 31C confirms or changes it.) | 31C |
 | Should the width of the type column change when the Tk window is resized, or only be worked out when the editor opens? | 35 |

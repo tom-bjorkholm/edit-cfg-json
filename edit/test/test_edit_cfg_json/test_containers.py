@@ -197,6 +197,19 @@ def test_fold_is_a_toggle() -> None:
     assert shown_paths(model) == row_paths(model)
 
 
+def test_fold_stays_behind() -> None:
+    """Test the fold of an element taken out is not given to the next one.
+
+    The element after it moves into its place, and it is a different node:
+    whether it is folded is what it was before the other one went.
+    """
+    model = EditModel(TreeCfg())
+    model.toggle_fold(('rules', '0'))
+    model.remove_element(('rules', '0'))
+    assert row_at(model, ('rules', '0')).value == {'high': 9}
+    assert not row_at(model, ('rules', '0')).folded
+
+
 def test_fold_needs_a_list() -> None:
     """Test a value that holds nothing cannot be folded."""
     model = EditModel(ListCfg())

@@ -12,8 +12,8 @@ said below a row about what the column cannot show.
 
 import pytest
 from config_as_json import Config, ConfigPath
-from edit_cfg_json import EditModel, model_as_text, row_type_text, \
-    row_type_texts, type_column_width
+from edit_cfg_json import EditModel, model_as_text, row_type_choices, \
+    row_type_text, row_type_texts, type_column_width
 from edit_cfg_json.descriptions import DECLARED_FORM, INFERRED_TEXT
 from edit_cfg_json.type_options import CUT_MARK, TYPE_COLUMN_LIMIT
 from .container_cfg import ByKeyCfg, LooseDictCfg, NestedCfg, UnionCfg
@@ -43,30 +43,31 @@ def test_held_type(path: ConfigPath, expected: str) -> None:
 
 
 def test_typed_value_holds() -> None:
-    """Test a value typed into a row of two types is held as the one it is.
+    """Test typing into a row whose type is chosen leaves the type alone.
 
-    The text is still read by what the member held when the file was last
-    agreed with, so a number member that is typed into keeps being read as a
-    number, and what the row holds follows what the text became.
+    The type is the user's choice, so a text that is no number, typed while
+    `int` is chosen, is a value of the wrong type and not a choice of `str`.
+    The text is read by the type chosen, so digits typed afterwards are a
+    number again.
     """
     model = EditModel(UnionCfg())
     model.set_text(path=('count',), text='five')
     row = row_at(model, ('count',))
-    assert row.value == 'five' and row.chosen_type.text == 'str'
+    assert row.value == 'five' and row.chosen_type.text == 'int'
     model.set_text(path=('count',), text='6')
     row = row_at(model, ('count',))
     assert row.value == 6 and row.chosen_type.text == 'int'
 
 
 def test_given_value_holds() -> None:
-    """Test a member given a value holds the first type that is not `None`.
+    """Test a member given a value holds the type chosen for it.
 
     `Optional[int | str]` has the two states of a member that may hold
-    nothing, because the editor can make an empty value of its first type.
+    nothing, and choosing a type that is not `None` is what gives it a value.
     """
     model = EditModel(UnionCfg())
     assert row_at(model, ('maybe',)).holds_nothing
-    model.add_element(('maybe',))
+    model.set_type(path=('maybe',), text='int')
     row = row_at(model, ('maybe',))
     assert row.value == 0 and row.chosen_type.text == 'int'
 
@@ -126,6 +127,17 @@ def test_union_said_below() -> None:
     assert row.description == DECLARED_FORM.format(types='str | None')
 
 
+def test_choices_whole_text() -> None:
+    """Test each type a pull-down lists is given as shown and as it is.
+
+    The column cuts a long type, so what a pull-down shows is not enough to
+    name the type chosen: the whole text is what the model is given.
+    """
+    row = row_at(EditModel(UnionCfg()), ('forms',))
+    ((shown, whole),) = row_type_choices(row)
+    assert shown == row_type_text(row) and whole == FORMS_TEXT
+
+
 @pytest.mark.parametrize('config, expected',
                          [(FlatCfg(), len('str')),
                           (NoneCfg(), len('None')),
@@ -151,7 +163,7 @@ def test_dump_says_the_types() -> None:
     """Test the text rendering says the type of every row before its value."""
     printed = model_as_text(EditModel(UnionCfg()))
     assert 'count: int = 5\n' in printed
-    assert 'maybe: None, no value\n' in printed
+    assert 'maybe: None\n' in printed
     assert '    flat: list[str], 1 element\n' in printed
     assert '        0: list[str], 1 element\n' in printed
     assert 'ratio: float = 0\n' in printed

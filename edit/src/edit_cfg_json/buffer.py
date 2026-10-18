@@ -15,7 +15,7 @@ of them and fold one of them away.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from io import StringIO
 from typing import NamedTuple, Optional, TextIO
@@ -33,6 +33,9 @@ from edit_cfg_json.leaf_value import text_as_value
 from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.rows import BufferState, MemberRow, built_rows, stamped
 from edit_cfg_json.tree import assembled, member_values, starts_folded
+from edit_cfg_json.type_choice import chosen_option, kept_choice, \
+    switched_value
+from edit_cfg_json.type_options import TypeOption
 from edit_cfg_json.validation import SubtreeAnswer
 
 NOT_EDITABLE_ERROR = 'Member {name} is not a value that can be edited.'
@@ -84,6 +87,44 @@ def _swapped_order(count: int, index: int, later: bool) -> list[int]:
     other = index + 1 if later else index - 1
     order[index], order[other] = order[other], order[index]
     return order
+
+
+def _new_paths(paths: Iterable[ConfigPath],
+               moved: Mapping[ConfigPath, ConfigPath]
+               ) -> dict[ConfigPath, ConfigPath]:
+    """Return where each path the buffer holds something for goes in a change.
+
+    A path that moved goes where it moved to, and every other path stays,
+    except a path that another node moved into: that path is the other node
+    now, and what was held for the node that was there is not about it. An
+    element taken out of a list is what leaves one behind, because the element
+    after it moves into its place.
+
+    Args:
+        paths: The paths something is held for.
+        moved: The new path of every node whose path has changed.
+
+    Returns:
+        The new path of each of those paths that is still about its node, by
+        the old one.
+    """
+    taken = set(moved.values())
+    return {path: moved.get(path, path) for path in paths
+            if path in moved or path not in taken}
+
+
+def _carried[T](state: Mapping[ConfigPath, T],
+                moved: Mapping[ConfigPath, ConfigPath]) -> dict[ConfigPath, T]:
+    """Return what the buffer holds by path, under the paths after a change.
+
+    Args:
+        state: What is held, by the path of the node it is about.
+        moved: The new path of every node whose path has changed.
+
+    Returns:
+        The same, by the path each node has now, as `_new_paths` says.
+    """
+    return {new: state[old] for old, new in _new_paths(state, moved).items()}
 
 
 def _renamed(rows: Mapping[ConfigPath, MemberRow],
@@ -159,6 +200,7 @@ class EditBuffer:
         self._folds_new = True
         self._search = FindState()
         self._answers: dict[ConfigPath, SubtreeAnswer] = {}
+        self._chosen_types: dict[ConfigPath, TypeOption] = {}
         self._rows: dict[ConfigPath, MemberRow] = {}
         self._rebuild(config=config, previous={},
                       members=member_values(config=config,
@@ -542,6 +584,42 @@ class EditBuffer:
                            moved=self._moved(held=held, path=path,
                                              removing=False, later=later))
 
+    def set_type(self, config: Config, path: ConfigPath, text: str) -> bool:
+        """Make one node hold another of the types the user may choose for it.
+
+        What it held is kept where its text means a value of the new type and
+        is otherwise the empty value of that type, as `switched_value` says,
+        and the rows are built again around it, as they are when an element
+        is added: a node that holds nothing and one that holds a value are
+        different rows.
+
+        Args:
+            config: Configuration object of the session, which says which
+                nodes are configuration objects when the rows are built again.
+            path: Path of the node.
+            text: The type as a Python type hint spells it, which is how the
+                pull-down of the types names each of them.
+
+        Returns:
+            Whether the node holds another type than before.
+
+        Raises:
+            KeyError: The path is not a node of this configuration.
+            ValueError: The type of that node is not the user's to choose, or
+                the text names none of the types it is offered.
+        """
+        row = self._rows[path]
+        option = chosen_option(options=row.types, text=text,
+                               name=row.full_name)
+        if option == row.chosen_type:
+            return False
+        self._chosen_types[path] = option
+        self._rows[path] = row._replace(conversion='',
+                                        changed_by_validator=False)
+        self._restructured(config=config, path=path,
+                           value=switched_value(option, row.value), moved={})
+        return True
+
     def _moved(self, held: MemberRow, path: ConfigPath, removing: bool,
                later: bool = False) -> dict[ConfigPath, ConfigPath]:
         """Return where each node under one container goes after a change.
@@ -576,8 +654,8 @@ class EditBuffer:
 
         Everything the buffer holds about a node is held under the path of
         that node, and an element of a list is addressed by where it is, so
-        the fold state, what each object said about itself and what each row
-        is compared against all move with the values.
+        the fold state, what each object said about itself, the type the user
+        chose and what each row is compared against all move with the values.
 
         Args:
             config: Configuration object of the session, which now holds the
@@ -588,9 +666,9 @@ class EditBuffer:
         """
         self._rows[path] = self._rows[path]._replace(value=value)
         self._hold_again(path)
-        self._folded = {moved.get(other, other) for other in self._folded}
-        self._answers = {moved.get(other, other): answer
-                         for other, answer in self._answers.items()}
+        self._folded = set(_new_paths(self._folded, moved).values())
+        self._answers = _carried(self._answers, moved)
+        self._chosen_types = _carried(self._chosen_types, moved)
         self._follow(moved)
         self._rebuild(config=config, members=self.values(),
                       previous=_renamed(rows=self._rows, moved=moved))
@@ -673,10 +751,31 @@ class EditBuffer:
                                 descriptions=self._descriptions,
                                 previous=previous, defaults=self._defaults,
                                 refreshing=refreshing)
+        self._keep_held(refreshing)
         self._fold_new(previous)
         self._forget_gone()
         self._refind()
         self._stamp()
+
+    def _keep_held(self, refreshing: bool) -> None:
+        """Keep the type of every node whose type the user chooses.
+
+        A node that has just appeared holds the first type its value fits,
+        one that was there keeps the type it held, and a validation pass that
+        left a node a value its type does not fit makes the value say which
+        type it holds: a validator may change a value into one of another
+        type, and the editor then shows the type the application made of it.
+        A node that is gone is forgotten, exactly as its fold is.
+
+        Args:
+            refreshing: Whether the rows are what a validation pass left
+                behind.
+        """
+        self._chosen_types = {
+            path: kept_choice(options=row.types, value=row.value,
+                              chosen=self._chosen_types.get(path),
+                              refreshing=refreshing)
+            for path, row in self._rows.items() if row.type_choosable}
 
     def _forget_gone(self) -> None:
         """Forget what an object that a pass left no row at all said.
@@ -715,7 +814,8 @@ class EditBuffer:
         self._rows = stamped(rows=self._rows,
                              state=BufferState(folded=self._folded,
                                                answers=self._answers,
-                                               found=self._search.reached))
+                                               found=self._search.reached,
+                                               held=self._chosen_types))
 
     def _hold_again(self, path: ConfigPath) -> None:
         """Bring every container that one node is inside up to date with it.

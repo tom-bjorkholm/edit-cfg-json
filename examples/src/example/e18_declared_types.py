@@ -61,6 +61,12 @@ holds now. `spare` says `list`, and the line under it says that this was taken
 from its value: it is the one member of this class that was deliberately left
 without an annotation, so nothing says what its elements would be.
 
+The column is a pull-down on every row. On most rows it is disabled, because
+the declaration allows one type and there is nothing to choose. On `subtitle`,
+`footer`, `note` and `width` it is active, because each of them is declared to
+allow two types, and choosing one of them is how the user changes what the
+member holds. The two sections below are about that.
+
 ## A member that may hold nothing has two states
 
 `Optional[str]` says more than what kind of value the member takes. It says
@@ -69,32 +75,31 @@ holding an empty text, and a JSON file writes the two of them differently:
 `null` and `""`.
 
 Telling those two apart was the open question this library carried from its
-first design draft. The answer is that the **user never changes what kind of
-value a member is for** — a member declared to hold text takes text and there
-is nothing to decide about it — and that a member the class declared to allow
-no value can be moved between the two states the class allowed:
+first design draft. The answer is that **the user chooses between the types
+the class declared**, and `None` is one of them. `Optional[str]` is
+`str | None`, and the pull-down of the row offers exactly those two:
 
-- while it **holds a value** it is an ordinary field, with a **remove**
-  control that puts it back to holding nothing;
-- while it **holds nothing** its row says `no value` and has no field at all,
-  with an **add** control that gives it the empty value of its kind.
+- while it **holds a value** the pull-down says `str` and the row is an
+  ordinary field;
+- while it **holds nothing** the pull-down says `None`, and the row has no
+  field at all and nothing where a value would be.
 
-That is the same pair of controls that gives an `OPTIONAL_MEMBER` its
-configuration object and takes it away again, which example 11 is about. It is
-the same idea one step down, and it needed no new control, no new key and no
-new option: a value is not something that can be typed away, so *nothing* is
-asked for and never typed. Typing `null` into such a field is text that means
-no value of the member, exactly as any other text of the wrong type is.
+Choosing `str` gives the member the empty text, and choosing `None` takes its
+value away. A value is not something that can be typed away, so *nothing* is
+chosen and never typed: typing `null` into such a field is text that means no
+value of the member, exactly as any other text of the wrong type is.
 
 `subtitle` starts out holding nothing and `footer` starts out holding a value,
-so both states are on the screen at once. Without a display, `--add` and
-`--remove` press the same two controls:
+so both states are on the screen at once. Without a display, `--set-type`
+chooses a type in the same pull-down, and `--set` then types into the field
+that choosing `str` gave the member:
 
 ````sh
 cd examples/src/example
-python3 e18_declared_types.py --ui dump --add subtitle
-python3 e18_declared_types.py --ui dump --add subtitle --set subtitle=Draft
-python3 e18_declared_types.py --ui dump --remove footer
+python3 e18_declared_types.py --ui dump --set-type subtitle=str
+python3 e18_declared_types.py --ui dump --set-type subtitle=str \
+    --set subtitle=Draft
+python3 e18_declared_types.py --ui dump --set-type footer=None
 ````
 
 The two states really are two different files, which is the whole reason for
@@ -104,7 +109,7 @@ and no field could have told them apart:
 ````sh
 cd examples/src/example
 python3 e18_declared_types.py --ui dump --save -o /tmp/nothing.json
-python3 e18_declared_types.py --ui dump --add subtitle \
+python3 e18_declared_types.py --ui dump --set-type subtitle=str \
     --save -o /tmp/empty.json
 ````
 
@@ -122,9 +127,11 @@ python3 e18_declared_types.py --ui tk -i ../../data/e18_report.json
 ````
 
 `subtitle` comes back as an ordinary field holding nothing typed into it and
-`footer` comes back saying `no value`, which is the state the file's `null`
-put it in. `note` comes back saying `no value` too, and the file holds no key
-of that name at all, which is the section below.
+`footer` comes back as `None` with no field, which is the state the file's
+`null` put it in. `note` comes back as `None` too, and the file holds no key
+of that name at all, which is the section below. `width` comes back holding
+`str`, because the file holds the text `auto` for it: until the user chooses,
+the type a member of two types holds is the one its value is.
 
 ## The other kind of optional, which is also two states
 
@@ -133,15 +140,50 @@ differently: `_omit_none_from_json()` names it, so while it holds nothing the
 file has no key for it rather than a `null`. Example 19 is about that
 difference and about the members it reaches; what matters here is that it does
 not change what the editor offers. `note` has the same two states as
-`subtitle` and `footer`, moved between by the same two controls, and the line
+`subtitle` and `footer`, chosen between in the same pull-down, and the line
 under it says which of the two kinds of optional it is, because the file it
 writes is what differs:
 
 ````sh
 cd examples/src/example
-python3 e18_declared_types.py --ui dump --remove note
-python3 e18_declared_types.py --ui dump --remove note \
+python3 e18_declared_types.py --ui dump --set-type note=None
+python3 e18_declared_types.py --ui dump --set-type note=None \
     --save -o /tmp/no_note.json
+````
+
+## A member that may hold two kinds of value
+
+`width` is declared `int | str`: a number of characters, or a word such as
+`auto` that the report generator understands. Which of the two it holds is
+chosen in its pull-down, exactly as `None` is chosen above, and **the text in
+its field is read as a value of the type chosen**. So `5` is the number five
+while `int` is chosen and the text `5` while `str` is, and the file holds `5`
+or `"5"` accordingly.
+
+Switching keeps what still fits. `width` holds the number `80`, and choosing
+`str` makes it the text `80`; choosing `int` again makes it the number again.
+A text that is no number, such as `auto`, is not a number of any kind, so
+choosing `int` for it gives the member `0`:
+
+````sh
+cd examples/src/example
+python3 e18_declared_types.py --ui dump --set-type width=str
+python3 e18_declared_types.py --ui dump --set-type width=str \
+    --set width=auto
+python3 e18_declared_types.py --ui dump --set-type width=str \
+    --set-type width=int
+````
+
+The choice is the user's, and typing does not change it: `auto` typed while
+`int` is chosen is a value of the wrong type, not a choice of `str`. What the
+application accepts is still what decides, though. `config_as_json` checks no
+value against its annotation, so a validation pass accepts `auto` all the same,
+and the editor then shows the type the application was given — `str` — rather
+than a choice the value no longer fits:
+
+````sh
+cd examples/src/example
+python3 e18_declared_types.py --ui dump --set width=auto
 ````
 
 ## An empty list that can now be given an element
@@ -181,21 +223,22 @@ So `footer` is either nothing at all or a text of at least three characters:
 ````sh
 cd examples/src/example
 python3 e18_declared_types.py --ui dump --set footer=ab
-python3 e18_declared_types.py --ui dump --remove footer
+python3 e18_declared_types.py --ui dump --set-type footer=None
 ````
 
 The first is refused, because two characters are fewer than three. The second
 is accepted, because no footer at all is one of the two states the class
 allowed. An application that wanted to refuse the second as well would say so
-by not declaring the member optional in the first place — and then the editor
-would offer no remove control on that row, because there would be no second
-state to move to.
+by not declaring the member optional in the first place — and then the
+pull-down on that row would offer `str` alone, and be disabled, because there
+would be nothing else to choose.
 
 **A validator can move a member between the two states as well**, which is
 worth seeing in one of the two editors rather than in a printout. `footer` has
 a second rule that turns a footer of no characters into no footer at all, so
 clearing that field and asking for a validation pass takes the field away and
-leaves the row saying `no value` with an add control:
+leaves the pull-down of the row saying `None`. The validator changed the type
+the member holds, and the editor shows the type it changed it to:
 
 ````sh
 cd examples/src/example
@@ -261,13 +304,18 @@ class EmptyIsNothing(MemberValidator):
         return None if member_value == '' else member_value
 
 
+# Eight members is more than pylint likes one class to have, and here each of
+# them is one thing a declaration says that a value cannot: they are side by
+# side so that the column of the types of all of them can be read at once.
+# pylint: disable-next=too-many-instance-attributes
 class ReportConfig(Config):
     """What one report is generated with, and where it is written.
 
     Every member of this class is annotated except one, and the editor reads
     those annotations. Reading them is what lets it say that `threshold` holds
-    a number rather than a whole number, and what gives `subtitle`, `footer`
-    and `note` the two states that an optional member has.
+    a number rather than a whole number, what gives `subtitle`, `footer` and
+    `note` the two states that an optional member has, and what lets `width`
+    hold either of the two types it is declared to hold.
 
     `note` is the member this class leaves out of the file while it holds
     nothing, and the other two are written as `null`. Example 19 is about that
@@ -299,7 +347,8 @@ class ReportConfig(Config):
         # files compared.
         self.subtitle: Optional[str] = None
         # Declared to allow no value, and holding one. This is the state that
-        # a field can show, and the one the remove control puts back.
+        # a field can show, and choosing `None` in its pull-down is what takes
+        # the value away again.
         self.footer: Optional[str] = 'Confidential'
         # Declared to allow no value as well, and left out of the file while
         # it holds none, which is what `_omit_none_from_json()` below says.
@@ -312,6 +361,11 @@ class ReportConfig(Config):
         # number is ordinary Python, and it is exactly what makes the value
         # an unreliable source of the type.
         self.threshold: float = 0
+        # A member that may hold two kinds of value. Which of them it holds is
+        # chosen in the pull-down of its row, and the text typed into its
+        # field is read as a value of the type chosen: `5` is a number while
+        # `int` is chosen and a text while `str` is.
+        self.width: int | str = 80
         # An empty list. No value anywhere says what an element of it is, and
         # `list[str]` does.
         self.tags: list[str] = []
@@ -368,6 +422,8 @@ DESCRIPTIONS: Descriptions = {
                 'file rather than written as null, which is a difference '
                 'between two files and not between two rows.'),
     ('threshold',): 'The largest share of a page that one column may take.',
+    ('width',): ('How wide a column is: a number of characters, or a word '
+                 'the report generator understands, such as auto.'),
     ('tags',): 'Labels for this report. A new one is an empty text.',
     ('spare',): ('Anything else, and nothing says what one of them is: this '
                  'member is the one without an annotation.')}

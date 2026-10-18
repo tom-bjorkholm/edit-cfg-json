@@ -45,7 +45,7 @@ import inspect
 import sys
 from config_as_json import ConfigPath, JsonType
 from edit_cfg_json.tree import ConfigNode, owner_path
-from edit_cfg_json.type_options import NONE_TYPE, TypeOption, \
+from edit_cfg_json.type_options import NONE_TYPE, TypeOption, choosable, \
     empty_option_value, held_option, node_options, type_options, \
     value_option
 
@@ -276,26 +276,34 @@ def nothing_allowed(path: ConfigPath, options: Sequence[TypeOption],
     """Return whether one node has the two states of a value and of nothing.
 
     A member does where its declaration allows `None` beside a type the editor
-    can make an empty value of, which is what `Optional[str]` is, and those
-    two states are what the controls that add and remove move it between
-    (section 4.2 of `doc/detailed_design.md`). A member that allows nothing
-    beside an enum, a configuration class or another class of the
-    application's own has one state as before: the editor cannot make a value
-    of such a type on its own.
+    can make an empty value of, which is what `Optional[str]` and
+    `Optional[list[str]]` are (section 4.2 of `doc/detailed_design.md`).
+    Where every type is a plain value the pull-down of the types moves it
+    between the two, and otherwise the controls that add and remove do. A
+    member that allows nothing beside a configuration class or another class
+    of the application's own has one state as before: the editor cannot make
+    a value of such a type on its own.
 
-    A value inside a list or a dict never has them, whatever its declaration
-    allows, because what may hold nothing is something a class says about a
-    member of its own and an element that could be taken out of what holds it
-    already has a control that means that.
+    A node whose type the user chooses has them wherever `None` is one of the
+    types offered, a value inside a list or a dict as much as a member: `None`
+    is then chosen in the pull-down of its types like any other type, and the
+    node holding it holds nothing. Every other value inside a list or a dict
+    never has them, whatever its declaration allows, because what may hold
+    nothing is something a class says about a member of its own and an
+    element that could be taken out of what holds it already has a control
+    that means that.
 
     Args:
         path: Path of the node to answer for.
-        options: The types its declaration allows.
+        options: The types it is offered, the ones its class would refuse
+            left out.
         nodes: Every configuration object of the tree, by its path.
 
     Returns:
-        Whether that node is a member with those two states.
+        Whether that node has those two states.
     """
+    if choosable(options):
+        return NONE_TYPE in options
     if NONE_TYPE not in options or \
             len(path) != len(owner_path(path=path, nodes=nodes)) + 1:
         return False

@@ -5,8 +5,9 @@ What this example adds is the declaration of a member as a source of its type,
 so what is asserted here is the two things a value cannot say: what a member
 that holds nothing is for, and that a whole number written as the default of a
 member holding a number does not make it a whole number member. The rest is
-the pair of states an optional member has, and that the two of them really are
-two different files.
+choosing between the types a member is declared to allow: the pair of states
+an optional member has, that the two of them really are two different files,
+and a member that may hold a number or a text.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -82,12 +83,12 @@ def test_declared_number(capsys: pytest.CaptureFixture[str]) -> None:
 def test_nothing_says_kind(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a member holding nothing says what it would hold, and no more.
 
-    Its row says the `None` it holds now, and the line below it says the
-    declaration that allows a text as well, which is the last thing said
-    about it before the next member.
+    Its row says the `None` it holds now and nothing else, and the line below
+    it says the declaration that allows a text as well, which is the last
+    thing said about it before the next member.
     """
     printed = _dump(capsys)
-    assert '\nsubtitle: None, no value\n' in printed
+    assert '\nsubtitle: None\n' in printed
     assert f'{MAY_HOLD_NOTHING}footer: ' in printed
 
 
@@ -102,15 +103,15 @@ def test_two_kinds_optional(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_nothing_gets_value(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test such a member is given the empty value of the kind declared."""
-    printed = _dump(capsys, '--add', 'subtitle')
+    """Test choosing `str` gives such a member the empty text."""
+    printed = _dump(capsys, '--set-type', 'subtitle=str')
     assert 'subtitle: str =  (edited)' in printed
 
 
 def test_value_gets_cleared(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test a member holding a value is put back to holding nothing."""
-    printed = _dump(capsys, '--remove', 'footer')
-    assert 'footer: None, no value (edited)' in printed
+    """Test choosing `None` puts a member holding a value back to nothing."""
+    printed = _dump(capsys, '--set-type', 'footer=None')
+    assert 'footer: None (edited)' in printed
     assert 'validation: valid' in printed
 
 
@@ -123,8 +124,8 @@ def test_two_states_two_files(capsys: pytest.CaptureFixture[str],
     until now.
     """
     holding_nothing = _saved(capsys, tmp_path / 'nothing.json')
-    holding_empty = _saved(capsys, tmp_path / 'empty.json', '--add',
-                           'subtitle')
+    holding_empty = _saved(capsys, tmp_path / 'empty.json', '--set-type',
+                           'subtitle=str')
     assert holding_nothing['subtitle'] is None
     assert holding_empty['subtitle'] == ''
 
@@ -134,10 +135,10 @@ def test_omitted_is_cleared(capsys: pytest.CaptureFixture[str]) -> None:
 
     Which of the two kinds of optional a member is decides what a save writes
     and what the line under the member says, and it decides nothing about the
-    controls: the row stays where it is either way.
+    types offered: the row stays where it is either way.
     """
     assert 'note: str = Draft, do not circulate' in _dump(capsys)
-    assert 'note: None, no value (edited)' in _dump(capsys, '--remove', 'note')
+    assert 'note: None (edited)' in _dump(capsys, '--set-type', 'note=None')
 
 
 def test_omitted_leaves_file(capsys: pytest.CaptureFixture[str],
@@ -148,9 +149,50 @@ def test_omitted_leaves_file(capsys: pytest.CaptureFixture[str],
     only difference: `subtitle` cleared is `null` in the file and `note`
     cleared is no key at all.
     """
-    written = _saved(capsys, tmp_path / 'no_note.json', '--remove', 'note')
+    written = _saved(capsys, tmp_path / 'no_note.json', '--set-type',
+                     'note=None')
     assert 'note' not in written
     assert written['subtitle'] is None
+
+
+@pytest.mark.parametrize('settings, expected',
+                         [(('--set', 'width=5'), 'width: int = 5 (edited)'),
+                          (('--set-type', 'width=str'),
+                           'width: str = 80 (edited)'),
+                          (('--set-type', 'width=str', '--set', 'width=auto'),
+                           'width: str = auto (edited)'),
+                          (('--set-type', 'width=str', '--set-type',
+                            'width=int'), 'width: int = 80\n')])
+def test_two_types(capsys: pytest.CaptureFixture[str],
+                   settings: tuple[str, ...], expected: str) -> None:
+    """Test a member of two types reads its text by the type chosen.
+
+    Switching keeps what still fits: the number `80` is the text `80` and
+    back again, and a text that is no number is not one once `int` is chosen.
+    The options are applied in the order the user would work in, so every
+    `--set-type` comes before every `--set`.
+    """
+    assert expected in _dump(capsys, *settings)
+
+
+def test_pass_says_type(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a text typed while `int` is chosen is shown as text after a pass.
+
+    Typing does not choose a type, and the application decides what it
+    accepts: `config_as_json` checks no value against its annotation, so the
+    pass accepts the text and the editor shows the type it was given.
+    """
+    printed = _dump(capsys, '--set', 'width=auto')
+    assert 'width: str = auto (edited)' in printed
+    assert 'validation: valid' in printed
+
+
+def test_type_reaches_file(capsys: pytest.CaptureFixture[str],
+                           tmp_path: Path) -> None:
+    """Test the type chosen is the type the file holds the value as."""
+    assert _saved(capsys, tmp_path / 'number.json')['width'] == 80
+    assert _saved(capsys, tmp_path / 'text.json', '--set-type',
+                  'width=str')['width'] == '80'
 
 
 def test_typed_element_added(capsys: pytest.CaptureFixture[str]) -> None:
@@ -185,7 +227,7 @@ def test_application_refuses(capsys: pytest.CaptureFixture[str]) -> None:
     """
     assert 'validation: invalid, see footer' in _dump(capsys, '--set',
                                                       'footer=ab')
-    assert 'validation: valid' in _dump(capsys, '--remove', 'footer')
+    assert 'validation: valid' in _dump(capsys, '--set-type', 'footer=None')
 
 
 def test_file_holds_states(capsys: pytest.CaptureFixture[str]) -> None:
@@ -194,21 +236,24 @@ def test_file_holds_states(capsys: pytest.CaptureFixture[str]) -> None:
     The file holds the mirror of what the class declares, so the empty text
     and the nothing at all have changed places. The member the file does not
     hold at all comes back holding nothing, which is the state that a file
-    with no key for it means, and it has a row to say so on.
+    with no key for it means, and it has a row to say so on. The member of two
+    types holds the one the file holds a value of.
     """
     printed = _dump(capsys, '-i', data_file(DATA_NAME))
     assert 'subtitle: str = \n' in printed
-    assert 'footer: None, no value' in printed
-    assert '\nnote: None, no value' in printed
+    assert '\nfooter: None\n' in printed
+    assert '\nnote: None\n' in printed
+    assert '\nwidth: str = auto\n' in printed
 
 
 def test_tk_shows_it(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test the Tk backend opens on this example without failing."""
-    open_tk_ui(e18_declared_types.main, monkeypatch, '--add', 'subtitle')
+    open_tk_ui(e18_declared_types.main, monkeypatch, '--set-type',
+               'subtitle=str')
 
 
 def test_textual_shows_it(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test the Textual backend opens on this example and can be left."""
-    titles = textual_titles(e18_declared_types.main, monkeypatch, '--remove',
-                            'footer')
+    titles = textual_titles(e18_declared_types.main, monkeypatch, '--set-type',
+                            'footer=None')
     assert titles == ['ReportConfig *']

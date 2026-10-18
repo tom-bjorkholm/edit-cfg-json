@@ -13,7 +13,7 @@ object of the session comes after it.
 from pathlib import Path
 from typing import Optional
 import pytest
-from config_as_json import ConfigPath, JsonType
+from config_as_json import ConfigPath
 from edit_cfg_json import EditModel, model_as_text, row_description
 from edit_cfg_json.elements import BY_KEY_PATTERN, FIXED_KEYS, NO_CLASS_FORM, \
     NO_DICT_YET, NO_ENTRY_PATTERN, NO_PATTERN
@@ -668,18 +668,32 @@ def test_omitted_gone_saved(tmp_path: Path) -> None:
     assert written(out_file) == {'answer': 3}
 
 
-@pytest.mark.parametrize('name, value', [('note', ''), ('hosts', [])])
-def test_omitted_leaf_grows(name: str, value: JsonType) -> None:
-    """Test a member left out of the file is given the value of its kind.
+def test_omitted_list_grows() -> None:
+    """Test a list member left out of the file is given the empty list.
 
     How the class writes such a member decides nothing about the two states:
     it holds nothing, and adding gives it the value of its kind that says no
     more than which kind it is.
     """
     model = EditModel(OmitKindsCfg())
-    assert row_at(model=model, path=(name,)).holds_nothing
-    model.add_element(path=(name,))
-    assert row_at(model=model, path=(name,)).value == value
+    assert row_at(model=model, path=('hosts',)).holds_nothing
+    model.add_element(path=('hosts',))
+    assert row_at(model=model, path=('hosts',)).value == []
+    assert model.validate().valid
+
+
+def test_omitted_text_chosen() -> None:
+    """Test a text member left out of the file is given the empty text.
+
+    Its types are all plain values, so it is given a value by choosing one of
+    them, and the controls that add and remove are not offered at all.
+    """
+    model = EditModel(OmitKindsCfg())
+    row = row_at(model=model, path=('note',))
+    assert row.holds_nothing and not row.offer.extend
+    model.set_type(path=('note',), text='str')
+    row = row_at(model=model, path=('note',))
+    assert row.value == '' and not row.offer.remove
     assert model.validate().valid
 
 
@@ -691,8 +705,8 @@ def test_omitted_leaf_cleared(tmp_path: Path) -> None:
     """
     out_file = tmp_path / 'out.json'
     model = EditModel(OmitKindsCfg(), out_file=out_file)
-    model.add_element(path=('note',))
-    model.remove_element(path=('note',))
+    model.set_type(path=('note',), text='str')
+    model.set_type(path=('note',), text='None')
     assert row_at(model=model, path=('note',)).holds_nothing
     assert model.save().saved
     assert written(out_file) == {'answer': 3}

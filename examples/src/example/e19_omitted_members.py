@@ -16,8 +16,9 @@ where there is nothing in the file to build a row from: a member written as
 
 The editor asks the **configuration object** for those members rather than the
 values it writes, so every one of them has a row saying that it holds nothing,
-with the same add control as any other. That matters for one reason above all
-the others: without it, such a member could never be given a value. A file
+with the same way of giving it a value as any other. That matters for one
+reason above all the others: without it, such a member could never be given a
+value. A file
 that has no key for it, opened in an editor that shows only what the file
 holds, is a member the person configuring the application cannot reach.
 
@@ -27,8 +28,9 @@ Every member below except the title is named in `_omit_none_from_json()`, and
 the input file in [examples/data/](../../data/) holds nothing but the title,
 so a run against that file starts with every one of them holding nothing:
 
-- `note` — an `Optional[str]`. Add gives it the empty text, remove puts it
-  back to holding nothing.
+- `note` — an `Optional[str]`, which is `str | None`. Choosing `str` in the
+  pull-down of its type gives it the empty text, and choosing `None` puts it
+  back to holding nothing, exactly as for the members of example 18.
 - `audit` — an `OPTIONAL_MEMBER` holding one `AuditConfig` or none. This is
   the case that had no row at all before this example was written, and it is
   the one worth pressing in an editor: adding it builds an object of that
@@ -46,7 +48,8 @@ so a run against that file starts with every one of them holding nothing:
   hold, so it has no second state to move to and is an ordinary field showing
   `null`, which is a value the user can type over and type back.
 
-Run it and press the controls at the end of each row:
+Run it, and press the controls at the end of each row and choose in the
+pull-down of the type of `note`:
 
 ````sh
 python3 examples/src/example/e19_omitted_members.py --ui tk

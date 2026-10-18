@@ -166,7 +166,7 @@ with no annotation at all.
 
 | File | What happens |
 | --- | --- |
-| [e18_report.json](e18_report.json) | Opens with the mirror of what the class declares: `subtitle` is an empty text where the class holds nothing, and `footer` holds nothing where the class holds a text. It is what shows that the two states of an optional member survive a round trip, which is the whole reason for telling them apart. The file holds no key for `note`, which the class leaves out while it holds nothing, and that member comes back holding nothing with a row of its own. |
+| [e18_report.json](e18_report.json) | Opens with the mirror of what the class declares: `subtitle` is an empty text where the class holds nothing, and `footer` holds nothing where the class holds a text. It is what shows that the two states of an optional member survive a round trip, which is the whole reason for telling them apart. The file holds no key for `note`, which the class leaves out while it holds nothing, and that member comes back holding nothing with a row of its own. `width` holds the text `auto` where the class holds the number `80`, so it comes back holding `str`, which is what a value read from a file says about a member that may hold either. |
 
 ## Files for `e19_omitted_members.py`
 

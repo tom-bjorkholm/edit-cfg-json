@@ -19,7 +19,7 @@ import tkinter
 from tkinter import simpledialog
 import pytest
 from config_as_json import ConfigPath
-from edit_cfg_json import EditModel
+from edit_cfg_json import EditModel, row_type_text
 from edit_cfg_json_tk.tk_editor import EditorWidgets, VALIDATE_TEXT
 from edit_cfg_json_tk.tk_elements import ADD_TEXT, EARLIER_TEXT, LATER_TEXT, \
     REMOVE_TEXT
@@ -309,16 +309,14 @@ def test_real_adds_an_element(root_or_skip: tkinter.Tk) -> None:
         '3 elements'
 
 
-NOTHING_HELD: ConfigPath = ('subtitle',)
-"""The member of the other example that holds nothing to begin with."""
-
 CLEARED: ConfigPath = ('footer',)
-"""The member of it that a validation pass can move to holding nothing.
+"""The member of the other example that a validation pass can clear.
 
 A member validator returns the value that is stored back into the member, so
 one of them can take a field away from a row that had one. It is the one thing
 a backend has to make its widgets again for beyond a pass that changed how
-many rows there are.
+many rows there are. Giving the member a value and taking it away by choice
+is the pull-down of its types, which the tests of that pull-down are about.
 """
 
 
@@ -326,31 +324,6 @@ def _report_stub() -> Editor:
     """Build the stubbed widgets of the example with the two states."""
     model = EditModel(ReportConfig())
     return Editor(widgets=stub_editor(model), model=model)
-
-
-def test_stub_nothing_adds(stub_tk: None) -> None:
-    """Test a member holding nothing has an add control and no field."""
-    _ = stub_tk
-    editor = _report_stub()
-    assert _controls_of(editor, NOTHING_HELD) == [ADD_TEXT]
-    assert _value_of(editor, NOTHING_HELD) == 'no value'
-    assert len(stub_field_widgets()) == \
-        len([row for row in editor.model.rows if row.editable])
-
-
-def test_stub_value_removes(stub_tk: None) -> None:
-    """Test a member holding a value offers being put back to nothing."""
-    _ = stub_tk
-    editor = _report_stub()
-    assert _controls_of(editor, CLEARED) == [REMOVE_TEXT]
-
-
-def test_stub_add_gives(stub_tk: None) -> None:
-    """Test pressing the control gives that member the value of its kind."""
-    _ = stub_tk
-    editor = _report_stub()
-    _press(ADD_TEXT, place=_place_of(editor, NOTHING_HELD, ADD_TEXT))
-    assert _value_of(editor, NOTHING_HELD) == ''
 
 
 def test_stub_pass_clears(stub_tk: None) -> None:
@@ -365,7 +338,9 @@ def test_stub_pass_clears(stub_tk: None) -> None:
     before = len(stub_field_widgets())
     editor.model.set_text(CLEARED, '')
     _press(VALIDATE_TEXT)
-    assert _value_of(editor, CLEARED) == 'no value'
+    assert _value_of(editor, CLEARED) == ''
+    assert row_type_text({row.path: row
+                          for row in editor.model.rows}[CLEARED]) == 'None'
     assert len(stub_field_widgets()) == before - 1
 
 

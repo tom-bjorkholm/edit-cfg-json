@@ -199,8 +199,8 @@ def type_of(app: EditorApp, member_name: str) -> str:
     """Return the type that the pull-down of one member shows it holds.
 
     It is the text the closed pull-down shows, which is the label inside it,
-    and not the value of the pull-down, which is only the place of that type
-    among the ones it offers.
+    and not the value of the pull-down, which is the whole of the type rather
+    than the text the column cuts it to.
     """
     label = type_chooser_of(app, member_name).query_one('#label', Static)
     return str(label.content)

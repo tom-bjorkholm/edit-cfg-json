@@ -78,7 +78,7 @@ above. There are no cycles.
 | Rendering | `model_text`, `emphasis`, `backend` |
 | The session | `edit_model` |
 | The edit buffer | `buffer` |
-| Operations | `rows`, `finding`, `elements`, `placing`, `validation`, `loading`, `auto_change`, `saving`, `settings_file` |
+| Operations | `rows`, `finding`, `elements`, `placing`, `type_choice`, `validation`, `loading`, `auto_change`, `saving`, `settings_file` |
 | Facts about one `Config` | `descriptions`, `member_types`, `converting`, `settings_config` |
 | Foundations | `tree`, `leaf_value`, `constructing`, `settings`, `loader`, `exit_code`, `version_report` |
 
@@ -120,6 +120,7 @@ Pure inspection. Nothing here knows that an editor exists.
 | [buffer.py](../edit/src/edit_cfg_json/buffer.py) | The values as the user is typing them, and which containers are folded. The one part of a session the user changes directly. No input or output, and no knowledge of any backend. |
 | [elements.py](../edit/src/edit_cfg_json/elements.py) | What a container offers — add, remove, move — and what a new element would be copied from. Says why where it can offer nothing. |
 | [placing.py](../edit/src/edit_cfg_json/placing.py) | Where a class declares that a nested object belongs, and putting one there or taking it away as the buffer gains and loses elements. |
+| [type_choice.py](../edit/src/edit_cfg_json/type_choice.py) | Which of the declared types of a node the user may choose — the ones its parse converter would refuse left out, with the reason — which one it holds as the buffer changes, and what it holds once another is chosen. |
 | [finding.py](../edit/src/edit_cfg_json/finding.py) | Which nodes a search text is about. It opens nothing, focuses nothing and scrolls nothing. |
 | [validation.py](../edit/src/edit_cfg_json/validation.py) | Four passes: convert each text, apply the whole buffer to a candidate object, attribute a refusal to the member it was about, and ask every nested object on its own. |
 
@@ -163,6 +164,7 @@ Pure inspection. Nothing here knows that an editor exists.
 | The wrong explanation under a row | `descriptions.py`, then `model_text.py` |
 | A member's kind or declared type is wrong | `member_types.py`, then `type_options.py`, then `leaf_value.py` |
 | The type column of a row says the wrong thing | `rows.py` (`MemberRow.chosen_type`), then `model_text.py` |
+| Choosing a type misbehaves, or offers the wrong types | `type_choice.py`, then `buffer.py` (`set_type`) |
 | Add, remove or move an element misbehaves | `elements.py`, then `placing.py` |
 | A nested object is shown as a plain dict | `tree.py` (`config_nodes`) |
 | Folding, or what a fold hides | `tree.py` (`starts_folded`, `rows_below`), then `buffer.py` |
