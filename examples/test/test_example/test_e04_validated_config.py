@@ -17,8 +17,8 @@ import pytest
 from example import e04_validated_config
 from example.e04_validated_config import DESCRIPTIONS, LONGEST_RUN, \
     MOST_RETRIES, ValidatedConfig
-from .helpers import DUMP_TAIL, TEXT_LINE, WHOLE_LINE, data_file, dump, \
-    head, input_tail, open_tk_ui, refused, textual_titles
+from .helpers import DUMP_TAIL, data_file, dump, head, input_tail, \
+    open_tk_ui, refused, textual_titles
 
 VALID_LINE = 'validation: valid'
 """Line that `--ui dump` ends with for a buffer the example accepts."""
@@ -76,16 +76,16 @@ def test_own_validator(capsys: pytest.CaptureFixture[str]) -> None:
     exactly as what a validator of the library says is.
     """
     printed = _dump(capsys, '--set', 'job_name=nightly backup')
-    assert (f'job_name = nightly backup (edited)\n    {ABOUT_NAME}\n'
-            f'{TEXT_LINE}\n    {SPACED_NAME}') in printed
+    assert (f'job_name: str = nightly backup (edited)\n    {ABOUT_NAME}\n'
+            f'    {SPACED_NAME}') in printed
     assert 'validation: invalid, see job_name' in printed
 
 
 def test_library_validator(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a validator the library ships is attributed the same way."""
     printed = _dump(capsys, '--set', 'retries=9')
-    assert (f'retries = 9 (edited)\n    {ABOUT_RETRIES}\n'
-            f'{WHOLE_LINE}\n    {TOO_MANY}') in printed
+    assert (f'retries: int = 9 (edited)\n    {ABOUT_RETRIES}\n'
+            f'    {TOO_MANY}') in printed
     assert 'validation: invalid, see retries' in printed
 
 
@@ -131,7 +131,7 @@ def test_whole_rule_waits(capsys: pytest.CaptureFixture[str]) -> None:
 def test_read_file(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a file whose values satisfy every rule opens and is accepted."""
     printed = _dump(capsys, '-i', data_file('e04_complete.json'))
-    assert 'job_name = weekly-archive' in printed
+    assert 'job_name: str = weekly-archive' in printed
     assert VALID_LINE in printed
     assert printed.endswith(input_tail('e04_complete.json'))
 

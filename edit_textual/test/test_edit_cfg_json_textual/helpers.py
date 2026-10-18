@@ -28,7 +28,8 @@ from edit_cfg_json import ActionSettings, Descriptions, EditModel, LoadReport
 from edit_cfg_json_textual.textual_editor import EditorApp
 from edit_cfg_json_textual.textual_look import DOCSTRING_ID, NAME_CLASS, \
     SAVE_AS_ID, SAVE_ID, TITLE_ID, VERDICT_ID, choice_id, description_id, \
-    diagnostic_id, mark_id, value_id
+    diagnostic_id, mark_id, type_id, value_id
+from edit_cfg_json_textual.textual_member import TypeChooser
 from edit_cfg_json_textual.textual_panel import ModelPanel
 from edit_cfg_json_textual.textual_screen import ModelScreen
 from example.e01_flat_config import FlatConfig
@@ -66,17 +67,17 @@ EXPLAIN_ALT_KEY = DEFAULT_ACTIONS.explain[1]
 CHOOSE_KEY = DEFAULT_ACTIONS.choose[0]
 """Key that switches between typing a value and choosing one."""
 
-TEXT_KIND = 'Text.'
-"""What the type of a text member says about it.
+TEXT_TYPE = 'str'
+"""What the column of the types says beside a text member.
 
-The editor says what kind of value every member holds, because that is the one
-thing it knows about every member of every configuration without being told.
-It is written out here rather than read from an internal module of the core, in
-the same way as every other text these tests expect.
+Every row says which type it holds, between its name and its value, so a row
+whose type says everything about it has nothing below it at all. It is written
+out here rather than read from the core, in the same way as every other text
+these tests expect.
 """
 
-WHOLE_KIND = 'A whole number.'
-"""What the type of a member holding a whole number says about it."""
+WHOLE_TYPE = 'int'
+"""What the column of the types says beside a member holding a number."""
 
 ABOUT_NAME = 'What the name of this configuration is for.'
 """Description of the one member that the tests below describe."""
@@ -186,6 +187,23 @@ def chooser_of(app: EditorApp, member_name: str) -> 'Select[str]':
     found = app.query_one(f'#{choice_id(index_of(app, member_name))}', Select)
     assert isinstance(found, Select)
     return found
+
+
+def type_chooser_of(app: EditorApp, member_name: str) -> TypeChooser:
+    """Return the pull-down of the types that one member shows."""
+    return app.query_one(f'#{type_id(index_of(app, member_name))}',
+                         TypeChooser)
+
+
+def type_of(app: EditorApp, member_name: str) -> str:
+    """Return the type that the pull-down of one member shows it holds.
+
+    It is the text the closed pull-down shows, which is the label inside it,
+    and not the value of the pull-down, which is only the place of that type
+    among the ones it offers.
+    """
+    label = type_chooser_of(app, member_name).query_one('#label', Static)
+    return str(label.content)
 
 
 def mark_of(app: EditorApp, member_name: str) -> str:

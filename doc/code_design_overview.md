@@ -97,7 +97,8 @@ Pure inspection. Nothing here knows that an editor exists.
 | --- | --- |
 | [tree.py](../edit/src/edit_cfg_json/tree.py) | Takes the values of one configuration apart into one node per path, and puts the buffer back together again. The two are inverses. Also answers where the nested objects, the containers and the omitted nodes are. |
 | [leaf_value.py](../edit/src/edit_cfg_json/leaf_value.py) | What one leaf holds in JSON space: its kind, the empty value of that kind, and text to value and back. |
-| [member_types.py](../edit/src/edit_cfg_json/member_types.py) | The declared type of a member, from annotations, for the cases where the current value cannot say. |
+| [type_options.py](../edit/src/edit_cfg_json/type_options.py) | A resolved annotation read into the types it allows, one `TypeOption` per alternative of a union, spelled as Python spells a type hint; which of them a value fits, and how a type is cut to its column. |
+| [member_types.py](../edit/src/edit_cfg_json/member_types.py) | The declared types of every member and of every node inside one, from annotations, and which members have the two states of a value and of nothing. |
 | [descriptions.py](../edit/src/edit_cfg_json/descriptions.py) | The explanatory text a row is shown with: the class docstring, the application's mapping, and what the type itself says. |
 | [converting.py](../edit/src/edit_cfg_json/converting.py) | Runs the class's own parse converter over the text of one leaf (enums, in practice) and words the refusal. |
 | [constructing.py](../edit/src/edit_cfg_json/constructing.py) | The two ways a configuration object is built: on the class's declared values, and on the buffer through `parse_json`. |
@@ -160,7 +161,8 @@ Pure inspection. Nothing here knows that an editor exists.
 | --- | --- |
 | A row shows the wrong value, state or mark | `rows.py`, then `buffer.py` |
 | The wrong explanation under a row | `descriptions.py`, then `model_text.py` |
-| A member's kind or declared type is wrong | `member_types.py`, then `leaf_value.py` |
+| A member's kind or declared type is wrong | `member_types.py`, then `type_options.py`, then `leaf_value.py` |
+| The type column of a row says the wrong thing | `rows.py` (`MemberRow.chosen_type`), then `model_text.py` |
 | Add, remove or move an element misbehaves | `elements.py`, then `placing.py` |
 | A nested object is shown as a plain dict | `tree.py` (`config_nodes`) |
 | Folding, or what a fold hides | `tree.py` (`starts_folded`, `rows_below`), then `buffer.py` |

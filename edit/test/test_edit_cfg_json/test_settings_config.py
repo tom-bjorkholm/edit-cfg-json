@@ -240,7 +240,7 @@ def test_editable_class() -> None:
     model = EditModel(SettingsConfig(), descriptions=SETTINGS_DESCRIPTIONS)
     model.open_all(no_more_folding=True)
     shown = model_as_text(model)
-    assert 'backup_suffix = .bak' in shown
+    assert 'backup_suffix: str = .bak' in shown
     assert 'ctrl+q' in shown
 
 

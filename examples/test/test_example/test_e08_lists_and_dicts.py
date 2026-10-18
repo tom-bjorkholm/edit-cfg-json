@@ -13,8 +13,8 @@ import pytest
 from example import e08_lists_and_dicts
 from example.e08_lists_and_dicts import ContainerConfig, DESCRIPTIONS, \
     LABEL_COUNT, LONGEST_DELAY
-from .helpers import DUMP_TAIL, TEXT_LINE, WHOLE_LINE, data_file, dump, head, \
-    input_tail, open_tk_ui, refused, textual_titles
+from .helpers import DUMP_TAIL, data_file, dump, head, input_tail, \
+    open_tk_ui, refused, textual_titles
 
 HEAD = head(ContainerConfig())
 """The lines that every dump of this example begins with."""
@@ -31,18 +31,15 @@ ABOUT_PORTS = DESCRIPTIONS[('ports',)]
 ABOUT_HTTPS = DESCRIPTIONS[('ports', 'https')]
 """What it says about one value inside that dict."""
 
-DELAY_LINES = ['retry_delays: 3 elements', f'    {ABOUT_DELAYS}',
-               '    0 = 1', f'        {ABOUT_ONE_DELAY}',
-               f'    {WHOLE_LINE}', '    1 = 5',
-               f'        {ABOUT_ONE_DELAY}', f'    {WHOLE_LINE}',
-               '    2 = 15', f'        {ABOUT_ONE_DELAY}',
-               f'    {WHOLE_LINE}']
+DELAY_LINES = ['retry_delays: list[int], 3 elements', f'    {ABOUT_DELAYS}',
+               '    0: int = 1', f'        {ABOUT_ONE_DELAY}',
+               '    1: int = 5', f'        {ABOUT_ONE_DELAY}',
+               '    2: int = 15', f'        {ABOUT_ONE_DELAY}']
 """Every line that the list of numbers of this example is shown as.
 
 The description of one element is under each of them, because one selector
-with the `'['` step reaches every element of the list. What kind of value it
-is follows, indented as everything below a node is, once more for the
-container it is inside.
+with the `'['` step reaches every element of the list. What type each row
+holds is on the row itself, the list included.
 """
 
 NO_ENTRIES = ('    The keys of this dict are the ones its class declares, and '
@@ -56,10 +53,9 @@ itself. It is said with the explanations, because it says what this member is
 rather than something to act on.
 """
 
-PORT_LINES = ['ports: 2 entries', f'    {ABOUT_PORTS}', NO_ENTRIES,
-              '    http = 80',
-              f'    {WHOLE_LINE}', '    https = 443',
-              f'        {ABOUT_HTTPS}', f'    {WHOLE_LINE}']
+PORT_LINES = ['ports: dict[str, int], 2 entries', f'    {ABOUT_PORTS}',
+              NO_ENTRIES, '    http: int = 80', '    https: int = 443',
+              f'        {ABOUT_HTTPS}']
 """Every line that the dict of this example is shown as.
 
 Its keys are in the order the file has them, which is the sorted one: a
@@ -67,7 +63,7 @@ dictionary key has no declaration to be read from, and the order a save
 writes is the order that is shown.
 """
 
-FOLDED_LABELS = f'many_labels: {LABEL_COUNT} elements (folded)'
+FOLDED_LABELS = f'many_labels: list[str], {LABEL_COUNT} elements (folded)'
 """How the long list of this example is shown when the editor opens.
 
 It is folded because opening it would add more rows than a window can spare,
@@ -98,7 +94,7 @@ def test_descriptions_real() -> None:
 def test_dump_is_a_tree(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a list and a dict are shown as the trees of rows they are."""
     printed = _dump(capsys)
-    assert printed.startswith(f'{HEAD}\nproject_name = Example project')
+    assert printed.startswith(f'{HEAD}\nproject_name: str = Example project')
     assert '\n'.join(DELAY_LINES) in printed
     assert '\n'.join(PORT_LINES) in printed
     assert printed.endswith(f'validation: valid\n{DUMP_TAIL}')
@@ -118,23 +114,24 @@ def test_open_the_long_list(capsys: pytest.CaptureFixture[str]) -> None:
     what one option for both of them means.
     """
     printed = _dump(capsys, '--fold', 'many_labels')
-    assert f'many_labels: {LABEL_COUNT} elements\n    0 = label-0' in printed
+    assert f'many_labels: list[str], {LABEL_COUNT} elements\n' \
+        '    0: str = label-0' in printed
 
 
 def test_fold_one_container(capsys: pytest.CaptureFixture[str]) -> None:
     """Test `--fold` hides what is inside one container and nothing else."""
     printed = _dump(capsys, '--fold', 'ports')
-    assert 'ports: 2 entries (folded)' in printed
-    assert 'http = 80' not in printed
-    assert '0 = 1' in printed
+    assert 'ports: dict[str, int], 2 entries (folded)' in printed
+    assert 'http: int = 80' not in printed
+    assert '0: int = 1' in printed
 
 
 def test_fold_key_folds_all(capsys: pytest.CaptureFixture[str]) -> None:
     """Test `--toggle-fold` stands in for the key that folds everything."""
     printed = _dump(capsys, '--toggle-fold')
-    assert 'retry_delays: 3 elements (folded)' in printed
-    assert 'ports: 2 entries (folded)' in printed
-    assert 'http = 80' not in printed
+    assert 'retry_delays: list[int], 3 elements (folded)' in printed
+    assert 'ports: dict[str, int], 2 entries (folded)' in printed
+    assert 'http: int = 80' not in printed
 
 
 def test_fold_key_opens_all(capsys: pytest.CaptureFixture[str]) -> None:
@@ -147,16 +144,16 @@ def test_fold_key_opens_all(capsys: pytest.CaptureFixture[str]) -> None:
 def test_edit_inside_a_list(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a value inside a list is edited by the whole path to it."""
     printed = _dump(capsys, '--set', 'retry_delays.0=2')
-    assert 'retry_delays: 3 elements (edited)' in printed
-    assert '    0 = 2 (edited)' in printed
+    assert 'retry_delays: list[int], 3 elements (edited)' in printed
+    assert '    0: int = 2 (edited)' in printed
     assert 'validation: valid' in printed
 
 
 def test_edit_inside_a_dict(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a value inside a dict is edited by the whole path to it."""
     printed = _dump(capsys, '--set', 'ports.https=8443')
-    assert 'ports: 2 entries (edited)' in printed
-    assert '    https = 8443 (edited)' in printed
+    assert 'ports: dict[str, int], 2 entries (edited)' in printed
+    assert '    https: int = 8443 (edited)' in printed
 
 
 def test_refused_at_container(capsys: pytest.CaptureFixture[str]) -> None:
@@ -177,18 +174,19 @@ def test_validator_shortens(capsys: pytest.CaptureFixture[str]) -> None:
     the list comes back shorter than the one that was typed into.
     """
     printed = _dump(capsys, '--set', 'report_formats.0=json')
-    assert 'report_formats: 1 element (edited) (changed by validator)' in \
-        printed
-    assert '    0 = json (edited)' in printed
-    assert '    1 = ' not in printed.split('report_formats')[1]
+    assert 'report_formats: list[str], 1 element (edited) (changed by ' \
+        'validator)' in printed
+    assert '    0: str = json (edited)' in printed
+    assert '    1: ' not in printed.split('report_formats')[1]
 
 
 def test_read_file(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the values of a file fill the same tree of rows."""
     printed = _dump(capsys, '-i', data_file('e08_complete.json'))
-    assert 'ports: 2 entries\n' in printed
-    assert '    http = 8080' in printed
-    assert 'many_labels: 2 elements\n    0 = from-a-file-1' in printed
+    assert 'ports: dict[str, int], 2 entries\n' in printed
+    assert '    http: int = 8080' in printed
+    assert 'many_labels: list[str], 2 elements\n' \
+        '    0: str = from-a-file-1' in printed
     assert printed.endswith(input_tail('e08_complete.json'))
 
 
@@ -196,7 +194,8 @@ def test_short_list_opens(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a file whose long member is short opens every container."""
     printed = _dump(capsys, '-i', data_file('e08_short_list.json'))
     assert '(folded)' not in printed
-    assert 'many_labels: 1 element\n    0 = only-one' in printed
+    assert 'many_labels: list[str], 1 element\n    0: str = only-one' in \
+        printed
 
 
 def test_unknown_path(capsys: pytest.CaptureFixture[str]) -> None:
@@ -218,15 +217,18 @@ def test_container_not_edited(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_undescribed_member(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test a value nothing is said about still says what kind it is."""
+    """Test a value nothing is said about still says what type it holds.
+
+    The type is on the row, so nothing at all is said below it.
+    """
     printed = _dump(capsys)
-    assert f'project_name = Example project\n{TEXT_LINE}' in printed
+    assert 'project_name: str = Example project\nretry_delays:' in printed
 
 
 def test_find_marks_a_member(capsys: pytest.CaptureFixture[str]) -> None:
     """Test looking for a text marks the member the search has got to."""
     printed = _dump(capsys, '--find', 'https')
-    assert '    https = 443 (found)' in printed
+    assert '    https: int = 443 (found)' in printed
     assert 'find https: 1 of 1' in printed
 
 
@@ -237,9 +239,9 @@ def test_find_opens_a_fold(capsys: pytest.CaptureFixture[str]) -> None:
     search that left it folded would have found something the user cannot see.
     """
     printed = _dump(capsys, '--find', 'label-7')
-    assert 'many_labels: 12 elements' in printed
+    assert 'many_labels: list[str], 12 elements' in printed
     assert '(folded)' not in printed
-    assert '    7 = label-7 (found)' in printed
+    assert '    7: str = label-7 (found)' in printed
 
 
 def test_find_next_goes_on(capsys: pytest.CaptureFixture[str]) -> None:

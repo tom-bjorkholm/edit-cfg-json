@@ -72,12 +72,13 @@ from io import StringIO
 from typing import NamedTuple, Optional, TextIO
 from config_as_json import ConfigNesting, ConfigNestingKind, ConfigPath, \
     JsonType
-from edit_cfg_json.leaf_value import LeafType, empty_value
 from edit_cfg_json.loader import ConfigSource
-from edit_cfg_json.member_types import node_types
+from edit_cfg_json.member_types import node_types, nothing_allowed
 from edit_cfg_json.placing import new_object
 from edit_cfg_json.tree import ConfigNode, by_key_nestings, member_nestings, \
     member_values, owner_path, unchecked_members
+from edit_cfg_json.type_options import TypeOption, empty_option_value, \
+    held_option, value_option
 
 BUILD_ERRORS = (AttributeError, KeyError, TypeError, ValueError)
 """Every way in which constructing a configuration class can fail.
@@ -312,11 +313,17 @@ class TreeFacts(NamedTuple):
     unchecked: frozenset[ConfigPath]
     """Every dict member whose keys its own class does not check."""
 
-    types: Mapping[ConfigPath, LeafType]
-    """What the class owning each node says the value there is.
+    types: Mapping[ConfigPath, tuple[TypeOption, ...]]
+    """The types the class owning each node allows it to hold.
 
-    It is what a member allowed to hold nothing is known by, and what says
-    what an element of a list its class declares empty would be.
+    It is what says what an element of a list its class declares empty would
+    be, and what a member allowed to hold nothing would hold instead.
+    """
+
+    nothing: frozenset[ConfigPath]
+    """Every member that has the two states of holding a value and nothing.
+
+    `member_types.nothing_allowed` is what says which members those are.
     """
 
     defaults: Mapping[str, JsonType]
@@ -380,11 +387,15 @@ def tree_facts(nodes: Mapping[ConfigPath, ConfigNode],
     Returns:
         The facts that one offer per node is made from.
     """
+    types = node_types(nodes=nodes, flat=flat)
     return TreeFacts(values=dict(flat), nodes=nodes,
                      nestings=member_nestings(nodes),
                      by_key=by_key_nestings(nodes),
-                     unchecked=unchecked_members(nodes),
-                     types=node_types(nodes=nodes, flat=flat),
+                     unchecked=unchecked_members(nodes), types=types,
+                     nothing=frozenset(
+                         path for path, options in types.items()
+                         if nothing_allowed(path=path, options=options,
+                                            nodes=nodes)),
                      defaults=defaults, made={})
 
 
@@ -440,22 +451,22 @@ def _new_value(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
     A member whose class declares that it may hold nothing has two states, and
     moving between them is the same pair of actions as making and clearing the
     object of a member declared to hold one: adding is giving it a value of
-    the kind its declaration names, and removing is putting it back to holding
-    none. That is what settles the open question at the end of design section
-    4.2 — the user chooses between the states the class allowed, and never
-    what kind of value the member is for.
+    the first type its declaration names, and removing is putting it back to
+    holding none. That is what settled the open question at the end of design
+    section 4.2 — the user chooses between the states the class allowed.
 
     A member declared to hold a dict is the one that cannot be given a value,
     for the reason `NO_DICT_YET` gives: the class refuses a dict written for a
     member that holds none, so the control would be one that produces a
     refusal.
     """
-    declared = facts.types.get(path, LeafType())
-    if facts.values[path] is not None or not declared.nothing:
+    first = value_option(facts.types.get(path, ()))
+    if facts.values[path] is not None or path not in facts.nothing \
+            or first is None:
         return ElementOffer()
-    if declared.kind is dict:
+    if first.kind is dict:
         return ElementOffer(refusal=NO_DICT_YET)
-    return ElementOffer(extend=True, template=empty_value(declared.kind))
+    return ElementOffer(extend=True, template=empty_option_value(first))
 
 
 def _new_object(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
@@ -514,8 +525,9 @@ def _typed_element(path: ConfigPath, facts: TreeFacts) -> Optional[JsonType]:
     case design section 11 of `doc/detailed_design.md` had put out of scope
     while the kind of an element was unknowable.
     """
-    inside = facts.types.get(path, LeafType()).inside
-    return None if inside is None else empty_value(inside.kind)
+    held = held_option(facts.types.get(path, ()), facts.values[path])
+    first = None if held is None else value_option(held.inside)
+    return None if first is None else empty_option_value(first)
 
 
 def _growing_dict(path: ConfigPath, facts: TreeFacts) -> ElementOffer:
@@ -671,8 +683,7 @@ def _clearable(path: ConfigPath, facts: TreeFacts) -> bool:
         node = facts.nodes.get(path)
         return declared.kind in CLEARED_KINDS and node is not None \
             and node.config is not None
-    return facts.types.get(path, LeafType()).nothing \
-        and facts.values[path] is not None
+    return path in facts.nothing and facts.values[path] is not None
 
 
 def _movable(path: ConfigPath, facts: TreeFacts, later: bool) -> bool:

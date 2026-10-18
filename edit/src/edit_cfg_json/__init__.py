@@ -21,7 +21,6 @@ from edit_cfg_json.emphasis import EXPLANATION, Emphasis, LOAD_REMARK, \
     MEMBER_DIAGNOSTIC, MEMBER_MARK, find_emphasis, save_emphasis, \
     subtree_emphasis, verdict_emphasis
 from edit_cfg_json.finding import FIND_OPTION_HELP, FindOptions, FindReport
-from edit_cfg_json.leaf_value import LeafType
 from edit_cfg_json.saving import SaveOutcome
 from edit_cfg_json.settings import ActionSettings, Settings, SettingsSource
 from edit_cfg_json.settings_config import SETTINGS_DESCRIPTIONS, \
@@ -33,9 +32,10 @@ from edit_cfg_json.model_text import can_fold, close_question, \
     docstring_text, find_text, fold_hides, load_text, model_as_text, \
     model_title, overwrite_question, row_chooses, row_describes, \
     row_description, row_diagnostic, row_fold_text, row_marks, \
-    row_subtree_text, row_validates, row_value_text, rows_shape, save_text, \
-    verdict_text
+    row_subtree_text, row_type_text, row_type_texts, row_validates, \
+    row_value_text, rows_shape, save_text, type_column_width, verdict_text
 from edit_cfg_json.tree import path_text, text_path
+from edit_cfg_json.type_options import TypeOption
 from edit_cfg_json.exit_code import ExitCode
 from edit_cfg_json.version_report import EcajVersionReporter
 from edit_cfg_json.ui_backend import DUMP_UI, NoEditorError, UI_GROUP, \
@@ -45,7 +45,7 @@ from edit_cfg_json.ui_choice import available_uis, chosen_ui, discovered_uis, \
 from edit_cfg_json.cli import add_file_options, named_policy, run_cli
 
 __all__ = ['EditModel', 'MemberRow', 'EditorBackend', 'Descriptions', 'edit',
-           'LeafType', 'edit_in_ui',
+           'TypeOption', 'edit_in_ui',
            'editor_model', 'ElementOffer',
            'ConfigLoadError', 'ConfigLoader', 'DEFAULT_POLICY', 'LoadPolicy',
            'LoadReport',
@@ -60,7 +60,8 @@ __all__ = ['EditModel', 'MemberRow', 'EditorBackend', 'Descriptions', 'edit',
            'model_title', 'row_chooses',
            'row_describes', 'row_description', 'row_diagnostic',
            'row_fold_text', 'row_marks', 'row_subtree_text', 'row_validates',
-           'row_value_text', 'rows_shape',
+           'row_type_text', 'row_type_texts', 'row_value_text', 'rows_shape',
+           'type_column_width',
            'save_text', 'verdict_text', 'path_text', 'text_path',
            'DumpEditor', 'EcajVersionReporter', 'ExitCode',
            'add_file_options', 'default_config',

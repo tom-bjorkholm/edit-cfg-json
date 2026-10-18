@@ -24,7 +24,7 @@ from edit_cfg_json_tk.tk_look import EMPHASIS_COLOURS, FIELD_BACKGROUND, \
 from example.e01_flat_config import FlatConfig
 from .helpers import ABOUT_NAME, DESCRIPTIONS, FILLED_REPORT, \
     FLAT_DOCSTRING, FLAT_SUMMARY, real_fields, real_press, real_ticks, \
-    stub_editor, stub_keys, stub_press, TEXT_KIND
+    stub_editor, stub_keys, stub_press
 from .stubs import FakeWidget, STUB_BODY_HEIGHT
 
 WHEEL_UP = -1
@@ -359,7 +359,7 @@ def test_real_paragraph_wraps(root_or_skip: tkinter.Tk) -> None:
     labels = {str(label.cget('text')): label
               for label in _real_widgets(root_or_skip, tkinter.Label)}
     docstring = labels[FLAT_DOCSTRING]
-    description = labels[f'{ABOUT_NAME}\n{TEXT_KIND}']
+    description = labels[ABOUT_NAME]
     assert _wrapped_at(docstring) == max(docstring.winfo_width(),
                                          LEAST_WRAP_WIDTH)
     assert _wrapped_at(description) == max(description.winfo_width(),

@@ -11,6 +11,7 @@ from edit_cfg_json.finding import looks_nowhere
 from edit_cfg_json.rows import MemberRow
 from edit_cfg_json.saving import kept_file
 from edit_cfg_json.tree import path_text
+from edit_cfg_json.type_options import cut_type_text
 from edit_cfg_json.validation import ValidationVerdict
 
 FOLDED_MARK = ' (folded)'
@@ -135,15 +136,26 @@ told apart by their shape rather than by their place: a row has a name and a
 value, and a sentence has neither.
 """
 
-LEAF_FORM = '{indent}{name} = {value}{marks}'
-"""Form of the line that shows one value of the configuration."""
+LEAF_FORM = '{indent}{name}: {type} = {value}{marks}'
+"""Form of the line that shows one value of the configuration.
 
-CONTAINER_FORM = '{indent}{name}: {value}{folded}{marks}{subtree}'
+It reads as Python's `name: type = value`, which is the order the two editors
+show the three in as well.
+"""
+
+CONTAINER_FORM = '{indent}{name}: {type}{value}{folded}{marks}{subtree}'
 """Form of the line that shows one node that is not edited in a field.
 
-A colon and not an equals sign, because what follows is not the value: for a
-list, a dict or a nested configuration object the value is on the rows below,
-and this says how many of them there are or which class they belong to.
+No equals sign, because what follows the type is not the value: for a list, a
+dict or a nested configuration object the value is on the rows below, and what
+comes after the type says how many of them there are, behind `HELD_FORM`.
+"""
+
+HELD_FORM = ', {value}'
+"""What follows the type of a node that is not edited, where it says anything.
+
+A nested configuration object says nothing there, because its type is its
+class and that is all there is to say on its row.
 """
 
 CLOSE_QUESTION = ('These changes have not been saved. '
@@ -391,6 +403,62 @@ def row_chooses(row: MemberRow) -> bool:
     return row.editable and bool(row.choices)
 
 
+def row_type_text(row: MemberRow) -> str:
+    """Return the type one node holds, as the column of the types shows it.
+
+    It is the type the node holds now and not the whole of what its
+    declaration allows, which the line below it says where it allows more
+    than one. A type longer than the column is cut, and that line then says
+    the whole of it.
+
+    Args:
+        row: Node to render.
+
+    Returns:
+        The type that node holds, as the column shows it.
+    """
+    return cut_type_text(row.chosen_type.text)
+
+
+def row_type_texts(row: MemberRow) -> tuple[str, ...]:
+    """Return every type one node may hold, as the column shows each of them.
+
+    They are what the pull-down of the types offers, in the order the
+    declaration writes them, and then the type the node holds where that is
+    none of them: the one type its value has where nothing usable is
+    declared, and `None` for a place declared to hold an object and holding
+    none.
+
+    Args:
+        row: Node to render.
+
+    Returns:
+        One text per type that node may hold, among them `row_type_text`.
+    """
+    held = row.chosen_type
+    options = row.types if held in row.types else (*row.types, held)
+    return tuple(cut_type_text(option.text) for option in options)
+
+
+def type_column_width(model: EditModel) -> int:
+    """Return how many characters wide the column of the types is.
+
+    It is one width for the whole editor, so that the values of every row
+    begin in one column: the longest type any row may hold, which the cut
+    keeps to `edit_cfg_json.type_options.TYPE_COLUMN_LIMIT`. Every row is
+    asked and not only the ones on the screen, so that folding a container
+    never moves the values of the rows beside it.
+
+    Args:
+        model: Model to ask about.
+
+    Returns:
+        The width of the column, in characters.
+    """
+    return max((len(text) for row in model.rows
+                for text in row_type_texts(row)), default=0)
+
+
 def row_validates(row: MemberRow) -> bool:
     """Return whether one node can ever say what its objects amount to.
 
@@ -572,11 +640,14 @@ def _row_line(row: MemberRow, indent: str) -> str:
 
     A node that is not edited in a field has no value of its own, whether it
     is a list, a dict, a nested configuration object or a member that holds no
-    object at all, so it is written with the colon that says as much.
+    object at all, so it is written without the equals sign that says it has.
     """
     shape = LEAF_FORM if row.editable else CONTAINER_FORM
-    return shape.format(indent=indent, name=row.name,
-                        value=row_value_text(row), marks=row_marks(row),
+    value = row_value_text(row)
+    if not row.editable and value:
+        value = HELD_FORM.format(value=value)
+    return shape.format(indent=indent, name=row.name, type=row_type_text(row),
+                        value=value, marks=row_marks(row),
                         folded=row_fold_text(row),
                         subtree=row_subtree_text(row))
 

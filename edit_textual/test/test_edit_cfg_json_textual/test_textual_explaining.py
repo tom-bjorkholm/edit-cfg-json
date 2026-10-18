@@ -18,8 +18,8 @@ from edit_cfg_json_textual.textual_look import DOCSTRING_ID, \
 from example.e01_flat_config import FlatConfig
 from .helpers import ABOUT_NAME, ANSWER_INDEX, DESCRIPTIONS, \
     EXPLAIN_ALT_KEY, EXPLAIN_KEY, FILLED_REPORT, NAME_INDEX, NoDocConfig, \
-    SAVE_KEY, TEXT_KIND, VALIDATE_KEY, WHOLE_KIND, described_app, \
-    description_of, docstring_of, field_of, panel_of
+    SAVE_KEY, TEXT_TYPE, VALIDATE_KEY, WHOLE_TYPE, described_app, \
+    description_of, docstring_of, field_of, panel_of, type_of
 
 
 async def _explained(*keys: str) -> tuple[str, bool, str]:
@@ -45,14 +45,14 @@ async def _explained(*keys: str) -> tuple[str, bool, str]:
 def test_explanations_shown() -> None:
     """Test the editor starts by showing what the configuration is for.
 
-    What the application said comes first and what the type of the member says
-    follows it, which is what the editor knows about a member without being
-    told anything at all.
+    What the application said is all that is below the member: its type is on
+    its row, which is what the editor knows about a member without being told
+    anything at all.
     """
     docstring, shown, description = asyncio.run(_explained())
     assert docstring == EditModel(FlatConfig()).docstring
     assert shown
-    assert description == f'{ABOUT_NAME}\n{TEXT_KIND}'
+    assert description == ABOUT_NAME
 
 
 @pytest.mark.parametrize('key', [EXPLAIN_KEY, EXPLAIN_ALT_KEY])
@@ -97,21 +97,19 @@ def test_hidden_at_start() -> None:
 def test_undescribed_told() -> None:
     """Test a member the application says nothing about says what it holds.
 
-    Every editable member has something to say, because its own type says what
-    kind of value it is, so every one of them gets the widget for it. A widget
-    is left out only where there is nothing that could ever appear in it, which
-    is a member the editor cannot edit yet: its row says which kind of
-    container it is where its value would be.
+    It says it on its row, in the column of the types, and so does the member
+    the application describes. Nothing is below the undescribed one, and no
+    widget is made for what could never appear there: a type that says all
+    there is to say about a member is said on its row and nowhere else.
     """
-    async def described() -> tuple[str, str]:
+    async def described() -> tuple[str, str, str, int]:
         """Run the described application and read both members."""
         app = described_app()
         async with app.run_test():
             return (str(description_of(app, 'name').content),
-                    str(description_of(app, 'answer').content))
-    about_name, about_answer = asyncio.run(described())
-    assert about_name == f'{ABOUT_NAME}\n{TEXT_KIND}'
-    assert about_answer == WHOLE_KIND
+                    type_of(app, 'name'), type_of(app, 'answer'),
+                    len(app.query(f'#{description_id(ANSWER_INDEX)}')))
+    assert asyncio.run(described()) == (ABOUT_NAME, TEXT_TYPE, WHOLE_TYPE, 0)
 
 
 def test_no_docstring_widget() -> None:

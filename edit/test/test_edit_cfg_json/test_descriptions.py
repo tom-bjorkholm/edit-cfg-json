@@ -10,17 +10,17 @@ those says anything about the others.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from config_as_json import ConfigPath, JsonType, ParseConverter
+from typing import Optional
+from config_as_json import ConfigPath, ParseConverter
 import pytest
 from edit_cfg_json import Descriptions
 from edit_cfg_json.converting import member_converters
-from edit_cfg_json.descriptions import MemberFacts, NOTHING_TEXT, \
-    OPTIONAL_TEXT, \
-    class_docstring, class_summary, enum_text, member_description, \
-    path_description
-from edit_cfg_json.leaf_value import BOOL_KIND, LeafType, NO_KIND, \
-    NUMBER_KIND, TEXT_KIND, WHOLE_NUMBER_KIND, kind_text
-from .sample_cfg import DocumentedCfg, EnumCfg, FlatCfg, HexCfg, \
+from edit_cfg_json.descriptions import DECLARED_FORM, INFERRED_TEXT, \
+    MemberFacts, OPTIONAL_TEXT, class_docstring, class_summary, \
+    declared_text, enum_text, member_description, path_description
+from edit_cfg_json.type_options import type_options
+from .container_cfg import InnerCfg
+from .sample_cfg import Colour, DocumentedCfg, EnumCfg, FlatCfg, HexCfg, \
     IntEnumCfg, NoDocCfg, PlainEnumCfg, SampleCfg, WrappedDocCfg
 
 SUMMARY = 'One line that says what this configuration is for.'
@@ -212,7 +212,7 @@ def test_description_appended() -> None:
     """
     descriptions: Descriptions = {('colour',): ABOUT_COLOUR}
     converter = _converter(EnumCfg(), 'colour')
-    facts = MemberFacts(value='RED', converter=converter)
+    facts = MemberFacts(types=type_options(Colour), converter=converter)
     assert member_description(descriptions=descriptions, path=('colour',),
                               facts=facts) == \
         f'{ABOUT_COLOUR}\n{COLOUR_SUMMARY}\nOne of: RED, GREEN.'
@@ -221,36 +221,48 @@ def test_description_appended() -> None:
 def test_type_describes_alone() -> None:
     """Test a member the application says nothing about is still explained."""
     converter = _converter(EnumCfg(), 'colour')
-    facts = MemberFacts(value='RED', converter=converter)
+    facts = MemberFacts(types=type_options(Colour), converter=converter)
     assert member_description(descriptions={}, path=('colour',),
                               facts=facts) == \
         f'{COLOUR_SUMMARY}\nOne of: RED, GREEN.'
 
 
-def test_kind_describes_alone() -> None:
-    """Test a member with no enum and no description says what it holds.
+@pytest.mark.parametrize('hint', [str, int, float, bool, list[str],
+                                  dict[str, int]])
+def test_column_says_it(hint: object) -> None:
+    """Test a member of one type that fits its column has nothing said.
 
-    That is the least the editor can say about any member of any
-    configuration, and it is what a program that is told a class and no
-    description mapping shows.
+    The column of the types on its row says what it is, and the kind of value
+    it holds is no longer said in words below it.
     """
     assert member_description(descriptions={}, path=('name',),
-                              facts=MemberFacts(value='text')) == TEXT_KIND
+                              facts=MemberFacts(types=type_options(hint))) \
+        == ''
 
 
-@pytest.mark.parametrize('value,expected',
-                         [('text', TEXT_KIND), (42, WHOLE_NUMBER_KIND),
-                          (1.5, NUMBER_KIND), (True, BOOL_KIND),
-                          (None, NO_KIND), ([1], ''), ({'a': 1}, '')])
-def test_kind_of_value(value: JsonType, expected: str) -> None:
-    """Test what each kind of value says about itself.
+@pytest.mark.parametrize('hint, expected',
+                         [(Optional[str], 'str | None'),
+                          (int | str, 'int | str'),
+                          (dict[str, InnerCfg | str | dict[str, int]],
+                           'dict[str, InnerCfg | str | dict[str, int]]')])
+def test_whole_declaration(hint: object, expected: str) -> None:
+    """Test the declaration is said in full where the column cannot show it.
 
-    `True` is the case the order of the answers exists for, because `bool` is
-    a subclass of `int` in Python. A list and a dict say nothing, because a
-    member the editor cannot edit yet says which of the two it is where its
-    value would be.
+    The column shows the one type the node holds, so a declaration of more
+    than one is said here, and so is one type longer than the column.
     """
-    assert kind_text(declared=LeafType(), value=value) == expected
+    facts = MemberFacts(types=type_options(hint))
+    assert declared_text(facts) == DECLARED_FORM.format(types=expected)
+
+
+def test_inferred_is_said() -> None:
+    """Test a member whose type only its value says is told so.
+
+    That is the least the editor can say about any member of any
+    configuration, and it is what a member with no annotation shows.
+    """
+    assert member_description(descriptions={}, path=('name',),
+                              facts=MemberFacts()) == INFERRED_TEXT
 
 
 def test_optional_is_said() -> None:
@@ -260,57 +272,22 @@ def test_optional_is_said() -> None:
     holding nothing is not the answer: a member that holds nothing may be one
     that has to hold something.
     """
-    said = member_description(descriptions={}, path=('optional',),
-                              facts=MemberFacts(value=None, optional=True))
-    assert said == f'{NO_KIND} {OPTIONAL_TEXT}'
-
-
-def test_nothing_is_said() -> None:
-    """Test a member declared to allow no value says so under itself.
-
-    It is a different question from the one above: that member is one the
-    class leaves out of the file, and this one is written as `null`.
-    """
     said = member_description(
-        descriptions={}, path=('title',),
-        facts=MemberFacts(value=None,
-                          declared=LeafType(kind=str, nothing=True)))
-    assert said == f'{TEXT_KIND} {NOTHING_TEXT}'
+        descriptions={}, path=('optional',),
+        facts=MemberFacts(types=type_options(Optional[str]), optional=True))
+    assert said == f"{DECLARED_FORM.format(types='str | None')} " \
+        f'{OPTIONAL_TEXT}'
 
 
-def test_omitted_says_more() -> None:
-    """Test a member that is both says only the one that says more.
+def test_nested_says_nothing() -> None:
+    """Test a nested configuration object says nothing about its value.
 
-    A member left out of the file is a member holding nothing, written the
-    way that class writes it, so saying both would say the same thing twice.
+    It holds no value of its own: its class is declared by `nested_configs()`
+    whatever its annotation says, and its docstring is below it.
     """
-    said = member_description(
-        descriptions={}, path=('title',),
-        facts=MemberFacts(value=None, optional=True,
-                          declared=LeafType(kind=str, nothing=True)))
-    assert said == f'{TEXT_KIND} {OPTIONAL_TEXT}'
-
-
-def test_nested_says_no_kind() -> None:
-    """Test a nested configuration object says no kind of value.
-
-    It holds no value of its own: its class is on its row and its docstring
-    is below it, and calling it text or a number would be untrue.
-    """
-    facts = MemberFacts(value={'width': 4}, nested=True)
+    facts = MemberFacts(nested=True)
     assert member_description(descriptions={}, path=('inner',),
                               facts=facts) == ''
     assert member_description(descriptions={}, path=('inner',),
                               facts=facts._replace(optional=True)) == \
         OPTIONAL_TEXT
-
-
-def test_nothing_to_describe() -> None:
-    """Test a member whose kind is said elsewhere is described by nothing.
-
-    A list and a dict are the two, because the row of such a member says which
-    of them it is where its value would be, and saying it twice would be
-    worse than saying it once.
-    """
-    assert member_description(descriptions={}, path=('tags',),
-                              facts=MemberFacts(value=['one'])) == ''

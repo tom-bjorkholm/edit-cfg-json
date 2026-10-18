@@ -321,7 +321,8 @@ def test_normalized_value(tmp_path: Path) -> None:
     assert _marks(model, 'name') == NORMALIZED_MARK
     assert AUTO_CHANGED in model.load_message
     assert _dropped('name') not in model.load_message
-    assert f'name = Lower case{NORMALIZED_MARK}' in model_as_text(model)
+    assert f'name: str = Lower case{NORMALIZED_MARK}' in \
+        model_as_text(model)
 
 
 def test_unchanged_is_silent(tmp_path: Path) -> None:

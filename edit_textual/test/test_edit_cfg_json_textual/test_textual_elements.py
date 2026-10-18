@@ -16,7 +16,7 @@ import asyncio
 from textual.pilot import Pilot
 from textual.widgets import Button, Input
 from config_as_json import ConfigPath
-from edit_cfg_json import EditModel
+from edit_cfg_json import EditModel, row_type_text
 from edit_cfg_json_textual.textual_editor import EditorApp
 from edit_cfg_json_textual.textual_look import ASK_BOX_ID, value_id
 from edit_cfg_json_textual.textual_elements import ADD_ACTION, ADD_LABEL, \
@@ -198,7 +198,8 @@ def test_named_key_made() -> None:
     model = EditModel(PipelineConfig())
     _run(model, _presser(model, NAMED_HOOK, REMOVE_ACTION))
     _run(model, _presser(model, NAMED_HOOK, ADD_ACTION))
-    assert _value_of(model, NAMED_HOOK) == 'StageConfig'
+    made = {row.path: row for row in model.rows}[NAMED_HOOK]
+    assert made.is_object and row_type_text(made) == 'StageConfig'
 
 
 def test_dict_under_list() -> None:

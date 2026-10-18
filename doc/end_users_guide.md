@@ -81,16 +81,14 @@ would write.
 | This file did not hold every value. What it left out was            |
 | filled in from the defaults, and is marked.                         |
 |                                                                     |
-|    title             [My report        ] (edited)                   |
+|    title         str               [My report] (edited)             |
 |        Shown at the top of every page.                              |
-|        Text.                                                        |
-|    retries           [3                ] (filled from default)      |
-|        A whole number.                                              |
-|  - outputs           2 elements                     [valid inside]  |
-|      - 0             PageOutput                 [valid on its own]  |
-|          width       [210             ]                             |
-|          height      [297             ]                             |
-|      + 1             PageOutput                 [valid on its own]  |
+|    retries       int               [3      ] (filled from default)  |
+|  - outputs       list[PageOutput]  2 elements       [valid inside]  |
+|      - 0         PageOutput                   [valid on its own]    |
+|          width   int               [210    ]                        |
+|          height  int               [297    ]                        |
+|      + 1         PageOutput                   [valid on its own]    |
 +---------------------------------------------------------------------+
 | Find: [report          ] [x] path [x] value [ ] Aa [ ] ==      [►]  |
 | find report: 1 of 3                                                 |
@@ -129,15 +127,25 @@ configuration being edited.
 A row is read from left to right:
 
 ```
-  - outputs           2 elements      (edited)  [refused inside]  [Add]
-  ^ ^                 ^               ^         ^                 ^
-  | name              value           marks     badge             controls
+  - outputs   list[PageOutput]  2 elements  (edited)  [refused inside]  [Add]
+  ^ ^         ^                 ^           ^         ^                 ^
+  | name      type              value       marks     badge             controls
   fold control
 ```
 
 **The name column** is the same width on every row, so the names line up. A
 value inside a container is indented one step further in for every container
 it is inside, which is what makes the rows read as a tree.
+
+**The type** is the type this row holds, written the way a Python type hint
+writes it: `str`, `int`, `float`, `bool`, `list[str]`, `dict[str, int]`, the
+name of a class such as `PageOutput`, or `None` for a row that holds nothing.
+The type column is the same width on every row, so the values line up too. A
+type too long for it is cut short with `…`, and the line under the row then
+says the whole of it. Where the member may hold more than one type, the column
+says the one it holds now, and the line under the row says all of them. It is
+a pull-down, but nothing can be chosen in it yet: it is there so that every
+row says its type in the same place.
 
 **The value** is either a field you can type into, or text that says what
 this row holds:
@@ -147,7 +155,7 @@ this row holds:
 | A field with text in it | An ordinary value. Type in it. |
 | `3 elements`, `1 element` | A list holding that many things. They are the rows below it. |
 | `2 entries`, `1 entry` | A dict holding that many things. They are the rows below it. |
-| A class name, such as `PageOutput` | An object. Its own members are the rows below it. |
+| Nothing, beside a class name such as `PageOutput` as its type | An object. Its own members are the rows below it. |
 | `no PageOutput` | A place where an object of that class belongs, holding none. |
 | `no value` | A member that is allowed to hold nothing, and holds nothing. This is **not** the same as an empty field. See [1.6](#16-a-member-that-may-hold-nothing). |
 
@@ -183,14 +191,14 @@ See [1.7](#17-changing-how-many-values-a-member-holds).
 
 ## 1.4 The explanations under a row
 
-Under a row the editor writes what is known about that member: what the
-application said it is for, what kind of value it takes, and — for an object
-— what its class says about itself.
+Under a row the editor writes what is known about that member that its row
+does not already say: what the application said it is for, what its type says
+that the type column cannot, and — for an object — what its class says about
+itself.
 
 ```
-    retries           [3              ]
+    retries     int    [3              ]
         How many times a failed page is tried again.
-        A whole number.
 ```
 
 The **Explain** tick-box turns all of that on and off at once. It starts
@@ -199,19 +207,18 @@ wrote those explanations to be read; untick it once you know this
 configuration by heart and want more rows on the screen. The one-line summary
 of what the whole configuration is for stays either way.
 
-What the type of a member says is one of these:
+What the type of a member says below its row is one of these:
 
 | Line | Meaning |
 | --- | --- |
-| `Text.` | Anything you type is a value. |
-| `A whole number.` | `3`, not `3.5`. |
-| `A number.` | `3` and `3.5` are both values. |
-| `True or false.` | See [1.5](#15-changing-a-value). |
-| `A list.`, `A dict.` | Said only about a member that holds nothing yet, so that you can see which of the two it would be. |
 | `One of: DAILY, WEEKLY, MONTHLY.` | The value is one of a fixed set of names. |
+| `Declared as str \| None.` | Every type the member may hold. The type column shows only the one it holds now, or was too narrow for the whole type. |
+| `The type is taken from the value, because nothing declared says one the editor can use.` | The application never said what this member holds, so the type column shows what its value happens to be. |
 | `It may be left out of the file.` | The member may hold nothing, and the file then holds no key for it at all. |
-| `It may hold nothing at all.` | The member may hold nothing, written as an empty value in the file. |
-| `No value, so what kind of value it holds is not known.` | The application never said, and there is no value to tell from. Whatever you type is taken as it is. |
+
+A member whose type says everything there is to say about it — `int`, `str`,
+`bool` — has nothing below it about its type: the type column says it. See
+[1.5](#15-changing-a-value) for how each type is typed.
 
 A member that cannot be given more elements says why here as well — see
 [1.7](#17-changing-how-many-values-a-member-holds).
@@ -237,8 +244,8 @@ knows the whole of, so it offers you those values to pick from rather than
 leaving you to spell one. Those members open as a pull-down:
 
 ```
-    verbose           [ true       v ]
-    interval          [ DAILY      v ]
+    verbose     bool        [ true       v ]
+    interval    Interval    [ DAILY      v ]
 ```
 
 **Everything else** is a field, because text and a number can hold anything of
@@ -616,16 +623,14 @@ would write.
 | This file did not hold every value. What it left out was            |
 | filled in from the defaults, and is marked.                         |
 |                                                                     |
-|    title             [My report        ] (edited)                   |
+|    title         str               [My report] (edited)             |
 |        Shown at the top of every page.                              |
-|        Text.                                                        |
-|    retries           [3                ] (filled from default)      |
-|        A whole number.                                              |
-|  - outputs           2 elements                     [valid inside]  |
-|      - 0             PageOutput                 [valid on its own]  |
-|          width       [210             ]                             |
-|          height      [297             ]                             |
-|      + 1             PageOutput                 [valid on its own]  |
+|    retries       int               [3      ] (filled from default)  |
+|  - outputs       list[PageOutput]  2 elements       [valid inside]  |
+|      - 0         PageOutput                   [valid on its own]    |
+|          width   int               [210    ]                        |
+|          height  int               [297    ]                        |
+|      + 1         PageOutput                   [valid on its own]    |
 | Find: [report          ] [X] path [X] value [ ] Aa [ ] ==   [next]  |
 | find report: 1 of 3                                                 |
 | validation: not validated                                           |
@@ -670,15 +675,25 @@ and clicking a control presses it.
 A row is read from left to right:
 
 ```
-  - outputs           2 elements      (edited)  [refused inside]  [Add]
-  ^ ^                 ^               ^         ^                 ^
-  | name              value           marks     badge             controls
+  - outputs   list[PageOutput]  2 elements  (edited)  [refused inside]  [Add]
+  ^ ^         ^                 ^           ^         ^                 ^
+  | name      type              value       marks     badge             controls
   fold control
 ```
 
 **The name column** is the same width on every row, so the names line up. A
 value inside a container is indented one step further in for every container
 it is inside, which is what makes the rows read as a tree.
+
+**The type** is the type this row holds, written the way a Python type hint
+writes it: `str`, `int`, `float`, `bool`, `list[str]`, `dict[str, int]`, the
+name of a class such as `PageOutput`, or `None` for a row that holds nothing.
+The type column is the same width on every row, so the values line up too. A
+type too long for it is cut short with `…`, and the line under the row then
+says the whole of it. Where the member may hold more than one type, the column
+says the one it holds now, and the line under the row says all of them. It is
+a pull-down, but nothing can be chosen in it yet: it is there so that every
+row says its type in the same place.
 
 **The value** is either a field you can type into, or text that says what
 this row holds:
@@ -688,7 +703,7 @@ this row holds:
 | A field with text in it | An ordinary value. Type in it. |
 | `3 elements`, `1 element` | A list holding that many things. They are the rows below it. |
 | `2 entries`, `1 entry` | A dict holding that many things. They are the rows below it. |
-| A class name, such as `PageOutput` | An object. Its own members are the rows below it. |
+| Nothing, beside a class name such as `PageOutput` as its type | An object. Its own members are the rows below it. |
 | `no PageOutput` | A place where an object of that class belongs, holding none. |
 | `no value` | A member that is allowed to hold nothing, and holds nothing. This is **not** the same as an empty field. See [2.6](#26-a-member-that-may-hold-nothing). |
 
@@ -724,14 +739,14 @@ See [2.7](#27-changing-how-many-values-a-member-holds).
 
 ## 2.4 The explanations under a row
 
-Under a row the editor writes what is known about that member: what the
-application said it is for, what kind of value it takes, and — for an object
-— what its class says about itself.
+Under a row the editor writes what is known about that member that its row
+does not already say: what the application said it is for, what its type says
+that the type column cannot, and — for an object — what its class says about
+itself.
 
 ```
-    retries           [3              ]
+    retries     int    [3              ]
         How many times a failed page is tried again.
-        A whole number.
 ```
 
 The **Explain** key turns all of that on and off at once. It starts on,
@@ -744,19 +759,18 @@ The bottom bar always says what the next press will do: it reads **Explain**
 while the explanations are hidden and **Hide explanation** while they are
 shown.
 
-What the type of a member says is one of these:
+What the type of a member says below its row is one of these:
 
 | Line | Meaning |
 | --- | --- |
-| `Text.` | Anything you type is a value. |
-| `A whole number.` | `3`, not `3.5`. |
-| `A number.` | `3` and `3.5` are both values. |
-| `True or false.` | See [2.5](#25-changing-a-value). |
-| `A list.`, `A dict.` | Said only about a member that holds nothing yet, so that you can see which of the two it would be. |
 | `One of: DAILY, WEEKLY, MONTHLY.` | The value is one of a fixed set of names. |
+| `Declared as str \| None.` | Every type the member may hold. The type column shows only the one it holds now, or was too narrow for the whole type. |
+| `The type is taken from the value, because nothing declared says one the editor can use.` | The application never said what this member holds, so the type column shows what its value happens to be. |
 | `It may be left out of the file.` | The member may hold nothing, and the file then holds no key for it at all. |
-| `It may hold nothing at all.` | The member may hold nothing, written as an empty value in the file. |
-| `No value, so what kind of value it holds is not known.` | The application never said, and there is no value to tell from. Whatever you type is taken as it is. |
+
+A member whose type says everything there is to say about it — `int`, `str`,
+`bool` — has nothing below it about its type: the type column says it. See
+[2.5](#25-changing-a-value) for how each type is typed.
 
 A member that cannot be given more elements says why here as well — see
 [2.7](#27-changing-how-many-values-a-member-holds).
@@ -785,8 +799,8 @@ leaving you to spell one. Those members open as a pull-down: move to it with
 `Enter` to take one.
 
 ```
-    verbose           [ true       v ]
-    interval          [ DAILY      v ]
+    verbose     bool        [ true       v ]
+    interval    Interval    [ DAILY      v ]
 ```
 
 **Everything else** is a field, because text and a number can hold anything of

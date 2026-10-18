@@ -66,6 +66,7 @@
 * [edit\_cfg\_json\_textual.textual\_look](#edit_cfg_json_textual.textual_look)
   * [VALUE\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.VALUE_ID_PREFIX)
   * [CHOICE\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.CHOICE_ID_PREFIX)
+  * [TYPE\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.TYPE_ID_PREFIX)
   * [MARK\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.MARK_ID_PREFIX)
   * [SUBTREE\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.SUBTREE_ID_PREFIX)
   * [DESCRIPTION\_ID\_PREFIX](#edit_cfg_json_textual.textual_look.DESCRIPTION_ID_PREFIX)
@@ -87,6 +88,7 @@
   * [ASK\_BOX\_ID](#edit_cfg_json_textual.textual_look.ASK_BOX_ID)
   * [NAME\_CLASS](#edit_cfg_json_textual.textual_look.NAME_CLASS)
   * [VALUE\_CLASS](#edit_cfg_json_textual.textual_look.VALUE_CLASS)
+  * [TYPE\_CLASS](#edit_cfg_json_textual.textual_look.TYPE_CLASS)
   * [MARK\_CLASS](#edit_cfg_json_textual.textual_look.MARK_CLASS)
   * [SUBTREE\_CLASS](#edit_cfg_json_textual.textual_look.SUBTREE_CLASS)
   * [ROW\_CLASS](#edit_cfg_json_textual.textual_look.ROW_CLASS)
@@ -106,6 +108,7 @@
   * [FOLD\_WIDTH](#edit_cfg_json_textual.textual_look.FOLD_WIDTH)
   * [TREE\_INDENT](#edit_cfg_json_textual.textual_look.TREE_INDENT)
   * [DESCRIPTION\_INDENT](#edit_cfg_json_textual.textual_look.DESCRIPTION_INDENT)
+  * [TYPE\_ARROW\_WIDTH](#edit_cfg_json_textual.textual_look.TYPE_ARROW_WIDTH)
   * [LEAST\_VALUE\_WIDTH](#edit_cfg_json_textual.textual_look.LEAST_VALUE_WIDTH)
   * [FOLD\_SHUT\_TEXT](#edit_cfg_json_textual.textual_look.FOLD_SHUT_TEXT)
   * [FOLD\_OPEN\_TEXT](#edit_cfg_json_textual.textual_look.FOLD_OPEN_TEXT)
@@ -116,6 +119,7 @@
   * [QUESTION\_CSS](#edit_cfg_json_textual.textual_look.QUESTION_CSS)
   * [value\_id](#edit_cfg_json_textual.textual_look.value_id)
   * [choice\_id](#edit_cfg_json_textual.textual_look.choice_id)
+  * [type\_id](#edit_cfg_json_textual.textual_look.type_id)
   * [mark\_id](#edit_cfg_json_textual.textual_look.mark_id)
   * [subtree\_id](#edit_cfg_json_textual.textual_look.subtree_id)
   * [description\_id](#edit_cfg_json_textual.textual_look.description_id)
@@ -182,7 +186,20 @@
     * [on\_input\_blurred](#edit_cfg_json_textual.textual_find.FindRow.on_input_blurred)
     * [on\_checkbox\_changed](#edit_cfg_json_textual.textual_find.FindRow.on_checkbox_changed)
     * [on\_button\_pressed](#edit_cfg_json_textual.textual_find.FindRow.on_button_pressed)
+* [edit\_cfg\_json\_textual.textual\_rows](#edit_cfg_json_textual.textual_rows)
+  * [PanelRows](#edit_cfg_json_textual.textual_rows.PanelRows)
+    * [\_\_init\_\_](#edit_cfg_json_textual.textual_rows.PanelRows.__init__)
+    * [fields](#edit_cfg_json_textual.textual_rows.PanelRows.fields)
+    * [choosers](#edit_cfg_json_textual.textual_rows.PanelRows.choosers)
+    * [folds](#edit_cfg_json_textual.textual_rows.PanelRows.folds)
+    * [elements](#edit_cfg_json_textual.textual_rows.PanelRows.elements)
+    * [built](#edit_cfg_json_textual.textual_rows.PanelRows.built)
+    * [widgets](#edit_cfg_json_textual.textual_rows.PanelRows.widgets)
 * [edit\_cfg\_json\_textual.textual\_member](#edit_cfg_json_textual.textual_member)
+  * [TypeChooser](#edit_cfg_json_textual.textual_member.TypeChooser)
+    * [\_\_init\_\_](#edit_cfg_json_textual.textual_member.TypeChooser.__init__)
+    * [offered](#edit_cfg_json_textual.textual_member.TypeChooser.offered)
+    * [show](#edit_cfg_json_textual.textual_member.TypeChooser.show)
   * [value\_widgets](#edit_cfg_json_textual.textual_member.value_widgets)
   * [show\_way](#edit_cfg_json_textual.textual_member.show_way)
   * [show\_chosen](#edit_cfg_json_textual.textual_member.show_chosen)
@@ -1063,6 +1080,15 @@ Prefix of the identifier of the pull-down of one node.
 A node whose values are a set the editor knows the whole of has both this and
 the field above, and exactly one of the two is on the screen.
 
+<a id="edit_cfg_json_textual.textual_look.TYPE_ID_PREFIX"></a>
+
+#### TYPE\_ID\_PREFIX
+
+Prefix of the identifier of the pull-down of the types of one node.
+
+Every node has one, between its name and its value, because every node holds a
+type and the column says which.
+
 <a id="edit_cfg_json_textual.textual_look.MARK_ID_PREFIX"></a>
 
 #### MARK\_ID\_PREFIX
@@ -1205,6 +1231,12 @@ Style class of the widget that shows one member name.
 
 Style class of the widget that shows or edits one member value.
 
+<a id="edit_cfg_json_textual.textual_look.TYPE_CLASS"></a>
+
+#### TYPE\_CLASS
+
+Style class of the pull-down that says which type one member holds.
+
 <a id="edit_cfg_json_textual.textual_look.MARK_CLASS"></a>
 
 #### MARK\_CLASS
@@ -1340,6 +1372,17 @@ Indentation in cells of the description of one member.
 
 The indentation is what says that the line belongs to the member above it
 rather than being a member of its own.
+
+<a id="edit_cfg_json_textual.textual_look.TYPE_ARROW_WIDTH"></a>
+
+#### TYPE\_ARROW\_WIDTH
+
+Width in cells that a compact pull-down takes beside its text.
+
+That is the arrow, the cell before it and the cell after it, which is what
+`Select` lays out of its own accord in its compact form. The column of the
+types is as wide as its longest type and this, so that no type it holds is cut
+by the pull-down as well as by the core.
 
 <a id="edit_cfg_json_textual.textual_look.LEAST_VALUE_WIDTH"></a>
 
@@ -1490,6 +1533,16 @@ def choice_id(index: int) -> str
 ```
 
 Return the identifier of the pull-down of one node.
+
+<a id="edit_cfg_json_textual.textual_look.type_id"></a>
+
+#### type\_id
+
+```python
+def type_id(index: int) -> str
+```
+
+Return the identifier of the pull-down of the types of one node.
 
 <a id="edit_cfg_json_textual.textual_look.mark_id"></a>
 
@@ -2143,6 +2196,10 @@ as no edit at all.
 Every value it can post is one of the ones that member takes, because
 that is all a pull-down offers and it has no unselected state.
 
+The pull-down of the types of a node posts it too, when it is given
+the type the node holds, and nothing can be chosen in one of those
+yet: that message is about nothing the model has to be told.
+
 <a id="edit_cfg_json_textual.textual_panel.ModelPanel.on_input_blurred"></a>
 
 #### on\_input\_blurred
@@ -2560,6 +2617,126 @@ Go to the next node the search reaches.
 The message is stopped for the same reason the others are: the editor
 underneath reads every press for a control of a row, and this is none.
 
+<a id="edit_cfg_json_textual.textual_rows"></a>
+
+# edit\_cfg\_json\_textual.textual\_rows
+
+The widgets of every row of the editor, and which node each belongs to.
+
+Every message about a widget of a row arrives at the panel, which is what
+having one body for both ways of running the editor means, and the panel then
+has to know which node the widget is about. That is what this keeps: the rows
+are made here, and each widget that a message can arrive from is remembered by
+its identifier together with the node it belongs to.
+
+It is apart from the panel because the panel is the actions of the editor, and
+the widgets of the rows are a thing of their own that the actions look up:
+`textual_member` makes the widgets of one row, and this makes all of them and
+remembers whose each one is.
+
+<a id="edit_cfg_json_textual.textual_rows.PanelRows"></a>
+
+## PanelRows Objects
+
+```python
+class PanelRows()
+```
+
+The widgets of every node of one model, and whose each of them is.
+
+The maps are made afresh whenever the widgets are, because the rows are
+mounted afresh after a validation pass that changed them and after every
+change of how many elements a container holds.
+
+<a id="edit_cfg_json_textual.textual_rows.PanelRows.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(model: core.EditModel) -> None
+```
+
+Remember the model whose rows these are.
+
+**Arguments**:
+
+- `model` - Model to show and to edit.
+
+<a id="edit_cfg_json_textual.textual_rows.PanelRows.fields"></a>
+
+#### fields
+
+```python
+@property
+def fields() -> Mapping[str, core.MemberRow]
+```
+
+Return the node of every field, by the identifier of the field.
+
+<a id="edit_cfg_json_textual.textual_rows.PanelRows.choosers"></a>
+
+#### choosers
+
+```python
+@property
+def choosers() -> Mapping[str, int]
+```
+
+Return the place of the node of every pull-down of the values.
+
+<a id="edit_cfg_json_textual.textual_rows.PanelRows.folds"></a>
+
+#### folds
+
+```python
+@property
+def folds() -> Mapping[str, core.MemberRow]
+```
+
+Return the node of every control that folds a container.
+
+<a id="edit_cfg_json_textual.textual_rows.PanelRows.elements"></a>
+
+#### elements
+
+```python
+@property
+def elements() -> Mapping[str, tuple[core.MemberRow, str]]
+```
+
+Return the node and the action of every element control.
+
+<a id="edit_cfg_json_textual.textual_rows.PanelRows.built"></a>
+
+#### built
+
+```python
+@property
+def built() -> tuple[tuple[ConfigPath, bool], ...]
+```
+
+Return what the rows were made for, as `rows_shape` says it.
+
+<a id="edit_cfg_json_textual.textual_rows.PanelRows.widgets"></a>
+
+#### widgets
+
+```python
+def widgets() -> list[Widget]
+```
+
+Return the widgets of every node, and forget the ones before.
+
+The model is asked to settle the values first, because a pull-down
+holds one of the values its member takes and is made holding it. That
+is a question and never an answer here: while the values are typed it
+does nothing, and while they are chosen every such member already
+holds one of its own values, so it has nothing to do either.
+
+**Returns**:
+
+  One widget per node of the model, in the order it reports them.
+
 <a id="edit_cfg_json_textual.textual_member"></a>
 
 # edit\_cfg\_json\_textual.textual\_member
@@ -2586,6 +2763,76 @@ true or false takes is those two words.
 Nothing here holds any state. Which node each widget belongs to is the panel's,
 because the panel is what every message about a widget arrives at, and this is
 a module of functions so that `textual_panel` stays short enough to read.
+
+<a id="edit_cfg_json_textual.textual_member.TypeChooser"></a>
+
+## TypeChooser Objects
+
+```python
+class TypeChooser(Select[str])
+```
+
+The pull-down of the types one node may hold, inactive for now.
+
+It shows the type the node holds now and lists every type it may hold, and
+it is disabled on every row: the types cannot be chosen yet. Every row has
+one all the same, so that every row says its type in the same place.
+
+It remembers what it offers, because that can change while the editor is
+open: a node whose declaration names nothing usable offers the one type
+its value has, and a value typed into it can be of another type. Each
+type is given as plain content rather than as text, because Textual reads
+text as markup and a type is full of square brackets: `list[str]` would be
+shown as `list`.
+
+The value of each option is the text of its type and not its place among
+them, because a pull-down given new options shows the one it holds again
+only where its value changes: with places for values, the one type of
+`None` replaced by the one type of `str` would both be place 0, and the
+pull-down would go on saying `None`.
+
+<a id="edit_cfg_json_textual.textual_member.TypeChooser.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(index: int, row: core.MemberRow, width: int) -> None
+```
+
+Create the pull-down of the types of one node.
+
+**Arguments**:
+
+- `index` - Place of the node among the rows.
+- `row` - Node to create the pull-down for.
+- `width` - Width in characters of the column of the types, which every
+  one of these is as wide as so that the values beside them
+  begin in one column.
+
+<a id="edit_cfg_json_textual.textual_member.TypeChooser.offered"></a>
+
+#### offered
+
+```python
+@property
+def offered() -> tuple[str, ...]
+```
+
+Return the types this pull-down lists, as the column shows each.
+
+<a id="edit_cfg_json_textual.textual_member.TypeChooser.show"></a>
+
+#### show
+
+```python
+def show(row: core.MemberRow) -> None
+```
+
+Show the type the node holds now, among what it may hold now.
+
+**Arguments**:
+
+- `row` - Node whose type is being shown, as the model holds it now.
 
 <a id="edit_cfg_json_textual.textual_member.value_widgets"></a>
 

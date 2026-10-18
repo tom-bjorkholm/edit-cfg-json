@@ -83,26 +83,26 @@ def test_example_decides() -> None:
 def test_dump(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the three declared members are shown with their defaults."""
     assert _dump(capsys) == (
-        f'{HEAD}\narchive_folder = /var/lib/collector\n    Text.\n'
-        'keep_days = 30\n    A whole number.\n'
-        'compress = true\n    True or false.\n'
+        f'{HEAD}\narchive_folder: str = /var/lib/collector\n'
+        'keep_days: int = 30\ncompress: bool = true\n'
         'validation: valid\nsave to: no file chosen yet\n'
         'edit() returned None, so nothing was saved.')
 
 
 @pytest.mark.parametrize('typed, row',
-                         [('f', 'compress = false (edited)'),
-                          ('F', 'compress = false (edited)'),
-                          ('tr', 'compress = true'),
-                          ('TRUE', 'compress = true')])
+                         [('f', 'compress: bool = false (edited)'),
+                          ('F', 'compress: bool = false (edited)'),
+                          ('tr', 'compress: bool = true'),
+                          ('TRUE', 'compress: bool = true')])
 def test_flag_typed(typed: str, row: str,
                     capsys: pytest.CaptureFixture[str]) -> None:
     """Test the member holding true or false takes a beginning of a word.
 
     This application says nothing at all about that member, so what accepts
-    the beginning is the editor reading the type of the member from the value
-    it holds. The two beginnings of the value it already holds leave nothing
-    to save, because what would be written is what the file holds.
+    the beginning is the editor reading the type of the member from its
+    declaration, `bool`, which its row shows. The two beginnings of the value
+    it already holds leave nothing to save, because what would be written is
+    what the file holds.
     """
     shown = _dump(capsys, '--set', f'compress={typed}')
     assert f'\n{row}\n' in shown

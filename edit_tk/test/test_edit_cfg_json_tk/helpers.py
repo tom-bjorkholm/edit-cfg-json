@@ -34,24 +34,25 @@ from edit_cfg_json_tk.tk_editor import CHOOSE_TEXT, CLOSE_TEXT, \
     VALIDATE_TEXT
 from edit_cfg_json_tk.tk_find import FIND_FIELD_NAME, FIND_LABEL_TEXT, \
     FIND_NEXT_TEXT, FIND_TICK_LABELS
-from edit_cfg_json_tk.tk_look import MEMBER_CHOICE_NAME, MEMBER_FIELD_NAME
+from edit_cfg_json_tk.tk_look import MEMBER_CHOICE_NAME, MEMBER_FIELD_NAME, \
+    MEMBER_TYPE_NAME
 from example.e01_flat_config import FlatConfig
 from .stubs import FakeFlag, FakeVar, FakeWidget, PROBE_TAG, TOUCHPAD
 
 UNKNOWN_VERDICT = 'validation: not validated'
 """Text the editor shows before anything has been validated."""
 
-TEXT_KIND = 'Text.'
-"""What the type of a text member says about it.
+TEXT_TYPE = 'str'
+"""What the column of the types says beside a text member.
 
-The editor says what kind of value every member holds, because that is the one
-thing it knows about every member of every configuration without being told.
-It is written out here rather than read from an internal module of the core, in
-the same way as every other text these tests expect.
+Every row says which type it holds, between its name and its value, so a row
+whose type says everything about it has nothing below it at all. It is written
+out here rather than read from the core, in the same way as every other text
+these tests expect.
 """
 
-WHOLE_KIND = 'A whole number.'
-"""What the type of a member holding a whole number says about it."""
+WHOLE_TYPE = 'int'
+"""What the column of the types says beside a member holding a number."""
 
 ABOUT_NAME = 'What the name of this configuration is for.'
 """Description of the one member that the tests below describe."""
@@ -107,21 +108,22 @@ what is left is the label, the four controls and the button. They come before
 the verdict, because the search is about the rows above them.
 """
 
-EXPECTED_LABELS = ['FlatConfig', FLAT_DOCSTRING, 'name', '', TEXT_KIND,
-                   'answer', '', WHOLE_KIND, *FIND_TEXTS, UNKNOWN_VERDICT,
+EXPECTED_LABELS = ['FlatConfig', FLAT_DOCSTRING, 'name', TEXT_TYPE, '',
+                   'answer', WHOLE_TYPE, '', *FIND_TEXTS, UNKNOWN_VERDICT,
                    NO_FILE_TEXT, *BUTTON_TEXTS]
 """Widget texts that both the stubbed and the real Tk test expect.
 
 The docstring of the configuration class is below its name, because what the
 whole configuration is for is what the members below it are read in the light
-of. The two empty strings are the marks of the two members, which say nothing
-until the user or a validator has done something to them, and the line below
-each member is what the type of that member says about it.
+of. Each member says its type between its name and its value, and the two empty
+strings are the marks of the two members, which say nothing until the user or
+a validator has done something to them. Nothing is below either member, because
+the application describes neither and the type of each is on its row.
 """
 
-EXPECTED_LOADED = ['FlatConfig', FLAT_DOCSTRING, LOAD_MESSAGE, 'name', '',
-                   TEXT_KIND, 'answer', FILLED_MARK, WHOLE_KIND, *FIND_TEXTS,
-                   UNKNOWN_VERDICT, NO_FILE_TEXT, *BUTTON_TEXTS]
+EXPECTED_LOADED = ['FlatConfig', FLAT_DOCSTRING, LOAD_MESSAGE, 'name',
+                   TEXT_TYPE, '', 'answer', WHOLE_TYPE, FILLED_MARK,
+                   *FIND_TEXTS, UNKNOWN_VERDICT, NO_FILE_TEXT, *BUTTON_TEXTS]
 """Widget texts of a model whose load filled the number member in.
 
 The message of the load is above the members, because it is what explains
@@ -129,20 +131,20 @@ the mark on one of them. The empty string is the mark of the member the file
 did hold, which has nothing to say.
 """
 
-DESCRIBED_LABELS = ['FlatConfig', FLAT_DOCSTRING, 'name', '',
-                    f'{ABOUT_NAME}\n{TEXT_KIND}', 'answer', '', WHOLE_KIND,
-                    *FIND_TEXTS, UNKNOWN_VERDICT, NO_FILE_TEXT,
-                    *BUTTON_TEXTS]
+DESCRIBED_LABELS = ['FlatConfig', FLAT_DOCSTRING, 'name', TEXT_TYPE, '',
+                    ABOUT_NAME, 'answer', WHOLE_TYPE, '', *FIND_TEXTS,
+                    UNKNOWN_VERDICT, NO_FILE_TEXT, *BUTTON_TEXTS]
 """Widget texts of a model whose text member the application describes.
 
-The description is below the member it belongs to, with what the type of that
-member says under it. An application that describes half of its configuration
-gets half of it explained, and the other half still says what kind of value it
-holds, because that is the editor's own to say.
+The description is below the member it belongs to. An application that
+describes half of its configuration gets half of it explained, and the other
+half still says which type it holds, on its row, because that is the editor's
+own to say.
 """
 
-HIDDEN_LABELS = ['FlatConfig', FLAT_SUMMARY, 'name', '', 'answer', '',
-                 *FIND_TEXTS, UNKNOWN_VERDICT, NO_FILE_TEXT, *BUTTON_TEXTS]
+HIDDEN_LABELS = ['FlatConfig', FLAT_SUMMARY, 'name', TEXT_TYPE, '', 'answer',
+                 WHOLE_TYPE, '', *FIND_TEXTS, UNKNOWN_VERDICT, NO_FILE_TEXT,
+                 *BUTTON_TEXTS]
 """Widget texts of that same model with the explanations hidden.
 
 What is left of the docstring is its summary, which is one line for the whole
@@ -163,13 +165,11 @@ class NoDocConfig(FlatConfig):
 NoDocConfig.__doc__ = None
 
 
-class EmptyListConfig(Config):
-    """A configuration whose one member is a list holding nothing.
+class OneMemberConfig(Config):
+    """A configuration of these tests whose members a subclass declares.
 
-    A list is edited through the rows below it and never in a field of its
-    own, so an empty one leaves the editor with nothing at all to type into.
-    That is what an editor which puts the focus in its first value has to
-    have an answer for.
+    The constructor and the empty plan of rules are the same for every one of
+    them, so a subclass only says what its members are.
     """
 
     # Every configuration class of this library is constructed and asked for
@@ -181,16 +181,47 @@ class EmptyListConfig(Config):
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
                  member_name: Optional[str] = None) -> None:
-        """Initialize the configuration with its one empty member."""
-        self.nothing: list[str] = []
+        """Declare the members of the subclass and then apply the JSON."""
+        self.declare_members()
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file, member_name=member_name)
+
+    def declare_members(self) -> None:
+        """Assign the members of the configuration and their defaults."""
+        raise NotImplementedError
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the rules of this configuration, which has none."""
         _ = stderr_file
         return []
+
+
+class EmptyListConfig(OneMemberConfig):
+    """A configuration whose one member is a list holding nothing.
+
+    A list is edited through the rows below it and never in a field of its
+    own, so an empty one leaves the editor with nothing at all to type into.
+    That is what an editor which puts the focus in its first value has to
+    have an answer for.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the one empty member."""
+        self.nothing: list[str] = []
+
+
+class TwoTypesConfig(OneMemberConfig):
+    """A configuration whose one member may hold a number or a text.
+
+    It is what makes the type a row holds something that can change while the
+    editor is open: what the user types is a value of one of the two or of the
+    other, and the column says which.
+    """
+
+    def declare_members(self) -> None:
+        """Assign the one member of two types."""
+        self.count: int | str = 5
 
 
 REWRITTEN_MARK = ' (edited) (changed by validator)'
@@ -306,9 +337,24 @@ def real_choosers(widget: tkinter.Misc) -> list[tkinter.Menubutton]:
     A member has one where the editor knows the whole set of values it takes,
     and it is told from every other menu button by its Tk name.
     """
+    return _real_pull_downs(widget, MEMBER_CHOICE_NAME)
+
+
+def real_types(widget: tkinter.Misc) -> list[tkinter.Menubutton]:
+    """Return every real Tk pull-down of the types, in row order.
+
+    Every node has one, and it is told from the pull-down of the values by its
+    Tk name.
+    """
+    return _real_pull_downs(widget, MEMBER_TYPE_NAME)
+
+
+def _real_pull_downs(widget: tkinter.Misc,
+                     name: str) -> list[tkinter.Menubutton]:
+    """Return every real Tk menu button of one Tk name below one widget."""
     return [found for found in _all_below(widget)
             if isinstance(found, tkinter.Menubutton)
-            and found.winfo_name() == MEMBER_CHOICE_NAME]
+            and found.winfo_name() == name]
 
 
 def real_ways(widget: tkinter.Misc) -> list[str]:
@@ -399,6 +445,16 @@ def stub_choosers() -> list[FakeWidget]:
     which is a member holding true or false and one holding an enum member.
     """
     return _named_fields(MEMBER_CHOICE_NAME)[0]
+
+
+def stub_types() -> list[FakeWidget]:
+    """Return every stub pull-down of the types, in row order.
+
+    Every node has one. It shows a text of its own rather than a variable,
+    because nothing can be chosen in it yet.
+    """
+    return [widget for widget in FakeWidget.created
+            if widget.options.get('name') == MEMBER_TYPE_NAME]
 
 
 def stub_choices(widget: FakeWidget) -> tuple[str, ...]:

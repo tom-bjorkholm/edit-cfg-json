@@ -43,15 +43,15 @@ def test_defaults_accepted(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the declared values satisfy the rule the application wrote."""
     printed = _dump(capsys)
     assert printed.startswith(HEAD)
-    assert f'team = {KNOWN_TEAMS[0]}' in printed
+    assert f'team: str = {KNOWN_TEAMS[0]}' in printed
     assert printed.endswith(f'{VALID_LINE}\n{DUMP_TAIL}')
 
 
 def test_file_is_read(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the loader is what opens the input file of this class."""
     printed = _dump(capsys, '-i', data_file('e06_teams.json'))
-    assert 'team = beta' in printed
-    assert 'head_count = 4' in printed
+    assert 'team: str = beta' in printed
+    assert 'head_count: int = 4' in printed
     assert printed.endswith(input_tail('e06_teams.json'))
 
 
@@ -65,14 +65,14 @@ def test_best_match_rewrites(capsys: pytest.CaptureFixture[str]) -> None:
     """
     printed = _dump(capsys, '-i', data_file('e06_teams.json'), '--set',
                     'team=alp')
-    assert 'team = alpha (edited) (changed by validator)' in printed
+    assert 'team: str = alpha (edited) (changed by validator)' in printed
     assert VALID_LINE in printed
 
 
 def test_no_such_team(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a name that begins no team is refused beside its own member."""
     printed = _dump(capsys, '--set', 'team=delta')
-    assert f'team = delta (edited)\n    {ABOUT_TEAM}\n' in printed
+    assert f'team: str = delta (edited)\n    {ABOUT_TEAM}\n' in printed
     assert 'alpha, beta, gamma' in printed
     assert 'validation: invalid, see team' in printed
 

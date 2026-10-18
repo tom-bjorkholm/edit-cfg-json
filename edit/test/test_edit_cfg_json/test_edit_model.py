@@ -13,16 +13,6 @@ from .sample_cfg import PICKED_NAME, DocumentedCfg, ExtraArgCfg, FlagCfg, \
     FlatCfg, IntEnumCfg, ListCfg, NoneCfg, OmitCfg, RangeCfg, RewriteCfg, \
     picking_loader
 
-TEXT_KIND = 'Text.'
-"""What the type of a text member says about it.
-
-The editor says what kind of value every member holds, because that is the one
-thing it knows about every member of every configuration without being told.
-"""
-
-WHOLE_KIND = 'A whole number.'
-"""What the type of a member holding a whole number says about it."""
-
 ABOUT_NAME = 'What the name of this configuration is for.'
 """Description of the one member that the tests below describe."""
 
@@ -394,22 +384,24 @@ def test_row_flags_start_off() -> None:
 def test_described_rows() -> None:
     """Test the description of a member reaches the row of that member.
 
-    What the type of the member says follows it, on a line of its own, and a
-    member the application says nothing about has that alone.
+    Nothing about the kind of value follows it, because the type of the
+    member is on its row, and a member the application says nothing about
+    therefore has nothing below it at all.
     """
     model = EditModel(FlatCfg(), descriptions=DESCRIPTIONS)
-    assert _row(model, 'name').description == f'{ABOUT_NAME}\n{TEXT_KIND}'
-    assert _row(model, 'answer').description == WHOLE_KIND
+    assert _row(model, 'name').description == ABOUT_NAME
+    assert _row(model, 'answer').description == ''
 
 
 def test_no_descriptions() -> None:
-    """Test an application that describes nothing still explains the types.
+    """Test an application that describes nothing still has the types said.
 
     That is what a program which is told a class and no mapping shows, and it
-    is the least the editor can say about a member: what kind of value it is.
+    is the least the editor can say about a member: which type it holds.
     """
-    described = [row.description for row in EditModel(FlatCfg()).rows]
-    assert described == [TEXT_KIND, WHOLE_KIND]
+    rows = EditModel(FlatCfg()).rows
+    assert [row.chosen_type.text for row in rows] == ['str', 'int']
+    assert [row.description for row in rows] == ['', '']
 
 
 def test_description_stays() -> None:
@@ -421,7 +413,7 @@ def test_description_stays() -> None:
     model = EditModel(FlatCfg(), descriptions=DESCRIPTIONS)
     model.set_text(path=('name',), text='other text')
     model.validate()
-    assert _row(model, 'name').description == f'{ABOUT_NAME}\n{TEXT_KIND}'
+    assert _row(model, 'name').description == ABOUT_NAME
 
 
 def test_class_docstring() -> None:
@@ -721,7 +713,8 @@ def test_flag_refused_save(tmp_path: Path) -> None:
 
 def test_flag_kind_said() -> None:
     """Test the type of such a member is what says which values it takes."""
-    assert _row(EditModel(FlagCfg()), 'plain').description == 'True or false.'
+    row = _row(EditModel(FlagCfg()), 'plain')
+    assert row.chosen_type.text == 'bool' and row.description == ''
 
 
 def test_unknown_field() -> None:

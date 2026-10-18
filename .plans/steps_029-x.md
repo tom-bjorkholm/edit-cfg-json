@@ -2,8 +2,8 @@
 
 ## Where everything is
 
-Steps 1 to 30 are implemented and committed, step 23 with the corrections its
-review asked for. Steps 1 to 9 are written up in
+Steps 1 to 30 and 31A are implemented and committed, step 23 with the
+corrections its review asked for. Steps 1 to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md), steps 10 to 21 in
 [steps_010-021_done.md](steps_010-021_done.md) and steps 22 to 28 in
 [steps_022-028_done.md](steps_022-028_done.md). Steps 29 to 30 and the steps
@@ -113,6 +113,9 @@ the plan says only *when* that decision gets built.
   user interface registering what it is and whether it can run here, the
   launcher the name was kept for installed at last, and the same choice offered
   to a command that has no user interface of its own.
+- [Step 31A](#step-31a---every-row-says-its-type) — every row saying the type
+  it holds in the words of a Python type hint, in a column between its name
+  and its value, and the prose about the kind of a value gone from below it.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -169,7 +172,7 @@ decision gets built.
 - Every step touches all three packages where the capability is
   user-visible, so `edit_cfg_json`, `edit_cfg_json_tk` and
   `edit_cfg_json_textual` never drift apart by more than one review.
-- Steps 1 to 30 are built. Steps 1 to 28 are written up in
+- Steps 1 to 30 and 31A are built. Steps 1 to 28 are written up in
   [steps_001-009_done.md](steps_001-009_done.md), in
   [steps_010-021_done.md](steps_010-021_done.md) or in
   [steps_022-028_done.md](steps_022-028_done.md), and steps 29 to 30 in
@@ -622,7 +625,8 @@ deserves one message.
 
 ### Step 31 - The type of every row, and choosing between the types allowed
 
-Status: **Planned and split into sub-steps 31A to 31E. Not started.**
+Status: **Split into sub-steps 31A to 31E. 31A implemented, the rest
+planned.**
 
 Two complaints from users, and one answer to both.
 
@@ -761,6 +765,8 @@ why 31A is mostly a change of the core with one visible result.
 
 #### Step 31A - Every row says its type
 
+Status: **Implemented, committed.**
+
 **What it does.** A new core module reads a resolved annotation into a tuple
 of `TypeOption`, one per alternative, with the spelling decided above, and
 `member_types` hands rows that tuple where it handed them a `LeafType`.
@@ -802,6 +808,92 @@ optional members are still there, unchanged.
   annotation, so a file can hold `"abc"` for an `int`. Such a row keeps the
   first alternative and reads its text by it, as a value of the wrong type is
   read today, and is not refused unless the application's validators refuse it.
+
+**What it decided.** Seven things.
+
+- **The column shows the type the row holds, and the whole declaration goes
+  on the line below.** A pull-down shows the option it holds, so `subtitle`
+  holding nothing says `None` and not `str | None`, and the line below says
+  *Declared as str | None.* wherever there is more than one alternative or the
+  one type was cut. The plan's outcome sentence had `str | None` beside
+  `subtitle`; that was settled the other way, because a pull-down that showed
+  a text none of its options has would need a widget of its own in Textual.
+- **The width limit is 40 characters**, counted over every row, so that folding
+  moves nothing: that answers the second open question of section 4 for now.
+  Making it follow the width the editor can have is step 35.
+- **The dump writes `name: type = value`**, and `name: type, 2 elements` for a
+  row with no field. A nested configuration object says only its class there:
+  its value text is now empty in both backends as well, because its type says
+  it and its value is its rows.
+- **`LeafType` and `MemberRow.declared` are removed**, not deprecated, and
+  `TypeOption` is exported instead, with `MemberRow.types`,
+  `MemberRow.chosen_type`, `row_type_text`, `row_type_texts` and
+  `type_column_width`. `MemberRow` also gained `nothing_allowed`, because which
+  members have the two states of section 4.2 is about a member of a class and
+  a row cannot tell that it is one.
+- **Which type a row holds and what its text is read by are two answers.** The
+  first follows the current value — the first alternative it fits, falling
+  back to the first that is not `None` — so the column follows a value typed
+  into `int | str`. The second stays tied to the value the file was last agreed
+  with, as the kind always was, so half typing cannot change how the next key
+  is read.
+- **A configuration class is held only where the tree has an object**, because
+  an object is written as a dict: without that, `hooks.thresholds` holding
+  `{"failures": 3}` read as a `StageConfig`. A place declared for an object
+  and holding none holds `None` whether its declaration allows it or not,
+  which is the cleared named key of `DICT_VALUE_BY_KEY`.
+- **The two states of a member that may hold nothing are where they were.** A
+  member has them where `None` is among its types beside a first type the
+  editor can make an empty value of; an optional enum or an optional class of
+  the application still has one state. That keeps *add* and *remove* unchanged,
+  as this sub-step promised, and gives them to `Optional[int | str]`, which had
+  none because a union of two was unreadable.
+
+**Core.** A new `type_options` reads a hint into `TypeOption`s and answers
+which of them a value fits; `member_types` hands rows those tuples and steps
+into a union container through the alternative its value is; `leaf_value` lost
+the kind texts, `LeafType`, `leaf_kind` and `kind_text`, and `text_as_value`
+takes the kind the row reads by; `descriptions` lost the kind prose and gained
+`DECLARED_FORM` and `INFERRED_TEXT`; `rows`, `elements` and `model_text` read
+the alternatives. Tk gained `tk_types.TypeWidget`, a disabled `Menubutton` in
+the muted colour, and Textual `textual_member.TypeChooser`, a compact disabled
+`Select`, after `textual_panel` gave up the widgets of its rows to a new
+`textual_rows.PanelRows`.
+
+| Name | Kind |
+| --- | --- |
+| `TypeOption` | one type a declaration allows: its text, its JSON kind, what is inside it, its class, its literal values |
+| `MemberRow.types` | the types its declaration allows, nothing filtered out yet |
+| `MemberRow.chosen_type` | the one it holds now |
+| `MemberRow.nothing_allowed` | whether it has the two states of a value and of nothing |
+| `row_type_text` | the type as the column shows it, cut where it must be |
+| `row_type_texts` | every type the pull-down lists, the held one always among them |
+| `type_column_width` | how wide the column is for this model |
+
+**What building it found.**
+
+- **Textual reads the text of an option as markup**, so `list[str]` was shown
+  as `list`. The options are given as `textual.content.Content`, which is
+  plain. The pull-down of the values never met this, because the name of an
+  enum member has no square brackets in it.
+- **A disabled `Select` still posts `Changed` when it is given its value**, so
+  the panel ignores the messages of a pull-down of the types; nothing can be
+  chosen in one yet.
+- **What a row may hold can change while the editor is open.** A row whose
+  type only its value says offers that one type, and a text typed into an
+  unannotated member that held `null` is a text: both backends' pull-downs of
+  the types therefore remember what they offer and replace it when it
+  changes, rather than only moving the selection.
+- **Two mistakes of the first version were found by updating the example
+  tests**, which is what they are for: an unannotated member showed the type
+  it held at load (`legacy: None = kept`), and a cleared named key showed its
+  class (`on_failure: StageConfig, no StageConfig`). Both are covered by core
+  tests now.
+- **`textual_panel` is 849 lines** after the split, and `tk_editor` 945.
+- **Under a `DICT_VALUE_BY_KEY` dict every entry says *Declared as …* in
+  full**, the same text as the member above it. It is true and it is
+  repetitive, and 31D, which takes the configuration class out of what an
+  ordinary entry is offered, changes what it says.
 
 #### Step 31B - Choosing between the types of a plain value
 
@@ -1002,6 +1094,16 @@ makes implementing the wizards simpler.
 Alternatively, consider if we should use the menubar and menu items like
 File - Open. (Using the menubar may feel very natural in the Tk version.)
 
+### Step 35 - A type column as wide as the editor can afford
+
+Tentative. Step 31A cut every type to a fixed 40 characters, which is a
+constant of the core. The width the column can have is a fact about where the
+editor runs: for Textual, the width of the terminal it is run in; for Tk, the
+width the window could be resized to and still fit on the display. The column
+should take what that leaves after the name, a usable field and the marks,
+with 40 as the least it is ever given or as a default, and the line below the
+row still says the whole of a type that was cut.
+
 ## 4. Open questions recorded, not answered
 
 These do not block current development, and each is scheduled to be answered at the
@@ -1010,4 +1112,5 @@ step that needs it. They are listed here so they are not forgotten.
 | Question | Answer needed by |
 | --- | --- |
 | Is an enum offered beside a type that is not `None` (`Colors \| int`), given that the parse converter runs on every value of the member? | 31B |
-| Is the width of the type column decided over the rows on the screen, and so changed by folding, or over every row? | 31C |
+| Is the width of the type column decided over the rows on the screen, and so changed by folding, or over every row? (31A counts every row, so that folding moves nothing; 31C confirms or changes it.) | 31C |
+| Should the width of the type column change when the Tk window is resized, or only be worked out when the editor opens? | 35 |

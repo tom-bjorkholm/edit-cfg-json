@@ -905,3 +905,23 @@ class ExtraObjectsCfg(SampleCfg):
                 'by_name': _extra_nesting(ConfigNestingKind.DICT_VALUE),
                 'hooks': _extra_nesting(ConfigNestingKind.DICT_VALUE_BY_KEY,
                                         key='main')}
+
+
+class UnionCfg(SampleCfg):
+    """A configuration whose members allow more than one type each.
+
+    The first member is the complaint that step 31 of the plan answers: a
+    dict whose values may be either of two kinds of list, and which holds one
+    of each.
+    """
+
+    def declare_members(self) -> None:
+        """Assign one member for each shape of union the editor reads."""
+        self.columns: dict[str, list[str] | list[list[str]]] = {
+            'flat': ['a'], 'nested': [['b']]}
+        self.count: int | str = 5
+        self.maybe: Optional[int | str] = None
+        self.colour: Optional[Colour] = None
+        self.items: list[Optional[str]] = ['x']
+        self.ratio: float = 0
+        self.forms: dict[str, list[dict[str, int]] | dict[str, list[str]]] = {}

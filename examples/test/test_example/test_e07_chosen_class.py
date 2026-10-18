@@ -42,7 +42,7 @@ def test_default_class(capsys: pytest.CaptureFixture[str]) -> None:
     """
     printed = _dump(capsys)
     assert printed.startswith(head(Cad2DConfig()))
-    assert f'mode = {MODE_2D}' in printed
+    assert f'mode: str = {MODE_2D}' in printed
     assert VALID_LINE in printed
 
 
@@ -50,7 +50,7 @@ def test_file_chooses_2d(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a drawing file is edited as the drawing class."""
     printed = _dump(capsys, '-i', data_file(DRAWING_FILE))
     assert printed.startswith(head(Cad2DConfig()))
-    assert 'project_name = bracket-outline' in printed
+    assert 'project_name: str = bracket-outline' in printed
     assert VALID_LINE in printed
 
 
@@ -63,7 +63,7 @@ def test_file_chooses_3d(capsys: pytest.CaptureFixture[str]) -> None:
     """
     printed = _dump(capsys, '-i', data_file(MODEL_FILE))
     assert printed.startswith(head(Cad3DConfig()))
-    assert 'project_name = bracket-solid' in printed
+    assert 'project_name: str = bracket-solid' in printed
     assert VALID_LINE in printed
 
 

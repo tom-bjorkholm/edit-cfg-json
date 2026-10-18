@@ -18,6 +18,7 @@ editor is made of is worth reading without the whole editor around it.
 from typing import NamedTuple, Optional
 import tkinter
 from edit_cfg_json_tk.tk_look import label_text, place_text
+from edit_cfg_json_tk.tk_types import TypeWidget
 from edit_cfg_json_tk.tk_values import ValueWidgets
 
 
@@ -34,6 +35,12 @@ class RowWidgets(NamedTuple):
 
     fold: Optional[tkinter.Button]
     """The control that folds this container, None for a node with none."""
+
+    types: TypeWidget
+    """The pull-down that says which type this node holds.
+
+    Every node has one, because every node holds a type.
+    """
 
     field: Optional[ValueWidgets]
     """The ways of editing a node, and None for a node with none of them."""

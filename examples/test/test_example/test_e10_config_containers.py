@@ -17,8 +17,8 @@ import pytest
 from example import e10_config_containers
 from example.e10_config_containers import CourseReportsConfig, DESCRIPTIONS, \
     FEWEST_ROWS, REPEAT_REFUSAL, ReportOutputConfig
-from .helpers import DUMP_TAIL, TEXT_LINE, WHOLE_LINE, data_file, dump, head, \
-    input_tail, open_tk_ui, refused, textual_titles
+from .helpers import DUMP_TAIL, data_file, dump, head, input_tail, \
+    open_tk_ui, refused, textual_titles
 
 HEAD = head(CourseReportsConfig())
 """The lines that every dump of this example begins with."""
@@ -61,7 +61,13 @@ LIST_REPORTS = 3
 DICT_REPORTS = 2
 """How many objects its dict holds, which is few enough to open open."""
 
-FOLDED_REPORTS = f'reports: {LIST_REPORTS} elements (folded)'
+LIST_ROW = f'reports: list[{REPORT_CLASS}]'
+"""How the row of the list of this example begins: its name and its type."""
+
+DICT_ROW = f'reports_by_id: dict[str, {REPORT_CLASS}]'
+"""How the row of the dict of this example begins."""
+
+FOLDED_REPORTS = f'{LIST_ROW}, {LIST_REPORTS} elements (folded)'
 """How the list of this example is shown when the editor opens.
 
 Three objects of three members each is more rows than a window can spare, so
@@ -70,14 +76,14 @@ where a real configuration meets it: at three objects rather than at a dozen
 numbers.
 """
 
-OPEN_BY_ID = f'reports_by_id: {DICT_REPORTS} entries'
+OPEN_BY_ID = f'{DICT_ROW}, {DICT_REPORTS} entries'
 """How the dict of this example is shown, which is open.
 
 Two objects of three members each is eight rows, which is what a window can
 spare, so the two containers of one configuration open differently.
 """
 
-AUDIT_ROWS = 'max_rows = 5000'
+AUDIT_ROWS = 'max_rows: int = 5000'
 """The value of the one member that is described by a selector of its own."""
 
 COLLIDING_FILE = 'participants.csv'
@@ -108,7 +114,7 @@ def test_descriptions_real() -> None:
 def test_two_containers(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the two containers say how much they hold and fold differently."""
     printed = _dump(capsys)
-    assert printed.startswith(f'{HEAD}\ncourse_name = python-intro')
+    assert printed.startswith(f'{HEAD}\ncourse_name: str = python-intro')
     assert f'{FOLDED_REPORTS}{INSIDE_VALID}\n' in printed
     assert f'{OPEN_BY_ID}{INSIDE_VALID}\n' in printed
     assert printed.endswith(f'validation: valid\n{DUMP_TAIL}')
@@ -124,7 +130,7 @@ def test_elements_are_nodes(capsys: pytest.CaptureFixture[str]) -> None:
     printed = _open_list(capsys)
     for index in range(LIST_REPORTS):
         assert f'    {index}: {REPORT_CLASS}{OWN_VALID}' in printed
-    assert '        title = Registered participants' in printed
+    assert '        title: str = Registered participants' in printed
 
 
 def test_values_are_nodes(capsys: pytest.CaptureFixture[str]) -> None:
@@ -151,7 +157,8 @@ def test_one_text_for_every(capsys: pytest.CaptureFixture[str]) -> None:
 def test_every_dict_value(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the same selector reaches every value of a dict of objects."""
     printed = _dump(capsys)
-    assert f'        max_rows = 50\n            {ABOUT_ANY_ROWS}' in printed
+    assert f'        max_rows: int = 50\n            {ABOUT_ANY_ROWS}' in \
+        printed
 
 
 def test_named_beats_every(capsys: pytest.CaptureFixture[str]) -> None:
@@ -167,17 +174,21 @@ def test_named_beats_every(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_undescribed_member(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test a member of an object that nothing describes says its kind."""
+    """Test a member of an object that nothing describes says its type.
+
+    The type is on the row, so nothing at all is said below it.
+    """
     printed = _dump(capsys)
-    assert f'        title = Course summary\n        {TEXT_LINE}' in printed
+    assert '        title: str = Course summary\n' \
+        '        file_name: str = summary.csv' in printed
 
 
 def test_edit_in_an_element(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a member of one list element is edited by the path to it."""
     printed = _open_list(capsys, '--set', 'reports.0.file_name=other.csv')
-    assert f'reports: {LIST_REPORTS} elements (edited)' in printed
+    assert f'{LIST_ROW}, {LIST_REPORTS} elements (edited)' in printed
     assert f'    0: {REPORT_CLASS} (edited){OWN_VALID}' in printed
-    assert '        file_name = other.csv (edited)' in printed
+    assert '        file_name: str = other.csv (edited)' in printed
     assert 'validation: valid' in printed
 
 
@@ -185,8 +196,8 @@ def test_edit_in_a_value(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a member of one dict value is edited by the path to it."""
     printed = _dump(capsys, '--set', 'reports_by_id.summary.max_rows=75')
     assert f'    summary: {REPORT_CLASS} (edited){OWN_VALID}' in printed
-    assert (f'        max_rows = 75 (edited)\n            {ABOUT_ANY_ROWS}\n'
-            f'        {WHOLE_LINE}') in printed
+    assert ('        max_rows: int = 75 (edited)\n'
+            f'            {ABOUT_ANY_ROWS}\n') in printed
 
 
 def test_own_rule_per_object(capsys: pytest.CaptureFixture[str]) -> None:
@@ -242,9 +253,10 @@ def test_read_file(capsys: pytest.CaptureFixture[str]) -> None:
     everything.
     """
     printed = _dump(capsys, '-i', data_file('e10_reports.json'))
-    assert f'reports: {DICT_REPORTS} elements{INSIDE_VALID}\n' in printed
-    assert f'reports_by_id: {LIST_REPORTS} entries (folded)' in printed
-    assert '        title = What each participant is billed' not in printed
+    assert f'{LIST_ROW}, {DICT_REPORTS} elements{INSIDE_VALID}\n' in printed
+    assert f'{DICT_ROW}, {LIST_REPORTS} entries (folded)' in printed
+    assert '        title: str = What each participant is billed' not in \
+        printed
     assert printed.endswith(input_tail('e10_reports.json'))
 
 

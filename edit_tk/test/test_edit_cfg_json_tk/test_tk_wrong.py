@@ -42,13 +42,11 @@ TOO_MANY = ('Invalid configuration: Value 9 for retries is greater than '
 SPACED_NAME = 'Invalid configuration: job_name may not contain a space.'
 """What the validator of the example writes about a name with a space."""
 
-ABOUT_RETRIES = ('How many further attempts one failed run gets. From 0 to 5.'
-                 '\nA whole number.')
+ABOUT_RETRIES = 'How many further attempts one failed run gets. From 0 to 5.'
 """What is said about the member whose limit these tests break.
 
-The example says the first line of it and the type of the member says the
-second, which is what the editor knows about every member without being told.
-The two are one widget, because they are one thing: what this member is.
+The example says all of it: the type of the member is on its row, and says
+nothing more below it.
 """
 
 
@@ -203,14 +201,18 @@ def test_stub_wrong_stays(stub_tk: None) -> None:
 
 
 def test_real_wrong_stays(root_or_skip: tkinter.Tk) -> None:
-    """Test the real window keeps it in the same way and in the same order."""
+    """Test the real window keeps it in the same way and in the same order.
+
+    The name of the member is followed by its type and its mark, and then by
+    what is said below the row.
+    """
     EditorWidgets(parent=root_or_skip, model=_described())
     retype(real_fields(root_or_skip)[1], '9')
     real_press(root_or_skip, VALIDATE_TEXT)
     shown = real_texts(root_or_skip, packed_only=True)
-    assert shown.index(ABOUT_RETRIES) == shown.index('retries') + 2
-    assert shown.index(TOO_MANY) == shown.index('retries') + 3
+    assert shown.index(ABOUT_RETRIES) == shown.index('retries') + 3
+    assert shown.index(TOO_MANY) == shown.index('retries') + 4
     real_press(root_or_skip, EXPLAIN_TEXT)
     shown = real_texts(root_or_skip, packed_only=True)
-    assert shown.index(TOO_MANY) == shown.index('retries') + 2
+    assert shown.index(TOO_MANY) == shown.index('retries') + 3
     assert ABOUT_RETRIES not in shown

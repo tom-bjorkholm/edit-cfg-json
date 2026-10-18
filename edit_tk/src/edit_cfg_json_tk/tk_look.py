@@ -16,7 +16,7 @@ dark mode.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from functools import partial
 from typing import Optional
 import tkinter
@@ -137,6 +137,23 @@ member: the two share one variable and are on the same line, and exactly one
 of them is in the layout.
 """
 
+MEMBER_TYPE_NAME = 'type'
+"""Tk name of the pull-down that says which type one member holds.
+
+It is on the line of its member between the name and the value, which is what
+tells it from the pull-down of the values: that one is inside the area of the
+value, where the two ways of editing the value take turns.
+"""
+
+TYPE_COLOUR = EMPHASIS_COLOURS[core.Emphasis.MUTED]
+"""Colour of the type of a member, which nothing can be chosen in yet.
+
+Tk greys a widget that is disabled to a colour too faint to read on the light
+window this editor has, and a type is worth reading: it is the muted colour of
+the explanations instead, which says that it is not something to edit and is
+still read comfortably.
+"""
+
 MEMBER_FIELD_NAME = 'field'
 """Tk name of a field that holds the value of one member.
 
@@ -230,11 +247,67 @@ def choice_field(parent: tkinter.Misc, text: tkinter.StringVar,
                                    background=FIELD_BACKGROUND,
                                    foreground=FIELD_FOREGROUND,
                                    highlightbackground=FIELD_BORDER)
-    menu = tkinter.Menu(pull_down, tearoff=0)
-    for value in choices:
-        menu.add_command(label=value, command=partial(text.set, value))
-    pull_down.config(menu=menu)
+    menu_of(pull_down=pull_down, labels=choices, picked=text.set)
     return pull_down
+
+
+def type_field(parent: tkinter.Misc, shown: str,
+               width: int) -> tkinter.Menubutton:
+    """Return the pull-down of the types one node may hold, without its menu.
+
+    Nothing can be chosen in it yet, so it is disabled on every row, and it
+    is coloured as an explanation is rather than greyed out as Tk would. It is
+    left aligned for the reason the pull-down of the values is, and it is not
+    packed here, because where it goes on its line is the editor's.
+
+    Args:
+        parent: Line of the node that is being shown.
+        shown: The type that node holds now.
+        width: Width in characters of the column of the types.
+
+    Returns:
+        A pull-down showing that type.
+    """
+    return tkinter.Menubutton(parent, name=MEMBER_TYPE_NAME, text=shown,
+                              indicatoron=True, anchor='w', width=width,
+                              relief='flat', borderwidth=2,
+                              highlightthickness=0, state='disabled',
+                              disabledforeground=TYPE_COLOUR)
+
+
+def menu_of(pull_down: tkinter.Menubutton, labels: Sequence[str],
+            picked: Optional[Callable[[str], None]] = None) -> tkinter.Menu:
+    """Give one pull-down the menu it opens, one entry per label.
+
+    Args:
+        pull_down: The menu button the menu belongs to.
+        labels: What the entries of the menu say, in their order.
+        picked: What picking an entry does with its label, or None for a menu
+            of which nothing can be picked yet.
+
+    Returns:
+        The menu, so that its entries can be given again later.
+    """
+    menu = tkinter.Menu(pull_down, tearoff=0)
+    fill_menu(menu=menu, labels=labels, picked=picked)
+    pull_down.config(menu=menu)
+    return menu
+
+
+def fill_menu(menu: tkinter.Menu, labels: Sequence[str],
+              picked: Optional[Callable[[str], None]] = None) -> None:
+    """Add one entry per label to one menu.
+
+    Args:
+        menu: The menu to add the entries to.
+        labels: What the entries say, in their order.
+        picked: What picking an entry does with its label, or None for a menu
+            of which nothing can be picked yet.
+    """
+    for label in labels:
+        # An empty text is how Tk spells a command that does nothing.
+        menu.add_command(label=label, command='' if picked is None
+                         else partial(picked, label))
 
 
 def shown_text(parent: tkinter.Misc, text: str,

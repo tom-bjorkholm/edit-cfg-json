@@ -17,8 +17,8 @@ from edit_cfg_json import EditModel
 from example import e09_nested_config
 from example.e09_nested_config import CourseExportConfig, DESCRIPTIONS, \
     OUTPUT_FORMATS, SAME_FILE_REFUSAL, TableOutputConfig
-from .helpers import DUMP_TAIL, TEXT_LINE, data_file, dump, head, \
-    input_tail, open_tk_ui, refused, textual_titles
+from .helpers import DUMP_TAIL, data_file, dump, head, input_tail, \
+    open_tk_ui, refused, textual_titles
 
 HEAD = head(CourseExportConfig())
 """The lines that every dump of this example begins with."""
@@ -57,16 +57,16 @@ PARTICIPANT_LINES = [
     f'participant_output: TableOutputConfig{OWN_VALID}',
     f'    {ABOUT_PARTICIPANT}',
     *[f'    {line}'.rstrip() for line in OUTPUT_DOC.split('\n')],
-    '    file_name = participants.csv', f'        {ABOUT_FILE_NAME}',
-    f'    {TEXT_LINE}', '    output_format = CSV', f'    {TEXT_LINE}',
-    '    encoding = utf-8', f'    {TEXT_LINE}']
+    '    file_name: str = participants.csv', f'        {ABOUT_FILE_NAME}',
+    '    output_format: str = CSV', '    encoding: str = utf-8']
 """Every line that the mandatory nested object of this example is shown as.
 
 The row says the class and not how many entries the dict has, and then what it
 is on its own, which is what asking that object about its own values found.
 What the application said about the object comes first below it, the docstring
 of that class comes after that, and then its own members in the order that
-class declares them rather than the sorted order the file has.
+class declares them rather than the sorted order the file has, each of them
+saying on its row what type it holds.
 """
 
 FOLDED_PARTICIPANT = [
@@ -78,8 +78,15 @@ The summary of its class rather than the whole docstring, because an object
 that is showing less of itself says less about itself.
 """
 
-MISSING_AUDIT = 'audit_output: no TableOutputConfig'
-"""How a declared member that holds no object at all is shown."""
+MISSING_AUDIT = 'audit_output: None, no TableOutputConfig'
+"""How a declared member that holds no object at all is shown.
+
+The type is the one it holds now, which is `None`, and the class it could hold
+is still named after it.
+"""
+
+AUDIT_DECLARED = '    Declared as TableOutputConfig | None.'
+"""What is said below that member, because it may hold either of two."""
 
 
 def _dump(capsys: pytest.CaptureFixture[str], *settings: str) -> str:
@@ -101,7 +108,7 @@ def test_descriptions_real() -> None:
 def test_nested_is_a_node(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a nested object is shown as its class with its own members."""
     printed = _dump(capsys)
-    assert printed.startswith(f'{HEAD}\ncourse_name = python-intro')
+    assert printed.startswith(f'{HEAD}\ncourse_name: str = python-intro')
     assert '\n'.join(PARTICIPANT_LINES) in printed
     assert printed.endswith(f'validation: valid\n{DUMP_TAIL}')
 
@@ -110,7 +117,7 @@ def test_folded_says_summary(capsys: pytest.CaptureFixture[str]) -> None:
     """Test folding a nested object leaves the summary of its class."""
     printed = _dump(capsys, '--fold', 'participant_output')
     assert '\n'.join(FOLDED_PARTICIPANT) in printed
-    assert 'file_name = participants.csv' not in printed
+    assert 'file_name: str = participants.csv' not in printed
 
 
 def test_fold_key_folds_all(capsys: pytest.CaptureFixture[str]) -> None:
@@ -125,7 +132,7 @@ def test_missing_object(capsys: pytest.CaptureFixture[str]) -> None:
     """Test an optional member holding no object says which class is gone."""
     printed = _dump(capsys)
     assert MISSING_AUDIT in printed
-    assert f'{MISSING_AUDIT}\n    {ABOUT_AUDIT}' in printed
+    assert f'{MISSING_AUDIT}\n    {ABOUT_AUDIT}\n{AUDIT_DECLARED}' in printed
 
 
 def test_missing_not_edited(capsys: pytest.CaptureFixture[str]) -> None:
@@ -145,7 +152,7 @@ def test_edit_inside_object(capsys: pytest.CaptureFixture[str]) -> None:
     printed = _dump(capsys, '--set', 'participant_output.encoding=latin-1')
     assert f'participant_output: TableOutputConfig (edited){OWN_VALID}' \
         in printed
-    assert '    encoding = latin-1 (edited)' in printed
+    assert '    encoding: str = latin-1 (edited)' in printed
     assert 'validation: valid' in printed
 
 
@@ -157,7 +164,8 @@ def test_nested_validator(capsys: pytest.CaptureFixture[str]) -> None:
     object holding it.
     """
     printed = _dump(capsys, '--set', 'participant_output.output_format=txt')
-    assert '    output_format = TXT (edited) (changed by validator)' in printed
+    assert '    output_format: str = TXT (edited) (changed by validator)' \
+        in printed
     assert 'participant_output: TableOutputConfig (edited) ' \
         f'(changed by validator){OWN_VALID}' in printed
 
@@ -177,7 +185,7 @@ def test_nested_refusal(capsys: pytest.CaptureFixture[str]) -> None:
         in printed
     # The refusal is on the line below that member, indented under it, which
     # is where what is wrong with a member is shown.
-    assert '    output_format = xml (edited)\n        ' in printed
+    assert '    output_format: str = xml (edited)\n        ' in printed
     assert ', '.join(OUTPUT_FORMATS) in printed
 
 
@@ -201,7 +209,7 @@ def test_read_file(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a file that holds the optional object fills it with rows."""
     printed = _dump(capsys, '-i', data_file('e09_with_audit.json'))
     assert f'audit_output: TableOutputConfig{OWN_VALID}\n' in printed
-    assert '    file_name = advanced-audit.txt' in printed
+    assert '    file_name: str = advanced-audit.txt' in printed
     assert MISSING_AUDIT not in printed
     assert printed.endswith(input_tail('e09_with_audit.json'))
 

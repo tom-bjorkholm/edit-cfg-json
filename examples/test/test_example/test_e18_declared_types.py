@@ -32,11 +32,16 @@ It is written out here rather than read from an internal module of the core,
 in the same way as every other text these tests expect.
 """
 
-MAY_HOLD_NOTHING = 'Text. It may hold nothing at all.'
-"""What the type of a member declared `Optional[str]` says about it."""
+INFERRED = ('    The type is taken from the value, because nothing declared '
+            'says one the editor can use.')
+"""What it says below that member about the type shown on its row."""
 
-MAY_BE_OMITTED = 'Text. It may be left out of the file.'
-"""What the type of such a member that is also left out of the file says."""
+MAY_HOLD_NOTHING = '    Declared as str | None.\n'
+"""What it says below a member declared `Optional[str]` about its type."""
+
+MAY_BE_OMITTED = ('    Declared as str | None. It may be left out of the '
+                  'file.\n')
+"""What it says below such a member that is also left out of the file."""
 
 DATA_NAME = 'e18_report.json'
 """Input file of this example, holding the mirror of the declared values."""
@@ -45,9 +50,8 @@ DATA_NAME = 'e18_report.json'
 def _dump(capsys: pytest.CaptureFixture[str], *settings: str) -> str:
     """Run this example with `--ui dump` and return what it printed.
 
-    The explanations are left showing, because the line that says what kind
-    of value a member holds is one of them and is what this example is
-    about.
+    The explanations are left showing, because the line that says what a
+    member is declared as is one of them and is what this example is about.
     """
     return dump(e18_declared_types.main, capsys, *settings)
 
@@ -62,32 +66,37 @@ def _saved(capsys: pytest.CaptureFixture[str], out_file: Path,
 def test_starts_as_declared(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the example says what it holds before anything is changed."""
     printed = _dump(capsys)
-    assert printed.startswith(f'{HEAD}\ntitle = Quarterly report')
+    assert printed.startswith(f'{HEAD}\ntitle: str = Quarterly report')
     assert printed.endswith(f'validation: valid\n{DUMP_TAIL}')
 
 
 def test_declared_number(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a member declared to hold a number says so, whatever it holds.
 
-    Its default is written `0`, which is a whole number, so this is the line
-    that the value on its own gets wrong.
+    Its default is written `0`, which is a whole number, so the type on its
+    row is what the value on its own gets wrong.
     """
-    assert 'threshold = 0\n' in _dump(capsys)
-    assert '    A number.' in _dump(capsys)
+    assert '\nthreshold: float = 0\n' in _dump(capsys)
 
 
 def test_nothing_says_kind(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test a member holding nothing says what it would hold, and no more."""
+    """Test a member holding nothing says what it would hold, and no more.
+
+    Its row says the `None` it holds now, and the line below it says the
+    declaration that allows a text as well, which is the last thing said
+    about it before the next member.
+    """
     printed = _dump(capsys)
-    assert 'subtitle: no value' in printed
-    assert MAY_HOLD_NOTHING in printed
+    assert '\nsubtitle: None, no value\n' in printed
+    assert f'{MAY_HOLD_NOTHING}footer: ' in printed
 
 
 def test_two_kinds_optional(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test a member left out of the file says that rather than the other.
+    """Test a member left out of the file says so after its declaration.
 
     A member left out of the file is a member holding nothing, written the
-    way that class writes it, so saying both would say the same thing twice.
+    way that class writes it, so it is declared the same way as the other
+    kind of optional member and only the sentence after that differs.
     """
     assert MAY_BE_OMITTED in _dump(capsys)
 
@@ -95,13 +104,13 @@ def test_two_kinds_optional(capsys: pytest.CaptureFixture[str]) -> None:
 def test_nothing_gets_value(capsys: pytest.CaptureFixture[str]) -> None:
     """Test such a member is given the empty value of the kind declared."""
     printed = _dump(capsys, '--add', 'subtitle')
-    assert 'subtitle =  (edited)' in printed
+    assert 'subtitle: str =  (edited)' in printed
 
 
 def test_value_gets_cleared(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a member holding a value is put back to holding nothing."""
     printed = _dump(capsys, '--remove', 'footer')
-    assert 'footer: no value (edited)' in printed
+    assert 'footer: None, no value (edited)' in printed
     assert 'validation: valid' in printed
 
 
@@ -127,8 +136,8 @@ def test_omitted_is_cleared(capsys: pytest.CaptureFixture[str]) -> None:
     and what the line under the member says, and it decides nothing about the
     controls: the row stays where it is either way.
     """
-    assert 'note = Draft, do not circulate' in _dump(capsys)
-    assert 'note: no value (edited)' in _dump(capsys, '--remove', 'note')
+    assert 'note: str = Draft, do not circulate' in _dump(capsys)
+    assert 'note: None, no value (edited)' in _dump(capsys, '--remove', 'note')
 
 
 def test_omitted_leaves_file(capsys: pytest.CaptureFixture[str],
@@ -147,8 +156,8 @@ def test_omitted_leaves_file(capsys: pytest.CaptureFixture[str],
 def test_typed_element_added(capsys: pytest.CaptureFixture[str]) -> None:
     """Test an empty list grows by what the type of its elements says."""
     printed = _dump(capsys, '--add', 'tags', '--set', 'tags.0=urgent')
-    assert 'tags: 1 element (edited)' in printed
-    assert '    0 = urgent (edited)' in printed
+    assert 'tags: list[str], 1 element (edited)' in printed
+    assert '    0: str = urgent (edited)' in printed
 
 
 def test_no_annotation(capsys: pytest.CaptureFixture[str]) -> None:
@@ -156,9 +165,12 @@ def test_no_annotation(capsys: pytest.CaptureFixture[str]) -> None:
 
     It is the one way left to reach that state with a member a JSON file can
     hold, which is the moral of this whole example: annotate the members of a
-    configuration class.
+    configuration class. The type on its row is the one taken from the empty
+    list it holds, and the line below the row says so.
     """
-    assert NO_ANNOTATION in _dump(capsys)
+    printed = _dump(capsys)
+    assert '\nspare: list, 0 elements\n' in printed
+    assert f'{INFERRED}\n{NO_ANNOTATION}' in printed
     refusal = refused(e18_declared_types.main, capsys, '--ui', 'dump', '--add',
                       'spare')
     assert 'Nothing can be added' in refusal
@@ -185,9 +197,9 @@ def test_file_holds_states(capsys: pytest.CaptureFixture[str]) -> None:
     with no key for it means, and it has a row to say so on.
     """
     printed = _dump(capsys, '-i', data_file(DATA_NAME))
-    assert 'subtitle = \n' in printed
-    assert 'footer: no value' in printed
-    assert '\nnote: no value' in printed
+    assert 'subtitle: str = \n' in printed
+    assert 'footer: None, no value' in printed
+    assert '\nnote: None, no value' in printed
 
 
 def test_tk_shows_it(monkeypatch: pytest.MonkeyPatch) -> None:

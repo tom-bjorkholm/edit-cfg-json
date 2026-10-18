@@ -69,12 +69,13 @@ def test_row_says_the_class() -> None:
     """Test the row of a nested object says its class, not its entry count.
 
     It serializes as a dict and is not one, so saying how many entries it has
-    would be showing it as something it is not.
+    would be showing it as something it is not. The class is its type, and
+    nothing is said where a value would be, because its value is its rows.
     """
     row = row_at(EditModel(NestedCfg()), ('inner',))
     assert row.config_type is InnerCfg
-    assert row.value_text == 'InnerCfg'
-    assert row_value_text(row) == 'InnerCfg'
+    assert row.chosen_type.text == 'InnerCfg'
+    assert row_value_text(row) == ''
 
 
 def test_class_is_real() -> None:
@@ -256,7 +257,8 @@ def test_list_of_configs() -> None:
                                 ('outputs', '1', 'width'),
                                 ('outputs', '1', 'height'), ('answer',)]
     assert row_at(model, ('outputs',)).value_text == '2 elements'
-    assert row_at(model, ('outputs', '0')).value_text == 'InnerCfg'
+    assert row_at(model, ('outputs',)).chosen_type.text == 'list[InnerCfg]'
+    assert row_at(model, ('outputs', '0')).chosen_type.text == 'InnerCfg'
 
 
 def test_dict_of_configs() -> None:
@@ -279,8 +281,8 @@ def test_deep_nesting() -> None:
     """Test a nested object inside a nested object holds rows as well."""
     model = EditModel(DeepConfigCfg())
     assert ('outputs', '0', 'parts', 'one', 'width') in row_paths(model)
-    assert row_at(model, ('outputs', '0', 'parts', 'one')).value_text == \
-        'InnerCfg'
+    assert row_at(model, ('outputs', '0', 'parts',
+                          'one')).chosen_type.text == 'InnerCfg'
 
 
 def test_one_text_per_object() -> None:
@@ -378,8 +380,8 @@ def test_dump_shows_the_tree() -> None:
     """Test the text rendering shows a nested object as a node with rows."""
     printed = model_as_text(EditModel(NestedCfg()))
     assert 'inner: InnerCfg\n' in printed
-    assert '    width = 4' in printed
-    assert 'limits: 1 entry' in printed
+    assert '    width: int = 4' in printed
+    assert 'limits: dict[str, int], 1 entry' in printed
 
 
 def test_unasked_says_nothing() -> None:

@@ -192,7 +192,7 @@ Sources of structural information, in order of authority:
 | --- | --- |
 | `nested_configs()` | Which members are nested configs, their `ConfigNestingKind`, their `config_type`, any `factory_function` |
 | Default instance | Every attribute name and its default value |
-| The declaration of each member | Which kind of value that member takes, whether it may hold nothing, and what one value inside it would be |
+| The declaration of each member | Which types that member may hold, one per alternative of a union and `None` among them, and which types one value inside it may hold |
 | `parse_converters()` | Which keys become rich Python types, and the expected parsed type |
 | `serialize_converters()` | Which values need explicit conversion on write |
 | `_unchecked_dicts` | Which dict members have relaxed key policy |
@@ -315,13 +315,20 @@ source; an annotation naming something that exists only while a type checker
 runs will not resolve; and a member can be assigned without an annotation. Each
 costs that member its declaration and nothing else.
 
-**What is made of the answer is deliberately little.** A declaration says one
-of the kinds a leaf value has — text, a whole number, a number, true or false,
-a list or a dict — or nothing this library can use. A class of the
-application's own is nothing it can use, since all the editor does with a kind
-is name it and make an empty one of it. Where the member holds a nested
-configuration object the object answers, and where it holds an enum the parse
-converter answers and says far more.
+**What is made of the answer is the types it allows** (section 4.12): one
+`TypeOption` per alternative of a union, a plain type being a union of one and
+`Optional[X]` the union of `X` and `None`. Each says its text as a Python type
+hint spells it, the kind of JSON value it is written as, what is inside it
+where it is a list or a dict, the class it names and the values a `Literal`
+allows. A class of the application's own says no kind — what it is written as
+is its converters' business, so the value says — while an enum is written as a
+member name and a configuration class as a dict. A declaration of which any
+part is a type the editor can make nothing of — `tuple`, `set`, `Any`, a
+`Literal` of mixed kinds — allows no types at all, and the value answers as it
+does for a member with no annotation; a list or a dict is usable whatever is
+inside it. Where the member holds a nested configuration object the object
+answers for its members, and where it holds an enum the parse converter answers
+for its names.
 
 ### 4.2 Edit buffer
 
@@ -332,11 +339,16 @@ no quotation marks around a string, and shows `10` for both the string `'10'`
 and the integer `10`. The buffer therefore holds type information beside each
 leaf value.
 
-**That type information is shown to the user**, as a line of explanatory text
-below the member, in the same place and under the same toggle as everything
-else explanatory; section 4.3 says what it says. It is not a label beside the
-field, because it is text about the value and not part of it, and because a
-narrow window would then squeeze the field for it.
+**That type information is shown to the user**, in a column of its own between
+the name of the member and its value, which reads as Python's `name: type =
+value`. It is the vocabulary of Python type hints, which is the one the users of
+this editor already know, and section 4.12 says what is in the column, how wide
+it is and what the line below a row adds to it. An earlier version said the
+kind of value in words on the line below the member and said explicitly that it
+was not a label beside the field, so that a narrow window would not squeeze the
+field for it; what reversed that was users asking for the type in the words
+they program in, and the column is held to a width (section 4.12) so that the
+field keeps the room it had.
 
 The type metadata of a leaf is **what the class declared for that member**, and
 failing that **the value that leaf held when the file was last agreed with** —
@@ -347,6 +359,16 @@ whole number while the member takes a number, and a member whose default is
 `None` held nothing at all. Deriving the kind from the *current* value fails
 the other way: a number member that is half typed holds text until its text is
 a number, and it would stop being a number member for the rest of the session.
+
+**Which of its types a row holds and what its text is read by are two
+answers.** The type a row holds is the first of its types its *current* value
+fits, in the order the declaration writes them, so the column follows a value
+typed into `int | str` from one to the other; a value that fits none of them —
+a number half typed — holds the first type that is not `None`. What its text
+is read by is asked of the value it held when the file was last agreed with,
+for the reason the paragraph above gives, so that half typing cannot change
+it. Until the user can choose a type (step 31B of the plan) nothing else
+depends on which one a row holds.
 
 The kept value also answers whether the user changed the leaf. That comparison
 is made on the JSON notation rather than with `==`, because Python considers
@@ -509,6 +531,16 @@ however its class writes it. Such a member is still reachable — the field take
 a value and takes `null` back again — and the moral is the one section 4.1 ends
 with: annotate the members of a configuration class.
 
+**Which members have the two states** is now said by the alternatives of the
+declaration: a member whose types include `None` beside a first other type the
+editor can make an empty value of, which is `Optional[str]`, `Optional[int |
+str]` and `Optional[list[str]]`. A member allowing `None` beside an enum, a
+configuration class or another class of the application's own has one state as
+before, because the editor cannot make a value of such a type on its own; the
+configuration class is the place section 4.9 gives its own two controls. A
+value inside a list or a dict never has the two states, whatever its
+declaration allows, and its type column still says `None` while it holds `null`.
+
 ### 4.3 Descriptions and docstrings
 
 Two complementary, independently optional sources of explanatory text, plus the
@@ -537,29 +569,33 @@ together by `row_description` rather than carried by the row, and
 docstrings do not exist at runtime: a string literal after an assignment is
 discarded, and PEP 526 annotations are not recorded.
 
-**The type of a member** says the rest. Where the member holds an enum,
-`parse_converters()` says so and the enum class says the rest itself: the
-summary of its own docstring and the names it accepts. Where it holds anything
-else, what is said is **what kind of value it is** — text, a whole number, a
-number, or true or false — read from the class declaration, and failing that
-from the value the member held when the file was last agreed with (sections 4.1
-and 4.2). It answers the one question a value cannot answer about itself:
-whether `10` in a field is the number or the text. It matters most where the
-application described nothing.
+**The type of a member** says the rest, and most of it is said on the row
+itself, in the column of the types (section 4.12): `int`, `list[str]`,
+`Colors`. That answers the one question a value cannot answer about itself —
+whether `10` in a field is the number or the text — and it is why the line
+below a row no longer says *Text.* or *A whole number.*: the column says it in
+the words the user programs in. What the line below still says is what the
+column cannot:
 
-**A member that need not hold a value says so as well**, in one of two ways
-that are never said together. A member the class leaves out of the file while
-it holds nothing says that, from the `_omit_none_from_json()` of the class that
-owns it, and that is the more informative of the two: it says both that the
-member may hold nothing and how it is then written. Every other member the
-declaration allows to hold nothing says only the first. A member that really
-holds a list or a dict says nothing about its kind, because its row says how
-much it holds; one that holds nothing does say which of the two it would be,
-because its row then says only that it holds nothing.
+- where the member holds an enum, `parse_converters()` says so and the enum
+  class says the rest itself: the summary of its own docstring and the names
+  it accepts;
+- **the whole declaration**, as *Declared as str | None.*, where it allows more
+  than one type — the column shows only the one the row holds — or where its
+  one type is longer than the column and was cut;
+- **that the type was taken from the value**, where nothing usable was
+  declared, so that a user reading `int` beside a member with no annotation
+  knows it is what the value happens to be and not what the class requires;
+- that the class leaves the member out of the file while it holds nothing,
+  from the `_omit_none_from_json()` of the class that owns it.
 
-A node that is not a value says nothing here: its row already says which kind
-of container or which class it is. What it may still say is that the class
-above it can leave it out of the file.
+They are one line, joined in that order. *It may hold nothing at all.* is no
+longer said: `None` among the declared types says it.
+
+A nested configuration object says no names and nothing about where its type
+came from, because its class is declared by `nested_configs()` whatever its
+annotation says. What it may still say is the whole of a declaration of more
+than one type, and that the class above it can leave it out of the file.
 
 What a validator would have added — a range, a set of allowed values — stays
 out permanently (section 11). The names of an enum are the type of the member;
@@ -612,9 +648,9 @@ What the toggle covers is everything written below a row, which
 `row_description` puts together and `row_describes` answers for:
 
 - **shown** — the whole class docstring; below each row, what the application
-  said about that member, what the type of it says (section 4.3), the
-  docstring of the class of the object at it, and why it cannot be given an
-  element (section 4.9)
+  said about that member, what the type of it says that the column of the
+  types cannot (section 4.3), the docstring of the class of the object at it,
+  and why it cannot be given an element (section 4.9)
 - **hidden** — the summary of the class docstring, and nothing else
 
 The summary survives hiding because it is one line for the whole
@@ -623,9 +659,9 @@ application that took the trouble to write a description mapping wrote it to be
 read. A class with no docstring of its own is shown without a label rather than
 with an empty one, and so is a row that has nothing of the four above. That is
 principle 4 of section 3, and it means the backends create no widget for what
-can never hold anything. Every member does have at least the line saying what
-kind of value it holds, so a member the application described is one that says
-more below itself and not the only one that says anything.
+can never hold anything. A member whose type says all there is to say about it
+has nothing below it at all, because the type is on its row (section 4.12) and
+is not under the toggle: it is part of what the row is, like its name.
 
 **A refusal is not under the toggle** (section 6.5). Everything above is text
 *about* a value, and what the application refused is the one thing on a row
@@ -1163,6 +1199,55 @@ false is a file that class refuses to parse; the load then fails and there is
 nothing to edit (section 5.2). So the values the editor starts from are members
 and booleans already, and the only thing that has ever been able to make one of
 them anything else is a field being typed in.
+
+### 4.12 The type of every row
+
+Every row says the type it holds, in a column between its name and its value,
+spelled in the vocabulary of Python type hints: `int`, `list[str]`, `Colors`,
+`dict[str, list[str] | list[list[str]]]`. It is a pull-down in both backends,
+and in this version nothing can be chosen in it on any row; choosing between
+the types a declaration allows is the rest of step 31 of the plan.
+
+**The spelling is Python's, normalized from the resolved hint** and not copied
+from the source text, so a declaration read from source and one read with
+`typing.get_type_hints` are spelled alike. `Optional[int]` and `Union[int,
+None]` are `int | None`, `List[str]` is `list[str]`, a PEP 695 alias is what it
+stands for, and an enum or a configuration class is its unqualified name. The
+three ways a union is spelled at runtime — `typing.Union`, `types.UnionType`,
+and from Python 3.14 the two being one type — are all read as a union.
+
+**The column shows the type the row holds, and the pull-down lists every type
+it may hold.** A row holding nothing shows `None`, and so does a place declared
+to hold a configuration object and holding none, whether its declaration allows
+`None` or not: a key that `DICT_VALUE_BY_KEY` names is one the dict need not
+have. A configuration class is held only where the tree has an object declared
+— an object is written as a dict, and so is a dict, so `{"cpu": 2}` beside a
+named key is a `dict[str, int]` and not the class — and a row whose declaration
+names nothing usable shows the type of its value, and the class of its object
+for an object row. The whole declaration is said on the line below the row
+wherever the column cannot show it (section 4.3).
+
+**The column is one width for the whole editor**, so that the values of every
+row begin in one column: the longest type any row may hold, counting every row
+and not only those on the screen, so that folding moves nothing beside it. A
+type longer than 40 characters is cut to 40 with `…`, and its whole text is
+then on the line below. The limit is a constant of the core for now, and making
+it follow the width the editor can have is a later step of the plan; no setting
+says it, so the settings file format does not change (section 9.10).
+
+**It is never hidden.** No key, tick-box or setting takes it away, so every row
+says its type in the same place, and a nested configuration object, whose type
+is its class, says nothing where its value would be: its value is its rows.
+
+**The two backends build it alike.** Tk has a disabled `Menubutton` per row, in
+the muted colour of the explanations rather than the faint grey Tk gives a
+disabled widget, and Textual a compact, disabled `Select` whose options are
+given as plain content: Textual reads a text as markup, and `list[str]` would be
+shown as `list`. Both are made again with the rows and shown again with the
+marks, so a value typed into `int | str` moves the column from one to the other,
+and a row whose type only its value says changes what it lists as well. The
+text rendering writes the same thing as `name: type = value`, and as `name:
+type, 2 elements` for a row that is not edited in a field.
 
 ## 5. Loading
 

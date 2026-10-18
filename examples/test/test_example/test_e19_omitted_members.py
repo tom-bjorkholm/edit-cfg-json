@@ -31,7 +31,11 @@ the same way as every other text these tests expect.
 """
 
 MAY_BE_OMITTED = 'It may be left out of the file.'
-"""What the type of every member of this class but the title says."""
+"""What it says below every member of this class but the title."""
+
+INFERRED = ('    The type is taken from the value, because nothing declared '
+            f'says one the editor can use. {MAY_BE_OMITTED}')
+"""What it says below the member with no annotation about its type."""
 
 DATA_NAME = 'e19_report.json'
 """Input file of this example, which holds nothing but the title."""
@@ -64,7 +68,7 @@ def test_every_member_a_row(capsys: pytest.CaptureFixture[str]) -> None:
     row could never be given a value.
     """
     printed = _dump(capsys)
-    assert printed.startswith(f'{HEAD}\ntitle = Quarterly report')
+    assert printed.startswith(f'{HEAD}\ntitle: str = Quarterly report')
     for name in MEMBERS[1:]:
         assert f'\n{name}' in printed
     assert printed.count(MAY_BE_OMITTED) == len(MEMBERS) - 1
@@ -73,9 +77,9 @@ def test_every_member_a_row(capsys: pytest.CaptureFixture[str]) -> None:
 def test_starts_as_nothing(capsys: pytest.CaptureFixture[str]) -> None:
     """Test each of those members starts in the state that holds nothing."""
     printed = _dump(capsys)
-    assert 'note: no value' in printed
-    assert 'audit: no AuditConfig' in printed
-    assert 'extra_hosts: no value' in printed
+    assert 'note: None, no value' in printed
+    assert 'audit: None, no AuditConfig' in printed
+    assert 'extra_hosts: None, no value' in printed
     assert 'validation: valid' in printed
     assert printed.endswith(f'validation: valid\n{DUMP_TAIL}')
 
@@ -89,14 +93,14 @@ def test_object_from_class(capsys: pytest.CaptureFixture[str]) -> None:
     """
     printed = _dump(capsys, '--add', 'audit')
     assert 'audit: AuditConfig (edited) [valid on its own]' in printed
-    assert '    destination = audit.log' in printed
-    assert '    retries = 2' in printed
+    assert '    destination: str = audit.log' in printed
+    assert '    retries: int = 2' in printed
 
 
 def test_object_cleared_again(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the same member is put back to holding no object."""
     printed = _dump(capsys, '--add', 'audit', '--remove', 'audit')
-    assert 'audit: no AuditConfig' in printed
+    assert 'audit: None, no AuditConfig' in printed
     assert '    destination' not in printed
     assert 'validation: valid' in printed
 
@@ -109,11 +113,11 @@ def test_list_two_presses(capsys: pytest.CaptureFixture[str]) -> None:
     of its own.
     """
     once = _dump(capsys, '--add', 'extra_hosts')
-    assert 'extra_hosts: 0 elements (edited)' in once
+    assert 'extra_hosts: list[str], 0 elements (edited)' in once
     twice = _dump(capsys, '--add', 'extra_hosts', '--add', 'extra_hosts',
                   '--set', 'extra_hosts.0=build-01')
-    assert 'extra_hosts: 1 element (edited)' in twice
-    assert '    0 = build-01 (edited)' in twice
+    assert 'extra_hosts: list[str], 1 element (edited)' in twice
+    assert '    0: str = build-01 (edited)' in twice
 
 
 def test_dict_says_why_not(capsys: pytest.CaptureFixture[str]) -> None:
@@ -134,14 +138,17 @@ def test_no_annotation_field(capsys: pytest.CaptureFixture[str]) -> None:
 
     Nothing says what it would hold, so it has one state rather than two and
     no control to move between them. It is not left unreachable by that: the
-    field takes a value and takes `null` back again.
+    field takes a value and takes `null` back again. Its type is the one of
+    the value it holds, and the line below it says where that type is from.
     """
     printed = _dump(capsys)
-    assert 'legacy = null' in printed
+    assert 'legacy: None = null' in printed
+    assert INFERRED in printed
     refusal = refused(e19_omitted_members.main, capsys, '--ui', 'dump',
                       '--add', 'legacy')
     assert 'Nothing can be added to legacy' in refusal
-    assert 'legacy = kept (edited)' in _dump(capsys, '--set', 'legacy=kept')
+    assert 'legacy: str = kept (edited)' in _dump(capsys, '--set',
+                                                  'legacy=kept')
 
 
 def test_two_states_two_files(capsys: pytest.CaptureFixture[str],
@@ -166,9 +173,9 @@ def test_bare_file_read(capsys: pytest.CaptureFixture[str]) -> None:
     object and not from what the file happened to hold.
     """
     printed = _dump(capsys, '-i', data_file(DATA_NAME))
-    assert 'title = Monthly report' in printed
-    assert 'note: no value' in printed
-    assert 'audit: no AuditConfig' in printed
+    assert 'title: str = Monthly report' in printed
+    assert 'note: None, no value' in printed
+    assert 'audit: None, no AuditConfig' in printed
     assert 'validation: valid' in printed
 
 

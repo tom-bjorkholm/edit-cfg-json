@@ -36,15 +36,15 @@ EDITED_HEAD = f'FlatCfg *\n{FLAT_DOC}'
 HIDDEN_HEAD = f'FlatCfg - {FLAT_DOC}'
 """The one line that begins a rendering with the explanations hidden."""
 
-TEXT_LINE = '    Text.'
-"""What is shown under a member that holds text.
+NAME_LINE = 'name: str = flat text'
+"""The line of the text member of `FlatCfg`, saying its type before its value.
 
-The editor says what kind of value every member holds, because that is the one
-thing it knows about every member of every configuration without being told.
+Nothing is said below it about what kind of value it holds, because the type
+on its own line says that.
 """
 
-WHOLE_LINE = '    A whole number.'
-"""What is shown under a member that holds a whole number."""
+ANSWER_LINE = 'answer: int = 42'
+"""The line of the number member of `FlatCfg`."""
 
 ABOUT_NAME = 'What the name of this configuration is for.'
 """Description of the one member that the tests below describe."""
@@ -76,9 +76,7 @@ def _row(model: EditModel, name: str) -> MemberRow:
 def test_flat_text() -> None:
     """Test the rendering has one line per member and then the verdict."""
     assert model_as_text(EditModel(FlatCfg())) == \
-        (f'{HEAD}\nname = flat text\n{TEXT_LINE}\nanswer = 42\n'
-         f'{WHOLE_LINE}\n{UNKNOWN_LINE}\n'
-         f'{NO_FILE_LINE}')
+        f'{HEAD}\n{NAME_LINE}\n{ANSWER_LINE}\n{UNKNOWN_LINE}\n{NO_FILE_LINE}'
 
 
 def test_text_has_no_quotes() -> None:
@@ -89,17 +87,19 @@ def test_text_has_no_quotes() -> None:
 def test_none_text() -> None:
     """Test a member holding nothing says so where its value would be.
 
-    It is written with the colon that every row without a value of its own
+    It is written without the equals sign that a row with a value of its own
     uses, because holding nothing is a state of the member and not a text
-    that anybody typed into it.
+    that anybody typed into it. The type it holds is `None`, and the line
+    below it says the whole of what it is declared as.
     """
-    assert 'name: no value' in model_as_text(EditModel(NoneCfg()))
+    text = model_as_text(EditModel(NoneCfg()))
+    assert 'name: None, no value\n    Declared as str | None.\n' in text
 
 
 def test_container_text() -> None:
     """Test a list member and a dict member are shown as trees of rows.
 
-    A container says how much it holds and uses a colon rather than an equals
+    A container says how much it holds after its type and has no equals
     sign, because it has no value of its own: its value is the rows below it,
     which are indented once for each container they are inside.
 
@@ -108,10 +108,10 @@ def test_container_text() -> None:
     it has. That line is between the container and its first value.
     """
     text = model_as_text(EditModel(ListCfg()))
-    assert 'tags: 2 elements\n    0 = first\n' in text
-    assert 'limits: 2 entries\n' in text
-    assert '\n    high = 9\n' in text
-    assert 'answer = 3' in text
+    assert 'tags: list[str], 2 elements\n    0: str = first\n' in text
+    assert 'limits: dict[str, int], 2 entries\n' in text
+    assert '\n    high: int = 9\n' in text
+    assert 'answer: int = 3' in text
 
 
 def test_edited_text() -> None:
@@ -119,8 +119,7 @@ def test_edited_text() -> None:
     model = EditModel(FlatCfg())
     model.set_text(path=('answer',), text='7')
     assert model_as_text(model) == (
-        f'{EDITED_HEAD}\nname = flat text\n{TEXT_LINE}\n'
-        f'answer = 7 (edited)\n{WHOLE_LINE}\n'
+        f'{EDITED_HEAD}\n{NAME_LINE}\nanswer: int = 7 (edited)\n'
         f'{UNKNOWN_LINE}\n{NO_FILE_LINE}')
 
 
@@ -130,16 +129,14 @@ def test_edit_undone_text() -> None:
     model.set_text(path=('answer',), text='7')
     model.set_text(path=('answer',), text='42')
     assert model_as_text(model) == \
-        (f'{HEAD}\nname = flat text\n{TEXT_LINE}\nanswer = 42\n'
-         f'{WHOLE_LINE}\n{UNKNOWN_LINE}\n'
-         f'{NO_FILE_LINE}')
+        f'{HEAD}\n{NAME_LINE}\n{ANSWER_LINE}\n{UNKNOWN_LINE}\n{NO_FILE_LINE}'
 
 
 def test_invalid_value_text() -> None:
     """Test text that is not a number yet is shown as it was typed."""
     model = EditModel(FlatCfg())
     model.set_text(path=('answer',), text='not-a-number')
-    assert 'answer = not-a-number (edited)' in model_as_text(model)
+    assert 'answer: int = not-a-number (edited)' in model_as_text(model)
 
 
 def test_model_title() -> None:
@@ -205,9 +202,9 @@ def test_rewritten_text() -> None:
     model = EditModel(RewriteCfg())
     model.set_text(path=('name',), text='typed text')
     model.validate()
-    assert model_as_text(model).splitlines()[-4:] == [
-        'name = Typed text (edited) (changed by validator)', TEXT_LINE,
-        VALID_LINE, NO_FILE_LINE]
+    assert model_as_text(model).splitlines()[-3:] == [
+        'name: str = Typed text (edited) (changed by validator)', VALID_LINE,
+        NO_FILE_LINE]
 
 
 def test_verdict_before_save() -> None:
@@ -279,16 +276,14 @@ def test_load_text_is_first() -> None:
     """Test the load comes above the members it explains the marks on."""
     model = EditModel(FlatCfg(), FILLED_REPORT)
     assert model_as_text(model) == (
-        f'{HEAD}\n{LOAD_LINE}\nname = flat text\n{TEXT_LINE}\n'
-        f'answer = 42 (filled from default)\n{WHOLE_LINE}\n'
-        f'{UNKNOWN_LINE}\n'
+        f'{HEAD}\n{LOAD_LINE}\n{NAME_LINE}\n'
+        f'{ANSWER_LINE} (filled from default)\n{UNKNOWN_LINE}\n'
         f'{NO_FILE_LINE}')
 
 
 def test_no_load_no_line() -> None:
     """Test a rendering with nothing to say about a load has no empty line."""
-    assert model_as_text(EditModel(FlatCfg())).splitlines()[2] == \
-        'name = flat text'
+    assert model_as_text(EditModel(FlatCfg())).splitlines()[2] == NAME_LINE
 
 
 def test_no_destination_text() -> None:
@@ -444,17 +439,15 @@ def test_no_docstring_text() -> None:
     model = EditModel(NoDocCfg())
     assert docstring_text(model) == ''
     assert model_as_text(model).splitlines()[:2] == ['NoDocCfg',
-                                                     'name = documented']
+                                                     'name: str = documented']
 
 
 def test_row_description() -> None:
     """Test the description of a member is shown while they are shown."""
     model = EditModel(FlatCfg(), descriptions=DESCRIPTIONS)
     rows = {row.name: row for row in model.rows}
-    assert row_description(model=model, row=rows['name']) == \
-        f'{ABOUT_NAME}\n{TEXT_LINE.strip()}'
-    assert row_description(model=model, row=rows['answer']) == \
-        WHOLE_LINE.strip()
+    assert row_description(model=model, row=rows['name']) == ABOUT_NAME
+    assert row_description(model=model, row=rows['answer']) == ''
 
 
 def test_hidden_row_about() -> None:
@@ -469,8 +462,7 @@ def test_described_text() -> None:
     """Test a described member has its description on the line below it."""
     model = EditModel(FlatCfg(), descriptions=DESCRIPTIONS)
     assert model_as_text(model) == (
-        f'{HEAD}\nname = flat text\n    {ABOUT_NAME}\n{TEXT_LINE}\n'
-        f'answer = 42\n{WHOLE_LINE}\n'
+        f'{HEAD}\n{NAME_LINE}\n    {ABOUT_NAME}\n{ANSWER_LINE}\n'
         f'{UNKNOWN_LINE}\n{NO_FILE_LINE}')
 
 
@@ -484,7 +476,7 @@ def test_hidden_text() -> None:
     model = EditModel(FlatCfg(), descriptions=DESCRIPTIONS)
     model.toggle_explanations()
     assert model_as_text(model) == (
-        f'{HIDDEN_HEAD}\nname = flat text\nanswer = 42\n{UNKNOWN_LINE}\n'
+        f'{HIDDEN_HEAD}\n{NAME_LINE}\n{ANSWER_LINE}\n{UNKNOWN_LINE}\n'
         f'{NO_FILE_LINE}')
 
 
@@ -508,7 +500,7 @@ def test_diagnostic_below() -> None:
     model.set_text(path=('level',), text='MIDDLE')
     model.validate()
     assert model_as_text(model).splitlines()[-6:] == [
-        'level = MIDDLE (edited)',
+        'level: Level = MIDDLE (edited)',
         '    The values that the int enum member of `IntEnumCfg` can hold.',
         '    One of: LOWEST, LOW, HIGH.',
         '    MIDDLE is not one of: LOWEST, LOW, HIGH',
@@ -575,8 +567,9 @@ def test_tree_is_indented() -> None:
     indented with it, which is what separates the two lines below.
     """
     text = model_as_text(EditModel(TreeCfg()))
-    assert 'rules: 2 elements\n    0: 1 entry\n' in text
-    assert '\n        low = 1\n' in text
+    assert 'rules: list[dict[str, int]], 2 elements\n' \
+        '    0: dict[str, int], 1 entry\n' in text
+    assert '\n        low: int = 1\n' in text
 
 
 def test_folded_says_so() -> None:
@@ -589,9 +582,9 @@ def test_folded_says_so() -> None:
     model = EditModel(TreeCfg())
     model.toggle_fold(('rules',))
     text = model_as_text(model)
-    assert 'rules: 2 elements (folded)\n' in text
-    assert 'low = 1' not in text
-    assert 'answer = 3' in text
+    assert 'rules: list[dict[str, int]], 2 elements (folded)\n' in text
+    assert 'low: int = 1' not in text
+    assert 'answer: int = 3' in text
 
 
 @pytest.mark.parametrize('state, expected',
@@ -647,8 +640,9 @@ def test_leaf_marked_at_depth() -> None:
     """Test a value inside a container carries its own marks."""
     model = EditModel(TreeCfg())
     model.set_text(path=('rules', '0', 'low'), text='5')
-    assert '        low = 5 (edited)' in model_as_text(model)
-    assert 'rules: 2 elements (edited)' in model_as_text(model)
+    assert '        low: int = 5 (edited)' in model_as_text(model)
+    assert 'rules: list[dict[str, int]], 2 elements (edited)' in \
+        model_as_text(model)
 
 
 def test_refused_path_named() -> None:
@@ -669,8 +663,8 @@ def test_described_element() -> None:
     about = 'One of the tags of this configuration.'
     model = EditModel(ListCfg(), descriptions={('tags', '['): about})
     text = model_as_text(model)
-    assert f'    0 = first\n        {about}\n' in text
-    assert f'    1 = second\n        {about}\n' in text
+    assert f'    0: str = first\n        {about}\n' in text
+    assert f'    1: str = second\n        {about}\n' in text
 
 
 def test_shape_of_the_rows() -> None:

@@ -31,7 +31,7 @@ def test_prints_the_model(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(['--module', SAMPLE, '--class', 'FlatCfg']) == ExitCode.OK
     printed = capsys.readouterr().out
     assert 'FlatCfg' in printed
-    assert 'name = flat text' in printed
+    assert 'name: str = flat text' in printed
     assert 'validation: valid' in printed
 
 

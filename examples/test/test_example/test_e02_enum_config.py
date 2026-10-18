@@ -53,11 +53,20 @@ AVAILABLE_ABOUT = ('    The competence that is available, as an int enum.\n'
                    f'{NAMES_LINE}')
 """What the editor says about the second member, from its enum class."""
 
-NEEDED_LINES = f'needed = {{value}}\n{NEEDED_ABOUT}'
+NEEDED_LINES = f'needed: NeededCompetence = {{value}}\n{NEEDED_ABOUT}'
 """How the first member of this example is shown, with its value filled in."""
 
-AVAILABLE_LINES = f'available = {{value}}\n{AVAILABLE_ABOUT}'
+AVAILABLE_LINES = (f'available: AvailableCompetence = {{value}}\n'
+                   f'{AVAILABLE_ABOUT}')
 """How the second member is shown, with its value filled in."""
+
+TYPE_NAMES = {'needed': 'NeededCompetence',
+              'available': 'AvailableCompetence'}
+"""The type that the row of each member says it holds, by member name.
+
+An enum is shown by the name of its class alone, without the module it
+is declared in.
+"""
 
 EXPECTED_DUMP = (f'{HEAD}\n{NEEDED_LINES.format(value="ELECTRICAL")}\n'
                  f'{AVAILABLE_LINES.format(value="MECHANICAL")}\n'
@@ -145,7 +154,8 @@ def test_refused_name(case: str, setting: str,
     """Test text naming no member is refused, and the text is kept."""
     printed = _dump(capsys, '--set', setting)
     member, _, text = setting.partition('=')
-    assert f'{member} = {text} (edited)' in printed, case
+    row = f'{member}: {TYPE_NAMES[member]} = {text} (edited)'
+    assert row in printed, case
     assert REFUSAL_FORM.format(text=text) in printed, case
     assert REFUSED_VERDICT.format(member=member) in printed, case
     assert 'failed to load JSON' not in printed, case

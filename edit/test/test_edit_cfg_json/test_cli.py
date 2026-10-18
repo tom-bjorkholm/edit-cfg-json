@@ -27,7 +27,7 @@ from edit_cfg_json import DumpEditor, EcajVersionReporter, EditModel, \
     EditorBackend, ExitCode, \
     LoadPolicy, SETTINGS_DESCRIPTIONS, SHARED_SETTINGS, Settings, \
     SettingsConfig, add_file_options, load_settings, named_policy, \
-    row_description, run_cli
+    row_description, row_type_text, run_cli
 from edit_cfg_json.cli_target import LOADER_ARGS_MESSAGE, \
     NOT_CONFIG_MESSAGE, NOT_DESCRIPTIONS, NOT_IMPORTABLE_MESSAGE, \
     NOT_LOADER_MESSAGE, NOT_PYTHON_MESSAGE, NOT_SHOWABLE_MESSAGE, \
@@ -661,22 +661,24 @@ def test_descriptions_door() -> None:
     assert backend.model is not None
     described = {row.name: row.description for row in backend.model.rows}
     assert described['name'].startswith(ABOUT_FLAT_NAME)
-    assert 'whole number' in described['answer']
+    assert row_type_text(row_at(backend.model, ('answer',))) == 'int'
 
 
 def test_no_descriptions() -> None:
     """Test a run that names none still shows what the types say.
 
     A member has no docstring at runtime, so a program that was told no mapping
-    can say nothing about what a member is for. What kind of value it holds is
-    another matter, and the editor knows that about every member.
+    can say nothing about what a member is for. What type it holds is another
+    matter, and the editor knows that about every member: it is on the row and
+    nothing is said about it below.
     """
     backend = Recorder()
     assert _run(backend, *_named('FlatCfg')) == ExitCode.OK
     assert backend.model is not None
     described = [row.description for row in backend.model.rows]
-    assert described == ['Text.', 'A whole number.']
-    assert ABOUT_FLAT_NAME not in described
+    assert described == ['', '']
+    assert [row_type_text(row) for row in backend.model.rows] == ['str',
+                                                                  'int']
 
 
 def test_no_such_described(capsys: pytest.CaptureFixture[str]) -> None:

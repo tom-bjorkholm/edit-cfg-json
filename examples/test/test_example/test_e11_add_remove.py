@@ -58,6 +58,14 @@ user changed something.
 HOOKS = 'hooks'
 """The member of this example that is declared `DICT_VALUE_BY_KEY`."""
 
+HOOKS_ROW = 'hooks: dict[str, StageConfig | str | dict[str,…'
+"""How the row of that member begins: its name and its type, cut short.
+
+The declaration is longer than the type column may be, so the row shows the
+first part of it and says that it was cut, and the whole of it is said below
+the row with the explanations.
+"""
+
 HOOK_DICT = 'hooks.thresholds'
 """Path of the key of that member which holds an ordinary dict.
 
@@ -84,8 +92,8 @@ what answers, exactly as `list[str]` answers for `extra_hosts`.
 NAMED_KEY = 'hooks.on_failure'
 """Path of the key of that member which holds a configuration object."""
 
-NEW_STAGE_LINES = ['        name = build', '        command = make',
-                   '        minutes = 10']
+NEW_STAGE_LINES = ['        name: str = build', '        command: str = make',
+                   '        minutes: int = 10']
 """What a stage the editor has just added is shown as.
 
 A new element of a member declared `LIST_ELEMENT` is one object of the
@@ -118,7 +126,7 @@ def test_descriptions_real() -> None:
 def test_added_stage(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a list of objects is given one of the declared class."""
     printed = _dump(capsys, '--add', 'stages')
-    assert 'stages: 3 elements (edited)' in printed
+    assert 'stages: list[StageConfig], 3 elements (edited)' in printed
     assert f'    2: {STAGE_CLASS}' in printed
     assert '\n'.join(NEW_STAGE_LINES) in printed
 
@@ -131,15 +139,15 @@ def test_empty_list_grows(capsys: pytest.CaptureFixture[str]) -> None:
     cannot answer.
     """
     printed = _dump(capsys, '--add', 'extra_stages')
-    assert 'extra_stages: 1 element (edited)' in printed
+    assert 'extra_stages: list[StageConfig], 1 element (edited)' in printed
     assert '    0: StageConfig' in printed
 
 
 def test_declared_copied(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a list of plain values is grown with a copy of the first."""
     printed = _dump(capsys, '--add', 'retry_delays')
-    assert 'retry_delays: 4 elements (edited)' in printed
-    assert '    3 = 1' in printed
+    assert 'retry_delays: list[int], 4 elements (edited)' in printed
+    assert '    3: int = 1' in printed
 
 
 def test_typed_element_added(capsys: pytest.CaptureFixture[str]) -> None:
@@ -150,8 +158,8 @@ def test_typed_element_added(capsys: pytest.CaptureFixture[str]) -> None:
     the one value of that kind which says no more than which kind it is.
     """
     printed = _dump(capsys, '--add', 'extra_hosts')
-    assert 'extra_hosts: 1 element (edited)' in printed
-    assert '    0 = \n' in printed
+    assert 'extra_hosts: list[str], 1 element (edited)' in printed
+    assert '    0: str = \n' in printed
 
 
 def test_file_gives_a_pattern(capsys: pytest.CaptureFixture[str]) -> None:
@@ -162,8 +170,8 @@ def test_file_gives_a_pattern(capsys: pytest.CaptureFixture[str]) -> None:
     file has put something in it.
     """
     printed = _dump(capsys, '-i', data_file(DATA_NAME), '--add', 'extra_hosts')
-    assert 'extra_hosts: 3 elements (edited)' in printed
-    assert '    2 = spare-1.example.org' in printed
+    assert 'extra_hosts: list[str], 3 elements (edited)' in printed
+    assert '    2: str = spare-1.example.org' in printed
 
 
 def test_added_entry(capsys: pytest.CaptureFixture[str]) -> None:
@@ -173,14 +181,14 @@ def test_added_entry(capsys: pytest.CaptureFixture[str]) -> None:
     the order a file holds a dict in and therefore the order the rows are in.
     """
     printed = _dump(capsys, '--add', 'runners=nightly')
-    assert 'runners: 3 entries (edited)' in printed
+    assert 'runners: dict[str, RunnerConfig], 3 entries (edited)' in printed
     assert printed.index('nightly: RunnerConfig') < printed.index('slow:')
 
 
 def test_removed_entry(capsys: pytest.CaptureFixture[str]) -> None:
     """Test one entry of a dict of objects can be taken out of it."""
     printed = _dump(capsys, '--remove', 'runners.fast')
-    assert 'runners: 1 entry (edited)' in printed
+    assert 'runners: dict[str, RunnerConfig], 1 entry (edited)' in printed
     assert 'fast: RunnerConfig' not in printed
 
 
@@ -207,8 +215,8 @@ def test_label_added(capsys: pytest.CaptureFixture[str]) -> None:
     this class declares.
     """
     printed = _dump(capsys, '--add', 'labels=owner')
-    assert 'labels: 2 entries (edited)' in printed
-    assert '    owner = platform' in printed
+    assert 'labels: dict[str, str], 2 entries (edited)' in printed
+    assert '    owner: str = platform' in printed
     assert 'validation: valid' in printed
 
 
@@ -220,7 +228,7 @@ def test_label_key_refused(capsys: pytest.CaptureFixture[str]) -> None:
     heard of is the ordinary verdict of a validation pass.
     """
     printed = _dump(capsys, '--add', 'labels=region')
-    assert '    region = platform' in printed
+    assert '    region: str = platform' in printed
     assert UNKNOWN_LABEL in printed
     assert LABELS_REFUSED in printed
 
@@ -228,7 +236,7 @@ def test_label_key_refused(capsys: pytest.CaptureFixture[str]) -> None:
 def test_label_removed(capsys: pytest.CaptureFixture[str]) -> None:
     """Test an entry of that dict is taken out, and judged the same way."""
     printed = _dump(capsys, '--remove', 'labels.team')
-    assert 'labels: 0 entries (edited)' in printed
+    assert 'labels: dict[str, str], 0 entries (edited)' in printed
     assert LOST_LABEL in printed
     assert LABELS_REFUSED in printed
 
@@ -236,12 +244,12 @@ def test_label_removed(capsys: pytest.CaptureFixture[str]) -> None:
 def test_named_key_cleared(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the named key of the two-kinded dict is given up and kept.
 
-    Its object goes and its row stays, saying which class is missing, which
-    is what makes taking it away safe: nothing else in the editor would name
-    that key again.
+    Its object goes and its row stays, holding `None` and saying which class
+    is missing, which is what makes taking it away safe: nothing else in the
+    editor would name that key again.
     """
     printed = _dump(capsys, '--remove', NAMED_KEY)
-    assert f'    on_failure: no {STAGE_CLASS} (edited)' in printed
+    assert f'    on_failure: None, no {STAGE_CLASS} (edited)' in printed
     assert 'validation: valid' in printed
 
 
@@ -261,8 +269,8 @@ def test_by_key_entry_added(capsys: pytest.CaptureFixture[str]) -> None:
     plain values is answered by, asked of the entries beside the named key.
     """
     printed = _dump(capsys, '--add', f'{HOOKS}=notify_slack')
-    assert 'hooks: 4 entries (edited)' in printed
-    assert '    notify_slack = ops@example.org' in printed
+    assert f'{HOOKS_ROW}, 4 entries (edited)' in printed
+    assert '    notify_slack: str = ops@example.org' in printed
 
 
 def test_named_key_is_taken(capsys: pytest.CaptureFixture[str]) -> None:
@@ -279,23 +287,23 @@ def test_under_list_grows(capsys: pytest.CaptureFixture[str]) -> None:
     document really is one the class reads back.
     """
     printed = _dump(capsys, '--add', f'{UNDER_LIST}=gpu')
-    assert '    0: 3 entries (edited)' in printed
-    assert '        gpu = 2' in printed
+    assert '    0: dict[str, int], 3 entries (edited)' in printed
+    assert '        gpu: int = 2' in printed
     assert 'validation: valid' in printed
 
 
 def test_typed_entry_added(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the dict with nothing to copy grows by what its type says."""
     printed = _dump(capsys, '--add', f'{EMPTY_UNDER_LIST}=gpu')
-    assert '    1: 1 entry (edited)' in printed
-    assert '        gpu = 0' in printed
+    assert '    1: dict[str, int], 1 entry (edited)' in printed
+    assert '        gpu: int = 0' in printed
     assert 'validation: valid' in printed
 
 
 def test_under_list_shrinks(capsys: pytest.CaptureFixture[str]) -> None:
     """Test an entry of such a dict can be taken out of it again."""
     printed = _dump(capsys, '--remove', f'{UNDER_LIST}.cpu')
-    assert '    0: 1 entry (edited)' in printed
+    assert '    0: dict[str, int], 1 entry (edited)' in printed
     assert 'validation: valid' in printed
 
 
@@ -308,7 +316,7 @@ def test_file_entry_pattern(capsys: pytest.CaptureFixture[str]) -> None:
     """
     printed = _dump(capsys, '-i', data_file(DATA_NAME), '--add',
                     f'{EMPTY_UNDER_LIST}=gpu')
-    assert '        gpu = 100' in printed
+    assert '        gpu: int = 100' in printed
     assert 'validation: valid' in printed
 
 
@@ -319,8 +327,8 @@ def test_hook_dict_grows(capsys: pytest.CaptureFixture[str]) -> None:
     check is never applied to it and nothing inside it is checked either.
     """
     printed = _dump(capsys, '--add', f'{HOOK_DICT}=timeouts')
-    assert '    thresholds: 2 entries (edited)' in printed
-    assert '        timeouts = 3' in printed
+    assert '    thresholds: dict[str, int], 2 entries (edited)' in printed
+    assert '        timeouts: int = 3' in printed
     assert 'validation: valid' in printed
 
 
@@ -328,14 +336,15 @@ def test_optional_added(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the optional member is given the object it is declared for."""
     printed = _dump(capsys, '--add', 'audit', '--set', 'audit.name=cleanup')
     assert f'audit: {STAGE_CLASS} (edited)' in printed
-    assert '    name = cleanup (edited)' in printed
+    assert '    name: str = cleanup (edited)' in printed
 
 
 def test_moved_stage(capsys: pytest.CaptureFixture[str]) -> None:
     """Test one element of a list changes places with the one after it."""
     printed = _dump(capsys, '--move', 'stages.0=down')
     assert '    0: StageConfig' in printed
-    assert printed.index('name = test') < printed.index('name = build')
+    assert printed.index('name: str = test') < \
+        printed.index('name: str = build')
 
 
 def test_application_rules(capsys: pytest.CaptureFixture[str]) -> None:
@@ -366,7 +375,7 @@ def test_added_is_saved(capsys: pytest.CaptureFixture[str],
 def test_starts_as_declared(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the example says what it holds before anything is changed."""
     printed = _explained(capsys)
-    assert printed.startswith(f'{HEAD}\npipeline_name = nightly')
+    assert printed.startswith(f'{HEAD}\npipeline_name: str = nightly')
     assert printed.endswith(f'validation: valid\n{DUMP_TAIL}')
 
 

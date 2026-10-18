@@ -63,7 +63,7 @@ def test_settings_are_a_node(capsys: pytest.CaptureFixture[str]) -> None:
     shown = _dump(capsys, '--fold', 'editor')
     assert shown.startswith(HEAD)
     assert f'{NESTED_ROW} [valid on its own]' in shown
-    assert 'backup_suffix = .bak' in shown
+    assert 'backup_suffix: str = .bak' in shown
 
 
 def test_library_describes(capsys: pytest.CaptureFixture[str]) -> None:
@@ -91,14 +91,14 @@ def test_actions_are_rows(capsys: pytest.CaptureFixture[str]) -> None:
     for name in ('quit', 'validate', 'save', 'save_as', 'cancel', 'explain',
                  'fold'):
         assert f'    {name}: ' in shown
-    assert '0 = ctrl+s' in shown
+    assert '0: str = ctrl+s' in shown
 
 
 def test_file_is_read(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the input file holds a whole settings block and is opened."""
     shown = _dump(capsys, '-i', data_file(DATA_NAME), '--fold', 'editor')
-    assert 'report_folder = /srv/tool/reports' in shown
-    assert 'backup_suffix = .old' in shown
+    assert 'report_folder: str = /srv/tool/reports' in shown
+    assert 'backup_suffix: str = .old' in shown
     assert shown.endswith(input_tail(DATA_NAME))
 
 
@@ -125,7 +125,7 @@ def test_flag_setting_typed(capsys: pytest.CaptureFixture[str]) -> None:
     """
     shown = _dump(capsys, '--fold', 'editor', '--set',
                   'editor.confirm_overwrite=F')
-    assert 'confirm_overwrite = false (edited)' in shown
+    assert 'confirm_overwrite: bool = false (edited)' in shown
     assert 'validation: valid' in shown
 
 
@@ -214,9 +214,9 @@ def test_older_block_opens(capsys: pytest.CaptureFixture[str]) -> None:
     """
     shown = _dump(capsys, '-i', data_file(OLD_DATA_NAME), '--fold', 'editor',
                   '--fold', 'editor.actions')
-    assert 'find: 1 element' in shown
-    assert 'find_next: 1 element' in shown
-    assert 'choose: 1 element' in shown
+    assert 'find: list[str], 1 element' in shown
+    assert 'find_next: list[str], 1 element' in shown
+    assert 'choose: list[str], 1 element' in shown
     assert 'older format' in shown
 
 

@@ -27,6 +27,7 @@ from edit_cfg_json_tk.tk_elements import element_controls
 from edit_cfg_json_tk.tk_look import FOLD_WIDTH, NAME_COLUMN_WIDTH, \
     PADDING, TREE_INDENT, label_text, shown_text, told
 from edit_cfg_json_tk.tk_rows import RowWidgets, show_below
+from edit_cfg_json_tk.tk_types import TypeWidget
 from edit_cfg_json_tk.tk_values import ValueWidgets
 
 VALIDATE_TEXT = 'Validate'
@@ -584,6 +585,9 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         again cannot move it away from the node it belongs to. That frame is
         also what folding takes out of the layout, which is why it is not
         packed here but by `_show_rows`.
+
+        Its type stands between its name and its value, which reads as
+        Python's `name: type = value`.
         """
         frame = tkinter.Frame(parent)
         line = tkinter.Frame(frame)
@@ -591,12 +595,15 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         fold = self._add_fold(parent=line, row=row)
         tkinter.Label(line, text=row.name, width=NAME_COLUMN_WIDTH,
                       anchor='w').pack(side='left')
+        types = TypeWidget(parent=line, row=row,
+                           width=core.type_column_width(self._model))
+        types.button.pack(side='left')
         field = self._add_value(parent=line, row=row)
         mark = shown_text(line, core.row_marks(row), core.MEMBER_MARK,
                           wrapping=False)
         mark.pack(side='left')
         widgets = RowWidgets(
-            frame=frame, fold=fold, field=field, mark=mark,
+            frame=frame, fold=fold, types=types, field=field, mark=mark,
             subtree=self._add_subtree(parent=line, row=row),
             description=self._add_description(parent=frame, row=row),
             diagnostic=shown_text(frame, '', core.MEMBER_DIAGNOSTIC),
@@ -933,5 +940,6 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._state.finding.show()
         for row, widgets in zip(self._model.rows, self._rows, strict=True):
             widgets.mark.config(text=core.row_marks(row))
+            widgets.types.show(row)
         self._show_subtrees()
         self._show_member_texts()

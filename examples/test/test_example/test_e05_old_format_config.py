@@ -22,8 +22,8 @@ from edit_cfg_json import EditModel, LoadPolicy, load_config
 from example import e05_old_format_config
 from example.e05_old_format_config import CURRENT_FORMAT, NoHookConfig, \
     OldFormatConfig
-from .helpers import DUMP_TAIL, TEXT_LINE, WHOLE_LINE, data_file, dump, \
-    head, input_tail, open_tk_ui, refused, textual_titles
+from .helpers import DUMP_TAIL, data_file, dump, head, input_tail, \
+    open_tk_ui, refused, textual_titles
 
 OLD_FILE = 'e05_old_format.json'
 """Input file written by an older version of this example's application."""
@@ -60,18 +60,17 @@ write it, because the member it became says so itself. A key that is reported
 at its member is not also reported as one that nothing holds.
 """
 
-MIGRATED_ROWS = [f'format_version = {CURRENT_FORMAT}{SUPPLIED_MARK}',
-                 WHOLE_LINE,
-                 f'report_name = monthly-summary{RENAMED_MARK}', TEXT_LINE,
-                 f'owner = Ada Lovelace{NORMALIZED_MARK}', TEXT_LINE,
-                 'refresh_seconds = 900', WHOLE_LINE]
+MIGRATED_ROWS = [f'format_version: int = {CURRENT_FORMAT}{SUPPLIED_MARK}',
+                 f'report_name: str = monthly-summary{RENAMED_MARK}',
+                 f'owner: str = Ada Lovelace{NORMALIZED_MARK}',
+                 'refresh_seconds: int = 900']
 """Every row of that file as read, with the mark of each changed member.
 
 Each mark says what happened to that member and not merely that something did.
 The row that matters most is the one for `refresh_seconds`: the file holds that
-value under that name and nothing happened to it, so it carries no mark. What
-each row says below it is the kind of value it holds, which is what the editor
-knows about every member of every configuration without being told anything.
+value under that name and nothing happened to it, so it carries no mark. Each
+row also says the type of the value it holds, which is what the editor knows
+about every member of every configuration without being told anything.
 """
 
 
@@ -139,7 +138,7 @@ def test_without_the_hook() -> None:
 def test_current_file_silent(capsys: pytest.CaptureFixture[str]) -> None:
     """Test a file in the current shape is read without a word about it."""
     printed = _dump(capsys, '-i', data_file(CURRENT_FILE))
-    assert 'report_name = monthly-summary\n' in printed
+    assert 'report_name: str = monthly-summary\n' in printed
     assert NORMALIZED_MARK not in printed
     assert RENAMED_MARK not in printed
     assert CHANGED_LINE not in printed

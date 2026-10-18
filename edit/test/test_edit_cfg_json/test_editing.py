@@ -16,7 +16,7 @@ import json
 import pytest
 from edit_cfg_json import ConfigLoadError, EditModel, EditorBackend, \
     LoadPolicy, NoEditorError, Settings, UiBackend, edit, edit_in_ui, \
-    editor_model
+    editor_model, row_type_text
 from .sample_cfg import PICKED_NAME, ExtraArgCfg, FlatCfg, RangeCfg, \
     RewriteCfg, extra_arg_loader, picking_loader
 
@@ -208,7 +208,7 @@ def test_descriptions_given() -> None:
     edit(config=FlatCfg(), backend=backend, descriptions={('name',): about})
     rows = {row.name: row for row in backend.seen[0].rows}
     assert rows['name'].description.startswith(about)
-    assert 'whole number' in rows['answer'].description
+    assert row_type_text(rows['answer']) == 'int'
 
 
 def test_settings_reach_model() -> None:

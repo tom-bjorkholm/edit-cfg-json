@@ -28,15 +28,77 @@ a module of functions so that `textual_panel` stays short enough to read.
 
 from typing import Optional
 from textual.app import ComposeResult
+from textual.content import Content
 from textual.widget import Widget
 from textual.widgets import Button, Input, Label, Select, Static
 import edit_cfg_json as core
 from edit_cfg_json_textual.textual_elements import element_button, \
     element_id, offered_actions
 from edit_cfg_json_textual.textual_look import DESCRIPTION_CLASS, \
-    DIAGNOSTIC_CLASS, FOLD_CLASS, SUBTREE_CLASS, VALUE_CLASS, choice_id, \
-    description_id, diagnostic_id, fold_glyph, fold_id, plain_widget, \
-    show_emphasis, subtree_id, value_id
+    DIAGNOSTIC_CLASS, FOLD_CLASS, SUBTREE_CLASS, TYPE_ARROW_WIDTH, \
+    TYPE_CLASS, VALUE_CLASS, choice_id, description_id, diagnostic_id, \
+    fold_glyph, fold_id, plain_widget, show_emphasis, subtree_id, type_id, \
+    value_id
+
+
+class TypeChooser(Select[str]):
+    """The pull-down of the types one node may hold, inactive for now.
+
+    It shows the type the node holds now and lists every type it may hold, and
+    it is disabled on every row: the types cannot be chosen yet. Every row has
+    one all the same, so that every row says its type in the same place.
+
+    It remembers what it offers, because that can change while the editor is
+    open: a node whose declaration names nothing usable offers the one type
+    its value has, and a value typed into it can be of another type. Each
+    type is given as plain content rather than as text, because Textual reads
+    text as markup and a type is full of square brackets: `list[str]` would be
+    shown as `list`.
+
+    The value of each option is the text of its type and not its place among
+    them, because a pull-down given new options shows the one it holds again
+    only where its value changes: with places for values, the one type of
+    `None` replaced by the one type of `str` would both be place 0, and the
+    pull-down would go on saying `None`.
+    """
+
+    def __init__(self, index: int, row: core.MemberRow, width: int) -> None:
+        """Create the pull-down of the types of one node.
+
+        Args:
+            index: Place of the node among the rows.
+            row: Node to create the pull-down for.
+            width: Width in characters of the column of the types, which every
+                one of these is as wide as so that the values beside them
+                begin in one column.
+        """
+        self._offered = core.row_type_texts(row)
+        super().__init__(self._options_of(self._offered), allow_blank=False,
+                         compact=True, value=core.row_type_text(row),
+                         disabled=True, id=type_id(index), classes=TYPE_CLASS)
+        self.styles.width = width + TYPE_ARROW_WIDTH
+
+    @property
+    def offered(self) -> tuple[str, ...]:
+        """Return the types this pull-down lists, as the column shows each."""
+        return self._offered
+
+    @staticmethod
+    def _options_of(texts: tuple[str, ...]) -> list[tuple[Content, str]]:
+        """Return the options of a pull-down offering those types."""
+        return [(Content(text), text) for text in texts]
+
+    def show(self, row: core.MemberRow) -> None:
+        """Show the type the node holds now, among what it may hold now.
+
+        Args:
+            row: Node whose type is being shown, as the model holds it now.
+        """
+        offered = core.row_type_texts(row)
+        if offered != self._offered:
+            self._offered = offered
+            self.set_options(self._options_of(offered))
+        self.value = core.row_type_text(row)
 
 
 def value_widgets(index: int, row: core.MemberRow,

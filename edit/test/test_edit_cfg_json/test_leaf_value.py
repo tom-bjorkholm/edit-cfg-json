@@ -4,25 +4,16 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from typing import Optional
 import json
 import pytest
 from config_as_json import JsonType
-from edit_cfg_json.leaf_value import BOOL_KIND, LeafType, LIST_KIND, \
-    NO_KIND, NUMBER_KIND, TEXT_KIND, WHOLE_NUMBER_KIND, bool_word, \
-    canonical_text, kind_text, text_as_value, value_as_text, values_differ
+from edit_cfg_json.leaf_value import bool_word, canonical_text, kind_of, \
+    text_as_value, value_as_text, values_differ
 
 EVERY_KIND = [None, True, False, 0, 42, -1, 1.5, '', 'text', '42',
               'with "quotes"', 'Björkholm', [1, 2], {'key': 1}]
 """One value of every kind that a leaf of the buffer can hold."""
-
-NUMBER_MEMBER = 0
-"""A member that kept a number, which is read as JSON and never as text."""
-
-TEXT_MEMBER = ''
-"""A member that kept text, which keeps exactly what was typed."""
-
-FLAG_MEMBER = True
-"""A member that kept true or false, which takes a beginning of either."""
 
 
 def _same(value: JsonType, expected: JsonType) -> bool:
@@ -47,7 +38,7 @@ def test_value_as_text(value: JsonType, expected: str) -> None:
                           ('"quoted"', 'quoted'), ('[1, 2]', [1, 2])])
 def test_text_as_json(text: str, expected: JsonType) -> None:
     """Test the text of a member that is not text is read as JSON."""
-    assert _same(text_as_value(text=text, original=NUMBER_MEMBER), expected)
+    assert _same(text_as_value(text=text, kind=int), expected)
 
 
 @pytest.mark.parametrize('text', ['', 'not-a-number', '01', '-', '1.2.3',
@@ -60,14 +51,14 @@ def test_text_that_is_no_json(text: str) -> None:
     which validation reports as the wrong type rather than the editor
     hiding it.
     """
-    assert _same(text_as_value(text=text, original=NUMBER_MEMBER), text)
+    assert _same(text_as_value(text=text, kind=int), text)
 
 
 @pytest.mark.parametrize('text', ['', '42', 'true', 'null', 'text',
                                   '  spaced  ', '"quoted"'])
 def test_text_member_kept(text: str) -> None:
     """Test the text of a text member is kept exactly as it was typed."""
-    assert _same(text_as_value(text=text, original=TEXT_MEMBER), text)
+    assert _same(text_as_value(text=text, kind=str), text)
 
 
 @pytest.mark.parametrize('text, expected',
@@ -103,7 +94,7 @@ def test_no_bool_word(text: str) -> None:
                           ('false', False)])
 def test_flag_member_typed(text: str, expected: bool) -> None:
     """Test a member holding true or false takes a beginning of a word."""
-    assert _same(text_as_value(text=text, original=FLAG_MEMBER), expected)
+    assert _same(text_as_value(text=text, kind=bool), expected)
 
 
 @pytest.mark.parametrize('text, expected', [('', ''), ('yes', 'yes'),
@@ -116,13 +107,13 @@ def test_flag_member_other(text: str, expected: JsonType) -> None:
     that means nothing. What such a value is not is a value of that member,
     and `convert_member` is what says so once the user has moved on.
     """
-    assert _same(text_as_value(text=text, original=FLAG_MEMBER), expected)
+    assert _same(text_as_value(text=text, kind=bool), expected)
 
 
-@pytest.mark.parametrize('original', [NUMBER_MEMBER, TEXT_MEMBER, 1.5, None])
-def test_only_flag_expands(original: JsonType) -> None:
+@pytest.mark.parametrize('kind', [int, str, float, None])
+def test_only_flag_expands(kind: Optional[type]) -> None:
     """Test no member of another kind reads `t` as one of the two values."""
-    assert _same(text_as_value(text='t', original=original), 't')
+    assert _same(text_as_value(text='t', kind=kind), 't')
 
 
 @pytest.mark.parametrize('value', EVERY_KIND)
@@ -134,7 +125,7 @@ def test_text_round_trip(value: JsonType) -> None:
     every single key press.
     """
     text = value_as_text(value)
-    assert _same(text_as_value(text=text, original=value), value)
+    assert _same(text_as_value(text=text, kind=kind_of(value)), value)
 
 
 @pytest.mark.parametrize('value, other, differ',
@@ -174,41 +165,20 @@ def test_canonical_json(value: JsonType) -> None:
     assert canonical_text(value) == json.dumps(value, sort_keys=True)
 
 
-TEXT_TYPE = LeafType(kind=str)
-"""What a member declared to hold text says about itself."""
-
-MAYBE_TEXT = LeafType(kind=str, nothing=True)
-"""What a member declared `Optional[str]` says about itself."""
-
-
 @pytest.mark.parametrize('text', ['42', 'true', 'null', '[1, 2]'])
 def test_declared_text_kept(text: str) -> None:
-    """Test a member declared to hold text keeps what was typed into it.
+    """Test a member that takes text keeps what was typed into it.
 
-    The value it holds says nothing here, because it holds none: without the
-    declaration every one of these would be read as the JSON it is.
+    Every one of these would be read as the JSON it is by a member of any
+    other kind.
     """
-    assert _same(text_as_value(text=text, original=None,
-                               declared=TEXT_TYPE), text)
+    assert _same(text_as_value(text=text, kind=str), text)
 
 
 @pytest.mark.parametrize('text, expected', [('t', True), ('FAL', False)])
 def test_declared_flag(text: str, expected: bool) -> None:
-    """Test a member declared to hold true or false takes a beginning."""
-    assert _same(text_as_value(text=text, original=None,
-                               declared=LeafType(kind=bool)), expected)
-
-
-def test_declared_beats_value() -> None:
-    """Test the declaration answers where the value would answer otherwise.
-
-    A member declared to hold text and holding a number is a text member, and
-    a member declared to hold a number and holding text is not.
-    """
-    assert _same(text_as_value(text='42', original=7, declared=TEXT_TYPE),
-                 '42')
-    assert _same(text_as_value(text='42', original='seven',
-                               declared=LeafType(kind=int)), 42)
+    """Test a member that takes true or false takes a beginning."""
+    assert _same(text_as_value(text=text, kind=bool), expected)
 
 
 def test_field_means_no_none() -> None:
@@ -218,45 +188,21 @@ def test_field_means_no_none() -> None:
     so a field never puts the member into it: four characters would otherwise
     take the field away from under the cursor that typed them.
     """
-    assert _same(text_as_value(text='null', original=7,
-                               declared=LeafType(kind=int, nothing=True)),
-                 'null')
+    assert _same(text_as_value(text='null', kind=int, nothing=True), 'null')
 
 
 def test_null_is_json() -> None:
     """Test a member with no such state reads `null` as the JSON it is."""
-    assert text_as_value(text='null', original=7) is None
-
-
-@pytest.mark.parametrize('declared, value, expected',
-                         [(LeafType(), 'text', TEXT_KIND),
-                          (LeafType(), None, NO_KIND),
-                          (LeafType(kind=float), 0, NUMBER_KIND),
-                          (LeafType(kind=str), None, TEXT_KIND),
-                          (LeafType(kind=bool), None, BOOL_KIND),
-                          (LeafType(kind=int), 7, WHOLE_NUMBER_KIND),
-                          (LeafType(kind=list), None, LIST_KIND),
-                          (LeafType(kind=list), [1], ''),
-                          (LeafType(), {'a': 1}, '')])
-def test_kind_text(declared: LeafType, value: JsonType, expected: str) -> None:
-    """Test what each node says about the kind of value it holds.
-
-    A member declared `float` whose value is written `0` is the case that the
-    value alone gets wrong, and a member holding nothing is the case it
-    cannot answer at all. A node that really holds a container says nothing,
-    because its row already says how much it holds.
-    """
-    assert kind_text(declared=declared, value=value) == expected
+    assert text_as_value(text='null', kind=int) is None
 
 
 @pytest.mark.parametrize('value', EVERY_KIND)
 def test_declared_round_trip(value: JsonType) -> None:
-    """Test a declared text member shows and reads back the same value.
+    """Test a text member that may hold nothing reads back what it shows.
 
     Every value of every kind is shown as text and read back as the text it
-    was shown as, which is what a member declared to hold text does with
-    anything that reaches it.
+    was shown as, which is what a member that takes text does with anything
+    that reaches it.
     """
     text = value_as_text(value)
-    assert _same(text_as_value(text=text, original=value,
-                               declared=MAYBE_TEXT), text)
+    assert _same(text_as_value(text=text, kind=str, nothing=True), text)

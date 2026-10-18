@@ -243,8 +243,8 @@ class EditBuffer:
             raise ValueError(NOT_EDITABLE_ERROR.format(name=row.name))
         if row.value_text == text:
             return False
-        value = text_as_value(text=text, original=row.original,
-                              declared=row.declared)
+        value = text_as_value(text=text, kind=row.kind,
+                              nothing=row.nothing_allowed)
         self._rows[path] = row._replace(value=value, conversion='',
                                         changed_by_validator=False)
         self._hold_again(path)

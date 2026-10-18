@@ -14,11 +14,14 @@ from dataclasses import dataclass, field
 from io import StringIO
 from typing import Optional
 import pytest
-from edit_cfg_json.leaf_value import LeafType, empty_value
+from config_as_json import Config, ConfigPath, JsonType
+from edit_cfg_json.leaf_value import empty_value
 from edit_cfg_json.member_types import attribute_texts, declared_hints, \
-    leaf_type, member_types, node_types
-from edit_cfg_json.tree import config_nodes, flat_values, member_values
-from .container_cfg import LooseDictCfg
+    member_types, node_types, nothing_allowed
+from edit_cfg_json.tree import ConfigNode, config_nodes, flat_values, \
+    member_values
+from edit_cfg_json.type_options import TypeOption
+from .container_cfg import LooseDictCfg, UnionCfg
 
 
 class WrittenInInit:  # pylint: disable=too-few-public-methods
@@ -76,23 +79,33 @@ class Recorded:  # pylint: disable=too-few-public-methods
     tags: list[str] = field(default_factory=list)
 
 
+def _texts(options: tuple[TypeOption, ...]) -> list[str]:
+    """Return the text of every type one declaration allows."""
+    return [option.text for option in options]
+
+
+def _tree(config: Config) -> tuple[dict[ConfigPath, ConfigNode],
+                                   list[tuple[ConfigPath, JsonType]]]:
+    """Return the objects of one configuration and every node of it."""
+    nodes = config_nodes(config)
+    return nodes, flat_values(members=member_values(config,
+                                                    stderr_file=StringIO()),
+                              nodes=nodes)
+
+
 @pytest.mark.parametrize('name, expected',
-                         [('name', LeafType(kind=str)),
-                          ('answer', LeafType(kind=int)),
-                          ('ratio', LeafType(kind=float)),
-                          ('verbose', LeafType(kind=bool)),
-                          ('title', LeafType(kind=str, nothing=True)),
-                          ('tags', LeafType(kind=list,
-                                            inside=LeafType(kind=str))),
-                          ('limits', LeafType(kind=dict,
-                                              inside=LeafType(kind=int)))])
-def test_read_from_source(name: str, expected: LeafType) -> None:
+                         [('name', ['str']), ('answer', ['int']),
+                          ('ratio', ['float']), ('verbose', ['bool']),
+                          ('title', ['str', 'None']),
+                          ('tags', ['list[str]']),
+                          ('limits', ['dict[str, int]'])])
+def test_read_from_source(name: str, expected: list[str]) -> None:
     """Test each annotation on `self` says what its member holds.
 
     `ratio` is the case the value cannot answer: its default is written `0`,
     which is a whole number, while the member is declared to hold a number.
     """
-    assert member_types(WrittenInInit)[name] == expected
+    assert _texts(member_types(WrittenInInit)[name]) == expected
 
 
 def test_unannotated() -> None:
@@ -108,26 +121,26 @@ def test_private_is_no_member() -> None:
 
 def test_read_from_any_method() -> None:
     """Test a member declared outside `__init__` is read as well."""
-    assert member_types(WrittenElsewhere)['extra'] == LeafType(kind=bool)
+    assert _texts(member_types(WrittenElsewhere)['extra']) == ['bool']
 
 
 def test_base_is_read_too() -> None:
     """Test the members a base class declares are read with the rest."""
-    assert member_types(WrittenElsewhere)['name'] == LeafType(kind=str)
+    assert _texts(member_types(WrittenElsewhere)['name']) == ['str']
 
 
 def test_class_annotation() -> None:
     """Test a class level annotation says what its member holds."""
     found = member_types(Annotated)
-    assert found['name'] == LeafType(kind=str)
-    assert found['answer'] == LeafType(kind=int, nothing=True)
+    assert _texts(found['name']) == ['str']
+    assert _texts(found['answer']) == ['int', 'None']
 
 
 def test_dataclass_field_read() -> None:
     """Test the fields of a dataclass record the types they declare."""
     found = member_types(Recorded)
-    assert found['name'] == LeafType(kind=str)
-    assert found['tags'] == LeafType(kind=list, inside=LeafType(kind=str))
+    assert _texts(found['name']) == ['str']
+    assert _texts(found['tags']) == ['list[str]']
 
 
 class Quoted:  # pylint: disable=too-few-public-methods
@@ -146,7 +159,7 @@ def test_quoted_annotation() -> None:
     written without the quotation marks.
     """
     assert attribute_texts(Quoted)['title'] == 'Optional[str]'
-    assert member_types(Quoted)['title'] == LeafType(kind=str, nothing=True)
+    assert _texts(member_types(Quoted)['title']) == ['str', 'None']
 
 
 def test_texts_are_as_written() -> None:
@@ -178,34 +191,21 @@ class Unresolvable:  # pylint: disable=too-few-public-methods
 def test_one_bad_annotation() -> None:
     """Test an annotation that will not resolve leaves the others alone."""
     found = member_types(Unresolvable)
-    assert found['name'] == LeafType(kind=str)
+    assert _texts(found['name']) == ['str']
     assert 'other' not in found
 
 
-@pytest.mark.parametrize('hint, expected',
-                         [(str, LeafType(kind=str)),
-                          (Optional[str], LeafType(kind=str, nothing=True)),
-                          (str | None, LeafType(kind=str, nothing=True)),
-                          (Optional[int | str], LeafType()),
-                          (list, LeafType(kind=list)),
-                          (list[bool], LeafType(kind=list,
-                                                inside=LeafType(kind=bool))),
-                          (dict[str, float],
-                           LeafType(kind=dict, inside=LeafType(kind=float))),
-                          (list[Optional[str]],
-                           LeafType(kind=list,
-                                    inside=LeafType(kind=str, nothing=True))),
-                          (WrittenInInit, LeafType()),
-                          (int | str, LeafType())])
-def test_one_annotation_says(hint: object, expected: LeafType) -> None:
-    """Test what is made of each shape of annotation.
+class UsesNothing:  # pylint: disable=too-few-public-methods
+    """A class whose one annotation names a type the editor cannot use."""
 
-    A union of more than one type beside `None` says nothing the editor can
-    use, and it therefore does not say that the member may hold nothing
-    either: a member the editor cannot make a value for has one state and not
-    two. A class of the application's own says nothing for the same reason.
-    """
-    assert leaf_type(hint) == expected
+    def __init__(self) -> None:
+        """Assign the one member, a pair the editor can make nothing of."""
+        self.pair: tuple[int, int] = (1, 2)
+
+
+def test_unusable_is_left_out() -> None:
+    """Test a member declared as nothing usable is one nothing says about."""
+    assert 'pair' not in member_types(UsesNothing)
 
 
 @pytest.mark.parametrize('kind, expected',
@@ -250,7 +250,7 @@ def test_bad_class_annotation() -> None:
     it annotates with their declarations.
     """
     found = member_types(BadClassHint)
-    assert found['name'] == LeafType(kind=str)
+    assert _texts(found['name']) == ['str']
     assert 'later' not in declared_hints(BadClassHint)
 
 
@@ -263,10 +263,48 @@ def test_nothing_to_step_into() -> None:
     the class said nothing about. The two containers a node can be inside
     answer alike, and so does a node two steps in.
     """
-    config = LooseDictCfg()
-    nodes = config_nodes(config)
-    flat = flat_values(members=member_values(config, stderr_file=StringIO()),
-                       nodes=nodes)
+    nodes, flat = _tree(LooseDictCfg())
     assert {('loose', 'cpu'), ('spread', '0'),
             ('spread', '0', 'cpu')} <= set(dict(flat))
     assert node_types(nodes=nodes, flat=flat) == {}
+
+
+def _union_types() -> dict[ConfigPath, list[str]]:
+    """Return what the classes of `UnionCfg` allow each of its nodes."""
+    nodes, flat = _tree(UnionCfg())
+    return {path: _texts(options)
+            for path, options in node_types(nodes=nodes, flat=flat).items()}
+
+
+@pytest.mark.parametrize('path, expected',
+                         [(('columns', 'flat'), ['list[str]',
+                                                 'list[list[str]]']),
+                          (('columns', 'flat', '0'), ['str']),
+                          (('columns', 'nested', '0'), ['list[str]']),
+                          (('columns', 'nested', '0', '0'), ['str']),
+                          (('count',), ['int', 'str']),
+                          (('items', '0'), ['str', 'None'])])
+def test_steps_through_union(path: ConfigPath, expected: list[str]) -> None:
+    """Test a node inside a union of containers is reached through its own.
+
+    Each value of `columns` may be either list, and the elements of each are
+    what the list that value really is holds: text in one of them and a list
+    of text in the other.
+    """
+    assert _union_types()[path] == expected
+
+
+@pytest.mark.parametrize('path, expected',
+                         [(('maybe',), True), (('count',), False),
+                          (('colour',), False), (('items', '0'), False)])
+def test_nothing_allowed(path: ConfigPath, expected: bool) -> None:
+    """Test which members have the two states of a value and of nothing.
+
+    `Optional[int | str]` does, because the editor can make an empty value
+    of the first of its types. An optional enum does not yet, because the
+    editor can make no value of an enum on its own, and an element of a list
+    never does, whatever its declaration allows.
+    """
+    nodes, flat = _tree(UnionCfg())
+    options = node_types(nodes=nodes, flat=flat).get(path, ())
+    assert nothing_allowed(path=path, options=options, nodes=nodes) is expected

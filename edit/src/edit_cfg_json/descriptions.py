@@ -8,12 +8,11 @@ those is an object with a class of its own. A mapping supplied by the
 application labels the individual members, and the type of a member says the
 rest.
 
-What a type says is the names of an enum where the member holds one, and what
-kind of value the member holds where it does not: text, a whole number, a
-number, or true or false. That last one is the least the editor can say about
-any member and it is never nothing, which is what it is for: a program that is
-told a class and no mapping would otherwise show the members with nothing under
-them at all, and the editor does know something about each of them.
+What a type is, is said by the column of the types on the row itself, so what
+is said here is what that column cannot say: the summary and the names of an
+enum, the whole of a declaration that allows more than one type or that the
+column had to cut, and that the type shown was taken from the value because
+nothing usable was declared.
 
 It takes a mapping for the members because a member has no docstring at
 runtime. A class has one and every reader of the code can see it, while a
@@ -32,9 +31,9 @@ from collections.abc import Mapping
 from enum import Enum
 from typing import NamedTuple, Optional
 import inspect
-from config_as_json import ConfigPath, JsonType, ParseConverter
-from edit_cfg_json.leaf_value import LeafType, kind_text
+from config_as_json import ConfigPath, ParseConverter
 from edit_cfg_json.tree import EVERY_ELEMENT, selects
+from edit_cfg_json.type_options import TYPE_COLUMN_LIMIT, TypeOption
 
 CHOICES_FORM = 'One of: {names}.'
 """What the editor says about the names one enum member accepts."""
@@ -50,14 +49,20 @@ structure is. What is worth saying here is that a node which may be left out
 is a node a user may leave empty.
 """
 
-NOTHING_TEXT = 'It may hold nothing at all.'
-"""What the editor says about a member declared to allow no value.
+DECLARED_FORM = 'Declared as {types}.'
+"""What the editor says about a node whose declaration the column cannot show.
 
-`Optional[str]` is what says it, and the member then has two states rather
-than one: it holds a value, or it holds nothing, and which of them it is in is
-something the user can change. It is not said together with the line above it,
-which says the same thing about the file and says more: a member left out of
-the file is a member holding nothing, written the way that class writes it.
+The column shows the one type a node holds, so a declaration that allows more
+than one is said in full here, and so is a type longer than the column, which
+the column cuts.
+"""
+
+INFERRED_TEXT = ('The type is taken from the value, because nothing declared '
+                 'says one the editor can use.')
+"""What the editor says about a node whose type only its value says.
+
+That is a member with no annotation, one whose annotation will not resolve,
+and one whose annotation names a type the editor can make nothing of.
 """
 
 
@@ -238,26 +243,13 @@ def enum_text(converter: Optional[ParseConverter]) -> str:
 class MemberFacts(NamedTuple):
     """What the editor knows about the type of one node of the tree.
 
-    It is one object rather than one argument each, because the four of them
-    are read together and answer one question between them: what can be said
-    about this node that the application did not say.
+    It is one object rather than one argument each, because they are read
+    together and answer one question between them: what can be said about
+    this node that the application did not say and its row cannot show.
     """
 
-    value: JsonType
-    """Value the node held when the file was last agreed with.
-
-    It is what says the kind of the value wherever the declaration of the
-    member says nothing, which is a class whose source cannot be read and a
-    member with no annotation at all.
-    """
-
-    declared: LeafType = LeafType()
-    """What the class that owns this node says the value here is.
-
-    It wins over the value, because a member declared `float` whose default is
-    written `0` is a number member whatever the value says, and a member that
-    holds nothing has a kind only if its declaration gives it one.
-    """
+    types: tuple[TypeOption, ...] = ()
+    """The types the class that owns this node allows it to hold."""
 
     converter: Optional[ParseConverter] = None
     """How the text of this node becomes the value it holds, or None."""
@@ -268,58 +260,54 @@ class MemberFacts(NamedTuple):
     nested: bool = False
     """Whether this node is a declared nested configuration object.
 
-    Such a node holds no value of its own, so what kind of value it is cannot
-    be said about it. What is said about it instead is the docstring of its
-    class, and where that is said depends on whether the node is open, which
-    is why it is not said here.
+    Such a node holds no value of its own, so it says nothing about where the
+    type of a value came from: its class is declared by `nested_configs()`,
+    and its docstring is said below it, where that is said depending on
+    whether the node is open.
     """
 
 
-def _may_hold_nothing(facts: MemberFacts) -> str:
-    """Return what is said about a node that need not hold a value.
-
-    What the class writes for such a member says the more of the two, so a
-    member it leaves out of the file says that and nothing else: a member that
-    may be left out is a member that may hold nothing, and it also says how it
-    is written.
+def declared_text(facts: MemberFacts) -> str:
+    """Return what the column of the types cannot say about one node.
 
     Args:
         facts: What the editor knows about the type of that node.
 
     Returns:
-        What is said about it, and an empty text where the node has to hold a
-        value.
+        The whole declaration where it allows more than one type or is longer
+        than the column, that the type was taken from the value where nothing
+        usable was declared, and an empty text for every other node.
     """
-    if facts.optional:
-        return OPTIONAL_TEXT
-    return NOTHING_TEXT if facts.declared.nothing else ''
+    if not facts.types:
+        return '' if facts.nested else INFERRED_TEXT
+    whole = ' | '.join(option.text for option in facts.types)
+    if len(facts.types) > 1 or len(whole) > TYPE_COLUMN_LIMIT:
+        return DECLARED_FORM.format(types=whole)
+    return ''
 
 
 def type_text(facts: MemberFacts) -> str:
-    """Return everything the type of one node says about it.
+    """Return everything the type of one node says that its row does not.
 
-    An enum says the most, so where a node holds one that is what is said and
-    the kind of the value would only repeat it: the name of an enum member is
-    text, and knowing that is worth nothing beside knowing which names there
-    are. Every other value says what kind of value it is, which is the one
-    thing the editor knows about every member of every configuration.
+    An enum says the most: the summary of its docstring and the names it
+    accepts, which no column of a row has room for. Then comes what the
+    column of the types cannot say, and last that the class above it may
+    leave it out of the file altogether.
 
-    A declared nested configuration object says neither, because it holds no
+    A declared nested configuration object says no names, because it holds no
     value: it says its class, which its row shows, and its docstring, which is
-    shown below it. What it can still say here is that the class above it may
-    leave it out of the file altogether, or that it may hold nothing.
+    shown below it.
 
     Args:
         facts: What the editor knows about the type of that node.
 
     Returns:
         What the type of that node says, and an empty text when it says
-        nothing at all.
+        nothing its row does not.
     """
-    said = '' if facts.nested else \
-        (enum_text(facts.converter)
-         or kind_text(declared=facts.declared, value=facts.value))
-    return f'{said} {_may_hold_nothing(facts)}'.strip()
+    said = ['' if facts.nested else enum_text(facts.converter),
+            declared_text(facts), OPTIONAL_TEXT if facts.optional else '']
+    return ' '.join(part for part in said if part)
 
 
 def member_description(descriptions: Descriptions, path: ConfigPath,
@@ -331,7 +319,7 @@ def member_description(descriptions: Descriptions, path: ConfigPath,
     it. The second is appended rather than used only where the first is
     missing: what a node holds is true whatever the application wrote, and an
     application that explains what its members mean should not have to list the
-    names of an enum or say that a number is a number.
+    names of an enum.
 
     Args:
         descriptions: What the application says about its members.
@@ -339,8 +327,8 @@ def member_description(descriptions: Descriptions, path: ConfigPath,
         facts: What the editor knows about the type of that node.
 
     Returns:
-        The description of that node, which is never empty for a node the
-        editor can edit, because the type of it always says something.
+        The description of that node, and an empty text where neither the
+        application nor the type has anything to say that the row does not.
     """
     said = [path_description(descriptions=descriptions, path=path),
             type_text(facts)]

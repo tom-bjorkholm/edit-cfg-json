@@ -40,6 +40,13 @@ A node whose values are a set the editor knows the whole of has both this and
 the field above, and exactly one of the two is on the screen.
 """
 
+TYPE_ID_PREFIX = 'type_'
+"""Prefix of the identifier of the pull-down of the types of one node.
+
+Every node has one, between its name and its value, because every node holds a
+type and the column says which.
+"""
+
 MARK_ID_PREFIX = 'mark_'
 """Prefix of the identifier of the widget that marks one node."""
 
@@ -122,6 +129,9 @@ NAME_CLASS = 'member_name'
 
 VALUE_CLASS = 'member_value'
 """Style class of the widget that shows or edits one member value."""
+
+TYPE_CLASS = 'member_type'
+"""Style class of the pull-down that says which type one member holds."""
 
 MARK_CLASS = 'member_mark'
 """Style class of the widget that marks one member."""
@@ -207,6 +217,15 @@ The indentation is what says that the line belongs to the member above it
 rather than being a member of its own.
 """
 
+TYPE_ARROW_WIDTH = 3
+"""Width in cells that a compact pull-down takes beside its text.
+
+That is the arrow, the cell before it and the cell after it, which is what
+`Select` lays out of its own accord in its compact form. The column of the
+types is as wide as its longest type and this, so that no type it holds is cut
+by the pull-down as well as by the core.
+"""
+
 LEAST_VALUE_WIDTH = 8
 """Smallest width in cells that the value of a member is given.
 
@@ -276,6 +295,7 @@ PANEL_CSS = '\n'.join(COLOUR_RULES + (
     f'.{NAME_CLASS} {{ width: {NAME_WIDTH}; }}',
     f'.{VALUE_CLASS} {{ width: 1fr; min-width: {LEAST_VALUE_WIDTH}; }}',
     f'Select.{VALUE_CLASS} {{ height: 1; }}',
+    f'Select.{TYPE_CLASS} {{ height: 1; margin-right: 1; }}',
     f'.{MARK_CLASS}, .{SUBTREE_CLASS} {{ width: auto; }}',
     f'.{ELEMENT_CLASS}, .{FIND_NEXT_CLASS} {{ width: auto; min-width: 0;'
     ' height: 1; padding: 0 1; margin: 0; }',
@@ -368,6 +388,11 @@ def value_id(index: int) -> str:
 def choice_id(index: int) -> str:
     """Return the identifier of the pull-down of one node."""
     return f'{CHOICE_ID_PREFIX}{index}'
+
+
+def type_id(index: int) -> str:
+    """Return the identifier of the pull-down of the types of one node."""
+    return f'{TYPE_ID_PREFIX}{index}'
 
 
 def mark_id(index: int) -> str:

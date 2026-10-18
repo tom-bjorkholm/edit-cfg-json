@@ -29,6 +29,12 @@ has to do with it is show it. A backend that put a wording of its own around a
 member the load changed would pass a test that used the core's wording.
 """
 
+MARK_STEP = 2
+"""How far after the name of a member its mark is among the widget texts.
+
+The type of the member is between them, which is where Python writes it.
+"""
+
 
 def test_stub_widget_texts(stub_tk: None) -> None:
     """Test the stubbed widgets show the class name, the names and buttons."""
@@ -281,14 +287,14 @@ def test_stub_load_change(stub_tk: None) -> None:
     _ = stub_tk
     stub_editor(_changed_model())
     shown = stub_texts(packed_only=True)
-    assert shown[shown.index('answer') + 1] == f' ({LOAD_REASON})'
+    assert shown[shown.index('answer') + MARK_STEP] == f' ({LOAD_REASON})'
 
 
 def test_real_load_change(root_or_skip: tkinter.Tk) -> None:
     """Test the real Tk editor marks that member in exactly the same way."""
     EditorWidgets(parent=root_or_skip, model=_changed_model())
     shown = real_texts(root_or_skip, packed_only=True)
-    assert shown[shown.index('answer') + 1] == f' ({LOAD_REASON})'
+    assert shown[shown.index('answer') + MARK_STEP] == f' ({LOAD_REASON})'
 
 
 def test_is_editor_backend() -> None:

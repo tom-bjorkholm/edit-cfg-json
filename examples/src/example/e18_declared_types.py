@@ -41,8 +41,9 @@ is running will not resolve, and a member can simply be assigned without an
 annotation. Every one of those costs that member its declaration and nothing
 else: the value is still there to answer, exactly as before.
 
-Run this example and read the line under each member, which is where the type
-of a member says what it says (example 3 is about that line):
+Run this example and read the column between the name and the value of each
+member, which is where the type of a member is said, spelled the way a Python
+type hint spells it:
 
 ````sh
 python3 examples/src/example/e18_declared_types.py --ui dump
@@ -53,9 +54,12 @@ python3 examples/src/example/e18_declared_types.py --ui textual
 Inside this repository, use the virtual environment that the build creates:
 `./venv/bin/python3 examples/src/example/e18_declared_types.py --ui tk`.
 
-`threshold` says *A number.* although it holds `0`, and `spare` says nothing
-about its elements at all, because it is the one member of this class that was
-deliberately left without an annotation.
+`threshold` says `float` although it holds `0`, and `subtitle` says `None`,
+because that is what it holds; the line under it says the whole of what it is
+declared as, `str | None`, because the column shows only the type the member
+holds now. `spare` says `list`, and the line under it says that this was taken
+from its value: it is the one member of this class that was deliberately left
+without an annotation, so nothing says what its elements would be.
 
 ## A member that may hold nothing has two states
 

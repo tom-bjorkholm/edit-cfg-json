@@ -20,6 +20,7 @@ from textual.widgets._select import InvalidSelectValueError
 from edit_cfg_json import EditModel, Settings
 from edit_cfg_json_textual.textual_ask import TellScreen
 from edit_cfg_json_textual.textual_editor import EditorApp
+from edit_cfg_json_textual.textual_look import VALUE_CLASS
 from edit_cfg_json_textual.textual_screen import ModelScreen
 from edit_cfg_json_textual.textual_words import CHOOSE_COMMAND, TYPE_COMMAND
 from example.e01_flat_config import FlatConfig
@@ -105,13 +106,16 @@ def test_no_chooser() -> None:
     """Test a member whose values are not a known set gets no pull-down.
 
     A widget that could never hold anything is a piece of the screen spent on
-    nothing, which is the same rule the description of a member follows.
+    nothing, which is the same rule the description of a member follows. The
+    pull-down of the types that every row has is not one of these, and is
+    told from them by its style class.
     """
     async def run() -> int:
         app = EditorApp(EditModel(FlatConfig()))
         async with app.run_test() as pilot:
             await pilot.pause()
-            return len(app.query(Select))
+            return len([chooser for chooser in app.query(Select)
+                        if chooser.has_class(VALUE_CLASS)])
     assert asyncio.run(run()) == 0
 
 

@@ -83,6 +83,7 @@
   * [RowWidgets](#edit_cfg_json_tk.tk_rows.RowWidgets)
     * [frame](#edit_cfg_json_tk.tk_rows.RowWidgets.frame)
     * [fold](#edit_cfg_json_tk.tk_rows.RowWidgets.fold)
+    * [types](#edit_cfg_json_tk.tk_rows.RowWidgets.types)
     * [field](#edit_cfg_json_tk.tk_rows.RowWidgets.field)
     * [mark](#edit_cfg_json_tk.tk_rows.RowWidgets.mark)
     * [subtree](#edit_cfg_json_tk.tk_rows.RowWidgets.subtree)
@@ -137,6 +138,10 @@
   * [KEY\_NAMES](#edit_cfg_json_tk.key_names.KEY_NAMES)
   * [\_tk\_key](#edit_cfg_json_tk.key_names._tk_key)
   * [tk\_sequence](#edit_cfg_json_tk.key_names.tk_sequence)
+* [edit\_cfg\_json\_tk.tk\_types](#edit_cfg_json_tk.tk_types)
+  * [TypeWidget](#edit_cfg_json_tk.tk_types.TypeWidget)
+    * [\_\_init\_\_](#edit_cfg_json_tk.tk_types.TypeWidget.__init__)
+    * [show](#edit_cfg_json_tk.tk_types.TypeWidget.show)
 * [edit\_cfg\_json\_tk.tk\_look](#edit_cfg_json_tk.tk_look)
   * [NAME\_COLUMN\_WIDTH](#edit_cfg_json_tk.tk_look.NAME_COLUMN_WIDTH)
   * [LEAST\_FIELD\_WIDTH](#edit_cfg_json_tk.tk_look.LEAST_FIELD_WIDTH)
@@ -152,9 +157,14 @@
   * [FIELD\_FOREGROUND](#edit_cfg_json_tk.tk_look.FIELD_FOREGROUND)
   * [FIELD\_BORDER](#edit_cfg_json_tk.tk_look.FIELD_BORDER)
   * [MEMBER\_CHOICE\_NAME](#edit_cfg_json_tk.tk_look.MEMBER_CHOICE_NAME)
+  * [MEMBER\_TYPE\_NAME](#edit_cfg_json_tk.tk_look.MEMBER_TYPE_NAME)
+  * [TYPE\_COLOUR](#edit_cfg_json_tk.tk_look.TYPE_COLOUR)
   * [MEMBER\_FIELD\_NAME](#edit_cfg_json_tk.tk_look.MEMBER_FIELD_NAME)
   * [edit\_field](#edit_cfg_json_tk.tk_look.edit_field)
   * [choice\_field](#edit_cfg_json_tk.tk_look.choice_field)
+  * [type\_field](#edit_cfg_json_tk.tk_look.type_field)
+  * [menu\_of](#edit_cfg_json_tk.tk_look.menu_of)
+  * [fill\_menu](#edit_cfg_json_tk.tk_look.fill_menu)
   * [shown\_text](#edit_cfg_json_tk.tk_look.shown_text)
   * [told](#edit_cfg_json_tk.tk_look.told)
   * [show\_emphasis](#edit_cfg_json_tk.tk_look.show_emphasis)
@@ -1035,6 +1045,9 @@ again cannot move it away from the node it belongs to. That frame is
 also what folding takes out of the layout, which is why it is not
 packed here but by `_show_rows`.
 
+Its type stands between its name and its value, which reads as
+Python's `name: type = value`.
+
 <a id="edit_cfg_json_tk.tk_editor.EditorWidgets._element_changed"></a>
 
 #### \_element\_changed
@@ -1459,6 +1472,14 @@ opened again.
 #### fold
 
 The control that folds this container, None for a node with none.
+
+<a id="edit_cfg_json_tk.tk_rows.RowWidgets.types"></a>
+
+#### types
+
+The pull-down that says which type this node holds.
+
+Every node has one, because every node holds a type.
 
 <a id="edit_cfg_json_tk.tk_rows.RowWidgets.field"></a>
 
@@ -2219,6 +2240,66 @@ Return one key combination as the event sequence that Tk binds by.
 - `error` - the action it belongs to keeps its button and loses only
   this way of reaching it.
 
+<a id="edit_cfg_json_tk.tk_types"></a>
+
+# edit\_cfg\_json\_tk.tk\_types
+
+The pull-down that says which type one node holds.
+
+Every row says the type it holds between its name and its value, which reads
+as Python's `name: type = value`, and lists every type its declaration allows.
+Nothing can be chosen in it yet: it is disabled on every row. It is a module
+of its own because it is a piece of window with a life of its own — a button,
+a menu, and what the two of them were last told — and because `tk_editor` is
+the module of this backend that is nearest to being too long to read.
+
+<a id="edit_cfg_json_tk.tk_types.TypeWidget"></a>
+
+## TypeWidget Objects
+
+```python
+class TypeWidget()
+```
+
+The pull-down of the types of one node, and what it offers.
+
+This is a class rather than a function because what it offers can change
+while the editor is open, and the menu then has to be given its entries
+again: a node whose declaration names nothing usable offers the one type
+its value has, and a value typed into it can be of another type.
+
+<a id="edit_cfg_json_tk.tk_types.TypeWidget.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(parent: tkinter.Misc, row: core.MemberRow, width: int) -> None
+```
+
+Create the pull-down of the types of one node.
+
+**Arguments**:
+
+- `parent` - Line of the node that is being shown.
+- `row` - Node to create the pull-down for.
+- `width` - Width in characters of the column of the types, which every
+  one of these is as wide as so that the values beside them
+  begin in one column.
+
+<a id="edit_cfg_json_tk.tk_types.TypeWidget.show"></a>
+
+#### show
+
+```python
+def show(row: core.MemberRow) -> None
+```
+
+Show the type the node holds now, among what it may hold now.
+
+**Arguments**:
+
+- `row` - Node whose type is being shown, as the model holds it now.
+
 <a id="edit_cfg_json_tk.tk_look"></a>
 
 # edit\_cfg\_json\_tk.tk\_look
@@ -2376,6 +2457,27 @@ and it is what tells the pull-down of a member from the field of the same
 member: the two share one variable and are on the same line, and exactly one
 of them is in the layout.
 
+<a id="edit_cfg_json_tk.tk_look.MEMBER_TYPE_NAME"></a>
+
+#### MEMBER\_TYPE\_NAME
+
+Tk name of the pull-down that says which type one member holds.
+
+It is on the line of its member between the name and the value, which is what
+tells it from the pull-down of the values: that one is inside the area of the
+value, where the two ways of editing the value take turns.
+
+<a id="edit_cfg_json_tk.tk_look.TYPE_COLOUR"></a>
+
+#### TYPE\_COLOUR
+
+Colour of the type of a member, which nothing can be chosen in yet.
+
+Tk greys a widget that is disabled to a colour too faint to read on the light
+window this editor has, and a type is worth reading: it is the muted colour of
+the explanations instead, which says that it is not something to edit and is
+still read comfortably.
+
 <a id="edit_cfg_json_tk.tk_look.MEMBER_FIELD_NAME"></a>
 
 #### MEMBER\_FIELD\_NAME
@@ -2476,6 +2578,76 @@ switches between typing and choosing.
 **Returns**:
 
   A pull-down of those values, showing that variable.
+
+<a id="edit_cfg_json_tk.tk_look.type_field"></a>
+
+#### type\_field
+
+```python
+def type_field(parent: tkinter.Misc, shown: str,
+               width: int) -> tkinter.Menubutton
+```
+
+Return the pull-down of the types one node may hold, without its menu.
+
+Nothing can be chosen in it yet, so it is disabled on every row, and it
+is coloured as an explanation is rather than greyed out as Tk would. It is
+left aligned for the reason the pull-down of the values is, and it is not
+packed here, because where it goes on its line is the editor's.
+
+**Arguments**:
+
+- `parent` - Line of the node that is being shown.
+- `shown` - The type that node holds now.
+- `width` - Width in characters of the column of the types.
+  
+
+**Returns**:
+
+  A pull-down showing that type.
+
+<a id="edit_cfg_json_tk.tk_look.menu_of"></a>
+
+#### menu\_of
+
+```python
+def menu_of(pull_down: tkinter.Menubutton,
+            labels: Sequence[str],
+            picked: Optional[Callable[[str], None]] = None) -> tkinter.Menu
+```
+
+Give one pull-down the menu it opens, one entry per label.
+
+**Arguments**:
+
+- `pull_down` - The menu button the menu belongs to.
+- `labels` - What the entries of the menu say, in their order.
+- `picked` - What picking an entry does with its label, or None for a menu
+  of which nothing can be picked yet.
+  
+
+**Returns**:
+
+  The menu, so that its entries can be given again later.
+
+<a id="edit_cfg_json_tk.tk_look.fill_menu"></a>
+
+#### fill\_menu
+
+```python
+def fill_menu(menu: tkinter.Menu,
+              labels: Sequence[str],
+              picked: Optional[Callable[[str], None]] = None) -> None
+```
+
+Add one entry per label to one menu.
+
+**Arguments**:
+
+- `menu` - The menu to add the entries to.
+- `labels` - What the entries say, in their order.
+- `picked` - What picking an entry does with its label, or None for a menu
+  of which nothing can be picked yet.
 
 <a id="edit_cfg_json_tk.tk_look.shown_text"></a>
 

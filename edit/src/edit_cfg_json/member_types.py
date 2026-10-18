@@ -25,14 +25,13 @@ standard library's own resolver for one — the same resolution
 written in. One annotation that will not resolve costs that member its
 declaration and leaves every other member of the class alone.
 
-**What is made of the answer is deliberately little.** An annotation says one
-of the kinds of `leaf_value`, or it says nothing this editor can use. A class
-of the application's own is nothing it can use: what the editor does with a
-kind is say what it is and make an empty one of it, and it can do neither with
-a class it has never seen. Where the member holds a nested configuration
-object, the object itself is what answers (section 4.1 of
-`doc/detailed_design.md`), and where it holds an enum, the parse converter of
-the class answers.
+**What is made of the answer is the types it allows**, as `type_options`
+reads them: one alternative per type a union names, each spelled as Python
+spells it. A member whose declaration names nothing usable answers with none,
+and the value it holds is then what says its type. Where the member holds a
+nested configuration object the object itself is what answers for its members
+(section 4.1 of `doc/detailed_design.md`), and where it holds an enum the parse
+converter of the class answers for its names.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -40,14 +39,15 @@ the class answers.
 
 from collections.abc import Mapping, Sequence
 from textwrap import dedent
-from types import NoneType
-from typing import Optional, get_args, get_origin, get_type_hints
+from typing import Optional, get_type_hints
 import ast
 import inspect
 import sys
 from config_as_json import ConfigPath, JsonType
-from edit_cfg_json.leaf_value import LeafType, VALUE_KINDS
 from edit_cfg_json.tree import ConfigNode, owner_path
+from edit_cfg_json.type_options import NONE_TYPE, TypeOption, \
+    empty_option_value, held_option, node_options, type_options, \
+    value_option
 
 SELF_NAME = 'self'
 """What the first argument of a method is called, by every convention."""
@@ -199,115 +199,105 @@ def declared_hints(described: type[object]) -> dict[str, object]:
     return found
 
 
-def _optional_type(rest: Sequence[object]) -> LeafType:
-    """Return what an annotation that also allows nothing says.
-
-    A union of more than one type beside `None` says nothing this editor can
-    use, and it therefore does not say that the member may hold nothing
-    either: the two states of such a member are *holds a value* and *holds
-    nothing*, and a member the editor cannot make a value for has only one of
-    them.
-
-    Args:
-        rest: What the union allows beside nothing.
-
-    Returns:
-        What the annotation says, which says that it may hold nothing only
-        where it also says what a value there would be.
-    """
-    found = leaf_type(rest[0]) if len(rest) == 1 else LeafType()
-    return found._replace(nothing=found.kind is not None)
-
-
-def leaf_type(hint: object) -> LeafType:
-    """Return what one annotation says about the value it is about.
-
-    Args:
-        hint: What one annotation means.
-
-    Returns:
-        What that says about the value, which is empty for an annotation
-        naming anything the editor cannot make a value of.
-    """
-    args = get_args(hint)
-    if NoneType in args:
-        return _optional_type([arg for arg in args if arg is not NoneType])
-    origin: object = get_origin(hint) or hint
-    if origin is list and args:
-        return LeafType(kind=list, inside=leaf_type(args[0]))
-    if origin is dict and len(args) > 1:
-        return LeafType(kind=dict, inside=leaf_type(args[1]))
-    return LeafType(kind=_known_kind(origin))
-
-
-def _known_kind(origin: object) -> Optional[type]:
-    """Return the kind one annotation names, None for anything else."""
-    return next((kind for kind, _ in VALUE_KINDS if origin is kind), None)
-
-
-def member_types(described: type[object]) -> dict[str, LeafType]:
-    """Return what one class says about the type of each member it declares.
+def member_types(described: type[object]) -> dict[str,
+                                                  tuple[TypeOption, ...]]:
+    """Return the types one class allows each member it declares to hold.
 
     Args:
         described: Class of the configuration object being asked.
 
     Returns:
-        One answer per member whose declaration says anything, by the name of
-        that member. A private attribute is never one, because a member of a
-        configuration is a public attribute of it.
+        The alternatives of every member whose declaration names any usable
+        type, by the name of that member. A private attribute is never one,
+        because a member of a configuration is a public attribute of it.
     """
-    return {name: leaf_type(hint)
-            for name, hint in declared_hints(described).items()
-            if not name.startswith('_')}
+    found = ((name, type_options(hint))
+             for name, hint in declared_hints(described).items()
+             if not name.startswith('_'))
+    return {name: options for name, options in found if options}
 
 
 def _type_at(path: ConfigPath, nodes: Mapping[ConfigPath, ConfigNode],
-             owned: Mapping[ConfigPath, Mapping[str, LeafType]]
-             ) -> Optional[LeafType]:
-    """Return what the class owning one node says the value there is.
+             owned: Mapping[ConfigPath, Mapping[str, tuple[TypeOption, ...]]],
+             values: Mapping[ConfigPath, JsonType]) -> tuple[TypeOption, ...]:
+    """Return the types the class owning one node allows that node to hold.
 
     The class that answers is the one that owns the subtree, exactly as it is
     for a parse converter and for an optional member: a nested configuration
     object declares its own members. What it declares is about the member, and
-    a node inside that member is reached by stepping into what the member says
-    is inside it, once per step.
+    a node inside that member is reached by stepping into what the member
+    allows inside it, once per step. Where a container is allowed to be more
+    than one type, the step goes through the one its value is, which is what
+    makes the inside of `list[str] | list[list[str]]` either of the two, and
+    through a configuration class only where the tree has an object.
 
     Args:
         path: Path of the node to answer for.
         nodes: Every configuration object of the tree, by its path.
         owned: What each of those objects declares, by the path of the object.
+        values: The value of every node of the tree, by its path.
 
     Returns:
-        What the value at that node is, and None where nothing says. A node
-        that is not the member itself never says that it may hold nothing.
+        The types that node may hold, and none where nothing usable says.
     """
     owner = owner_path(path=path, nodes=nodes)
     member = path[:len(owner) + 1]
-    held = owned.get(owner, {}).get(member[-1])
-    for _ in path[len(member):]:
-        if held is None:
-            return None
-        held = held.inside
-    if held is None or len(path) == len(member):
-        return held
-    return held._replace(nothing=False)
+    options = owned.get(owner, {}).get(member[-1], ())
+    for depth in range(len(member), len(path)):
+        held = held_option(node_options(options, path[:depth] in nodes),
+                           values.get(path[:depth]))
+        options = () if held is None else held.inside
+    return options
 
 
 def node_types(nodes: Mapping[ConfigPath, ConfigNode],
                flat: Sequence[tuple[ConfigPath, JsonType]]
-               ) -> dict[ConfigPath, LeafType]:
-    """Return what the classes of one tree say about each node of it.
+               ) -> dict[ConfigPath, tuple[TypeOption, ...]]:
+    """Return the types the classes of one tree allow each node of it.
 
     Args:
         nodes: Every configuration object of the tree, by its path.
         flat: The path and the value of every node, in row order.
 
     Returns:
-        One answer per node whose declaration says anything, by the path of
-        that node.
+        The alternatives of every node whose declaration names any usable
+        type, by the path of that node.
     """
     owned = {path: member_types(type(node.config))
              for path, node in nodes.items() if node.config is not None}
-    found = ((path, _type_at(path=path, nodes=nodes, owned=owned))
-             for path, _ in flat)
-    return {path: held for path, held in found if held is not None}
+    values = dict(flat)
+    found = ((path, _type_at(path=path, nodes=nodes, owned=owned,
+                             values=values)) for path, _ in flat)
+    return {path: options for path, options in found if options}
+
+
+def nothing_allowed(path: ConfigPath, options: Sequence[TypeOption],
+                    nodes: Mapping[ConfigPath, ConfigNode]) -> bool:
+    """Return whether one node has the two states of a value and of nothing.
+
+    A member does where its declaration allows `None` beside a type the editor
+    can make an empty value of, which is what `Optional[str]` is, and those
+    two states are what the controls that add and remove move it between
+    (section 4.2 of `doc/detailed_design.md`). A member that allows nothing
+    beside an enum, a configuration class or another class of the
+    application's own has one state as before: the editor cannot make a value
+    of such a type on its own.
+
+    A value inside a list or a dict never has them, whatever its declaration
+    allows, because what may hold nothing is something a class says about a
+    member of its own and an element that could be taken out of what holds it
+    already has a control that means that.
+
+    Args:
+        path: Path of the node to answer for.
+        options: The types its declaration allows.
+        nodes: Every configuration object of the tree, by its path.
+
+    Returns:
+        Whether that node is a member with those two states.
+    """
+    if NONE_TYPE not in options or \
+            len(path) != len(owner_path(path=path, nodes=nodes)) + 1:
+        return False
+    first = value_option(options)
+    return first is not None and empty_option_value(first) is not None

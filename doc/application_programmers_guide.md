@@ -1001,6 +1001,31 @@ building it and showing it, which `EditModel.set_text` allows: such a value is
 settled the same way when the editor builds its widgets, silently, because
 there was no user action to attribute it to.
 
+## 4.2.2 The type every row says
+
+Every row says the type it holds, between its name and its value, in the words
+of a Python type hint: `str`, `int`, `list[str]`, `Colors`, `None`. It is read
+from the annotations of your class — `self.retries: int = 3` inside `__init__`
+is read from the source of the class, and a dataclass or a class level
+annotation is read with `typing.get_type_hints` — and the value answers only
+where nothing usable is annotated. So annotate every member: a member with no
+annotation, one whose annotation will not resolve at runtime (a name imported
+under `if TYPE_CHECKING`), and one annotated with a type the editor can make
+nothing of (`tuple`, `set`, `Any`) all show the type their value happens to
+have, with a line below them saying that is where it came from.
+
+The column shows the one type a row holds and is cut at 40 characters, so a
+union such as `Optional[str]` or a long type such as
+`dict[str, StageConfig | str | dict[str, int]]` is said whole on the line below
+the row. In this version nothing can be chosen in the column; a member that may
+hold nothing is still moved between holding a value and holding nothing with
+the add and remove controls.
+
+`edit_cfg_json.TypeOption`, `MemberRow.types`, `MemberRow.chosen_type`,
+`row_type_text`, `row_type_texts` and `type_column_width` are what a user
+interface of your own reads it from (section 4.6). They replace `LeafType` and
+`MemberRow.declared`, which are gone.
+
 ## 4.3 The files a save writes
 
 The editor is asked to write your application's files, so the naming is
@@ -1146,7 +1171,9 @@ about; [detailed_design.md](detailed_design.md) section 8 is.
 
 # Part 5 — A checklist
 
-1. Write the `config_as_json.Config` class. It is the whole schema.
+1. Write the `config_as_json.Config` class, annotating every member. It is
+   the whole schema, and the annotations are what every row says its type
+   with (section 4.2.2).
 2. Open it with `edit-cfg-json-tk --module ... --class ...` and look at it
    (Part 1).
 3. Write the `Descriptions` mapping for the members whose purpose a name does
