@@ -16,13 +16,12 @@ can drift from what Tk really does.
 from collections.abc import Callable
 import operator
 import tkinter
-import tkinter.font
 from config_as_json import ConfigPath
 from edit_cfg_json import EditModel, row_chooses_type, row_type_text, \
     row_type_texts, type_column_widths
 from edit_cfg_json_tk.tk_editor import EditorWidgets
 from edit_cfg_json_tk.tk_elements import ADD_TEXT
-from edit_cfg_json_tk.tk_look import BLANK_WIDTH, TREE_INDENT, TYPE_FONT
+from edit_cfg_json_tk.tk_look import BLANK_WIDTH, TREE_INDENT, row_font
 from example.e18_declared_types import ReportConfig
 from example.e19_omitted_members import ReportConfig as OmittedReport
 from example.e20_union_types import ExportConfig
@@ -103,7 +102,7 @@ def test_real_every_row(root_or_skip: tkinter.Tk) -> None:
     found = real_types(root_or_skip)
     assert [str(widget.cget('text')) for widget in found] == [
         row_type_text(row) for row in model.rows]
-    font = tkinter.font.Font(root=root_or_skip, name=TYPE_FONT, exists=True)
+    font = row_font(root_or_skip)
     assert [int(widget.cget('width')) for widget in found] == _widths(
         model, font.measure)
     assert [str(widget.cget('state')) for widget in found] == _states(model)

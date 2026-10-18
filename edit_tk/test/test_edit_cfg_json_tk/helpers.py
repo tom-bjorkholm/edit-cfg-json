@@ -35,7 +35,7 @@ from edit_cfg_json_tk.tk_editor import CHOOSE_TEXT, CLOSE_TEXT, \
 from edit_cfg_json_tk.tk_find import FIND_FIELD_NAME, FIND_LABEL_TEXT, \
     FIND_NEXT_TEXT, FIND_TICK_LABELS
 from edit_cfg_json_tk.tk_look import MEMBER_CHOICE_NAME, MEMBER_FIELD_NAME, \
-    MEMBER_TYPE_NAME
+    MEMBER_LABEL_NAME, MEMBER_TYPE_NAME
 from example.e01_flat_config import FlatConfig
 from .stubs import FakeFlag, FakeVar, FakeWidget, PROBE_TAG, TOUCHPAD
 
@@ -445,6 +445,22 @@ def stub_choosers() -> list[FakeWidget]:
     which is a member holding true or false and one holding an enum member.
     """
     return _named_fields(MEMBER_CHOICE_NAME)[0]
+
+
+def stub_names() -> list[FakeWidget]:
+    """Return every stub label that says the name of a node, in row order."""
+    return [widget for widget in FakeWidget.created
+            if widget.options.get('name') == MEMBER_LABEL_NAME]
+
+
+def real_names(widget: tkinter.Misc) -> list[tkinter.Label]:
+    """Return every real Tk label that says the name of a node, in row order.
+
+    It is told from the other labels of a line by its Tk name.
+    """
+    return [found for found in _all_below(widget)
+            if isinstance(found, tkinter.Label)
+            and found.winfo_name() == MEMBER_LABEL_NAME]
 
 
 def stub_types() -> list[FakeWidget]:

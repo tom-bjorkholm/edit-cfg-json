@@ -133,9 +133,11 @@ A row is read from left to right:
   fold control
 ```
 
-**The name column** is the same width on every row, so the names line up. A
-value inside a container is indented one step further in for every container
-it is inside, which is what makes the rows read as a tree.
+**The name column** is the same width on every row, so the names line up: as
+wide as the longest name, but never wider than 24 characters. A longer name,
+which can be a key of your own data, is cut off at its end. A value inside a
+container is indented one step further in for every container it is inside,
+which is what makes the rows read as a tree.
 
 **The type** is the type this row holds, written the way a Python type hint
 writes it: `str`, `int`, `float`, `bool`, `list[str]`, `dict[str, int]`, the
@@ -704,9 +706,11 @@ A row is read from left to right:
   fold control
 ```
 
-**The name column** is the same width on every row, so the names line up. A
-value inside a container is indented one step further in for every container
-it is inside, which is what makes the rows read as a tree.
+**The name column** is the same width on every row, so the names line up: as
+wide as the longest name, but never wider than 24 characters. A longer name,
+which can be a key of your own data, is cut off at its end. A value inside a
+container is indented one step further in for every container it is inside,
+which is what makes the rows read as a tree.
 
 **The type** is the type this row holds, written the way a Python type hint
 writes it: `str`, `int`, `float`, `bool`, `list[str]`, `dict[str, int]`, the

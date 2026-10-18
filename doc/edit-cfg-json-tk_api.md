@@ -53,6 +53,7 @@
     * [description](#edit_cfg_json_tk.tk_rows.RowWidgets.description)
     * [diagnostic](#edit_cfg_json_tk.tk_rows.RowWidgets.diagnostic)
     * [elements](#edit_cfg_json_tk.tk_rows.RowWidgets.elements)
+  * [names\_width](#edit_cfg_json_tk.tk_rows.names_width)
   * [show\_below](#edit_cfg_json_tk.tk_rows.show_below)
 * [edit\_cfg\_json\_tk.tk\_tooltip](#edit_cfg_json_tk.tk_tooltip)
   * [TOOLTIP\_BACKGROUND](#edit_cfg_json_tk.tk_tooltip.TOOLTIP_BACKGROUND)
@@ -96,7 +97,7 @@
   * [PADDING](#edit_cfg_json_tk.tk_look.PADDING)
   * [DESCRIPTION\_INDENT](#edit_cfg_json_tk.tk_look.DESCRIPTION_INDENT)
   * [TREE\_INDENT](#edit_cfg_json_tk.tk_look.TREE_INDENT)
-  * [TYPE\_FONT](#edit_cfg_json_tk.tk_look.TYPE_FONT)
+  * [ROW\_FONT](#edit_cfg_json_tk.tk_look.ROW_FONT)
   * [BLANK\_WIDTH](#edit_cfg_json_tk.tk_look.BLANK_WIDTH)
   * [FOLD\_WIDTH](#edit_cfg_json_tk.tk_look.FOLD_WIDTH)
   * [ELEMENT\_WIDTH](#edit_cfg_json_tk.tk_look.ELEMENT_WIDTH)
@@ -107,11 +108,15 @@
   * [FIELD\_FOREGROUND](#edit_cfg_json_tk.tk_look.FIELD_FOREGROUND)
   * [FIELD\_BORDER](#edit_cfg_json_tk.tk_look.FIELD_BORDER)
   * [MEMBER\_CHOICE\_NAME](#edit_cfg_json_tk.tk_look.MEMBER_CHOICE_NAME)
+  * [MEMBER\_LABEL\_NAME](#edit_cfg_json_tk.tk_look.MEMBER_LABEL_NAME)
   * [MEMBER\_TYPE\_NAME](#edit_cfg_json_tk.tk_look.MEMBER_TYPE_NAME)
   * [TYPE\_COLOUR](#edit_cfg_json_tk.tk_look.TYPE_COLOUR)
   * [MEMBER\_FIELD\_NAME](#edit_cfg_json_tk.tk_look.MEMBER_FIELD_NAME)
   * [edit\_field](#edit_cfg_json_tk.tk_look.edit_field)
   * [choice\_field](#edit_cfg_json_tk.tk_look.choice_field)
+  * [row\_font](#edit_cfg_json_tk.tk_look.row_font)
+  * [blank\_image](#edit_cfg_json_tk.tk_look.blank_image)
+  * [name\_label](#edit_cfg_json_tk.tk_look.name_label)
   * [fold\_button](#edit_cfg_json_tk.tk_look.fold_button)
   * [fold\_space](#edit_cfg_json_tk.tk_look.fold_space)
   * [type\_field](#edit_cfg_json_tk.tk_look.type_field)
@@ -794,6 +799,29 @@ column that every row has to keep clear. Which of them a node offers can
 change — the first element of a list cannot move up until something is put
 in front of it — and the rows are built again whenever it does.
 
+<a id="edit_cfg_json_tk.tk_rows.names_width"></a>
+
+#### names\_width
+
+```python
+def names_width(parent: tkinter.Misc, model: core.EditModel) -> int
+```
+
+Return how wide in pixels the name of every row is.
+
+The names are measured in the font they are written in, and the column
+is never wider than `NAME_COLUMN_WIDTH` widths of `0` in that font.
+
+**Arguments**:
+
+- `parent` - Widget of the editor, whose interpreter has the font.
+- `model` - Model whose rows are being shown.
+  
+
+**Returns**:
+
+  The width of the text of the column of the names.
+
 <a id="edit_cfg_json_tk.tk_rows.show_below"></a>
 
 #### show\_below
@@ -1296,7 +1324,7 @@ its value has, and a value typed into it can be of another type.
 
 ```python
 def __init__(parent: tkinter.Misc, row: core.MemberRow, width: int,
-             picked: Callable[[str], None]) -> None
+             blank: tkinter.PhotoImage, picked: Callable[[str], None]) -> None
 ```
 
 Create the pull-down of the types of one node.
@@ -1308,6 +1336,7 @@ Create the pull-down of the types of one node.
 - `width` - Width in pixels of the text of this pull-down, which is
   what `type_widths` gives the row, so that the column of the
   types ends in one place and the values begin in one column.
+- `blank` - The image from `edit_cfg_json_tk.tk_look.blank_image`.
 - `picked` - What choosing a type does, given the whole of that type as
   a Python type hint spells it. A menu entry says the type as the
   column shows it, which is cut where it is long, so each entry
@@ -1348,7 +1377,11 @@ dark mode.
 
 #### NAME\_COLUMN\_WIDTH
 
-Width in characters of the column that holds the member names.
+Widest the column of the member names is ever given, in widths of `0`.
+
+The column is as wide as the longest name of the editor, measured in
+`ROW_FONT`, and never wider than this many widths of the character `0`, which
+is what it always was before it was measured. A longer name is cut off.
 
 <a id="edit_cfg_json_tk.tk_look.LEAST_FIELD_WIDTH"></a>
 
@@ -1389,23 +1422,26 @@ container is never cut off by the column that the names share. The pull-down
 of the types is narrower by as much on every step, so that the column of the
 types ends in one place and the values of every row begin in one column.
 
-<a id="edit_cfg_json_tk.tk_look.TYPE_FONT"></a>
+<a id="edit_cfg_json_tk.tk_look.ROW_FONT"></a>
 
-#### TYPE\_FONT
+#### ROW\_FONT
 
-Font of the pull-down of the types, which its width is measured in.
+Font of the name and the type of a row, which their widths are measured in.
 
 <a id="edit_cfg_json_tk.tk_look.BLANK_WIDTH"></a>
 
 #### BLANK\_WIDTH
 
-Width and height in pixels of the blank image of a pull-down of the types.
+Width and height in pixels of the blank image of a name or a type.
 
-A menu button that shows an image is as wide as it is told in pixels, where
-one with only a text is told its width in widths of the character `0`, which
-is wider than most characters of a type and left much of the column empty.
-The image is what makes the width one in pixels, and it is blank and one pixel
-so that it takes nothing from the text but that pixel.
+A label or a menu button that shows an image is as wide as it is told in
+pixels, where one with only a text is told its width in widths of the
+character `0`, which is wider than most characters of a name or a type and
+left much of their columns empty. The image is what makes the width one in
+pixels, and it is blank and one pixel so that it takes nothing from the text
+but that pixel. Such a widget has no padding beside its text: Tk leaves the
+padding out of a width it is told but puts it between the image and the text,
+which would cut that much off the end of the text.
 
 <a id="edit_cfg_json_tk.tk_look.FOLD_WIDTH"></a>
 
@@ -1502,6 +1538,12 @@ It says which kind of widget this is, for the reason the name below it does,
 and it is what tells the pull-down of a member from the field of the same
 member: the two share one variable and are on the same line, and exactly one
 of them is in the layout.
+
+<a id="edit_cfg_json_tk.tk_look.MEMBER_LABEL_NAME"></a>
+
+#### MEMBER\_LABEL\_NAME
+
+Tk name of the label that says the name of one member.
 
 <a id="edit_cfg_json_tk.tk_look.MEMBER_TYPE_NAME"></a>
 
@@ -1625,6 +1667,72 @@ switches between typing and choosing.
 
   A pull-down of those values, showing that variable.
 
+<a id="edit_cfg_json_tk.tk_look.row_font"></a>
+
+#### row\_font
+
+```python
+def row_font(parent: tkinter.Misc) -> tkinter.font.Font
+```
+
+Return `ROW_FONT`, in which the names and the types are measured.
+
+**Arguments**:
+
+- `parent` - Widget of the editor, whose interpreter has the font.
+  
+
+**Returns**:
+
+  The font, as the interpreter of that widget has it.
+
+<a id="edit_cfg_json_tk.tk_look.blank_image"></a>
+
+#### blank\_image
+
+```python
+def blank_image(parent: tkinter.Misc) -> tkinter.PhotoImage
+```
+
+Return the blank image that makes a width one in pixels.
+
+**Arguments**:
+
+- `parent` - Widget of the editor, whose interpreter gets the image.
+  
+
+**Returns**:
+
+  An image of `BLANK_WIDTH` pixels that shows nothing, which the caller
+  keeps alive for as long as a widget showing it is.
+
+<a id="edit_cfg_json_tk.tk_look.name_label"></a>
+
+#### name\_label
+
+```python
+def name_label(parent: tkinter.Misc, name: str, width: int,
+               blank: tkinter.PhotoImage) -> tkinter.Label
+```
+
+Return the label that says the name of one node, not yet packed.
+
+It shows the blank image beside its name for the reason the pull-down of
+the types does, and it is left aligned, so that a name longer than the
+column is cut off at its end.
+
+**Arguments**:
+
+- `parent` - Line of the node that is being shown.
+- `name` - The name of that node.
+- `width` - Width in pixels of the column of the names, in `ROW_FONT`.
+- `blank` - The image from `blank_image`.
+  
+
+**Returns**:
+
+  A label saying that name.
+
 <a id="edit_cfg_json_tk.tk_look.fold_button"></a>
 
 #### fold\_button
@@ -1701,10 +1809,9 @@ one in pixels, and it is told the width of its text and of that image.
 - `parent` - Line of the node that is being shown.
 - `shown` - The type that node holds now.
 - `width` - Width in pixels of the text of the pull-down, written in
-  `TYPE_FONT`.
+  `ROW_FONT`.
 - `active` - Whether another type can be chosen in it.
-- `blank` - Image of `BLANK_WIDTH` pixels that shows nothing, which the
-  caller keeps alive for as long as the pull-down is.
+- `blank` - The image from `blank_image`.
   
 
 **Returns**:

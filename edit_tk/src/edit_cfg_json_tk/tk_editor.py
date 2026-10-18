@@ -24,9 +24,9 @@ from edit_cfg_json_tk.tk_ask import asked_file, may_close, may_overwrite, \
 from edit_cfg_json_tk.tk_find import FindPanel
 from edit_cfg_json_tk.tk_scope import KeyScope
 from edit_cfg_json_tk.tk_elements import element_controls
-from edit_cfg_json_tk.tk_look import NAME_COLUMN_WIDTH, PADDING, \
-    TREE_INDENT, fold_button, fold_space, label_text, shown_text, told
-from edit_cfg_json_tk.tk_rows import RowWidgets, show_below
+from edit_cfg_json_tk.tk_look import PADDING, TREE_INDENT, blank_image, \
+    fold_button, fold_space, label_text, name_label, shown_text, told
+from edit_cfg_json_tk.tk_rows import RowWidgets, names_width, show_below
 from edit_cfg_json_tk.tk_types import TypeWidget, type_widths
 from edit_cfg_json_tk.tk_values import ValueWidgets
 
@@ -208,6 +208,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._members.pack(fill='x')
         self._rows: list[RowWidgets] = []
         self._shape: tuple[tuple[ConfigPath, bool, bool], ...] = ()
+        self._blank = blank_image(parent)
         self._create_rows()
         finding = FindPanel(fixed, model, searched=self._searched,
                             reached=self._reach_found)
@@ -553,9 +554,10 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._model.settle_choices()
         for child in self._members.winfo_children():
             child.destroy()
+        names = names_width(parent=self._members, model=self._model)
         widths = type_widths(parent=self._members, model=self._model)
         self._rows = [self._add_row(parent=self._members, row=row,
-                                    type_width=width)
+                                    name_width=names, type_width=width)
                       for row, width in zip(self._model.rows, widths,
                                             strict=True)]
         self._shape = core.rows_shape(self._model)
@@ -580,7 +582,7 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         self._scope.reach()
 
     def _add_row(self, parent: tkinter.Misc, row: core.MemberRow,
-                 type_width: int) -> RowWidgets:
+                 name_width: int, type_width: int) -> RowWidgets:
         """Create the widgets of one node, and its description below them.
 
         The node gets a frame of its own, holding the line that is edited
@@ -589,17 +591,18 @@ class EditorWidgets:  # pylint: disable=too-few-public-methods
         also what folding takes out of the layout, which is why it is not
         packed here but by `_show_rows`.
 
-        Its type stands between its name and its value, which reads as
-        Python's `name: type = value`, in a pull-down `type_width` pixels
-        wide.
+        Its name is `name_width` pixels wide, and its type stands between its
+        name and its value, which reads as Python's `name: type = value`, in a
+        pull-down `type_width` pixels wide.
         """
         frame = tkinter.Frame(parent)
         line = tkinter.Frame(frame)
         line.pack(fill='x')
         fold = self._add_fold(parent=line, row=row)
-        tkinter.Label(line, text=row.name, width=NAME_COLUMN_WIDTH,
-                      anchor='w').pack(side='left')
+        name_label(parent=line, name=row.name, width=name_width,
+                   blank=self._blank).pack(side='left')
         types = TypeWidget(parent=line, row=row, width=type_width,
+                           blank=self._blank,
                            picked=self._type_setter(row.path))
         types.button.pack(side='left')
         field = self._add_value(parent=line, row=row)

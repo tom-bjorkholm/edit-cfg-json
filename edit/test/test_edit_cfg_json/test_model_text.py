@@ -4,16 +4,17 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Optional
 import pytest
 from config_as_json import Config, ConfigPath, JsonType
 from edit_cfg_json import Descriptions, EditModel, LoadReport, MemberRow, \
     Settings, close_question, docstring_text, load_text, model_as_text, \
-    model_title, overwrite_question, row_description, row_diagnostic, \
-    row_marks, row_subtree_text, row_value_text, rows_shape, save_text, \
-    verdict_text
-from .container_cfg import KeyedEnumCfg, TreeCfg
+    model_title, name_column_width, overwrite_question, row_description, \
+    row_diagnostic, row_marks, row_subtree_text, row_value_text, rows_shape, \
+    save_text, verdict_text
+from .container_cfg import FlagTreeCfg, KeyedEnumCfg, TreeCfg
 from .sample_cfg import HIGHEST, TOO_LARGE_MESSAGE, ClearedCfg, \
     DocumentedCfg, FlatCfg, IntEnumCfg, ListCfg, NoDocCfg, NoneCfg, \
     RangeCfg, RewriteCfg, RulesCfg
@@ -691,3 +692,31 @@ def test_shape_after_clearing() -> None:
     assert model.validate().valid
     assert rows_shape(model) != before
     assert rows_shape(model)[0] == (('title',), False, False)
+
+
+def _double(text: str) -> int:
+    """Return how wide a text is in a font twice as wide as a terminal."""
+    return 2 * len(text)
+
+
+@pytest.mark.parametrize('config, measure, most, expected',
+                         [(FlatCfg(), len, 24, len('answer')),
+                          (FlatCfg(), _double, 24, 2 * len('answer')),
+                          (FlagTreeCfg(), len, 24, len('enabled')),
+                          (FlagTreeCfg(), len, 5, 5)])
+def test_name_column_width(config: Config, measure: Callable[[str], int],
+                           most: int, expected: int) -> None:
+    """Test the column of the names is as wide as the longest name.
+
+    A name inside a container is counted as a member is, because every row
+    has the one width, and the column is never wider than it is allowed.
+    """
+    assert name_column_width(EditModel(config), measure=measure,
+                             most=most) == expected
+
+
+def test_name_column_folded() -> None:
+    """Test folding away the longest name leaves the column as wide."""
+    model = EditModel(FlagTreeCfg())
+    model.toggle_fold(('inner',))
+    assert name_column_width(model, measure=len, most=24) == len('enabled')

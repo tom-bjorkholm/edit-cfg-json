@@ -620,6 +620,7 @@
   * [row\_subtree\_text](#edit_cfg_json.model_text.row_subtree_text)
   * [row\_fold\_text](#edit_cfg_json.model_text.row_fold_text)
   * [rows\_shape](#edit_cfg_json.model_text.rows_shape)
+  * [name\_column\_width](#edit_cfg_json.model_text.name_column_width)
   * [can\_fold](#edit_cfg_json.model_text.can_fold)
   * [fold\_hides](#edit_cfg_json.model_text.fold_hides)
   * [row\_diagnostic](#edit_cfg_json.model_text.row_diagnostic)
@@ -11645,6 +11646,36 @@ different editor.
   shown. The type of a row is not in it as a text, because a row whose
   type only its value says changes type as it is typed into and has the
   same widgets either way.
+
+<a id="edit_cfg_json.model_text.name_column_width"></a>
+
+#### name\_column\_width
+
+```python
+def name_column_width(model: EditModel, measure: Callable[[str], int],
+                      most: int) -> int
+```
+
+Return how wide the column of the names is.
+
+It is one width for every row, so that the names begin where their rows
+do and what follows them steps into the tree with them: the longest name
+any row has, counting every row and not only those on the screen, so that
+folding never moves the types and the values beside it. It is never wider
+than `most`, because a name is often a key of the user's own data and one
+long key would otherwise push the values of every row to the right; a
+longer name is cut off by the backend.
+
+**Arguments**:
+
+- `model` - Model to ask about.
+- `measure` - How wide one text is.
+- `most` - The widest the column is ever given, in the unit of `measure`.
+  
+
+**Returns**:
+
+  The width of the column, in the unit of `measure`.
 
 <a id="edit_cfg_json.model_text.can_fold"></a>
 

@@ -35,10 +35,10 @@ import edit_cfg_json as core
 from edit_cfg_json_textual.textual_elements import element_button, \
     element_id, offered_actions
 from edit_cfg_json_textual.textual_look import DESCRIPTION_CLASS, \
-    DIAGNOSTIC_CLASS, FOLD_CLASS, SUBTREE_CLASS, TYPE_ARROW_WIDTH, \
-    TYPE_CLASS, VALUE_CLASS, choice_id, description_id, diagnostic_id, \
-    fold_glyph, fold_id, plain_widget, show_emphasis, subtree_id, type_id, \
-    value_id
+    DIAGNOSTIC_CLASS, FOLD_CLASS, NAME_CLASS, SUBTREE_CLASS, \
+    TYPE_ARROW_WIDTH, TYPE_CLASS, VALUE_CLASS, choice_id, description_id, \
+    diagnostic_id, fold_glyph, fold_id, plain_widget, show_emphasis, \
+    subtree_id, type_id, value_id
 
 
 class TypeChooser(Select[str]):
@@ -221,6 +221,22 @@ def element_widgets(index: int, row: core.MemberRow) -> ComposeResult:
     for action in offered_actions(row):
         yield element_button(widget_id=element_id(index=index, action=action),
                              action=action)
+
+
+def name_widget(row: core.MemberRow, width: int) -> Widget:
+    """Return the label that says the name of one node.
+
+    Args:
+        row: Node to create the label for.
+        width: Width in cells of the column of the names, which every name
+            is as wide as so that the names line up.
+
+    Returns:
+        A label saying the name of that node.
+    """
+    label = Label(row.name, classes=NAME_CLASS)
+    label.styles.width = width
+    return label
 
 
 def fold_widget(index: int, row: core.MemberRow,

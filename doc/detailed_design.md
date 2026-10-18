@@ -1380,7 +1380,14 @@ fonts are proportional: a Tk width given in characters is counted in widths of
 `0`, and left a column of brackets and narrow letters nearly half empty. That
 was settled when choosing a container was built and corrected in its review:
 a choice or an element that adds rows can widen the column, as adding an
-element always could, and folding never does. A type longer than 40 characters is cut to 40 with `…`,
+element always could, and folding never does. The column of the names before it is
+one width for the whole editor by the same rule — the longest name of any
+row, counting every row — and is never wider than 24 characters, as it always
+was, because a name is often a key of the user's own data and one long key
+would push the values of every row to the right; a longer name is cut off.
+Tk measures it in pixels of the font of the names, and the place where a row
+with nothing to fold has no control is exactly as wide as that control, so the
+names of every row begin where their rows do. A type longer than 40 characters is cut to 40 with `…`,
 and its whole text is
 then on the line below. The limit is a constant of the core for now, and making
 it follow the width the editor can have is a later step of the plan; no setting

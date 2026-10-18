@@ -256,6 +256,7 @@
   * [show\_way](#edit_cfg_json_textual.textual_member.show_way)
   * [show\_chosen](#edit_cfg_json_textual.textual_member.show_chosen)
   * [element\_widgets](#edit_cfg_json_textual.textual_member.element_widgets)
+  * [name\_widget](#edit_cfg_json_textual.textual_member.name_widget)
   * [fold\_widget](#edit_cfg_json_textual.textual_member.fold_widget)
   * [subtree\_widgets](#edit_cfg_json_textual.textual_member.subtree_widgets)
   * [description\_widgets](#edit_cfg_json_textual.textual_member.description_widgets)
@@ -1394,7 +1395,11 @@ Style class of the line that says what the search has reached.
 
 #### NAME\_WIDTH
 
-Width in cells of the column that holds the member names.
+Widest in cells the column of the member names is ever given.
+
+The column is as wide as the longest name of the editor and never wider than
+this, which is what it always was before it was fitted to the names. A longer
+name is cut off. The Tk backend has the same limit, in widths of `0`.
 
 <a id="edit_cfg_json_textual.textual_look.FOLD_WIDTH"></a>
 
@@ -3425,7 +3430,8 @@ holds one of its own values, so it has nothing to do either.
 #### \_member\_widget
 
 ```python
-def _member_widget(index: int, row: core.MemberRow, width: int) -> Widget
+def _member_widget(index: int, row: core.MemberRow, name_width: int,
+                   width: int) -> Widget
 ```
 
 Return everything one node owns, as one widget.
@@ -3440,6 +3446,7 @@ value, which reads as Python's `name: type = value`.
 - `index` - Place of the node among the rows, which its widgets are
   identified by.
 - `row` - Node to show.
+- `name_width` - Width in cells of the column of the names.
 - `width` - Width in cells of the text of its pull-down of the
   types, which is narrower the deeper the node is, so that the
   column of the types ends in one place.
@@ -3822,6 +3829,27 @@ has to keep a column clear on every row.
 
   The controls that node offers, and none at all for one that offers
   none, which is most nodes of most configurations.
+
+<a id="edit_cfg_json_textual.textual_member.name_widget"></a>
+
+#### name\_widget
+
+```python
+def name_widget(row: core.MemberRow, width: int) -> Widget
+```
+
+Return the label that says the name of one node.
+
+**Arguments**:
+
+- `row` - Node to create the label for.
+- `width` - Width in cells of the column of the names, which every name
+  is as wide as so that the names line up.
+  
+
+**Returns**:
+
+  A label saying the name of that node.
 
 <a id="edit_cfg_json_textual.textual_member.fold_widget"></a>
 

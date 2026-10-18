@@ -15,10 +15,9 @@ this backend that is nearest to being too long to read.
 
 from collections.abc import Callable
 import tkinter
-import tkinter.font
 import edit_cfg_json as core
-from edit_cfg_json_tk.tk_look import BLANK_WIDTH, TREE_INDENT, TYPE_FONT, \
-    fill_menu, menu_of, type_field
+from edit_cfg_json_tk.tk_look import TREE_INDENT, fill_menu, menu_of, \
+    row_font, type_field
 
 
 def type_widths(parent: tkinter.Misc,
@@ -37,8 +36,7 @@ def type_widths(parent: tkinter.Misc,
         The width of the text of the pull-down of each row, in the order of
         `EditModel.rows`.
     """
-    font = tkinter.font.Font(root=parent, name=TYPE_FONT, exists=True)
-    return core.type_column_widths(model, measure=font.measure,
+    return core.type_column_widths(model, measure=row_font(parent).measure,
                                    indent=TREE_INDENT)
 
 
@@ -52,6 +50,7 @@ class TypeWidget:  # pylint: disable=too-few-public-methods
     """
 
     def __init__(self, parent: tkinter.Misc, row: core.MemberRow, width: int,
+                 blank: tkinter.PhotoImage,
                  picked: Callable[[str], None]) -> None:
         """Create the pull-down of the types of one node.
 
@@ -61,6 +60,7 @@ class TypeWidget:  # pylint: disable=too-few-public-methods
             width: Width in pixels of the text of this pull-down, which is
                 what `type_widths` gives the row, so that the column of the
                 types ends in one place and the values begin in one column.
+            blank: The image from `edit_cfg_json_tk.tk_look.blank_image`.
             picked: What choosing a type does, given the whole of that type as
                 a Python type hint spells it. A menu entry says the type as the
                 column shows it, which is cut where it is long, so each entry
@@ -68,12 +68,10 @@ class TypeWidget:  # pylint: disable=too-few-public-methods
         """
         self._picked = picked
         self._offered = core.row_type_choices(row)
-        self._blank = tkinter.PhotoImage(master=parent, width=BLANK_WIDTH,
-                                         height=BLANK_WIDTH)
         self.button = type_field(parent=parent, shown=core.row_type_text(row),
                                  width=width,
                                  active=core.row_chooses_type(row),
-                                 blank=self._blank)
+                                 blank=blank)
         self._menu = menu_of(pull_down=self.button, entries=self._offered,
                              picked=picked)
 

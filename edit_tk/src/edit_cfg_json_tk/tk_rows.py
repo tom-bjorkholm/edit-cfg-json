@@ -17,7 +17,9 @@ editor is made of is worth reading without the whole editor around it.
 
 from typing import NamedTuple, Optional
 import tkinter
-from edit_cfg_json_tk.tk_look import label_text, place_text
+import edit_cfg_json as core
+from edit_cfg_json_tk.tk_look import NAME_COLUMN_WIDTH, label_text, \
+    place_text, row_font
 from edit_cfg_json_tk.tk_types import TypeWidget
 from edit_cfg_json_tk.tk_values import ValueWidgets
 
@@ -78,6 +80,24 @@ class RowWidgets(NamedTuple):
     change — the first element of a list cannot move up until something is put
     in front of it — and the rows are built again whenever it does.
     """
+
+
+def names_width(parent: tkinter.Misc, model: core.EditModel) -> int:
+    """Return how wide in pixels the name of every row is.
+
+    The names are measured in the font they are written in, and the column
+    is never wider than `NAME_COLUMN_WIDTH` widths of `0` in that font.
+
+    Args:
+        parent: Widget of the editor, whose interpreter has the font.
+        model: Model whose rows are being shown.
+
+    Returns:
+        The width of the text of the column of the names.
+    """
+    font = row_font(parent)
+    return core.name_column_width(model, measure=font.measure,
+                                  most=font.measure('0' * NAME_COLUMN_WIDTH))
 
 
 def show_below(widgets: RowWidgets, description: str, diagnostic: str) -> None:

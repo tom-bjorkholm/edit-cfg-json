@@ -21,16 +21,15 @@ from typing import Optional
 from config_as_json import ConfigPath
 from textual.containers import Horizontal, Vertical
 from textual.widget import Widget
-from textual.widgets import Label
 import edit_cfg_json as core
 from edit_cfg_json_textual.textual_elements import element_id, \
     offered_actions
 from edit_cfg_json_textual.textual_look import MARK_CLASS, MEMBER_CLASS, \
-    NAME_CLASS, ROW_CLASS, TREE_INDENT, choice_id, fold_id, mark_id, \
+    NAME_WIDTH, ROW_CLASS, TREE_INDENT, choice_id, fold_id, mark_id, \
     member_id, plain_widget, type_id, value_id
 from edit_cfg_json_textual.textual_member import description_widgets, \
     TypeChooser, diagnostic_widget, element_widgets, fold_widget, \
-    subtree_widgets, value_widgets
+    name_widget, subtree_widgets, value_widgets
 
 
 class PanelRows:
@@ -104,12 +103,15 @@ class PanelRows:
         self._folds = {}
         self._elements = {}
         self._built = core.rows_shape(self._model)
+        names = core.name_column_width(self._model, measure=len,
+                                       most=NAME_WIDTH)
         widths = core.type_column_widths(self._model, measure=len,
                                          indent=TREE_INDENT)
-        return [self._member_widget(index=index, row=row, width=widths[index])
+        return [self._member_widget(index=index, row=row, name_width=names,
+                                    width=widths[index])
                 for index, row in enumerate(self._model.rows)]
 
-    def _member_widget(self, index: int, row: core.MemberRow,
+    def _member_widget(self, index: int, row: core.MemberRow, name_width: int,
                        width: int) -> Widget:
         """Return everything one node owns, as one widget.
 
@@ -122,6 +124,7 @@ class PanelRows:
             index: Place of the node among the rows, which its widgets are
                 identified by.
             row: Node to show.
+            name_width: Width in cells of the column of the names.
             width: Width in cells of the text of its pull-down of the
                 types, which is narrower the deeper the node is, so that the
                 column of the types ends in one place.
@@ -131,7 +134,7 @@ class PanelRows:
         """
         marks = plain_widget(core.row_marks(row), mark_id(index), MARK_CLASS,
                              core.MEMBER_MARK)
-        beside = [Label(row.name, classes=NAME_CLASS),
+        beside = [name_widget(row=row, width=name_width),
                   self._added_types(index=index, row=row, width=width),
                   *self._added_values(index=index, row=row), marks,
                   *subtree_widgets(index=index, row=row),

@@ -20,11 +20,17 @@ from collections.abc import Callable, Sequence
 from functools import partial
 from typing import Optional
 import tkinter
+import tkinter.font
 import edit_cfg_json as core
 from edit_cfg_json_tk.scrolling import BODY_WIDTH
 
 NAME_COLUMN_WIDTH = 24
-"""Width in characters of the column that holds the member names."""
+"""Widest the column of the member names is ever given, in widths of `0`.
+
+The column is as wide as the longest name of the editor, measured in
+`ROW_FONT`, and never wider than this many widths of the character `0`, which
+is what it always was before it was measured. A longer name is cut off.
+"""
 
 LEAST_FIELD_WIDTH = 8
 """Width in characters that a field asks for, and can be squeezed to.
@@ -56,17 +62,21 @@ of the types is narrower by as much on every step, so that the column of the
 types ends in one place and the values of every row begin in one column.
 """
 
-TYPE_FONT = 'TkDefaultFont'
-"""Font of the pull-down of the types, which its width is measured in."""
+ROW_FONT = 'TkDefaultFont'
+"""Font of the name and the type of a row, which their widths are measured in.
+"""
 
 BLANK_WIDTH = 1
-"""Width and height in pixels of the blank image of a pull-down of the types.
+"""Width and height in pixels of the blank image of a name or a type.
 
-A menu button that shows an image is as wide as it is told in pixels, where
-one with only a text is told its width in widths of the character `0`, which
-is wider than most characters of a type and left much of the column empty.
-The image is what makes the width one in pixels, and it is blank and one pixel
-so that it takes nothing from the text but that pixel.
+A label or a menu button that shows an image is as wide as it is told in
+pixels, where one with only a text is told its width in widths of the
+character `0`, which is wider than most characters of a name or a type and
+left much of their columns empty. The image is what makes the width one in
+pixels, and it is blank and one pixel so that it takes nothing from the text
+but that pixel. Such a widget has no padding beside its text: Tk leaves the
+padding out of a width it is told but puts it between the image and the text,
+which would cut that much off the end of the text.
 """
 
 FOLD_WIDTH = 2
@@ -150,6 +160,9 @@ and it is what tells the pull-down of a member from the field of the same
 member: the two share one variable and are on the same line, and exactly one
 of them is in the layout.
 """
+
+MEMBER_LABEL_NAME = 'name'
+"""Tk name of the label that says the name of one member."""
 
 MEMBER_TYPE_NAME = 'type'
 """Tk name of the pull-down that says which type one member holds.
@@ -266,6 +279,54 @@ def choice_field(parent: tkinter.Misc, text: tkinter.StringVar,
     return pull_down
 
 
+def row_font(parent: tkinter.Misc) -> tkinter.font.Font:
+    """Return `ROW_FONT`, in which the names and the types are measured.
+
+    Args:
+        parent: Widget of the editor, whose interpreter has the font.
+
+    Returns:
+        The font, as the interpreter of that widget has it.
+    """
+    return tkinter.font.Font(root=parent, name=ROW_FONT, exists=True)
+
+
+def blank_image(parent: tkinter.Misc) -> tkinter.PhotoImage:
+    """Return the blank image that makes a width one in pixels.
+
+    Args:
+        parent: Widget of the editor, whose interpreter gets the image.
+
+    Returns:
+        An image of `BLANK_WIDTH` pixels that shows nothing, which the caller
+        keeps alive for as long as a widget showing it is.
+    """
+    return tkinter.PhotoImage(master=parent, width=BLANK_WIDTH,
+                              height=BLANK_WIDTH)
+
+
+def name_label(parent: tkinter.Misc, name: str, width: int,
+               blank: tkinter.PhotoImage) -> tkinter.Label:
+    """Return the label that says the name of one node, not yet packed.
+
+    It shows the blank image beside its name for the reason the pull-down of
+    the types does, and it is left aligned, so that a name longer than the
+    column is cut off at its end.
+
+    Args:
+        parent: Line of the node that is being shown.
+        name: The name of that node.
+        width: Width in pixels of the column of the names, in `ROW_FONT`.
+        blank: The image from `blank_image`.
+
+    Returns:
+        A label saying that name.
+    """
+    return tkinter.Label(parent, name=MEMBER_LABEL_NAME, text=name,
+                         font=ROW_FONT, image=blank, compound='left',
+                         anchor='w', padx=0, width=width + BLANK_WIDTH)
+
+
 def fold_button(parent: tkinter.Misc) -> tkinter.Button:
     """Return the control that folds one container, without what it does.
 
@@ -324,18 +385,17 @@ def type_field(parent: tkinter.Misc, shown: str, width: int, active: bool,
         parent: Line of the node that is being shown.
         shown: The type that node holds now.
         width: Width in pixels of the text of the pull-down, written in
-            `TYPE_FONT`.
+            `ROW_FONT`.
         active: Whether another type can be chosen in it.
-        blank: Image of `BLANK_WIDTH` pixels that shows nothing, which the
-            caller keeps alive for as long as the pull-down is.
+        blank: The image from `blank_image`.
 
     Returns:
         A pull-down showing that type.
     """
     return tkinter.Menubutton(parent, name=MEMBER_TYPE_NAME, text=shown,
-                              font=TYPE_FONT, image=blank, compound='left',
+                              font=ROW_FONT, image=blank, compound='left',
                               indicatoron=True, anchor='w',
-                              width=width + BLANK_WIDTH, relief='flat',
+                              width=width + BLANK_WIDTH, padx=0, relief='flat',
                               borderwidth=2, highlightthickness=0,
                               state='normal' if active else 'disabled',
                               foreground=FIELD_FOREGROUND,

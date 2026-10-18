@@ -192,7 +192,12 @@ FIND_LINE_CLASS = 'find_line_text'
 """Style class of the line that says what the search has reached."""
 
 NAME_WIDTH = 24
-"""Width in cells of the column that holds the member names."""
+"""Widest in cells the column of the member names is ever given.
+
+The column is as wide as the longest name of the editor and never wider than
+this, which is what it always was before it was fitted to the names. A longer
+name is cut off. The Tk backend has the same limit, in widths of `0`.
+"""
 
 FOLD_WIDTH = 3
 """Width in cells of the control that folds one container.
@@ -294,7 +299,6 @@ PANEL_CSS = '\n'.join(COLOUR_RULES + (
     f'#{MEMBERS_ID} {{ height: auto; }}',
     f'.{MEMBER_CLASS} {{ height: auto; }}',
     f'.{ROW_CLASS} {{ height: 1; }}',
-    f'.{NAME_CLASS} {{ width: {NAME_WIDTH}; }}',
     f'.{VALUE_CLASS} {{ width: 1fr; min-width: {LEAST_VALUE_WIDTH}; }}',
     f'Select.{VALUE_CLASS} {{ height: 1; }}',
     f'Select.{TYPE_CLASS} {{ height: 1; margin-right: 1; }}',

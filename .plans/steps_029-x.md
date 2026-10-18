@@ -1161,7 +1161,7 @@ and the rows inside it are `list[str]` and `str`.
   brackets and narrow letters, so the 38 characters of e20's member measured
   182 pixels in `TkDefaultFont` and the button asked for 378. A menu button
   that shows an image is told its width in pixels instead, so the pull-down
-  shows a blank image of one pixel beside its text, written in `TYPE_FONT`,
+  shows a blank image of one pixel beside its text, written in `ROW_FONT`,
   and is given the width of that text as `tkinter.font.Font.measure` says it.
   Its height is what it was.
 - **The column ends in one place.** A row is indented once per container and
@@ -1182,15 +1182,25 @@ and the rows inside it are `list[str]` and `str`.
   and a pixel of the font for Tk. It and the four other functions of the
   column moved from `model_text`, which had passed 1000 lines, to a module
   `type_column` of their own.
-- **The name column is too wide in Tk for the same reason**, 24 widths of `0`
-  where the names are mostly lower-case letters. It was left as it is, to keep
-  this correction to what the review asked for.
+- **The name column was too wide in Tk for the same reason**, 24 widths of
+  `0` where the names are mostly lower-case letters: a label asked for 222
+  pixels where the names of the examples need 44 to 145 with their
+  indentation. A second review asked for it, and it is now one width for the
+  editor, the longest name of any row as `name_column_width` gives it, still
+  stepping into the tree with its rows. It is never wider than the 24
+  characters it always was, because a name is often a key of the user's data;
+  Tk counts that limit in widths of `0` of `ROW_FONT`, Textual in cells, and a
+  longer name is cut off as before. The Tk label shows the blank image for the
+  width in pixels, so there is one blank image per editor now, shared by the
+  names and the types, and `TYPE_FONT` became `ROW_FONT`. e17 and e20 show it.
 
 | Name | Kind |
 | --- | --- |
 | `type_column_widths` | the width of the pull-down of the types of each row, replacing `type_column_width` |
 | `type_column` | the module of the column of the types, moved out of `model_text` |
-| `tk_look.TYPE_FONT`, `tk_look.BLANK_WIDTH`, `tk_types.type_widths` | the font the Tk pull-down is measured in, its blank image, and the widths measured in it |
+| `tk_look.TYPE_FONT` (now `ROW_FONT`), `tk_look.BLANK_WIDTH`, `tk_types.type_widths` | the font the Tk pull-down is measured in, its blank image, and the widths measured in it |
+| `name_column_width` | how wide the column of the names is, for one model |
+| `tk_look.ROW_FONT`, `tk_look.row_font`, `tk_look.blank_image`, `tk_look.name_label`, `tk_look.MEMBER_LABEL_NAME`, `tk_rows.names_width` | the font names and types are measured in, the shared blank image, the label of a name and its Tk name, and the width measured in that font |
 | `tk_look.fold_button`, `tk_look.fold_space` | the Tk control that folds a container, and the space as wide as it on a row with nothing to fold |
 
 #### Step 31D - Choosing between an object and `None`

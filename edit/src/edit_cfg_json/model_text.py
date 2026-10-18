@@ -4,6 +4,7 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Callable
 from config_as_json import ConfigPath
 from edit_cfg_json.descriptions import class_docstring, class_summary
 from edit_cfg_json.edit_model import EditModel
@@ -499,6 +500,29 @@ def rows_shape(model: EditModel) -> tuple[tuple[ConfigPath, bool, bool],
     """
     return tuple((row.path, row.editable, row_chooses(row))
                  for row in model.rows)
+
+
+def name_column_width(model: EditModel, measure: Callable[[str], int],
+                      most: int) -> int:
+    """Return how wide the column of the names is.
+
+    It is one width for every row, so that the names begin where their rows
+    do and what follows them steps into the tree with them: the longest name
+    any row has, counting every row and not only those on the screen, so that
+    folding never moves the types and the values beside it. It is never wider
+    than `most`, because a name is often a key of the user's own data and one
+    long key would otherwise push the values of every row to the right; a
+    longer name is cut off by the backend.
+
+    Args:
+        model: Model to ask about.
+        measure: How wide one text is.
+        most: The widest the column is ever given, in the unit of `measure`.
+
+    Returns:
+        The width of the column, in the unit of `measure`.
+    """
+    return min(max((measure(row.name) for row in model.rows), default=0), most)
 
 
 def can_fold(model: EditModel) -> bool:
