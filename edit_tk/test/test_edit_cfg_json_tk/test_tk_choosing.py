@@ -22,6 +22,7 @@ from edit_cfg_json_tk.tk_look import MEMBER_CHOICE_NAME, MEMBER_FIELD_NAME
 from example.e01_flat_config import FlatConfig
 from example.e02_enum_config import EnumConfig
 from example.e12_backup_files import ArchiveConfig
+from example.e20_union_types import ExportConfig
 from .helpers import model_value, real_choosers, real_press, real_tick, \
     real_ways, stub_choices, stub_choosers, stub_editor, stub_fields, \
     stub_flag, stub_keys, stub_pick, stub_press, stub_ways, told_replaced
@@ -211,6 +212,9 @@ the names of the enum above, and their order is part of what is expected: it
 is the order the pull-down offers them in.
 """
 
+LAYOUT_VALUES = ('compact', 'wide')
+"""The values the `Literal` of the layout of the export example allows."""
+
 MIXED_WAYS = [MEMBER_FIELD_NAME, MEMBER_FIELD_NAME, MEMBER_CHOICE_NAME]
 """What is on the window for the three members of the backup example.
 
@@ -248,6 +252,19 @@ def test_stub_flag_offered(stub_tk: None) -> None:
     stub_editor(EditModel(ArchiveConfig()))
     offered = [stub_choices(widget) for widget in stub_choosers()]
     assert offered == [BOOL_NAMES]
+
+
+def test_stub_literal_shown(stub_tk: None) -> None:
+    """Test a member declared as a `Literal` gets a pull-down of its values.
+
+    It is the third kind of member whose values the editor knows the whole
+    of, and the values are read from its declaration rather than from a
+    converter or from the kind of its value, so it is asked here as well.
+    """
+    _ = stub_tk
+    stub_editor(EditModel(ExportConfig()))
+    offered = [stub_choices(widget) for widget in stub_choosers()]
+    assert offered == [LAYOUT_VALUES]
 
 
 @pytest.mark.parametrize('config_type, ways', SHOWN_WAYS)

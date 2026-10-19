@@ -211,7 +211,7 @@
   * [CONVERSION\_ERRORS](#edit_cfg_json.converting.CONVERSION_ERRORS)
   * [REPLACED\_FORM](#edit_cfg_json.converting.REPLACED_FORM)
   * [CLEARED\_FORM](#edit_cfg_json.converting.CLEARED_FORM)
-  * [NOT\_A\_BOOL\_FORM](#edit_cfg_json.converting.NOT_A_BOOL_FORM)
+  * [NOT\_ONE\_OF\_FORM](#edit_cfg_json.converting.NOT_ONE_OF_FORM)
   * [Converted](#edit_cfg_json.converting.Converted)
     * [value](#edit_cfg_json.converting.Converted.value)
     * [message](#edit_cfg_json.converting.Converted.message)
@@ -251,12 +251,11 @@
   * [VALUE\_KINDS](#edit_cfg_json.leaf_value.VALUE_KINDS)
   * [EMPTY\_VALUES](#edit_cfg_json.leaf_value.EMPTY_VALUES)
   * [NO\_VALUE\_TEXT](#edit_cfg_json.leaf_value.NO_VALUE_TEXT)
-  * [BOOL\_WORDS](#edit_cfg_json.leaf_value.BOOL_WORDS)
-  * [BOOL\_NAMES](#edit_cfg_json.leaf_value.BOOL_NAMES)
-  * [BOOL\_CHOICES](#edit_cfg_json.leaf_value.BOOL_CHOICES)
+  * [BOOL\_VALUES](#edit_cfg_json.leaf_value.BOOL_VALUES)
   * [empty\_value](#edit_cfg_json.leaf_value.empty_value)
   * [kind\_of](#edit_cfg_json.leaf_value.kind_of)
-  * [bool\_word](#edit_cfg_json.leaf_value.bool_word)
+  * [known\_values](#edit_cfg_json.leaf_value.known_values)
+  * [named\_value](#edit_cfg_json.leaf_value.named_value)
   * [value\_as\_text](#edit_cfg_json.leaf_value.value_as_text)
   * [text\_as\_value](#edit_cfg_json.leaf_value.text_as_value)
   * [canonical\_text](#edit_cfg_json.leaf_value.canonical_text)
@@ -303,7 +302,7 @@
     * [\_\_init\_\_](#edit_cfg_json.buffer.EditBuffer.__init__)
     * [report](#edit_cfg_json.buffer.EditBuffer.report)
     * [rows](#edit_cfg_json.buffer.EditBuffer.rows)
-    * [bool\_nodes](#edit_cfg_json.buffer.EditBuffer.bool_nodes)
+    * [known\_values](#edit_cfg_json.buffer.EditBuffer.known_values)
     * [dirty](#edit_cfg_json.buffer.EditBuffer.dirty)
     * [anything\_open](#edit_cfg_json.buffer.EditBuffer.anything_open)
     * [values](#edit_cfg_json.buffer.EditBuffer.values)
@@ -563,6 +562,7 @@
   * [names\_config](#edit_cfg_json.type_options.names_config)
   * [value\_option](#edit_cfg_json.type_options.value_option)
   * [inferred\_option](#edit_cfg_json.type_options.inferred_option)
+  * [reading\_type](#edit_cfg_json.type_options.reading_type)
   * [reading\_kind](#edit_cfg_json.type_options.reading_kind)
   * [allowed\_values](#edit_cfg_json.type_options.allowed_values)
   * [empty\_option\_value](#edit_cfg_json.type_options.empty_option_value)
@@ -601,9 +601,10 @@
     * [type\_choosable](#edit_cfg_json.rows.MemberRow.type_choosable)
     * [editable](#edit_cfg_json.rows.MemberRow.editable)
     * [chosen\_type](#edit_cfg_json.rows.MemberRow.chosen_type)
+    * [reading\_type](#edit_cfg_json.rows.MemberRow.reading_type)
     * [kind](#edit_cfg_json.rows.MemberRow.kind)
     * [is\_text](#edit_cfg_json.rows.MemberRow.is_text)
-    * [is\_bool](#edit_cfg_json.rows.MemberRow.is_bool)
+    * [known\_values](#edit_cfg_json.rows.MemberRow.known_values)
     * [choices](#edit_cfg_json.rows.MemberRow.choices)
     * [edited](#edit_cfg_json.rows.MemberRow.edited)
     * [value\_text](#edit_cfg_json.rows.MemberRow.value_text)
@@ -700,6 +701,7 @@
     * [valid](#edit_cfg_json.validation.SubtreeAnswer.valid)
     * [refused](#edit_cfg_json.validation.SubtreeAnswer.refused)
   * [NO\_SUBTREES](#edit_cfg_json.validation.NO_SUBTREES)
+  * [NO\_KNOWN\_VALUES](#edit_cfg_json.validation.NO_KNOWN_VALUES)
   * [ValidationVerdict](#edit_cfg_json.validation.ValidationVerdict)
     * [valid](#edit_cfg_json.validation.ValidationVerdict.valid)
     * [diagnostics](#edit_cfg_json.validation.ValidationVerdict.diagnostics)
@@ -3994,18 +3996,19 @@ The same for a member whose field held nothing at all.
 It is a form of its own because the sentence above it would name the text and
 there is none, leaving a gap where the reader is looking for what was there.
 
-<a id="edit_cfg_json.converting.NOT_A_BOOL_FORM"></a>
+<a id="edit_cfg_json.converting.NOT_ONE_OF_FORM"></a>
 
-#### NOT\_A\_BOOL\_FORM
+#### NOT\_ONE\_OF\_FORM
 
-Why the text of a member holding true or false means neither of them.
+Why the text of a node whose values the editor knows means none of them.
 
-It is worded as `config_as_json` words the same refusal about the name of an
-enum member, because it is the same refusal: the member holds one of a known
-set of values and the text names none of them. Such a member has no parse
-converter to answer it — there is nothing to convert true into — so this is
-the one refusal of a leaf that the editor makes itself, and it makes it about
-the type of the member and never about a rule of the application.
+Those are a node holding true or false and a node declared as a `Literal`. It
+is worded as `config_as_json` words the same refusal about the name of an
+enum member, because it is the same refusal: the node holds one of a known set
+of values and the text names none of them. Such a node has no parse converter
+to answer it — there is nothing to convert `true` or `'wide'` into — so these
+are the two refusals of a leaf that the editor makes itself, and it makes them
+about the type of the node and never about a rule of the application.
 
 <a id="edit_cfg_json.converting.Converted"></a>
 
@@ -4094,9 +4097,10 @@ what is inside it.
 #### convert\_member
 
 ```python
-def convert_member(converter: Optional[ParseConverter],
-                   value: JsonType,
-                   is_bool_member: bool = False) -> Converted
+def convert_member(
+    converter: Optional[ParseConverter],
+    value: JsonType,
+    values: Sequence[JsonType] = ()) -> Converted
 ```
 
 Return one leaf value as its member holds it, or why it cannot.
@@ -4107,20 +4111,21 @@ JSON while it is None has nothing to convert, and a `None` that is wrong
 is refused by the validation of the whole configuration, which has a
 message of its own for it.
 
-A member holding true or false is answered without a converter, because
-it has none and needs none: `text_as_value` has already made the value of
-every text that means one of the two words, so a value that is neither
-means neither and is refused here as an enum member name that names no
-member is.
+A member whose values the editor knows the whole of — true or false, or a
+`Literal` — is answered without a converter, because it has none and
+needs none: `text_as_value` has already made the value of every text that
+names one of them, so a value that is none of them means none and is
+refused here as an enum member name that names no member is. A value is
+one of them where it is written as one of them, so `1` is not `true`.
 
 **Arguments**:
 
 - `converter` - How the text of this member becomes a value, or None for a
   member that holds what the file holds.
 - `value` - JSON space value that the buffer holds for that member.
-- `is_bool_member` - Whether this member held true or false when the file
-  was last agreed with, which is what makes those the two values it
-  takes.
+- `values` - The values this member takes where the editor knows the whole
+  of them, as `leaf_value.known_values` says, and empty for every
+  other member.
   
 
 **Returns**:
@@ -4132,10 +4137,8 @@ member is.
 #### matched\_choice
 
 ```python
-def matched_choice(converter: Optional[ParseConverter],
-                   value: JsonType,
-                   choices: Sequence[str],
-                   is_bool_member: bool = False) -> str
+def matched_choice(converter: Optional[ParseConverter], value: JsonType,
+                   choices: Sequence[str]) -> str
 ```
 
 Return which of the values one member takes its value means.
@@ -4146,9 +4149,10 @@ a field losing the focus is answered by: `config_as_json` accepts the name
 of a member of that enum in any case, and accepts a beginning that only
 one member of that enum has. Which beginnings those are is a fact about
 the enum the application declared and about nothing else: a beginning that
-names one member of one enum names two of another. A member holding true
-or false needs no conversion, because `text_as_value` has already made the
-value of every text that means one of the two words.
+names one member of one enum names two of another. A member whose values
+the editor knows itself — true or false, or a `Literal` — needs no
+conversion, because `text_as_value` has already made the value of every
+text that names one of them.
 
 **Arguments**:
 
@@ -4156,7 +4160,6 @@ value of every text that means one of the two words.
   member that holds what the file holds.
 - `value` - JSON space value that the buffer holds for that member.
 - `choices` - The values that member takes, as the text of each of them.
-- `is_bool_member` - Whether this member holds true or false.
   
 
 **Returns**:
@@ -4828,33 +4831,17 @@ the file holds would be showing the notation of the file as if it were a value
 the user had typed, and it is exactly the confusion between that `null` and an
 empty text that this state exists to end.
 
-<a id="edit_cfg_json.leaf_value.BOOL_WORDS"></a>
+<a id="edit_cfg_json.leaf_value.BOOL_VALUES"></a>
 
-#### BOOL\_WORDS
+#### BOOL\_VALUES
 
-The two words a member holding true or false is written with.
+The two values a node holding true or false takes, in the order asked.
 
-They are the JSON notation of the two values, which is what the file holds and
-what the user therefore types. Nothing else means one of them: `yes` and `1`
-are values of other kinds, and a member that holds one of those is a member of
-another kind.
-
-<a id="edit_cfg_json.leaf_value.BOOL_NAMES"></a>
-
-#### BOOL\_NAMES
-
-The two words on their own, in the order they are asked in.
-
-It is what a member holding true or false is offered as the values it takes,
-where a member holding an enum is offered the names of that enum. The order
-is the one above, so that the first value such a member can be given is
-`true`.
-
-<a id="edit_cfg_json.leaf_value.BOOL_CHOICES"></a>
-
-#### BOOL\_CHOICES
-
-The two words as they are listed to the user, in the order asked.
+They are written with the JSON notation of the two values, `true` and
+`false`, which is what the file holds and what the user therefore types.
+Nothing else means one of them: `yes` and `1` are values of other kinds, and
+a member that holds one of those is a member of another kind. The order is
+the one above, so that the first value such a member can be given is `true`.
 
 <a id="edit_cfg_json.leaf_value.empty_value"></a>
 
@@ -4896,35 +4883,71 @@ Return the kind of one value, None for a value that has no kind.
 
   The kind of that value, which is None only for `null`.
 
-<a id="edit_cfg_json.leaf_value.bool_word"></a>
+<a id="edit_cfg_json.leaf_value.known_values"></a>
 
-#### bool\_word
+#### known\_values
 
 ```python
-def bool_word(text: str) -> Optional[bool]
+def known_values(
+    kind: Optional[type], literals: Sequence[JsonType] = ()
+) -> tuple[JsonType, ...]
 ```
 
-Return the value that the beginning of one of those words means.
+Return the values a node takes, where the editor knows all of them.
 
-The case is ignored and a beginning is enough, which is what
-`config_as_json` already does for the name of an enum member: its
-`string_to_enum_best_match` tries the case variants of what was typed and
-then accepts a beginning that only one member has. A member holding true
-or false has no such converter, because there is nothing to convert it
-into, so it is answered here and by the same rules.
-
-A beginning that both words have is no answer, exactly as an ambiguous
-beginning of two enum member names is none. The empty text is the only one
-there is, and it is what a cleared field holds.
+That is the values a `Literal` allows, and the two of a node holding
+true or false. An enum is not among them, because its names are read by
+the parse converter its class declares and not by this editor.
 
 **Arguments**:
 
-- `text` - Text that the edit field holds.
+- `kind` - Which kind of value the node takes, None where nothing says.
+- `literals` - The values the `Literal` it is declared as allows, empty
+  for a node declared as anything else.
   
 
 **Returns**:
 
-  The value that text means, and None when it means neither of them.
+  Those values, and none at all for a node whose values are not a set
+  the editor knows the whole of.
+
+<a id="edit_cfg_json.leaf_value.named_value"></a>
+
+#### named\_value
+
+```python
+def named_value(text: str, values: Sequence[JsonType]) -> Optional[JsonType]
+```
+
+Return which of some values one text names by the rules of a name.
+
+The case is ignored and a beginning is enough, which is what
+`config_as_json` already does for the name of an enum member: its
+`string_to_enum_best_match` tries the case variants of what was typed and
+then accepts a beginning that only one member has. A value the editor
+itself knows the set of has no such converter, because there is nothing
+to convert it into, so it is answered here and by the same rules. A text
+that is one of the values is that value even where it begins another, as
+`wide` beside `wider` is.
+
+Only a value written as a word is named like this: a text and true or
+false. A number is the number its text is written as and nothing else,
+so `80` never means `8080`.
+
+A beginning that two values have is no answer, exactly as an ambiguous
+beginning of two enum member names is none. The empty text is one of
+those wherever there is more than one word, and it is what a cleared
+field holds.
+
+**Arguments**:
+
+- `text` - Text that the edit field holds.
+- `values` - The values the node takes, in the order they are asked.
+  
+
+**Returns**:
+
+  The value that text names, and None when it names none of them.
 
 <a id="edit_cfg_json.leaf_value.value_as_text"></a>
 
@@ -4956,18 +4979,21 @@ notation, which is also how the user would type it.
 #### text\_as\_value
 
 ```python
-def text_as_value(text: str,
-                  kind: Optional[type],
-                  nothing: bool = False) -> JsonType
+def text_as_value(
+    text: str,
+    kind: Optional[type],
+    nothing: bool = False,
+    values: Sequence[JsonType] = ()) -> JsonType
 ```
 
 Return the value that the text of one edit field stands for.
 
 A member that takes text keeps exactly what the user typed, so that a
 text member can hold the digits of a number without becoming a number. A
-member that takes true or false takes any beginning of either word, as
-`bool_word` says. Every other member has its text read as JSON, which is
-the inverse of how `value_as_text` writes it.
+member whose values the editor knows the whole of — true or false, and a
+`Literal` — takes any beginning of one of their words, as `named_value`
+says, before it is read as its kind. Every other member has its text read
+as JSON, which is the inverse of how `value_as_text` writes it.
 
 Text that is not JSON at all is kept as a string rather than refused. A
 value being typed passes through states that are not valid, and a field
@@ -4990,6 +5016,8 @@ member with no such state reads `null` as the JSON it is, as before.
   held when the file was last agreed with (section 4.2 of
   `doc/detailed_design.md`).
 - `nothing` - Whether this member has the state of holding nothing.
+- `values` - The values this member takes where the editor knows the whole
+  of them, as `known_values` says, and empty for every other member.
   
 
 **Returns**:
@@ -5790,20 +5818,22 @@ Return one row per node of the configuration, in the order shown.
 Every row is here whether it is folded away or not, because a backend
 creates its widgets once and hides the ones that are not shown.
 
-<a id="edit_cfg_json.buffer.EditBuffer.bool_nodes"></a>
+<a id="edit_cfg_json.buffer.EditBuffer.known_values"></a>
 
-#### bool\_nodes
+#### known\_values
 
 ```python
 @property
-def bool_nodes() -> frozenset[ConfigPath]
+def known_values() -> dict[ConfigPath, tuple[JsonType, ...]]
 ```
 
-Return the path of every node that holds true or false.
+Return the values each node takes, where the editor knows them all.
 
-It is the type information of those nodes, which the rows own and a
-validation pass needs: the values it is given are JSON space values,
-and nothing in `true` and `1` says which of the two a member takes.
+Those are the nodes holding true or false and the nodes declared as a
+`Literal`, as `MemberRow.known_values` says. It is the type
+information of those nodes, which the rows own and a validation pass
+needs: the values it is given are JSON space values, and nothing in
+`true` and `1` says which of the two a member takes.
 
 <a id="edit_cfg_json.buffer.EditBuffer.dirty"></a>
 
@@ -7033,11 +7063,12 @@ closing.
 
 Whether a member with a set of values opens as a pull-down.
 
-A member holding true or false and one holding an enum member are the two
-whose values the editor knows the whole of, and this is how they are
-shown until the user says otherwise: the values offered to be chosen
-from, so that nobody has to remember how a name is spelled. False opens
-them as fields instead, for a user who would rather type.
+A member holding true or false, one declared as a `Literal` and one
+holding an enum member are the three whose values the editor knows the
+whole of, and this is how they are shown until the user says otherwise:
+the values offered to be chosen from, so that nobody has to remember how a
+name is spelled. False opens them as fields instead, for a user who would
+rather type.
 
 It is the state the editor *opens* in and not the state it stays in. The
 user switches between the two whenever they like, and this says nothing
@@ -8225,7 +8256,8 @@ hold anything is a piece of the window spent on nothing. Whether that
 control is the one being shown is `EditModel.choices_shown`, which is one
 answer for the whole editor.
 
-A member holding true or false and one holding an enum member can. A node
+A member holding true or false, one declared as a `Literal` and one
+holding an enum member can. A node
 the editor cannot edit at all cannot, whatever its type says, because
 there is no value of it to change: a list, a dict, a nested configuration
 object and a member holding nothing are each reached some other way.
@@ -9251,8 +9283,9 @@ def choices_shown() -> bool
 
 Return whether a value with a known set is chosen, not typed.
 
-The two members that have such a set are one holding true or false and
-one holding an enum member, and `MemberRow.choices` is what they take.
+The members that have such a set are one holding true or false, one
+declared as a `Literal` and one holding an enum member, and
+`MemberRow.choices` is what they take.
 What this answers is whether those are offered to be chosen from or
 typed into, for all of them at once: one answer and not one per
 member, exactly as there is one answer about the explanations.
@@ -10310,16 +10343,16 @@ Return the type that a value says it is, where nothing else says.
 
   The kind of that value as a type, and `None` for no value at all.
 
-<a id="edit_cfg_json.type_options.reading_kind"></a>
+<a id="edit_cfg_json.type_options.reading_type"></a>
 
-#### reading\_kind
+#### reading\_type
 
 ```python
-def reading_kind(options: Sequence[TypeOption],
-                 original: JsonType) -> Optional[type]
+def reading_type(options: Sequence[TypeOption],
+                 original: JsonType) -> Optional[TypeOption]
 ```
 
-Return the kind of value that the text of one node is read as.
+Return the type that the text of one node is read by.
 
 It is asked of the value the node held when the file was last agreed with
 and never of the value it holds now, because a number member whose text
@@ -10327,12 +10360,37 @@ is half typed holds text, and reading the next key by that would make it a
 text member for good (section 4.2 of `doc/detailed_design.md`). `None` is
 never the answer while another type is allowed, because a node holding
 nothing is not typed into, and the text of one that has just been given a
-value is a text of that value. A class whose kind only the value can say
-is read by what the value says.
+value is a text of that value.
 
 **Arguments**:
 
 - `options` - The types the declaration of that node allows.
+- `original` - Value that the node held when the file was last agreed with.
+  
+
+**Returns**:
+
+  The first type besides `None` that value fits, the first type besides
+  `None` where it fits none, and None where no other type is allowed.
+
+<a id="edit_cfg_json.type_options.reading_kind"></a>
+
+#### reading\_kind
+
+```python
+def reading_kind(read: Optional[TypeOption],
+                 original: JsonType) -> Optional[type]
+```
+
+Return the kind of value that the text of one node is read as.
+
+It is the kind of the type the text is read by, and the kind of the value
+the node held when the file was last agreed with where that type is a
+class whose kind only the value can say, or where no type says anything.
+
+**Arguments**:
+
+- `read` - The type the text of that node is read by, None where none is.
 - `original` - Value that the node held when the file was last agreed with.
   
 
@@ -10965,6 +11023,29 @@ A node whose declaration names nothing usable holds the type of the
 value it holds. What its text is read by is still what it held when
 the file was last agreed with, which is `kind`.
 
+<a id="edit_cfg_json.rows.MemberRow.reading_type"></a>
+
+#### reading\_type
+
+```python
+@property
+def reading_type() -> Optional[TypeOption]
+```
+
+Return the type that the text of this node is read by.
+
+What the class declared wins over what the node held, which is the
+whole of what more type information buys: a member declared `float`
+takes a number however its default was written, and a member that
+holds nothing still says what it would hold. It is read by what the
+node held when the file was last agreed with and not by what it holds
+now, so that a text half typed into it cannot change it.
+
+A node whose type the user chooses is read by the type it holds, which
+half typing cannot change either: it is the user's choice and not a
+reading of the value. It is None where nothing but `None` is declared,
+and where nothing usable is.
+
 <a id="edit_cfg_json.rows.MemberRow.kind"></a>
 
 #### kind
@@ -10976,17 +11057,9 @@ def kind() -> Optional[type]
 
 Return which kind of value this node takes, None where unknown.
 
-What the class declared wins over what the node held, which is the
-whole of what more type information buys: a member declared `float`
-takes a number however its default was written, and a member that
-holds nothing still says what it would hold. It is read by what the
-node held when the file was last agreed with and not by what it holds
-now, so that a text half typed into it cannot change it.
-
-A node whose type the user chooses takes the kind of the type it
-holds, which half typing cannot change either: it is the user's
-choice and not a reading of the value. A class whose kind only its
-value can say is read as every other node is.
+It is the kind of `reading_type`. A class whose kind only its value can
+say, and a node whose declaration says nothing usable, take the kind
+of what the node held when the file was last agreed with.
 
 <a id="edit_cfg_json.rows.MemberRow.is_text"></a>
 
@@ -11004,21 +11077,23 @@ whose text is a rendering of it. The text of a text value is the
 value itself, while the text of a number is how the number is
 written.
 
-<a id="edit_cfg_json.rows.MemberRow.is_bool"></a>
+<a id="edit_cfg_json.rows.MemberRow.known_values"></a>
 
-#### is\_bool
+#### known\_values
 
 ```python
 @property
-def is_bool() -> bool
+def known_values() -> tuple[JsonType, ...]
 ```
 
-Return whether this node takes true or false.
+Return the values this node takes, where the editor knows them.
 
-It is what makes the two words the values this node takes, so that
-any beginning of either of them is one of them and anything else is
-neither. A node whose kind nothing says is not one of these: nothing
-is known, so nothing is refused.
+A node declared as a `Literal` takes the values it allows, and a node
+holding true or false takes the two of them, as
+`leaf_value.known_values` says. It is what its text is read by and
+what a value is refused by, because nothing the class declares does
+either: such a node has no parse converter. An enum is not among them,
+because its parse converter is what reads its names.
 
 <a id="edit_cfg_json.rows.MemberRow.choices"></a>
 
@@ -11031,11 +11106,12 @@ def choices() -> tuple[str, ...]
 
 Return the values this node takes, where they are a known set.
 
-Two kinds of node have one. A member holding true or false takes the
-two words and nothing else, and a member whose class declares a parse
-converter into an enum takes the names of that enum. Both are read
-from what this row already carries, so the values offered to be chosen
-from and the names listed below the row cannot come to differ.
+Three kinds of node have one. A member holding true or false takes the
+two words and nothing else, one declared as a `Literal` takes the
+values it allows, and one whose class declares a parse converter into
+an enum takes the names of that enum. All three are read from what
+this row already carries, so the values offered to be chosen from and
+the values that are refused cannot come to differ.
 
 Every other node answers with no values at all, which is what says
 that its value is typed rather than chosen: text, a number and a
@@ -11461,9 +11537,11 @@ leave it nothing but `None` to hold.
 
 **Switching keeps what still fits.** A plain value keeps its text where that
 text means a value of the new type, so the text `5` becomes the number `5`
-when `str` is changed to `int`, and everything else is given the empty value
-of the new type: `''`, `0`, the first name of an enum, the first value of a
-`Literal`, or nothing at all. A list or a dict on either side of the switch
+when `str` is changed to `int`, and the text `wi` becomes `wide` when it is
+changed to `Literal['compact', 'wide']`, by the rules a field of that type
+reads it by. Everything else is given the empty value of the new type: `''`,
+`0`, the first name of an enum, the first value of a `Literal`, or nothing at
+all. A list or a dict on either side of the switch
 is given that empty value as well, `[]` and `{}` among them, because what a
 container held is no value of a container of another type. A configuration
 class is given a new object of it, which `placing.object_switched` constructs,
@@ -12545,6 +12623,16 @@ What a pass over a configuration with no nested object at all reports.
 
 It cannot be written to, for the same reason as the mapping above.
 
+<a id="edit_cfg_json.validation.NO_KNOWN_VALUES"></a>
+
+#### NO\_KNOWN\_VALUES
+
+The values of the nodes the editor knows the values of, where none are.
+
+It is what a caller that knows of no such node passes, which is a caller that
+has no rows to ask: the values are in JSON space, and only the rows know which
+node takes true or false and which a `Literal` allows.
+
 <a id="edit_cfg_json.validation.ValidationVerdict"></a>
 
 ## ValidationVerdict Objects
@@ -12684,7 +12772,7 @@ def subtree_answers(
     config: Config,
     members: dict[str, JsonType],
     inside: ConfigPath = (),
-    bool_nodes: frozenset[ConfigPath] = frozenset()
+    known_values: Mapping[ConfigPath, tuple[JsonType, ...]] = NO_KNOWN_VALUES
 ) -> dict[ConfigPath, SubtreeAnswer]
 ```
 
@@ -12707,8 +12795,8 @@ answer nothing at all for exactly the shape a real configuration has.
 - `members` - The edit buffer, as one JSON space value per member.
 - `inside` - Path of the node being asked about, the empty path for the
   whole configuration. Every object at or inside it is asked.
-- `bool_nodes` - Path of every node that holds true or false, empty for a
-  caller that knows of none.
+- `known_values` - The values each node takes where the editor knows the
+  whole of them, by path, empty for a caller that knows of none.
   
 
 **Returns**:
@@ -12725,7 +12813,7 @@ answer nothing at all for exactly the shape a real configuration has.
 def validate_buffer(
     config: Config,
     members: dict[str, JsonType],
-    bool_nodes: frozenset[ConfigPath] = frozenset()
+    known_values: Mapping[ConfigPath, tuple[JsonType, ...]] = NO_KNOWN_VALUES
 ) -> ValidationPass
 ```
 
@@ -12758,9 +12846,10 @@ valid and there is nothing left to find out.
   the buffer belongs to and holds everything about it that is not a
   member. It is not modified.
 - `members` - The edit buffer, as one JSON space value per member.
-- `bool_nodes` - Path of every node that holds true or false, empty for a
-  caller that knows of none. The values are in JSON space, where
-  nothing says which member takes those two and only those two.
+- `known_values` - The values each node takes where the editor knows the
+  whole of them, by path, empty for a caller that knows of none. The
+  values are in JSON space, where nothing says which member takes
+  those two and only those two.
   
 
 **Returns**:

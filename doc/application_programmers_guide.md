@@ -958,11 +958,13 @@ already taken one of these combinations.
 
 ## 4.2.1 How a value with a known set of values is edited
 
-A member holding `bool` and a member whose `parse_converters()` names an
-`Enum` hold one of a set of values that the editor reads from the type, so
-the editor offers those values to be chosen from rather than leaving the user
-to spell one. It is still a field underneath, and the user switches between
-the two with the `choose` action above.
+A member holding `bool`, a member annotated with a `Literal` whose values are
+all text, all whole numbers or all booleans, and a member whose
+`parse_converters()` names an `Enum` hold one of a set of values that the
+editor reads from the type, so the editor offers those values to be chosen
+from rather than leaving the user to spell one. It is still a field
+underneath, and the user switches between the two with the `choose` action
+above.
 
 ```python
 from edit_cfg_json import Settings
@@ -996,6 +998,24 @@ the first value the member takes. So where your enum has `ELECTRIC`,
 Nothing of this is a validator and none of it can produce a value that is not
 one of the ones your own type declares.
 
+**A `Literal` is checked by the editor, and by nothing else.**
+`self.layout: Literal['compact', 'wide'] = 'compact'` is typed as an enum name
+is — the case ignored and a beginning only one value has enough, so `wi` is
+`wide` — except that a number is matched only as the number it is written as,
+so `80` is never `8080`. A text that is none of the values is refused at the
+member, as `tall is not one of: compact, wide`, which is a refusal the editor
+makes itself, as it does for a `bool`: `config_as_json` checks no value against
+an annotation. That has a consequence you may want a validator for. Your class
+reads a file holding `"layout": "tall"` without a word, so the editor opens it
+and refuses `tall` at the member, and while values are chosen it gives the
+member the value it most likely meant and tells the user; an application that
+reads the file itself is told nothing. A `Literal` whose values are of more
+than one kind, such as `Literal['auto', 0]`, is a type the editor can make
+nothing of, below.
+A properly designed class deriving from `config_as_json.Config` with
+a `Literal` attribute has a validator defined to validate the value of the
+`Literal`.
+
 One thing is worth knowing if your application writes into the model between
 building it and showing it, which `EditModel.set_text` allows: such a value is
 settled the same way when the editor builds its widgets, silently, because
@@ -1011,8 +1031,9 @@ annotation is read with `typing.get_type_hints` — and the value answers only
 where nothing usable is annotated. So annotate every member: a member with no
 annotation, one whose annotation will not resolve at runtime (a name imported
 under `if TYPE_CHECKING`), and one annotated with a type the editor can make
-nothing of (`tuple`, `set`, `Any`) all show the type their value happens to
-have, with a line below them saying that is where it came from.
+nothing of (`tuple`, `set`, `Any`, a `Literal` of mixed kinds) all show the
+type their value happens to have, with a line below them saying that is where
+it came from.
 
 The column shows the one type a row holds and is cut at 40 characters, so a
 union such as `Optional[str]` or a long type such as

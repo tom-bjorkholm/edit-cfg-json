@@ -14,6 +14,7 @@ window that really is: those tests are the `focus_sensitive` ones at the end.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Callable
 import tkinter
 import pytest
 from edit_cfg_json import Descriptions, Emphasis, EditModel, FindOptions
@@ -22,6 +23,7 @@ from edit_cfg_json_tk.tk_editor import EditorWidgets, EXPLAIN_TEXT
 from edit_cfg_json_tk.tk_look import EMPHASIS_COLOURS, FIELD_BACKGROUND, \
     FIELD_FOREGROUND, LEAST_WRAP_WIDTH
 from example.e01_flat_config import FlatConfig
+from example.e20_union_types import ExportConfig
 from .helpers import ABOUT_NAME, DESCRIPTIONS, FILLED_REPORT, \
     FLAT_DOCSTRING, FLAT_SUMMARY, real_fields, real_press, real_ticks, \
     stub_editor, stub_keys, stub_press
@@ -367,8 +369,19 @@ def test_real_paragraph_wraps(root_or_skip: tkinter.Tk) -> None:
     assert _wrapped_at(labels[' (filled from default)']) == 0
 
 
+def _union_model() -> EditModel:
+    """Return a model with rows whose type and value are both pull-downs.
+
+    Its `Literal` member beside `None` has the pull-down of its types and the
+    pull-down of its values on one row, both active, and its map has rows
+    whose pull-down of the types is wide.
+    """
+    return EditModel(ExportConfig())
+
+
 @pytest.mark.focus_sensitive
-def test_shown_window_fits() -> None:
+@pytest.mark.parametrize('made', [_described_model, _union_model])
+def test_shown_window_fits(made: Callable[[], EditModel]) -> None:
     """Test nothing is cut off and nothing falls off a window that is shown.
 
     This is the one test of this backend that needs a window a person can see:
@@ -382,11 +395,12 @@ def test_shown_window_fits() -> None:
     `least_size`, and what this asks is that nothing is cut off anywhere that
     promise reaches. A width written down here would instead be a promise this
     test made up, and one more control in the button row would break it — as
-    one more did.
+    one more did. It is asked of a model with everything the editor can say,
+    and of one whose rows have two pull-downs each.
     """
     window = tkinter.Tk()
     try:
-        widgets = EditorWidgets(parent=window, model=_described_model())
+        widgets = EditorWidgets(parent=window, model=made())
         narrowest = f'{widgets.least_size[0]}x600'
         for size in ('', '900x260', narrowest):
             if size:

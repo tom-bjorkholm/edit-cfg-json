@@ -25,7 +25,7 @@ from edit_cfg_json.descriptions import Descriptions, MemberFacts, \
     enum_names, member_description
 from edit_cfg_json.elements import ElementOffer, TreeFacts, \
     element_offers, tree_facts
-from edit_cfg_json.leaf_value import BOOL_NAMES, NO_VALUE_TEXT, \
+from edit_cfg_json.leaf_value import NO_VALUE_TEXT, known_values, \
     value_as_text, values_differ
 from edit_cfg_json.loading import LoadReport
 from edit_cfg_json.member_types import KeptTypes
@@ -33,7 +33,7 @@ from edit_cfg_json.tree import ConfigNode, NO_OBJECT_FORM, child_values, \
     config_nodes, container_text, flat_values, is_container, ordered_names, \
     path_text
 from edit_cfg_json.type_options import NONE_TYPE, SCALAR_KINDS, TypeOption, \
-    choosable, held_option, inferred_option, reading_kind
+    choosable, held_option, inferred_option, reading_kind, reading_type
 from edit_cfg_json.validation import SubtreeAnswer
 
 NOT_A_MEMBER = ''
@@ -456,8 +456,8 @@ class MemberRow(NamedTuple):
         return inferred_option(self.value) if held is None else held
 
     @property
-    def kind(self) -> Optional[type]:
-        """Return which kind of value this node takes, None where unknown.
+    def reading_type(self) -> Optional[TypeOption]:
+        """Return the type that the text of this node is read by.
 
         What the class declared wins over what the node held, which is the
         whole of what more type information buys: a member declared `float`
@@ -466,15 +466,24 @@ class MemberRow(NamedTuple):
         node held when the file was last agreed with and not by what it holds
         now, so that a text half typed into it cannot change it.
 
-        A node whose type the user chooses takes the kind of the type it
-        holds, which half typing cannot change either: it is the user's
-        choice and not a reading of the value. A class whose kind only its
-        value can say is read as every other node is.
+        A node whose type the user chooses is read by the type it holds, which
+        half typing cannot change either: it is the user's choice and not a
+        reading of the value. It is None where nothing but `None` is declared,
+        and where nothing usable is.
         """
-        if self.held is not None and self.held != NONE_TYPE and \
-                self.held.kind is not None:
-            return self.held.kind
-        return reading_kind(self.types, self.original)
+        if self.held is not None and self.held != NONE_TYPE:
+            return self.held
+        return reading_type(self.types, self.original)
+
+    @property
+    def kind(self) -> Optional[type]:
+        """Return which kind of value this node takes, None where unknown.
+
+        It is the kind of `reading_type`. A class whose kind only its value can
+        say, and a node whose declaration says nothing usable, take the kind
+        of what the node held when the file was last agreed with.
+        """
+        return reading_kind(self.reading_type, self.original)
 
     @property
     def is_text(self) -> bool:
@@ -488,32 +497,38 @@ class MemberRow(NamedTuple):
         return self.kind is str
 
     @property
-    def is_bool(self) -> bool:
-        """Return whether this node takes true or false.
+    def known_values(self) -> tuple[JsonType, ...]:
+        """Return the values this node takes, where the editor knows them.
 
-        It is what makes the two words the values this node takes, so that
-        any beginning of either of them is one of them and anything else is
-        neither. A node whose kind nothing says is not one of these: nothing
-        is known, so nothing is refused.
+        A node declared as a `Literal` takes the values it allows, and a node
+        holding true or false takes the two of them, as
+        `leaf_value.known_values` says. It is what its text is read by and
+        what a value is refused by, because nothing the class declares does
+        either: such a node has no parse converter. An enum is not among them,
+        because its parse converter is what reads its names.
         """
-        return self.kind is bool
+        read = self.reading_type
+        return known_values(kind=self.kind,
+                            literals=() if read is None else read.literals)
 
     @property
     def choices(self) -> tuple[str, ...]:
         """Return the values this node takes, where they are a known set.
 
-        Two kinds of node have one. A member holding true or false takes the
-        two words and nothing else, and a member whose class declares a parse
-        converter into an enum takes the names of that enum. Both are read
-        from what this row already carries, so the values offered to be chosen
-        from and the names listed below the row cannot come to differ.
+        Three kinds of node have one. A member holding true or false takes the
+        two words and nothing else, one declared as a `Literal` takes the
+        values it allows, and one whose class declares a parse converter into
+        an enum takes the names of that enum. All three are read from what
+        this row already carries, so the values offered to be chosen from and
+        the values that are refused cannot come to differ.
 
         Every other node answers with no values at all, which is what says
         that its value is typed rather than chosen: text, a number and a
         member whose kind nothing says can hold anything of their kind.
         """
-        if self.is_bool:
-            return BOOL_NAMES
+        known = self.known_values
+        if known:
+            return tuple(value_as_text(value) for value in known)
         return enum_names(self.converter)
 
     @property

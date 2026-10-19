@@ -450,33 +450,45 @@ member whose text means nothing is reported as that one member. The load path
 of section 5.2 is deliberately left as it is, because a refusal the user cannot
 act on inside the editor is not a field being edited.
 
-**A member holding true or false is entered like an enum member.** Such a
-member has no parse converter — there is nothing to convert `true` into — so it
-would otherwise be the one member whose value has to be typed exactly and in
-lower case, while `config_as_json` accepts any unambiguous beginning of an enum
-member name in any case at all. The two words are read by those same rules: the
-case is ignored, a beginning of one of them is that value, and a beginning of
-both is neither, which only the empty text of a cleared field is. It is read
-where every other text becomes a value, on the change and not on the focus
-loss, so a validation pass and a save are given the value the user meant, and
-the whole word reaches the field with the refresh that follows a pass.
+**A member holding true or false is entered like an enum member, and so is
+one declared as a `Literal`.** Neither has a parse converter — there is nothing
+to convert `true` or `'wide'` into — so each would otherwise be a member whose
+value has to be typed exactly and in the case it is written in, while
+`config_as_json` accepts any unambiguous beginning of an enum member name in
+any case at all. The values of both are a set the editor knows the whole of,
+the two words of true and false and the values a `Literal` lists, and
+`leaf_value.known_values` is that set: one rule rather than one per kind. A
+text names one of them by the rules of an enum name: the case is ignored, a
+text that is one of them is that one even where it begins another (`wide`
+beside `wider`), and otherwise a beginning that only one of them has is that
+value, while a beginning of two is none, which the empty text of a cleared
+field always is where there are two. **A number is matched as the number it is
+written as**, never by a beginning: in `Literal[8080, 8443]` the text `80` is
+the number 80 and not 8080, because a number that happens to begin another is
+far likelier to be a mistake than a word that does. It is read where every
+other text becomes a value, on the change and not on the focus loss, so a
+validation pass and a save are given the value the user meant, and the whole
+word reaches the field with the refresh that follows a pass.
 
-**What means neither of the two words is refused at that member**, in the words
-an enum member name that names no member is refused in: `yes is not one of:
-true, false`. It is the one refusal of a leaf the editor makes itself instead
-of running something the class declared, and it is made from the type of the
-member rather than from a rule of the application — the same knowledge that
-says *true or false* under it (section 4.3). One consequence is deliberate: an
-application that would have accepted something else in a member whose value was
-true or false cannot be given one from the editor. The type is what the leaf
-held when the file was last agreed with, so a member that held a string is a
-text member and takes any text, and a member that held nothing is one whose
-type nothing says, which is the last paragraph of this section. Which nodes
-hold one of the two words is therefore part of what a validation pass is given:
-the values it is handed are JSON space values, in which nothing says which
-member takes those two and only those two, and the rows are where the type of
-every leaf is kept. Rewriting the text a field shows belongs where validation
-rewrites values (section 6.4).
+**What names none of them is refused at that member**, in the words an enum
+member name that names no member is refused in: `yes is not one of: true,
+false`, and `tall is not one of: compact, wide`. These are the two refusals of
+a leaf the editor makes itself instead of running something the class
+declared, and both are made from the type of the member rather than from a
+rule of the application. A value is one of them only where it is written as
+one of them, so `1` is not `true` and the text `8080` is not the number. One
+consequence is deliberate: an application that would have accepted something
+else in a member whose value was true or false, or in one declared as a
+`Literal`, cannot be given one from the editor. The type of a member holding
+true or false is what the leaf held when the file was last agreed with, so a
+member that held a string is a text member and takes any text, and a member
+that held nothing is one whose type nothing says, which is the last paragraph
+of this section; a `Literal` is what the class declared. Which nodes take such
+a set, and which values each takes, is therefore part of what a validation
+pass is given: the values it is handed are JSON space values, in which nothing
+says which member takes those values and only those, and the rows are where
+the type of every leaf is kept. Rewriting the text a field shows belongs where
+validation rewrites values (section 6.4).
 
 Each leaf is addressed by a `config_as_json.ConfigPath`, so that a member
 inside a list, a dict or a nested config needs no second way of naming it. The
@@ -1168,18 +1180,20 @@ is the line section 9.6 draws.
 
 ### 4.11 Choosing a value instead of typing it
 
-Two kinds of member hold one of a set of values that the editor knows the whole
-of, and it knows it from the type and not from anything the application said. A
-member holding true or false takes the two words of section 4.2, and a member
-whose class declares a parse converter into an enum takes the names of that
-enum. Such a member is **offered those values to be chosen from** rather than
-left to a user who has to remember how a name is spelled.
+Three kinds of member hold one of a set of values that the editor knows the
+whole of, and it knows it from the type and not from anything the application
+said. A member holding true or false takes the two words of section 4.2, a
+member declared as a `Literal` whose values are of one kind takes those values,
+and a member whose class declares a parse converter into an enum takes the
+names of that enum. Such a member is **offered those values to be chosen from**
+rather than left to a user who has to remember how a name is spelled.
 
 `MemberRow.choices` is what a node takes, and it is read from what the row
-already carries: `is_bool` for the two words and the converter for the enum,
-which is the same reading `enum_text` makes for the line that lists the names
-below the row. One reading, so the list offered and the list written cannot
-come to disagree. Every other node answers with no values at all, which is what
+already carries: `known_values` for the two words and for a `Literal`, which is
+what its text is read by and a value refused by, and the converter for the
+enum, which is the same reading `enum_text` makes for the line that lists the
+names below the row. One reading each, so the list offered and the list read or
+written cannot come to disagree. Every other node answers with no values at all, which is what
 says that its value is typed: text and a number hold anything of their kind,
 and a converter of the application's own says nothing about which values there
 are.
@@ -1205,7 +1219,8 @@ overruled.
 them is selected at every moment.** There is no unselected state, no blank line
 among the values, and no way for the user to reach either: a member holding an
 enum takes the members of that enum, a member holding true or false takes those
-two words, and an editor that offered anything else would be offering to write
+two words, a `Literal` takes the values it lists, and an editor that offered
+anything else would be offering to write
 what the class cannot read back. Both backends are built to that rule rather
 than left to a toolkit default: Tk's menu lists the values and nothing else,
 and Textual's control is declared with `allow_blank=False`, which takes its
@@ -1216,7 +1231,8 @@ is shown**, because typing happens in the field and switching to the pull-downs
 is the moment that answers for what was typed. That moment is
 `settle_choices()`, and it is a third one beside a field losing the focus and a
 validation pass. What each text means is `matched_choice`, which runs the
-converter the class declared: the case is ignored, and a beginning that only
+converter the class declared, and for the two words and a `Literal` takes the
+value `text_as_value` has already read: the case is ignored, and a beginning that only
 one member of *that* enum has is that member — which beginnings those are is a
 fact about the enum the application declared and about nothing else. Such a
 text is completed and nothing is said about it, because the row already says
@@ -1267,13 +1283,22 @@ and the examples do for `--set`. A value that really was replaced drops the
 verdict, for the ordinary reason that a verdict is about the values that were
 there when it was reached.
 
-**A file the editor opened cannot hold such a value in the first place.** The
-application hands the editor a `config_as_json.Config` object, and a file whose
-enum member is no member of that enum or whose boolean is neither true nor
-false is a file that class refuses to parse; the load then fails and there is
-nothing to edit (section 5.2). So the values the editor starts from are members
-and booleans already, and the only thing that has ever been able to make one of
-them anything else is a field being typed in.
+**A file the editor opened cannot hold an enum or a boolean that is no such
+value.** The application hands the editor a `config_as_json.Config` object, and
+a file whose enum member is no member of that enum or whose boolean is neither
+true nor false is a file that class refuses to parse; the load then fails and
+there is nothing to edit (section 5.2). So those values the editor starts from
+are members and booleans already, and the only thing that has ever been able to
+make one of them anything else is a field being typed in. **A `Literal` is the
+exception**, because `config_as_json` checks no value against an annotation: a
+file can hold `"tall"` for `Literal['compact', 'wide']`, the class reads it,
+and the editor opens it with `tall` refused at the member. Where the values are
+chosen, the settling above then gives it the value it most likely meant and
+says so, which is the one value of a file the editor changes on its own, and
+it changes it in the words it uses for a mistyped one.
+A properly designed class deriving from `config_as_json.Config` with
+a `Literal` attribute has a validator defined to validate the value of the
+`Literal`.
 
 **A member whose type is chosen has the values of the type it holds.** A
 member declared `bool | str` holding `true` is offered the two words, and once
@@ -1334,9 +1359,12 @@ text means a value of the new type, so the number `80` is the text `80` once
 that means no value of the new type, and `None` on either side of the switch
 — is given the value of the new type that says no more than which type it is:
 `''`, `0`, `0.0`, `false`, the name of the first member of an enum, the first
-value of a `Literal`, `[]`, `{}`, or nothing at all. A list or a dict on either
-side of the switch keeps nothing, because nothing of a list of text is a list
-of lists of text, and guessing which part the user meant would be a guess. Nothing is remembered per type, and
+value of a `Literal`, `[]`, `{}`, or nothing at all. Whether a text means a
+value of a `Literal` is read by the rules of section 4.2, so `wi` becomes `wide`
+when `str` is changed to `Literal['compact', 'wide']`. A list or a dict on
+either side of the switch keeps nothing, because nothing of a list of text is a
+list of lists of text, and guessing which part the user meant would be a guess.
+Nothing is remembered per type, and
 the type chosen is kept as section 4.2 says. `EditModel.set_type` is how a
 backend chooses one, and `--set-type PATH=TYPE` is how the example programs
 stand in for a user choosing, as `--set` stands in for one typing.

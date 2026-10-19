@@ -219,15 +219,17 @@ class EditBuffer:
         return tuple(self._rows.values())
 
     @property
-    def bool_nodes(self) -> frozenset[ConfigPath]:
-        """Return the path of every node that holds true or false.
+    def known_values(self) -> dict[ConfigPath, tuple[JsonType, ...]]:
+        """Return the values each node takes, where the editor knows them all.
 
-        It is the type information of those nodes, which the rows own and a
-        validation pass needs: the values it is given are JSON space values,
-        and nothing in `true` and `1` says which of the two a member takes.
+        Those are the nodes holding true or false and the nodes declared as a
+        `Literal`, as `MemberRow.known_values` says. It is the type
+        information of those nodes, which the rows own and a validation pass
+        needs: the values it is given are JSON space values, and nothing in
+        `true` and `1` says which of the two a member takes.
         """
-        return frozenset(path for path, row in self._rows.items()
-                         if row.is_bool)
+        return {path: row.known_values for path, row in self._rows.items()
+                if row.known_values}
 
     @property
     def dirty(self) -> bool:
@@ -284,7 +286,8 @@ class EditBuffer:
         if row.value_text == text:
             return False
         value = text_as_value(text=text, kind=row.kind,
-                              nothing=row.nothing_allowed)
+                              nothing=row.nothing_allowed,
+                              values=row.known_values)
         self._rows[path] = row._replace(value=value, conversion='',
                                         changed_by_validator=False)
         self._hold_again(path)
@@ -301,7 +304,7 @@ class EditBuffer:
         """
         row = self._rows[path]
         converted = convert_member(converter=row.converter, value=row.value,
-                                   is_bool_member=row.is_bool)
+                                   values=row.known_values)
         self._rows[path] = row._replace(conversion=converted.message)
 
     def check_all(self) -> None:
@@ -333,8 +336,7 @@ class EditBuffer:
             if not row.choices or not row.editable:
                 continue
             wanted = matched_choice(converter=row.converter, value=row.value,
-                                    choices=row.choices,
-                                    is_bool_member=row.is_bool)
+                                    choices=row.choices)
             if not wanted:
                 wanted = nearest_choice(text=row.value_text,
                                         choices=row.choices)

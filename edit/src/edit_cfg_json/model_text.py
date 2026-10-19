@@ -389,7 +389,8 @@ def row_chooses(row: MemberRow) -> bool:
     control is the one being shown is `EditModel.choices_shown`, which is one
     answer for the whole editor.
 
-    A member holding true or false and one holding an enum member can. A node
+    A member holding true or false, one declared as a `Literal` and one
+    holding an enum member can. A node
     the editor cannot edit at all cannot, whatever its type says, because
     there is no value of it to change: a list, a dict, a nested configuration
     object and a member holding nothing are each reached some other way.

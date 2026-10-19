@@ -130,7 +130,8 @@ the lines back. What the application *refused* is never under it.
 
 The same reading of the type is what says which values a member takes where
 they are a set the editor knows the whole of, which is a member holding true
-or false and one holding an enum. `MemberRow.choices` is those values, and a
+or false, one declared as a `Literal` of one kind, and one holding an enum.
+`MemberRow.choices` is those values, and a
 backend offers them to be chosen from rather than typed while
 `EditModel.choices_shown` says so; that is one answer for the whole editor,
 switched by the user and opened as `Settings.choose_values` asks.

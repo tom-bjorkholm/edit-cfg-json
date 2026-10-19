@@ -186,7 +186,7 @@ application with `_unchecked_dicts`.
 
 | File | What happens |
 | --- | --- |
-| [e20_export.json](e20_export.json) | Opens with three columns whose types are said by their values alone. `Labels` holds one path written as a list of paths, so it holds `list[list[str]]`, and `Watchers` holds the empty list, which is a value of both types and so holds the first of them the declaration writes, `list[str]`, until the user chooses the other. |
+| [e20_export.json](e20_export.json) | Opens with three columns whose types are said by their values alone. `Labels` holds one path written as a list of paths, so it holds `list[list[str]]`, and `Watchers` holds the empty list, which is a value of both types and so holds the first of them the declaration writes, `list[str]`, until the user chooses the other. `layout` holds `wide`, one of the values of its `Literal`. |
 
 ## Why a file with a bad value cannot be opened
 

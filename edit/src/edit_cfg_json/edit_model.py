@@ -214,8 +214,9 @@ class EditModel:
     def choices_shown(self) -> bool:
         """Return whether a value with a known set is chosen, not typed.
 
-        The two members that have such a set are one holding true or false and
-        one holding an enum member, and `MemberRow.choices` is what they take.
+        The members that have such a set are one holding true or false, one
+        declared as a `Literal` and one holding an enum member, and
+        `MemberRow.choices` is what they take.
         What this answers is whether those are offered to be chosen from or
         typed into, for all of them at once: one answer and not one per
         member, exactly as there is one answer about the explanations.
@@ -428,7 +429,7 @@ class EditModel:
         self._buffer.take_subtrees(
             subtree_answers(config=self._source.config,
                             members=self._buffer.values(), inside=path,
-                            bool_nodes=self._buffer.bool_nodes))
+                            known_values=self._buffer.known_values))
 
     @property
     def settings(self) -> Settings:
@@ -877,7 +878,7 @@ class EditModel:
         self._buffer.check_all()
         outcome = validate_buffer(config=self._source.config,
                                   members=self._buffer.values(),
-                                  bool_nodes=self._buffer.bool_nodes)
+                                  known_values=self._buffer.known_values)
         if outcome.verdict.valid:
             assert outcome.candidate is not None
             self._buffer.take_validated(config=outcome.candidate,

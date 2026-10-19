@@ -2,7 +2,7 @@
 
 ## Where everything is
 
-Steps 1 to 30 and 31A to 31D are implemented and committed, step 23 with the
+Steps 1 to 30 and 31A to 31E are implemented and committed, step 23 with the
 corrections its review asked for. Steps 1 to 9 are written up in
 [steps_001-009_done.md](steps_001-009_done.md), steps 10 to 21 in
 [steps_010-021_done.md](steps_010-021_done.md) and steps 22 to 28 in
@@ -127,6 +127,9 @@ the plan says only *when* that decision gets built.
   object and nothing chosen in the same column, its types read from the
   declaration that puts it there, and a type the editor cannot make a value of
   offered only where it must be.
+- [Step 31E](#step-31e---literal-values) — a `Literal` offered as the set of
+  values it lists, read and refused by the rule a member holding true or false
+  already had, made general rather than copied.
 
 [dec]: steps_001-009_done.md#1-decisions-this-plan-is-built-on
 [names]: steps_001-009_done.md#2-naming-conventions-used-below
@@ -636,8 +639,7 @@ deserves one message.
 
 ### Step 31 - The type of every row, and choosing between the types allowed
 
-Status: **Split into sub-steps 31A to 31E. 31A to 31D implemented, the
-rest planned.**
+Status: **Split into sub-steps 31A to 31E, all implemented and committed.**
 
 Two complaints from users, and one answer to both.
 
@@ -1325,6 +1327,8 @@ the docstrings of their `Add` and `Del`.
 
 #### Step 31E - `Literal` values
 
+Status: **Implemented, committed.**
+
 **What it does.** A one-kind `Literal` is a set of values the editor knows the
 whole of, so `MemberRow.choices` answers with its values beside `is_bool` and
 the enum converter, and the step 29 machinery — F4, `settle_choices`,
@@ -1350,6 +1354,75 @@ and `tall` is refused at the member, and choosing `None` takes the value away.
 - **A literal value is not a name.** An enum is matched by a converter the
   class declares and a `Literal` by the editor alone, so the matching rule has
   to be the one `bool_word` already is, generalized, rather than a third copy.
+
+**What it decided.** Five things.
+
+- **One rule for a set of values the editor knows, not two.** A member holding
+  true or false and one declared as a `Literal` are the same case: no parse
+  converter answers for either, so the editor reads the text and refuses what
+  is none of the values. `leaf_value.known_values` gives that set — the values
+  of the `Literal` the text is read by, or `true` and `false` — and
+  `MemberRow.known_values` asks it of a row; `choices` is the text of those
+  values or, failing them, the names of an enum. `bool_word` became
+  `named_value`, `NOT_A_BOOL_FORM` became `NOT_ONE_OF_FORM`, and what a
+  validation pass is told became the values by path where it was the paths
+  of the members holding true or false.
+- **A text names a value by the rules of an enum name, a value that is the
+  text winning.** The case is ignored, a text that is one of the values is that
+  one even where it begins another (`wide` beside `wider`), and otherwise a
+  beginning only one of them has is that value. The first rule is new and
+  changes nothing for the two words, neither of which begins the other.
+- **A number is matched exactly**, in `Literal[8080, 8443]` the text `80`
+  is the number 80 and is refused, rather than taken as the beginning of
+  `8080`. Only a value written as a word, a text or true or false, is
+  named by a beginning; a number is read as the JSON it is.
+- **A value is one of the set where it is written as one of them**, compared
+  as the file would write it, so `1` is not `true` and the text `8080` is not
+  the number. A `Literal` of true alone takes true alone.
+- **A `Literal` of mixed kinds says what every unusable declaration says**,
+  that the type was taken from the value; no sentence of its own was wanted.
+
+**Core.** `leaf_value` gained `BOOL_VALUES`, `known_values` and `named_value`
+and lost `BOOL_WORDS`, `BOOL_NAMES`, `BOOL_CHOICES` and `bool_word`;
+`text_as_value` takes the known values instead of knowing about true and false.
+`converting.convert_member` takes those values in place of `is_bool_member`,
+and `matched_choice` lost the argument, which it never needed: with no
+converter it could only answer the value itself. `type_options` gained
+`reading_type`, which `MemberRow.reading_type` and the new
+`MemberRow.known_values` read, and `reading_kind` takes that type;
+`MemberRow.is_bool` is gone. `EditBuffer.bool_nodes` became `known_values`,
+and `validation` hands it on under the same name, re-based for each nested
+object as before. `type_choice.switched_value` reads a text by the same rule,
+so `wi` switched to the `Literal` is `wide`. The two backends needed no
+change: both already followed `MemberRow.choices`.
+
+| Name | Kind |
+| --- | --- |
+| `leaf_value.BOOL_VALUES`, `leaf_value.known_values`, `leaf_value.named_value` | the two values of true and false, the set of values a node takes where the editor knows it, and which of them a text names; the last replaces `bool_word` |
+| `converting.NOT_ONE_OF_FORM` | the refusal of a text that names none of those values, replacing `NOT_A_BOOL_FORM` |
+| `MemberRow.reading_type`, `MemberRow.known_values`, `type_options.reading_type` | the type a text is read by, and the values a node takes where the editor knows them; `MemberRow.is_bool` is removed |
+| `EditBuffer.known_values`, `validation.NO_KNOWN_VALUES` | those values by path, as a validation pass is told them, replacing `bool_nodes` |
+
+**What building it found.**
+
+- **A `Literal` is the one such value a file can hold wrongly.**
+  `config_as_json` refuses a file whose enum or boolean is no such value, but
+  checks no value against a `Literal`, so `"layout": "tall"` loads. The dump
+  shows `tall` refused at the member; while values are chosen, settling gives
+  the member `compact` and says so, which is the existing machinery of step 29
+  and needed nothing. Design section 4.11 said such a file could not be
+  opened, and now says that a `Literal` is the exception; the application
+  programmer's guide says what that means for an application that reads its
+  own file.
+  A validator is strongly recommended for a configuration that uses a Literal.
+- **The value pull-down and the type pull-down on one row needed nothing**:
+  `least_size` is measured rather than computed, and the window-fit test, now
+  asked of e20 as well, passes at the least size.
+- **The plan's outcome sentence had `Literal['compact', 'wide'] | None` in the
+  column**; as 31A decided, the column says the type the row holds and the
+  line below says the whole declaration.
+- **e20's data file gained `"layout": "wide"`**, for the reason e18's did in
+  31B: a file without it would fill the member from the default.
 
 #### Documentation, in every sub-step
 

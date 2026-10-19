@@ -42,7 +42,7 @@ from collections.abc import Mapping, Sequence
 from enum import Enum
 from typing import NamedTuple, Optional
 from config_as_json import Config, ConfigPath, JsonType, ParseConverter
-from edit_cfg_json.leaf_value import BOOL_CHOICES, value_as_text
+from edit_cfg_json.leaf_value import value_as_text, values_differ
 from edit_cfg_json.tree import ConfigNode, owner_path, under_dict
 
 CONVERSION_ERRORS = (AssertionError, AttributeError, KeyError, TypeError,
@@ -82,15 +82,16 @@ It is a form of its own because the sentence above it would name the text and
 there is none, leaving a gap where the reader is looking for what was there.
 """
 
-NOT_A_BOOL_FORM = '{text} is not one of: {words}'
-"""Why the text of a member holding true or false means neither of them.
+NOT_ONE_OF_FORM = '{text} is not one of: {values}'
+"""Why the text of a node whose values the editor knows means none of them.
 
-It is worded as `config_as_json` words the same refusal about the name of an
-enum member, because it is the same refusal: the member holds one of a known
-set of values and the text names none of them. Such a member has no parse
-converter to answer it — there is nothing to convert true into — so this is
-the one refusal of a leaf that the editor makes itself, and it makes it about
-the type of the member and never about a rule of the application.
+Those are a node holding true or false and a node declared as a `Literal`. It
+is worded as `config_as_json` words the same refusal about the name of an
+enum member, because it is the same refusal: the node holds one of a known set
+of values and the text names none of them. Such a node has no parse converter
+to answer it — there is nothing to convert `true` or `'wide'` into — so these
+are the two refusals of a leaf that the editor makes itself, and it makes them
+about the type of the node and never about a rule of the application.
 """
 
 
@@ -161,7 +162,7 @@ def node_converters(nodes: Mapping[ConfigPath, ConfigNode],
 
 
 def convert_member(converter: Optional[ParseConverter], value: JsonType,
-                   is_bool_member: bool = False) -> Converted:
+                   values: Sequence[JsonType] = ()) -> Converted:
     """Return one leaf value as its member holds it, or why it cannot.
 
     A value that already has the type the converter produces is left alone,
@@ -170,19 +171,20 @@ def convert_member(converter: Optional[ParseConverter], value: JsonType,
     is refused by the validation of the whole configuration, which has a
     message of its own for it.
 
-    A member holding true or false is answered without a converter, because
-    it has none and needs none: `text_as_value` has already made the value of
-    every text that means one of the two words, so a value that is neither
-    means neither and is refused here as an enum member name that names no
-    member is.
+    A member whose values the editor knows the whole of — true or false, or a
+    `Literal` — is answered without a converter, because it has none and
+    needs none: `text_as_value` has already made the value of every text that
+    names one of them, so a value that is none of them means none and is
+    refused here as an enum member name that names no member is. A value is
+    one of them where it is written as one of them, so `1` is not `true`.
 
     Args:
         converter: How the text of this member becomes a value, or None for a
             member that holds what the file holds.
         value: JSON space value that the buffer holds for that member.
-        is_bool_member: Whether this member held true or false when the file
-            was last agreed with, which is what makes those the two values it
-            takes.
+        values: The values this member takes where the editor knows the whole
+            of them, as `leaf_value.known_values` says, and empty for every
+            other member.
 
     Returns:
         The value the configuration would hold, or the reason it would not.
@@ -190,7 +192,7 @@ def convert_member(converter: Optional[ParseConverter], value: JsonType,
     if value is None:
         return Converted(value=value, message='')
     if converter is None:
-        return _converted_bool(value=value, is_bool_member=is_bool_member)
+        return _converted_known(value=value, values=values)
     if isinstance(value, converter.result_type):
         return Converted(value=value, message='')
     try:
@@ -200,26 +202,26 @@ def convert_member(converter: Optional[ParseConverter], value: JsonType,
         return Converted(value=value, message=refusal_text(error))
 
 
-def _converted_bool(value: JsonType, is_bool_member: bool) -> Converted:
+def _converted_known(value: JsonType, values: Sequence[JsonType]) -> Converted:
     """Return one value of a member that no converter answers for.
 
     Args:
         value: JSON space value that the buffer holds for that member.
-        is_bool_member: Whether that member holds true or false.
+        values: The values that member takes, empty where any value will do.
 
     Returns:
-        The value, and why it is neither of the two words where it is neither.
+        The value, and why it is none of them where it is none of them.
     """
-    if not is_bool_member or isinstance(value, bool):
+    if not values or any(not values_differ(value, one) for one in values):
         return Converted(value=value, message='')
-    said = NOT_A_BOOL_FORM.format(text=value_as_text(value),
-                                  words=BOOL_CHOICES)
+    said = NOT_ONE_OF_FORM.format(
+        text=value_as_text(value),
+        values=', '.join(value_as_text(one) for one in values))
     return Converted(value=value, message=said)
 
 
 def matched_choice(converter: Optional[ParseConverter], value: JsonType,
-                   choices: Sequence[str],
-                   is_bool_member: bool = False) -> str:
+                   choices: Sequence[str]) -> str:
     """Return which of the values one member takes its value means.
 
     A value that is already one of them means itself. Anything else is handed
@@ -228,16 +230,16 @@ def matched_choice(converter: Optional[ParseConverter], value: JsonType,
     of a member of that enum in any case, and accepts a beginning that only
     one member of that enum has. Which beginnings those are is a fact about
     the enum the application declared and about nothing else: a beginning that
-    names one member of one enum names two of another. A member holding true
-    or false needs no conversion, because `text_as_value` has already made the
-    value of every text that means one of the two words.
+    names one member of one enum names two of another. A member whose values
+    the editor knows itself — true or false, or a `Literal` — needs no
+    conversion, because `text_as_value` has already made the value of every
+    text that names one of them.
 
     Args:
         converter: How the text of this member becomes a value, or None for a
             member that holds what the file holds.
         value: JSON space value that the buffer holds for that member.
         choices: The values that member takes, as the text of each of them.
-        is_bool_member: Whether this member holds true or false.
 
     Returns:
         The value it means, as text, and an empty text where it means none of
@@ -246,8 +248,7 @@ def matched_choice(converter: Optional[ParseConverter], value: JsonType,
     text = value_as_text(value)
     if text in choices:
         return text
-    converted = convert_member(converter=converter, value=value,
-                               is_bool_member=is_bool_member)
+    converted = convert_member(converter=converter, value=value)
     if converted.message or not isinstance(converted.value, Enum):
         return ''
     name = converted.value.name

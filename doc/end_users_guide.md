@@ -261,13 +261,15 @@ only asked when you validate or save.
 
 Three kinds of value are worth knowing about.
 
-**True or false**, and **one of a fixed set of names**, are the two the editor
+**True or false**, **one of a fixed set of names**, and **one of the values a
+type lists**, such as `Literal['compact', 'wide']`, are the three the editor
 knows the whole of, so it offers you those values to pick from rather than
 leaving you to spell one. Those members open as a pull-down:
 
 ```
-    verbose     bool        [ true       v ]
-    interval    Interval    [ DAILY      v ]
+    verbose     bool                         [ true       v ]
+    interval    Interval                     [ DAILY      v ]
+    layout      Literal['compact', 'wide']   [ compact    v ]
 ```
 
 **Everything else** is a field, because text and a number can hold anything of
@@ -294,6 +296,15 @@ Typing one of these values is forgiving:
   `DAILY` and `DAILY_DIGEST`, it is neither. The name is checked **when you
   leave the field**, not while you are typing — a name is not a name yet
   halfway through. What is refused is said below the member.
+- **One of the values a type lists.** A text is typed as a name is: the case
+  does not matter, and a beginning that only one of the values has is enough,
+  so `wi` is `wide`. A number has to be typed in full, because `80` is a
+  number of its own and not the beginning of `8080`. Anything that is none of
+  the values is refused below the member, as
+  `tall is not one of: compact, wide`. A file can hold such a value, because
+  nothing checks one when a file is read: the editor opens it and says so
+  below the member, and while the values are picked it gives the member the
+  value it most likely meant and tells you, as below.
 
 **A pull-down only ever offers the values of its member, and one of them is
 always selected.** There is no empty entry in the list and no way to leave one
@@ -844,15 +855,17 @@ only asked when you validate or save.
 
 Three kinds of value are worth knowing about.
 
-**True or false**, and **one of a fixed set of names**, are the two the editor
+**True or false**, **one of a fixed set of names**, and **one of the values a
+type lists**, such as `Literal['compact', 'wide']`, are the three the editor
 knows the whole of, so it offers you those values to pick from rather than
 leaving you to spell one. Those members open as a pull-down: move to it with
 `Tab` and press `Enter` to open the list, `Up` and `Down` to move in it and
 `Enter` to take one.
 
 ```
-    verbose     bool        [ true       v ]
-    interval    Interval    [ DAILY      v ]
+    verbose     bool                         [ true       v ]
+    interval    Interval                     [ DAILY      v ]
+    layout      Literal['compact', 'wide']   [ compact    v ]
 ```
 
 **Everything else** is a field, because text and a number can hold anything of
@@ -879,6 +892,15 @@ Typing one of these values is forgiving:
   `DAILY` and `DAILY_DIGEST`, it is neither. The name is checked **when you
   leave the field**, not while you are typing — a name is not a name yet
   halfway through. What is refused is said below the member.
+- **One of the values a type lists.** A text is typed as a name is: the case
+  does not matter, and a beginning that only one of the values has is enough,
+  so `wi` is `wide`. A number has to be typed in full, because `80` is a
+  number of its own and not the beginning of `8080`. Anything that is none of
+  the values is refused below the member, as
+  `tall is not one of: compact, wide`. A file can hold such a value, because
+  nothing checks one when a file is read: the editor opens it and says so
+  below the member, and while the values are picked it gives the member the
+  value it most likely meant and tells you, as below.
 
 **A pull-down only ever offers the values of its member, and one of them is
 always selected.** There is no empty entry in the list and no way to leave one
@@ -1268,7 +1290,7 @@ Either way, the answers are the same and they are named the same.
 | `backup_count` | How many of those are kept. Above one they are numbered from `_1`, which is the one overwritten last, and each save pushes the rest one number further back until the oldest falls off the end. | `1`, which is one kept file with no number. |
 | `confirm_overwrite` | Whether the editor asks before writing over a file this session did not write. | `true`, which is the answer that loses nothing. |
 | `priority_keys` | Whether the editor is offered a key before the field the cursor is in. | `true`, so pressing Save while typing means Save. |
-| `choose_values` | Whether a member whose values the editor knows the whole of — true or false, and one of a fixed set of names — **opens** as a pull-down of those values. See [1.5](#15-changing-a-value) and [2.5](#25-changing-a-value). | `true`. Either way you switch between the two whenever you like, so this says only how the editor opens. |
+| `choose_values` | Whether a member whose values the editor knows the whole of — true or false, one of a fixed set of names, and one of the values a type lists — **opens** as a pull-down of those values. See [1.5](#15-changing-a-value) and [2.5](#25-changing-a-value). | `true`. Either way you switch between the two whenever you like, so this says only how the editor opens. |
 | `ui_priorities` | **Which of the two editors** a program that chooses one for itself opens. One entry per editor, with a number: the highest of the editors that can run on this machine is the one you get. See [3.1.1](#311-choosing-which-editor-you-get). | Nothing, and then the window editor is preferred where there is a display and the terminal editor where there is not. |
 
 ### 3.1.1 Choosing which editor you get

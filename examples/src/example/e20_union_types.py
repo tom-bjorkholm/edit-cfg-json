@@ -99,6 +99,30 @@ python3 e20_union_types.py --ui dump \
 `People` is then an empty `list[str]`, its rows are gone, and anything that was
 folded or found inside it went with them.
 
+## A value from a set the declaration lists
+
+`layout` is declared `Literal['compact', 'wide'] | None`. A `Literal` lists the
+values a member may hold, so the editor knows the whole set, as it does for an
+enum and for true or false. The value is offered as a pull-down of the two
+words, and the type beside it chooses between the `Literal` and `None`:
+choosing `None` takes the value away, and choosing the `Literal` again gives
+it `compact`, the first value it lists. With F4 the value is typed instead, and
+a text is read the way the name of an enum member is: the case is ignored, and
+a beginning that only one of the values has is that value. A text that names
+none of them is refused at the member:
+
+````sh
+cd examples/src/example
+python3 e20_union_types.py --ui dump --type-values --set layout=wi
+python3 e20_union_types.py --ui dump --type-values --set layout=tall
+python3 e20_union_types.py --ui dump --set-type layout=None
+````
+
+A `Literal` of whole numbers is matched exactly, so `80` is not taken as the
+beginning of `8080`. A `Literal` whose values are of different kinds, such as
+`Literal['auto', 0]`, is nothing the editor can use, and that member's type
+is read from its value.
+
 ## What the application still decides
 
 The editor offers the types the class declared and nothing else, and the
@@ -129,7 +153,7 @@ that may hold a dict or nothing and is offered `None` alone.
 # MIT License
 
 from pathlib import Path
-from typing import Optional, TextIO
+from typing import Literal, Optional, TextIO
 import sys
 from config_as_json import Config, MemberValidationStep, PathOrStr, \
     StrLenValidator, ValidationPlan
@@ -167,6 +191,10 @@ class ExportConfig(Config):
         # An ordinary text, so that there is something beside the map whose
         # type nothing can change.
         self.separator: str = ', '
+        # A `Literal` lists every value the member may hold, so the editor
+        # offers them in a pull-down and refuses any other text. `None`
+        # beside it is the other type that can be chosen for the member.
+        self.layout: Literal['compact', 'wide'] | None = 'compact'
         # The keys of the map are the names of columns, which only the person
         # configuring the export knows, so the class does not check them.
         self._unchecked_dicts = ['jira_column_map']
@@ -199,7 +227,8 @@ DESCRIPTIONS: Descriptions = {
                            'spreadsheet, by the name of the column.'),
     ('jira_column_map', '['): ('The path of keys to one field, or a list of '
                                'such paths whose fields are joined.'),
-    ('separator',): 'What joins the fields of a column filled from several.'}
+    ('separator',): 'What joins the fields of a column filled from several.',
+    ('layout',): 'How the columns are laid out, or None for the default.'}
 """What this application says about the members it declares.
 
 The type of each row says the rest, under whatever is written here, so

@@ -14,6 +14,7 @@ editor.
 from config_as_json import JsonType
 import pytest
 from edit_cfg_json.converting import convert_member, member_converters
+from edit_cfg_json.leaf_value import BOOL_VALUES
 from .sample_cfg import EnumCfg, FlatCfg, HexCfg, IntEnumCfg, Level, \
     ListCfg, OmitCfg, PlainEnumCfg, SampleCfg
 
@@ -91,8 +92,7 @@ def test_refused_flag(value: JsonType, expected: str) -> None:
     this text names none of them. Such a member has no converter to answer
     it, so this is the editor answering for the type of the member.
     """
-    converted = convert_member(converter=None, value=value,
-                               is_bool_member=True)
+    converted = convert_member(converter=None, value=value, values=BOOL_VALUES)
     assert converted == (value, expected)
 
 
@@ -105,13 +105,44 @@ def test_accepted_flag(value: JsonType) -> None:
     the validation of the whole configuration.
     """
     assert convert_member(converter=None, value=value,
-                          is_bool_member=True) == (value, '')
+                          values=BOOL_VALUES) == (value, '')
 
 
 def test_other_member_kept() -> None:
     """Test a member of another kind is not asked about the two words."""
-    assert convert_member(converter=None, value='yes',
-                          is_bool_member=False) == ('yes', '')
+    assert convert_member(converter=None, value='yes') == ('yes', '')
+
+
+@pytest.mark.parametrize('values, value, expected',
+                         [(('compact', 'wide'), 'tall',
+                           'tall is not one of: compact, wide'),
+                          (('compact', 'wide'), 'wi',
+                           'wi is not one of: compact, wide'),
+                          ((8080, 8443), 80, '80 is not one of: 8080, 8443'),
+                          ((8080, 8443), '8080',
+                           '8080 is not one of: 8080, 8443'),
+                          ((1, 2), True, 'true is not one of: 1, 2'),
+                          ((True,), False, 'false is not one of: true')])
+def test_refused_literal(values: tuple[JsonType, ...], value: JsonType,
+                         expected: str) -> None:
+    """Test a node declared as a `Literal` refuses what is none of its values.
+
+    It is the refusal of a member holding true or false, worded the same way,
+    and a value is one of them only where it is written as one of them: the
+    text `8080` is not the number, and `true` is not `1`.
+    """
+    converted = convert_member(converter=None, value=value, values=values)
+    assert converted == (value, expected)
+
+
+@pytest.mark.parametrize('values, value',
+                         [(('compact', 'wide'), 'wide'), ((8080, 8443), 8443),
+                          ((True,), True), (('compact', 'wide'), None)])
+def test_accepted_literal(values: tuple[JsonType, ...],
+                          value: JsonType) -> None:
+    """Test one of the values of a `Literal`, and no value at all, is taken."""
+    assert convert_member(converter=None, value=value,
+                          values=values) == (value, '')
 
 
 def test_own_converter_runs() -> None:

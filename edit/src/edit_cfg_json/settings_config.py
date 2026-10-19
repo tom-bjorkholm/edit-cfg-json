@@ -581,10 +581,10 @@ _MEMBER_DESCRIPTIONS: Descriptions = {
                             'file is written over, once per file per session.',
     ('choose_values',): 'Whether a member whose values the editor knows the '
                         'whole of opens as a pull-down of those values. It '
-                        'is a member holding true or false and one holding '
-                        'an enum member, and false opens both as fields to '
-                        'type in. The editor switches between the two '
-                        'whatever this says.',
+                        'is a member holding true or false, one declared as '
+                        'a Literal and one holding an enum member, and false '
+                        'opens all three as fields to type in. The editor '
+                        'switches between the two whatever this says.',
     ('ui_priorities',): 'Which user interface a program that chooses one for '
                         'itself opens the editor in. Each entry is a --ui '
                         'name and a whole number of zero or more, and the '

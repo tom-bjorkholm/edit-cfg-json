@@ -18,7 +18,7 @@ from config_as_json import JsonType
 from edit_cfg_json.type_options import CUT_MARK, NONE_TYPE, \
     TYPE_COLUMN_LIMIT, TypeOption, allowed_values, choosable, \
     cut_type_text, empty_option_value, fits, held_option, inferred_option, \
-    node_options, reading_kind, spelled, type_options
+    node_options, reading_kind, reading_type, spelled, type_options
 from .container_cfg import InnerCfg
 from .sample_cfg import Colour
 
@@ -184,12 +184,31 @@ def test_reading_kind(hint: object, original: JsonType,
     a member holding nothing. A class whose kind only the value says is read
     by the value, and so is a declaration that allows nothing but `None`.
     """
-    assert reading_kind(type_options(hint), original) is expected
+    read = reading_type(type_options(hint), original)
+    assert reading_kind(read, original) is expected
+
+
+@pytest.mark.parametrize('hint, original, expected',
+                         [(Optional[Literal['a', 'b']], None,
+                           "Literal['a', 'b']"),
+                          (Literal['a'] | int, 5, 'int'),
+                          (Literal['a'] | int, 'x', "Literal['a']"),
+                          (None, None, None)])
+def test_reading_type(hint: object, original: JsonType,
+                      expected: Optional[str]) -> None:
+    """Test which type the text of a node is read by, never `None`.
+
+    A value that fits none of them is read by the first, which is what makes
+    a text no `Literal` allows one that its values refuse.
+    """
+    read = reading_type(type_options(hint), original)
+    assert (None if read is None else read.text) == expected
 
 
 def test_reading_undeclared() -> None:
     """Test a node with no usable declaration is read as its value was."""
-    assert reading_kind((), 7) is int
+    assert reading_type((), 7) is None
+    assert reading_kind(None, 7) is int
 
 
 def test_objects_apart() -> None:

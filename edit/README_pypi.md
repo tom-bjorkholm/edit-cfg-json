@@ -212,7 +212,8 @@ the lines back. What the application *refused* is never under it.
 
 The same reading of the type is what says which values a member takes where
 they are a set the editor knows the whole of, which is a member holding true
-or false and one holding an enum. `MemberRow.choices` is those values, and a
+or false, one declared as a `Literal` of one kind, and one holding an enum.
+`MemberRow.choices` is those values, and a
 backend offers them to be chosen from rather than typed while
 `EditModel.choices_shown` says so; that is one answer for the whole editor,
 switched by the user and opened as `Settings.choose_values` asks.
@@ -394,7 +395,7 @@ file included in the distribution.
 
 ## Test summary
 
-- Test result: 2558 passed, 5 deselected in 116s (0:01:56)
+- Test result: 2641 passed, 6 deselected in 106s (0:01:46)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

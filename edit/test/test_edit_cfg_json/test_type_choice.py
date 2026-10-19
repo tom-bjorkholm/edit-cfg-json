@@ -129,6 +129,10 @@ def test_option_refused(hint: object, text: str) -> None:
                           (Colour, 'GREEN', 'GREEN'), (Colour, 'pink', 'RED'),
                           (Literal['a', 'b'], 'b', 'b'),
                           (Literal['a', 'b'], 'c', 'a'), (None, 'x', None),
+                          (Literal['compact', 'wide'], 'wi', 'wide'),
+                          (Literal['compact', 'wide'], 'WIDE', 'wide'),
+                          (Literal[8080, 8443], '8443', 8443),
+                          (Literal[8080, 8443], '84', 8080), (bool, 't', True),
                           (list[str], ['a'], []), (list[str], 'a', []),
                           (dict[str, int], {'a': 1}, {}), (int, [5], 0),
                           (str, {'a': 'b'}, '')])
@@ -136,9 +140,11 @@ def test_switched_value(hint: object, value: JsonType,
                         expected: JsonType) -> None:
     """Test switching keeps a text that means a value of the new type.
 
-    Everything else, and `None`, a list and a dict on either side, is the
-    empty value of the new type: the first name of an enum, the first value
-    of a `Literal`, and the empty list and dict.
+    A text means a value of a `Literal` of text, or of true or false, by the
+    rules a field of that type reads it by, so `wi` means `wide`; a number is
+    the number it is written as. Everything else, and `None`, a list and a
+    dict on either side, is the empty value of the new type: the first name
+    of an enum, the first value of a `Literal`, and the empty list and dict.
     """
     option = type_options(hint)[0]
     assert switched_value(option, value) == expected

@@ -401,11 +401,12 @@ class Settings:  # pylint: disable=too-many-instance-attributes
     choose_values: bool = True
     """Whether a member with a set of values opens as a pull-down.
 
-    A member holding true or false and one holding an enum member are the two
-    whose values the editor knows the whole of, and this is how they are
-    shown until the user says otherwise: the values offered to be chosen
-    from, so that nobody has to remember how a name is spelled. False opens
-    them as fields instead, for a user who would rather type.
+    A member holding true or false, one declared as a `Literal` and one
+    holding an enum member are the three whose values the editor knows the
+    whole of, and this is how they are shown until the user says otherwise:
+    the values offered to be chosen from, so that nobody has to remember how a
+    name is spelled. False opens them as fields instead, for a user who would
+    rather type.
 
     It is the state the editor *opens* in and not the state it stays in. The
     user switches between the two whenever they like, and this says nothing

@@ -26,6 +26,7 @@ from edit_cfg_json_textual.textual_words import CHOOSE_COMMAND, TYPE_COMMAND
 from example.e01_flat_config import FlatConfig
 from example.e02_enum_config import EnumConfig
 from example.e12_backup_files import ArchiveConfig
+from example.e20_union_types import ExportConfig
 from .helpers import CHOOSE_KEY, ENTER_KEY, ESCAPE_KEY, QUIT_KEY, \
     VALIDATE_KEY, chooser_of, field_of, model_value, panel_of
 
@@ -260,6 +261,9 @@ the names of the enum above, and their order is part of what is expected: it
 is the order the pull-down offers them in.
 """
 
+LAYOUT_VALUES = ('compact', 'wide')
+"""The values the `Literal` of the layout of the export example allows."""
+
 ARCHIVE_MEMBERS = ('archive_folder', 'keep_days', 'compress')
 """The members of the backup example, in the order it declares them.
 
@@ -358,6 +362,34 @@ def test_flag_offered() -> None:
             return held, refused
     held, refused = asyncio.run(run())
     assert held == list(BOOL_NAMES)
+    assert refused
+
+
+def test_literal_offered() -> None:
+    """Test a member declared as a `Literal` offers its values and no other.
+
+    Choosing one of them is what the model then holds, which is the value of
+    the `Literal` itself and not a text that has yet to be read.
+    """
+    async def run() -> tuple[list[JsonType], bool]:
+        model = EditModel(ExportConfig())
+        app = EditorApp(model)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            chooser = chooser_of(app, 'layout')
+            held = []
+            for name in LAYOUT_VALUES:
+                chooser.value = name
+                await pilot.pause()
+                held.append(model_value(model, 'layout'))
+            try:
+                chooser.value = 'tall'
+                refused = False
+            except InvalidSelectValueError:
+                refused = True
+            return held, refused
+    held, refused = asyncio.run(run())
+    assert held == list(LAYOUT_VALUES)
     assert refused
 
 

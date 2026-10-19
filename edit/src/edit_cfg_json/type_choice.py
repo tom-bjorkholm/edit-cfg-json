@@ -51,9 +51,11 @@ leave it nothing but `None` to hold.
 
 **Switching keeps what still fits.** A plain value keeps its text where that
 text means a value of the new type, so the text `5` becomes the number `5`
-when `str` is changed to `int`, and everything else is given the empty value
-of the new type: `''`, `0`, the first name of an enum, the first value of a
-`Literal`, or nothing at all. A list or a dict on either side of the switch
+when `str` is changed to `int`, and the text `wi` becomes `wide` when it is
+changed to `Literal['compact', 'wide']`, by the rules a field of that type
+reads it by. Everything else is given the empty value of the new type: `''`,
+`0`, the first name of an enum, the first value of a `Literal`, or nothing at
+all. A list or a dict on either side of the switch
 is given that empty value as well, `[]` and `{}` among them, because what a
 container held is no value of a container of another type. A configuration
 class is given a new object of it, which `placing.object_switched` constructs,
@@ -68,7 +70,8 @@ from typing import NamedTuple, Optional
 import json
 from config_as_json import JsonType, ParseConverter
 from edit_cfg_json.converting import CONVERSION_ERRORS
-from edit_cfg_json.leaf_value import text_as_value, value_as_text
+from edit_cfg_json.leaf_value import known_values, text_as_value, \
+    value_as_text
 from edit_cfg_json.type_options import NONE_TYPE, SCALAR_KINDS, TypeOption, \
     choosable, empty_option_value, fits, held_option, makes_value, \
     names_config
@@ -301,5 +304,7 @@ def switched_value(option: TypeOption, value: JsonType) -> JsonType:
     if option.kind not in SCALAR_KINDS or value is None or \
             isinstance(value, (list, dict)):
         return empty_option_value(option)
-    kept = text_as_value(text=value_as_text(value), kind=option.kind)
+    kept = text_as_value(text=value_as_text(value), kind=option.kind,
+                         values=known_values(kind=option.kind,
+                                             literals=option.literals))
     return kept if fits(option, kept) else empty_option_value(option)

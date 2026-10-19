@@ -4,6 +4,7 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Sequence
 from copy import deepcopy
 from typing import Optional
 import json
@@ -41,26 +42,15 @@ empty text that this state exists to end.
 """
 
 
-BOOL_WORDS: tuple[tuple[str, bool], ...] = (('true', True), ('false', False))
-"""The two words a member holding true or false is written with.
+BOOL_VALUES: tuple[bool, ...] = (True, False)
+"""The two values a node holding true or false takes, in the order asked.
 
-They are the JSON notation of the two values, which is what the file holds and
-what the user therefore types. Nothing else means one of them: `yes` and `1`
-are values of other kinds, and a member that holds one of those is a member of
-another kind.
+They are written with the JSON notation of the two values, `true` and
+`false`, which is what the file holds and what the user therefore types.
+Nothing else means one of them: `yes` and `1` are values of other kinds, and
+a member that holds one of those is a member of another kind. The order is
+the one above, so that the first value such a member can be given is `true`.
 """
-
-BOOL_NAMES: tuple[str, ...] = tuple(word for word, _ in BOOL_WORDS)
-"""The two words on their own, in the order they are asked in.
-
-It is what a member holding true or false is offered as the values it takes,
-where a member holding an enum is offered the names of that enum. The order
-is the one above, so that the first value such a member can be given is
-`true`.
-"""
-
-BOOL_CHOICES = ', '.join(BOOL_NAMES)
-"""The two words as they are listed to the user, in the order asked."""
 
 
 def empty_value(kind: Optional[type]) -> JsonType:
@@ -91,29 +81,62 @@ def kind_of(value: JsonType) -> Optional[type]:
                 None)
 
 
-def bool_word(text: str) -> Optional[bool]:
-    """Return the value that the beginning of one of those words means.
+def known_values(kind: Optional[type],
+                 literals: Sequence[JsonType] = ()) -> tuple[JsonType, ...]:
+    """Return the values a node takes, where the editor knows all of them.
+
+    That is the values a `Literal` allows, and the two of a node holding
+    true or false. An enum is not among them, because its names are read by
+    the parse converter its class declares and not by this editor.
+
+    Args:
+        kind: Which kind of value the node takes, None where nothing says.
+        literals: The values the `Literal` it is declared as allows, empty
+            for a node declared as anything else.
+
+    Returns:
+        Those values, and none at all for a node whose values are not a set
+        the editor knows the whole of.
+    """
+    if literals:
+        return tuple(literals)
+    return BOOL_VALUES if kind is bool else ()
+
+
+def named_value(text: str, values: Sequence[JsonType]) -> Optional[JsonType]:
+    """Return which of some values one text names by the rules of a name.
 
     The case is ignored and a beginning is enough, which is what
     `config_as_json` already does for the name of an enum member: its
     `string_to_enum_best_match` tries the case variants of what was typed and
-    then accepts a beginning that only one member has. A member holding true
-    or false has no such converter, because there is nothing to convert it
-    into, so it is answered here and by the same rules.
+    then accepts a beginning that only one member has. A value the editor
+    itself knows the set of has no such converter, because there is nothing
+    to convert it into, so it is answered here and by the same rules. A text
+    that is one of the values is that value even where it begins another, as
+    `wide` beside `wider` is.
 
-    A beginning that both words have is no answer, exactly as an ambiguous
-    beginning of two enum member names is none. The empty text is the only one
-    there is, and it is what a cleared field holds.
+    Only a value written as a word is named like this: a text and true or
+    false. A number is the number its text is written as and nothing else,
+    so `80` never means `8080`.
+
+    A beginning that two values have is no answer, exactly as an ambiguous
+    beginning of two enum member names is none. The empty text is one of
+    those wherever there is more than one word, and it is what a cleared
+    field holds.
 
     Args:
         text: Text that the edit field holds.
+        values: The values the node takes, in the order they are asked.
 
     Returns:
-        The value that text means, and None when it means neither of them.
+        The value that text names, and None when it names none of them.
     """
     typed = text.strip().lower()
-    matched = [value for word, value in BOOL_WORDS if word.startswith(typed)]
-    return matched[0] if len(matched) == 1 else None
+    words = [(value_as_text(value).lower(), value) for value in values
+             if isinstance(value, (str, bool))]
+    ranked = ([value for word, value in words if word == typed],
+              [value for word, value in words if word.startswith(typed)])
+    return next((found[0] for found in ranked if len(found) == 1), None)
 
 
 def value_as_text(value: JsonType) -> str:
@@ -134,15 +157,16 @@ def value_as_text(value: JsonType) -> str:
     return value if isinstance(value, str) else json.dumps(value)
 
 
-def text_as_value(text: str, kind: Optional[type],
-                  nothing: bool = False) -> JsonType:
+def text_as_value(text: str, kind: Optional[type], nothing: bool = False,
+                  values: Sequence[JsonType] = ()) -> JsonType:
     """Return the value that the text of one edit field stands for.
 
     A member that takes text keeps exactly what the user typed, so that a
     text member can hold the digits of a number without becoming a number. A
-    member that takes true or false takes any beginning of either word, as
-    `bool_word` says. Every other member has its text read as JSON, which is
-    the inverse of how `value_as_text` writes it.
+    member whose values the editor knows the whole of — true or false, and a
+    `Literal` — takes any beginning of one of their words, as `named_value`
+    says, before it is read as its kind. Every other member has its text read
+    as JSON, which is the inverse of how `value_as_text` writes it.
 
     Text that is not JSON at all is kept as a string rather than refused. A
     value being typed passes through states that are not valid, and a field
@@ -164,16 +188,17 @@ def text_as_value(text: str, kind: Optional[type],
             held when the file was last agreed with (section 4.2 of
             `doc/detailed_design.md`).
         nothing: Whether this member has the state of holding nothing.
+        values: The values this member takes where the editor knows the whole
+            of them, as `known_values` says, and empty for every other member.
 
     Returns:
         The JSON space value that the text stands for.
     """
+    named = named_value(text=text, values=values)
+    if named is not None:
+        return named
     if kind is str:
         return text
-    if kind is bool:
-        word = bool_word(text)
-        if word is not None:
-            return word
     try:
         value: JsonType = json.loads(text)
     except json.JSONDecodeError:

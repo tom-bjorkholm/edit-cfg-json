@@ -399,9 +399,9 @@ def inferred_option(value: JsonType) -> TypeOption:
                                                      kind=kind)
 
 
-def reading_kind(options: Sequence[TypeOption],
-                 original: JsonType) -> Optional[type]:
-    """Return the kind of value that the text of one node is read as.
+def reading_type(options: Sequence[TypeOption],
+                 original: JsonType) -> Optional[TypeOption]:
+    """Return the type that the text of one node is read by.
 
     It is asked of the value the node held when the file was last agreed with
     and never of the value it holds now, because a number member whose text
@@ -409,21 +409,38 @@ def reading_kind(options: Sequence[TypeOption],
     text member for good (section 4.2 of `doc/detailed_design.md`). `None` is
     never the answer while another type is allowed, because a node holding
     nothing is not typed into, and the text of one that has just been given a
-    value is a text of that value. A class whose kind only the value can say
-    is read by what the value says.
+    value is a text of that value.
 
     Args:
         options: The types the declaration of that node allows.
         original: Value that the node held when the file was last agreed with.
 
     Returns:
+        The first type besides `None` that value fits, the first type besides
+        `None` where it fits none, and None where no other type is allowed.
+    """
+    return held_option([option for option in options
+                        if option != NONE_TYPE], original)
+
+
+def reading_kind(read: Optional[TypeOption],
+                 original: JsonType) -> Optional[type]:
+    """Return the kind of value that the text of one node is read as.
+
+    It is the kind of the type the text is read by, and the kind of the value
+    the node held when the file was last agreed with where that type is a
+    class whose kind only the value can say, or where no type says anything.
+
+    Args:
+        read: The type the text of that node is read by, None where none is.
+        original: Value that the node held when the file was last agreed with.
+
+    Returns:
         The kind of value that text is read as, None where nothing says.
     """
-    held = held_option([option for option in options
-                        if option != NONE_TYPE], original)
-    if held is None or held.kind is None:
+    if read is None or read.kind is None:
         return kind_of(original)
-    return held.kind
+    return read.kind
 
 
 def allowed_values(option: TypeOption) -> tuple[str | int | bool, ...]:

@@ -108,6 +108,15 @@ NO_SUBTREES: Mapping[ConfigPath, SubtreeAnswer] = MappingProxyType({})
 It cannot be written to, for the same reason as the mapping above.
 """
 
+NO_KNOWN_VALUES: Mapping[ConfigPath, tuple[JsonType, ...]] = \
+    MappingProxyType({})
+"""The values of the nodes the editor knows the values of, where none are.
+
+It is what a caller that knows of no such node passes, which is a caller that
+has no rows to ask: the values are in JSON space, and only the rows know which
+node takes true or false and which a `Literal` allows.
+"""
+
 
 class ValidationVerdict(NamedTuple):
     """What one validation pass over a whole edit buffer found."""
@@ -267,20 +276,22 @@ def _probe(config: Config, members: dict[str, JsonType],
 
 
 def _unconverted(config: Config, members: dict[str, JsonType],
-                 bool_nodes: frozenset[ConfigPath]) -> dict[ConfigPath, str]:
+                 known_values: Mapping[ConfigPath, tuple[JsonType, ...]]
+                 ) -> dict[ConfigPath, str]:
     """Return why each value of the buffer means no value of its node.
 
     Every node is asked, and the converter that answers for it is the one its
     own owning class declares: a value inside a nested configuration object is
     parsed by that object and not by the one above it. A node that no
-    converter reaches is asked with none, which nothing but a member holding
-    true or false can refuse.
+    converter reaches is asked with none, which nothing but a node whose
+    values the editor knows the whole of can refuse.
 
     Args:
         config: Configuration object of this session, which says which nodes
             are configuration objects of their own. It is not modified.
         members: The edit buffer, as one JSON space value per member.
-        bool_nodes: Path of every node that holds true or false.
+        known_values: The values each node takes where the editor knows the
+            whole of them, by path.
 
     Returns:
         One message per node whose text means no value of it, and nothing
@@ -291,7 +302,7 @@ def _unconverted(config: Config, members: dict[str, JsonType],
     converters = node_converters(nodes=nodes, flat=flat)
     refused = {path: convert_member(converter=converters.get(path),
                                     value=value,
-                                    is_bool_member=path in bool_nodes).message
+                                    values=known_values.get(path, ())).message
                for path, value in flat}
     return {path: message for path, message in refused.items() if message}
 
@@ -493,7 +504,7 @@ def _no_pass(verdict: ValidationVerdict) -> ValidationPass:
 
 
 def _single_pass(config: Config, members: dict[str, JsonType],
-                 bool_nodes: frozenset[ConfigPath],
+                 known_values: Mapping[ConfigPath, tuple[JsonType, ...]],
                  member_name: Optional[str] = None) -> ValidationPass:
     """Validate one edit buffer by applying it to a candidate configuration.
 
@@ -534,8 +545,9 @@ def _single_pass(config: Config, members: dict[str, JsonType],
         config: Configuration object that the buffer belongs to, which holds
             everything about it that is not a member. It is not modified.
         members: The edit buffer, as one JSON space value per member.
-        bool_nodes: Path of every node that holds true or false, which is the
-            type information the buffer holds and these values do not.
+        known_values: The values each node takes where the editor knows the
+            whole of them, by path, which is the type information the buffer
+            holds and these values do not.
         member_name: Path of the object the buffer belongs to, None for the
             whole configuration. It is what the class names a value of the
             buffer by, so a pass over one nested object says where that
@@ -546,7 +558,7 @@ def _single_pass(config: Config, members: dict[str, JsonType],
         built. The members are empty when the buffer was refused.
     """
     unconverted = _unconverted(config=config, members=members,
-                               bool_nodes=bool_nodes)
+                               known_values=known_values)
     if unconverted:
         return _no_pass(ValidationVerdict(valid=False, diagnostics='',
                                           refused=unconverted))
@@ -625,8 +637,8 @@ def _own_refusal(path: ConfigPath,
     return {path: said} if said else {}
 
 
-def _inside(bool_nodes: frozenset[ConfigPath],
-            path: ConfigPath) -> frozenset[ConfigPath]:
+def _inside(known_values: Mapping[ConfigPath, tuple[JsonType, ...]],
+            path: ConfigPath) -> dict[ConfigPath, tuple[JsonType, ...]]:
     """Return the nodes inside one object, by the path that object knows.
 
     A nested object is asked about its own part of the buffer, where its own
@@ -634,14 +646,15 @@ def _inside(bool_nodes: frozenset[ConfigPath],
     the steps that reach the object itself.
 
     Args:
-        bool_nodes: Path of every node that holds true or false.
+        known_values: The values each node takes where the editor knows the
+            whole of them, by path.
         path: Path of the node the object is at.
 
     Returns:
         Those of them that are inside it, each without that path in front.
     """
-    return frozenset(node[len(path):] for node in bool_nodes
-                     if node[:len(path)] == path)
+    return {node[len(path):]: values for node, values in known_values.items()
+            if node[:len(path)] == path}
 
 
 # One argument per fact about the object being asked: where it is in the
@@ -650,7 +663,8 @@ def _inside(bool_nodes: frozenset[ConfigPath],
 # pylint: disable-next=too-many-arguments
 def _record_subtree(path: ConfigPath, *, node: ConfigNode, value: JsonType,
                     answers: dict[ConfigPath, SubtreeAnswer],
-                    bool_nodes: frozenset[ConfigPath], name: str) -> None:
+                    known_values: Mapping[ConfigPath, tuple[JsonType, ...]],
+                    name: str) -> None:
     """Ask one nested object about its own part of the buffer.
 
     Args:
@@ -658,8 +672,8 @@ def _record_subtree(path: ConfigPath, *, node: ConfigNode, value: JsonType,
         node: What the class declares there, and what is really there.
         value: What the buffer holds for that node.
         answers: What the objects inside it said, which this adds to.
-        bool_nodes: Path of every node of the whole tree that holds true or
-            false.
+        known_values: The values each node of the whole tree takes where the
+            editor knows the whole of them, by path.
         name: What the object is called, which is what it names a value of
             its own below.
     """
@@ -669,8 +683,8 @@ def _record_subtree(path: ConfigPath, *, node: ConfigNode, value: JsonType,
         answers[path] = SubtreeAnswer(valid=False)
         return
     verdict = _single_pass(config=node.config, members=value,
-                           bool_nodes=_inside(bool_nodes=bool_nodes,
-                                              path=path),
+                           known_values=_inside(known_values=known_values,
+                                                path=path),
                            member_name=name).verdict
     if verdict.valid:
         answers[path] = SubtreeAnswer(valid=True)
@@ -684,8 +698,8 @@ def _record_subtree(path: ConfigPath, *, node: ConfigNode, value: JsonType,
 
 def subtree_answers(config: Config, members: dict[str, JsonType],
                     inside: ConfigPath = (),
-                    bool_nodes: frozenset[ConfigPath] = frozenset()
-                    ) -> dict[ConfigPath, SubtreeAnswer]:
+                    known_values: Mapping[ConfigPath, tuple[JsonType, ...]]
+                    = NO_KNOWN_VALUES) -> dict[ConfigPath, SubtreeAnswer]:
     """Return what every nested object of one region says about itself.
 
     This is what folding asks, and it is the cheap local question that
@@ -704,8 +718,8 @@ def subtree_answers(config: Config, members: dict[str, JsonType],
         members: The edit buffer, as one JSON space value per member.
         inside: Path of the node being asked about, the empty path for the
             whole configuration. Every object at or inside it is asked.
-        bool_nodes: Path of every node that holds true or false, empty for a
-            caller that knows of none.
+        known_values: The values each node takes where the editor knows the
+            whole of them, by path, empty for a caller that knows of none.
 
     Returns:
         One answer per nested object of that region that is really there. A
@@ -717,7 +731,7 @@ def subtree_answers(config: Config, members: dict[str, JsonType],
     answers: dict[ConfigPath, SubtreeAnswer] = {}
     for path in _deepest_first(nodes=nodes, inside=inside):
         _record_subtree(path=path, node=nodes[path], value=values.get(path),
-                        answers=answers, bool_nodes=bool_nodes,
+                        answers=answers, known_values=known_values,
                         name=path_text(path, nodes))
     return answers
 
@@ -777,8 +791,8 @@ def _with_subtrees(verdict: ValidationVerdict,
 
 
 def validate_buffer(config: Config, members: dict[str, JsonType],
-                    bool_nodes: frozenset[ConfigPath] = frozenset()
-                    ) -> ValidationPass:
+                    known_values: Mapping[ConfigPath, tuple[JsonType, ...]]
+                    = NO_KNOWN_VALUES) -> ValidationPass:
     """Validate one edit buffer, and every nested object of it on its own.
 
     The whole buffer decides the verdict, by `_single_pass`, which is the
@@ -807,22 +821,23 @@ def validate_buffer(config: Config, members: dict[str, JsonType],
             the buffer belongs to and holds everything about it that is not a
             member. It is not modified.
         members: The edit buffer, as one JSON space value per member.
-        bool_nodes: Path of every node that holds true or false, empty for a
-            caller that knows of none. The values are in JSON space, where
-            nothing says which member takes those two and only those two.
+        known_values: The values each node takes where the editor knows the
+            whole of them, by path, empty for a caller that knows of none. The
+            values are in JSON space, where nothing says which member takes
+            those two and only those two.
 
     Returns:
         What the pass found, the members of the configuration object it built,
         and what each nested object is on its own.
     """
     outcome = _single_pass(config=config, members=members,
-                           bool_nodes=bool_nodes)
+                           known_values=known_values)
     if outcome.verdict.valid:
         assert outcome.candidate is not None
         accepted = _accepted_subtrees(outcome.candidate)
         return outcome._replace(subtrees=accepted)
     answers = subtree_answers(config=config, members=members,
-                              bool_nodes=bool_nodes)
+                              known_values=known_values)
     return outcome._replace(
         verdict=_with_subtrees(verdict=outcome.verdict, answers=answers),
         subtrees=answers)

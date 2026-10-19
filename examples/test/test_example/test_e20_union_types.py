@@ -6,7 +6,8 @@ the type of a row, so what is asserted here is the complaint it answers: an
 entry that may hold a list of text or a list of lists of text holds the type
 its value is, a new entry is given the type the user chooses, and what its own
 control then adds is an element of that type. The rest is what switching
-does to what an entry held, and the types a file says by its values alone.
+does to what an entry held, the types a file says by its values alone, and a
+member declared as a `Literal`, whose values the editor knows the whole of.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -34,6 +35,15 @@ NEW_ENTRY = ('--add', 'jira_column_map=Status', '--set-type',
 
 DATA_NAME = 'e20_export.json'
 """Input file of this example, whose entries say their types by value."""
+
+LAYOUT = "layout: Literal['compact', 'wide']"
+"""How the row of the `Literal` member begins while it holds a value."""
+
+LAYOUT_DECLARED = "    Declared as Literal['compact', 'wide'] | None.\n"
+"""What it says below that row about the types it may hold."""
+
+TYPED = ('--type-values', '--set')
+"""The command line that types a value rather than choosing it."""
 
 
 def _dump(capsys: pytest.CaptureFixture[str], *settings: str) -> str:
@@ -111,6 +121,56 @@ def test_file_says_types(capsys: pytest.CaptureFixture[str]) -> None:
     assert f'    Labels: {LISTS}, 1 element\n' in printed
     assert '    Watchers: list[str], 0 elements\n' in printed
     assert 'separator: str =  / ' in printed
+    assert f'{LAYOUT} = wide\n' in printed
+
+
+def test_literal_shown(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test the `Literal` member says the type it holds, and what it may.
+
+    The column shows the `Literal` it holds, and the line below it says the
+    whole of what it is declared as, because `None` is the other type.
+    """
+    printed = _dump(capsys)
+    assert f'{LAYOUT} = compact\n' in printed
+    assert LAYOUT_DECLARED in printed
+
+
+@pytest.mark.parametrize('typed, whole',
+                         [('wi', 'wide'), ('WIDE', 'wide'), ('W', 'wide')])
+def test_literal_typed(capsys: pytest.CaptureFixture[str], typed: str,
+                       whole: str) -> None:
+    """Test a text is read as the name of an enum member is read.
+
+    The case is ignored, and a beginning that only one value has is that
+    value, which is what the member then holds and what is valid.
+    """
+    printed = _dump(capsys, *TYPED, f'layout={typed}')
+    assert f'{LAYOUT} = {whole} (edited)\n' in printed
+    assert 'validation: valid' in printed
+
+
+def test_literal_refused(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test a text naming none of the values is refused at the member."""
+    printed = _dump(capsys, *TYPED, 'layout=tall')
+    assert f'{LAYOUT} = tall (edited)\n' in printed
+    assert '    tall is not one of: compact, wide\n' in printed
+    assert 'validation: invalid, see layout' in printed
+
+
+def test_literal_none(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test choosing `None` takes the value away, and is valid."""
+    printed = _dump(capsys, '--set-type', 'layout=None')
+    assert 'layout: None (edited)\n' in printed
+    assert LAYOUT_DECLARED in printed
+    assert 'validation: valid' in printed
+
+
+def test_literal_saved(capsys: pytest.CaptureFixture[str],
+                       tmp_path: Path) -> None:
+    """Test the value a text named is the value the file is written with."""
+    saved = saved_members(e20_union_types.main, capsys, tmp_path / 'out.json',
+                          'ExportConfig', *TYPED, 'layout=WI')
+    assert saved['layout'] == 'wide'
 
 
 def test_application_refuses(capsys: pytest.CaptureFixture[str]) -> None:

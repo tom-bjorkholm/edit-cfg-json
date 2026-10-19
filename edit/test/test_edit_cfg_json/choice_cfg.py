@@ -41,6 +41,26 @@ class ChoiceCfg(SampleCfg):
         self.hosts: Optional[list[str]] = None
 
 
+class LiteralCfg(SampleCfg):
+    """A configuration holding one member of each kind of `Literal`.
+
+    A `Literal` of text, of whole numbers and of true alone, each a set of
+    values the editor knows the whole of, one of them beside `None` and one
+    of them the element of a list, a `Literal` beside another type, and one
+    whose values are of more than one kind, which is nothing the editor can
+    use.
+    """
+
+    def declare_members(self) -> None:
+        """Assign one member per kind of `Literal`."""
+        self.layout: Optional[Literal['compact', 'wide']] = 'compact'
+        self.port: Literal[8080, 8443] = 8080
+        self.strict: Literal[True] = True
+        self.shapes: list[Literal['round', 'square']] = ['round']
+        self.style: str | Literal['plain', 'bold'] = 'bo'
+        self.mixed: Literal['a', 1] = 'a'
+
+
 class DigitsAreNumbers(MemberValidator):  # pylint: disable=R0903
     """A validator that makes a text of digits the number it spells."""
 

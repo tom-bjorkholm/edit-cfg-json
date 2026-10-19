@@ -10,5 +10,6 @@
         ],
         "Watchers": []
     },
+    "layout": "wide",
     "separator": " / "
 }
