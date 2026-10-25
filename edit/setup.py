@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
   name='edit-cfg-json',
-  version='1.0.0',
+  version='1.0.1',
   description='UI agnostic library for editing config-as-json.',
   author='Tom Björkholm',
   author_email='klausuler_linnet0q@icloud.com',
