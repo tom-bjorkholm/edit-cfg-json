@@ -65,7 +65,8 @@ class EcajVersionReporter(VersionReporter):
             supported once that date has passed.
         """
         return {date(year=2027, month=3, day=1): '3.12',
-                date(year=2027, month=11, day=1): '3.13'}
+                date(year=2027, month=11, day=1): '3.13',
+                date(year=2028, month=11, day=1): '3.14'}
 
     @classmethod
     def get_main_package_name(cls) -> str:
