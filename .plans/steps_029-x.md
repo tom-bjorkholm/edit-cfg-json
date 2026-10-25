@@ -3,13 +3,13 @@
 ## Where everything is
 
 Steps 1 to 30 and 31A to 31E are implemented and committed, step 23 with the
-corrections its review asked for. Steps 1 to 9 are written up in
-[steps_001-009_done.md](steps_001-009_done.md), steps 10 to 21 in
-[steps_010-021_done.md](steps_010-021_done.md) and steps 22 to 28 in
-[steps_022-028_done.md](steps_022-028_done.md). Steps 29 to 30 and the steps
-still to build are in this file. Where any of the four files mentions a
-design decision, [`doc/detailed_design.md`](../doc/detailed_design.md) remains the authority and
-the plan says only *when* that decision gets built.
+corrections its review asked for.
+Steps 1 to 9 are written up in [steps_001-009_done.md](steps_001-009_done.md),
+steps 10 to 21 in [steps_010-021_done.md](steps_010-021_done.md),
+steps 22 to 28 in [steps_022-028_done.md](steps_022-028_done.md), and
+steps 29 to 31 are in this file. Where any of the four files mentions a
+design decision, [`doc/detailed_design.md`](../doc/detailed_design.md)
+remains the authority and the plan says only *when* that decision gets built.
 
 - [The decisions the plan is built on][dec] — the seven settled before the
   first step, from example observability to per-step verification.
@@ -189,11 +189,9 @@ decision gets built.
 - Steps 1 to 30 and 31A to 31D are built. Steps 1 to 28 are written up in
   [steps_001-009_done.md](steps_001-009_done.md), in
   [steps_010-021_done.md](steps_010-021_done.md) or in
-  [steps_022-028_done.md](steps_022-028_done.md), and steps 29 to 30 in
+  [steps_022-028_done.md](steps_022-028_done.md), and steps 29 to 31 in
   section 3 below, as what each decided, what it found while building it and
-  what came of its review. Steps 31 onwards are named steps with their
-  observable outcome and their main risks; they are detailed just before they
-  are started, when the core API is real rather than imagined.
+  what came of its review.
 
 ### 1.1 Definition of done for one step
 
@@ -234,7 +232,7 @@ version. Record which one, because the next step's fast iteration with
 | Fifth release 0.3.0 | 29 and 29B | Release 0.3.0, a member whose values the editor knows offered to be chosen from | done |
 | Sixth release 0.4.0 | corrections and 30 | Release 0.4.0, an editor launcher | done |
 
-## 3. Steps 29 onwards, as named steps
+## 3. Steps 29 to 31, as named steps
 
 Steps 29 to 30 are built and written up here. Step 31 is detailed already and
 split into sub-steps, because the decisions it rests on were settled in a
@@ -1432,80 +1430,3 @@ Each sub-step updates the sections of `doc/detailed_design.md` it changes —
 the application programmer's guides where what a user sees has changed. That
 keeps every sub-step one review, rather than leaving a documentation step at
 the end that would change what no example program does.
-
-### Step 32 - Selectable dark mode
-
-Up until now the `edit-cfg-json-tk` has only had a hard coded light mode.
-Add to the Settings an enum value that selects between light mode and
-dark mode for the Tk UI.
-
-Add also 2 configuration sets as sub-configurations under Settings
-that specify the individual colors of all UI parts as optional Tk hex colors.
-Each color that is specified as None, shall use the Tk default color for
-kind of UI element.
-
-There shall be `config_as_json.Config` derived configuration for selecting
-between light and dark mode and for selecting color of individual UI element
-types. Use `Optional[config_as_json.HexadecimalNumber]` for the individaul
-UI element type colors.
-
-Evaluate to which extent the Tk UI mode settings and colors can also
-be applied to the textual UI.
-
-### Step 33 - Raw JSON for a subtree the editor cannot show
-
-Step 25's early idea included a raw JSON editing surface for a sub-object whose
-class nothing says anything about, and step 25 found that the case it was
-proposed for does not need it: the class of a nested object is named by its
-declaration, and one the editor cannot construct says so rather than offering a
-control that refuses every press. Section 11 of the design records that it is
-kept as a step rather than rejected, because what would make it worth having is
-a different question from the one it was proposed for.
-
-That question is an editing surface for a *subtree*, which nothing in the
-editor has: a text area holding the JSON of one node, validated by the class on
-the next pass, which would also serve pasting a whole section from somewhere
-else and repairing a shape no row can express. The risks are the two that
-belong to any second way of editing the same thing — which of the two wins
-while both are open, and what a validation pass does to text the user is half
-way through typing — and they are the reason this is late rather than cheap.
-
-### Step 34 — The program asks for what the command line left out
-
-A wizard: the program opens with no location, no class name and no files,
-and asks for them in the toolkit it was started in. What has been chosen,
-what is still missing and whether the class could be loaded is state, and by
-the lesson of step 6 about the explanation toggle it belongs in the core so
-that the two backends cannot drift about it. Each backend then contributes a
-dialog or a screen, and a file chooser, which is where the two toolkits
-differ most and where neither has a headless test that is worth much.
-
-When we get here investigate if using
-[https://pypi.org/project/wizard-ui-bridge/](https://pypi.org/project/wizard-ui-bridge/)
-and
-[https://pypi.org/project/wizard-tk-bridge/](https://pypi.org/project/wizard-tk-bridge/)
-makes implementing the wizards simpler.
-
-Alternatively, consider if we should use the menubar and menu items like
-File - Open. (Using the menubar may feel very natural in the Tk version.)
-
-### Step 35 - A type column as wide as the editor can afford
-
-Tentative. Step 31A cut every type to a fixed 40 characters, which is a
-constant of the core. The width the column can have is a fact about where the
-editor runs: for Textual, the width of the terminal it is run in; for Tk, the
-width the window could be resized to and still fit on the display. The column
-should take what that leaves after the name, a usable field and the marks,
-with 40 as the least it is ever given or as a default, and the line below the
-row still says the whole of a type that was cut.
-
-## 4. Open questions recorded, not answered
-
-These do not block current development, and each is scheduled to be answered at the
-step that needs it. They are listed here so they are not forgotten.
-
-| Question | Answer needed by |
-| --- | --- |
-| Is an enum offered beside a type that is not `None` (`Colors \| int`), given that the parse converter runs on every value of the member? (31B: the converter of the member is run on the value each type would give, and a type it refuses is not offered, with the reason below the row.) | answered |
-| Is the width of the type column decided over the rows on the screen, and so changed by folding, or over every row? (31A counts every row, so that folding moves nothing; 31C confirmed it.) | answered |
-| Should the width of the type column change when the Tk window is resized, or only be worked out when the editor opens? | 35 |
