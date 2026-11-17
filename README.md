@@ -193,10 +193,10 @@ browsed through `reports/index.html`.
 
 ## Test summary
 
-- Test result: 2755 passed, 1 skipped, 6 deselected in 171s (0:02:51)
+- Test result: 2755 passed, 1 skipped, 6 deselected in 145s (0:02:25)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
 - Built version(s): 1.1.0
-- Build and test using Python 3.12.10
+- Build and test using Python 3.13.17
