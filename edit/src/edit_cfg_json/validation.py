@@ -59,9 +59,11 @@ from edit_cfg_json.tree import ConfigNode, config_nodes, file_values, \
 BUFFER_ERRORS = (KeyError, TypeError, ValueError)
 """Every way in which a configuration class refuses an edit buffer.
 
-`config_as_json` reports a key that is missing or unknown as `KeyError`,
-text that is not JSON as `ConfigBadJson`, and a value that a validator
-refuses as `InvalidConfiguration`, `InvalidConfigurationValue` or
+`config_as_json` reports a key that is missing or unknown, and a value of
+the wrong JSON shape, as `ConfigMissingKey`, `ConfigUnknownKey` and
+`ConfigWrongShape`, which are all `KeyError` subclasses. It reports text that
+is not JSON as `ConfigBadJson`, and a value that a validator refuses as
+`InvalidConfiguration`, `InvalidConfigurationValue` or
 `InvalidConfigurationType`. Those four are all `ValueError` subclasses, so
 these three classes are exactly those failures and nothing besides them.
 

@@ -10,6 +10,7 @@ not with the `sys.exit` that `config_as_json` does on its own.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Callable
 from io import StringIO
 from pathlib import Path
 from typing import Optional
@@ -20,7 +21,11 @@ from edit_cfg_json import ConfigLoadError, ConfigLoader, EditModel, \
     LoadPolicy, LoadReport, Settings, load_config
 from edit_cfg_json.loader import LOADER_EXITED
 from edit_cfg_json.loading import BAD_VALUES, DEFAULT_POLICY, FILLED_MESSAGE, \
-    INCOMPLETE, NOT_CONFIG, NOT_TEXT, NO_DEFAULTS, NO_FILE, UNKNOWN_KEY
+    INCOMPLETE, NOT_CONFIG, NOT_FILLABLE, NOT_TEXT, NO_DEFAULTS, NO_FILE, \
+    UNKNOWN_KEY, WRONG_SHAPE
+from .container_cfg import DeepConfigCfg, NestedCfg
+from .defaults_cfg import UNKNOWN_NAME, BadDefaultCfg, LegacyFactoryCfg, \
+    LookupCfg
 from .sample_cfg import NOT_A_NUMBER, PICKED_NAME, EnumCfg, ExtraArgCfg, \
     FlatCfg, HookCfg, OmitCfg, PickedCfg, RangeCfg, WholeOnlyCfg, \
     exiting_loader, extra_arg_loader, no_member_loader, picking_loader
@@ -43,6 +48,32 @@ outside a range is the plainest case of a file that is read and then refused.
 
 EVERY_POLICY = list(LoadPolicy)
 """Every load policy, for the cases that all of them treat alike."""
+
+FILLING_POLICIES = [LoadPolicy.DEFAULTS, LoadPolicy.STRICT_THEN_DEFAULTS]
+"""The load policies that open a file whose missing values can be filled."""
+
+FULL_INNER = {'width': 9, 'height': 8}
+"""Values of a nested `InnerCfg` that holds every member of it."""
+
+NESTED_GAP = {'inner': {'width': 9}, 'limits': {'low': 1}}
+"""Values of a file that leaves one value out of the nested object."""
+
+FILLED_CASES = [
+    (NestedCfg, NESTED_GAP, {('inner', 'height')}),
+    (NestedCfg, {'inner': FULL_INNER, 'limits': {}}, {('limits', 'low')}),
+    (NestedCfg, {'limits': {'low': 1}}, {('inner',)}),
+    (DeepConfigCfg, {'outputs': [{'parts': {'one': {'width': 1}}}]},
+     {('outputs', '0', 'label'), ('outputs', '0', 'parts', 'one', 'height')})]
+"""Class, file values and the paths the declared defaults fill in for them.
+
+The paths are those of the rows of the editor, which index a list with the
+text of the index. Each names the outermost value the file lacks, so a member
+the file leaves out altogether is one path.
+"""
+
+WRONG_SHAPES = [{'inner': 5, 'limits': {'low': 1}},
+                {'inner': FULL_INNER, 'limits': [1]}]
+"""Values of files for `NestedCfg` with a value of the wrong JSON shape."""
 
 
 def _written(tmp_path: Path, data: object) -> Path:
@@ -370,15 +401,15 @@ def test_refusal_without_text() -> None:
 
 
 def test_omitted_filled(tmp_path: Path) -> None:
-    """Test an optional member the file leaves out is filled in and named.
+    """Test an optional member the file leaves out is not one that is filled.
 
-    Such a member has no row while it is None, so the name is reported and
-    the model has nothing to mark. Reporting it anyway is what keeps the
-    report about the file rather than about what the editor can show.
+    It holds None, which a strict load gives it as well, so the declared
+    defaults supplied nothing for it. Only the required member the file left
+    out was filled in.
     """
     loaded = load_config(config=OmitCfg(),
                          in_file=_written(tmp_path, {'first': 5}))
-    assert loaded.report.filled == frozenset({'optional', 'last'})
+    assert loaded.report.filled == frozenset({'last'})
     assert _values(loaded.config) == {'first': 5, 'last': 2}
 
 
@@ -498,3 +529,139 @@ def test_load_asks_callable(tmp_path: Path) -> None:
         load_config(config=FlatCfg(), settings=answer,
                     in_file=_named(tmp_path, 'config.json'))
     assert asked
+
+
+@pytest.mark.parametrize('policy', FILLING_POLICIES)
+@pytest.mark.parametrize(('builder', 'data', 'paths'), FILLED_CASES)
+def test_nested_filled(tmp_path: Path, policy: LoadPolicy,
+                       builder: Callable[[], Config], data: dict[str, object],
+                       paths: set[tuple[str, ...]]) -> None:
+    """Test the declared defaults fill in what a file lacks at every depth.
+
+    A file that leaves a value out of a nested object is merely incomplete,
+    exactly as one that leaves out a member, so it opens and says so.
+    """
+    loaded = load_config(config=builder(), policy=policy,
+                         in_file=_written(tmp_path, data))
+    assert loaded.report.filled_paths == frozenset(paths)
+    assert loaded.report.filled == frozenset(path[0] for path in paths
+                                             if len(path) == 1)
+    assert FILLED_MESSAGE in loaded.report.message
+
+
+def test_nested_value_kept(tmp_path: Path) -> None:
+    """Test the value a nested object lacks is its declared default."""
+    loaded = load_config(config=NestedCfg(),
+                         in_file=_written(tmp_path, NESTED_GAP))
+    assert _values(loaded.config)['inner'] == {'width': 9, 'height': 6}
+
+
+def test_nested_strict(tmp_path: Path) -> None:
+    """Test a strict policy refuses a file lacking a nested value as such.
+
+    The file is incomplete and holds no key this configuration lacks, so it
+    is refused for being incomplete, with the path of the missing value.
+    """
+    error = _refusal(config=NestedCfg(), policy=LoadPolicy.STRICT,
+                     in_file=_written(tmp_path, NESTED_GAP))
+    assert error.message == INCOMPLETE
+    assert 'No value for inner.height' in error.diagnostics
+
+
+@pytest.mark.parametrize('policy', EVERY_POLICY)
+def test_nested_unknown(tmp_path: Path, policy: LoadPolicy) -> None:
+    """Test a key that a nested object does not declare is never rescued."""
+    data = {'inner': FULL_INNER | {'depth': 3}, 'limits': {'low': 1}}
+    error = _refusal(config=NestedCfg(), policy=policy,
+                     in_file=_written(tmp_path, data))
+    assert error.message == UNKNOWN_KEY
+    assert 'Unexpected parameter inner.depth' in error.diagnostics
+
+
+@pytest.mark.parametrize('policy', EVERY_POLICY)
+def test_missing_and_unknown(tmp_path: Path, policy: LoadPolicy) -> None:
+    """Test a file both incomplete and with an unknown key is refused for it.
+
+    `config_as_json` checks for a missing key first, so a strict load fails
+    over that, and it is the retry that finds the key no policy rescues.
+    """
+    error = _refusal(config=FlatCfg(), policy=policy,
+                     in_file=_written(tmp_path, {'name': 'n', 'colour': 1}))
+    assert error.message == UNKNOWN_KEY
+    assert 'Unexpected parameter colour' in error.diagnostics
+
+
+@pytest.mark.parametrize('policy', EVERY_POLICY)
+@pytest.mark.parametrize('data', WRONG_SHAPES)
+def test_wrong_shape(tmp_path: Path, policy: LoadPolicy,
+                     data: dict[str, object]) -> None:
+    """Test a value of the wrong JSON shape is refused as that.
+
+    It is neither a missing nor an unknown key, so neither of their messages
+    would be true of it.
+    """
+    error = _refusal(config=NestedCfg(), policy=policy,
+                     in_file=_written(tmp_path, data))
+    assert error.message == WRONG_SHAPE
+
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+@pytest.mark.parametrize(('policy', 'message'),
+                         [(LoadPolicy.DEFAULTS, NOT_FILLABLE),
+                          (LoadPolicy.STRICT_THEN_DEFAULTS, NOT_FILLABLE),
+                          (LoadPolicy.STRICT, INCOMPLETE)])
+def test_not_fillable(tmp_path: Path, policy: LoadPolicy,
+                      message: str) -> None:
+    """Test a file the defaults cannot complete is not called unknown.
+
+    A factory that does not accept `ok_to_use_defaults` builds its nested
+    object strictly, so the retry lacks the same value again. The file is
+    incomplete, which a strict policy says, and the others say that the
+    configuration cannot fill it in.
+    """
+    data = {'inner': {'width': 1}, 'answer': 3}
+    error = _refusal(config=LegacyFactoryCfg(), policy=policy,
+                     in_file=_written(tmp_path, data))
+    assert error.message == message
+    assert 'No value for inner.height' in error.diagnostics
+
+
+@pytest.mark.parametrize('policy', EVERY_POLICY)
+def test_validator_key_error(tmp_path: Path, policy: LoadPolicy) -> None:
+    """Test a `KeyError` of a validator is the values being refused.
+
+    It says nothing about the keys of the file, which `config_as_json`
+    reports with exceptions of their own types.
+    """
+    error = _refusal(config=LookupCfg(), policy=policy,
+                     in_file=_written(tmp_path, {'name': 'gamma'}))
+    assert error.message == BAD_VALUES
+    assert UNKNOWN_NAME.format(name='gamma') in error.diagnostics
+
+
+def test_nested_row_marked(tmp_path: Path) -> None:
+    """Test the model marks the row of the nested value that was filled in.
+
+    Only that row is marked: the member holding it and the value beside it
+    are what the file held.
+    """
+    loaded = load_config(config=NestedCfg(),
+                         in_file=_written(tmp_path, NESTED_GAP))
+    model = EditModel(config=loaded.config, report=loaded.report)
+    marked = {row.path for row in model.rows if row.filled_from_default}
+    assert marked == {('inner', 'height')}
+
+
+@pytest.mark.parametrize('policy', EVERY_POLICY)
+def test_bad_defaults_load(tmp_path: Path, policy: LoadPolicy) -> None:
+    """Test a class whose declared values are refused opens a valid file.
+
+    Its constructor takes the load policy, so the editor gives it the text of
+    the file together with the policy, and the declared values are never
+    validated on their own. The object the editor is given has to be read from
+    a file as well, which is what such an application does.
+    """
+    config = BadDefaultCfg(json.dumps({'answer': 5}))
+    loaded = load_config(config=config, policy=policy,
+                         in_file=_written(tmp_path, {'answer': 7}))
+    assert _values(loaded.config) == {'answer': 7}

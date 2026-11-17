@@ -92,17 +92,19 @@ class TeamConfig(Config):
     loader.
     """
 
-    # The four keyword arguments are the constructor shape that
-    # `config_as_json` documents, and the argument of the application is the
-    # fifth. A class the editor can construct on its own has one fewer, and
-    # is what every example but this one and example 7 shows.
+    # The keyword arguments after `known_teams` are the constructor shape
+    # that `config_as_json` documents, and `known_teams` is the argument of
+    # the application. A class the editor can construct on its own has no
+    # such argument, and is what every example but this one and example 7
+    # shows.
     # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def __init__(self, known_teams: Sequence[str],
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None, *,
+                 ok_to_use_defaults: bool = False) -> None:
         """Initialize the configuration with the teams that exist.
 
         Args:
@@ -116,7 +118,12 @@ class TeamConfig(Config):
             member_name: Path for reaching this object from the top level
                 configuration, so that a diagnostic about a value inside it
                 names the whole path. None for the top level itself.
+            ok_to_use_defaults: Whether the default values may fill in what
+                the JSON source does not hold.
         """
+        # The constructor shape that `config_as_json` documents is written
+        # out in every example, so that each example can be read on its own.
+        # pylint: disable=duplicate-code
         self.team: str = known_teams[0]
         self.head_count: int = 3
         # A private member is no part of the configuration: `config_as_json`
@@ -127,7 +134,8 @@ class TeamConfig(Config):
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
-                         member_name=member_name)
+                         member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the one rule, which only the application could have written.
@@ -150,8 +158,11 @@ team_loader = derived_loader(partial(TeamConfig, KNOWN_TEAMS))
 
 `functools.partial` binds the argument that the editor knows nothing about, and
 `derived_loader` makes the four keyword arguments of
-`edit_cfg_json.ConfigLoader` out of what is left. It is a module level name so
-that the programs of this library can be told it with `--loader`.
+`edit_cfg_json.ConfigLoader` out of what is left. `TeamConfig` takes
+`ok_to_use_defaults`, so the loader hands it the JSON text and the policy
+together, and the rule about teams runs once for each file that is read. It is
+a module level name so that the programs of this library can be told it with
+`--loader`.
 """
 
 DESCRIPTIONS: Descriptions = {

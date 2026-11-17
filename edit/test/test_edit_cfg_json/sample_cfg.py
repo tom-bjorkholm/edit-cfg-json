@@ -42,18 +42,23 @@ class SampleCfg(Config):
     """Base class of the sample configurations used in these tests.
 
     A subclass only implements `declare_members`, because the constructor
-    keywords and the empty validation plan are the same for all of them.
+    keywords and the empty validation plan are the same for all of them. The
+    constructor takes the load policy and passes it on, as `config_as_json`
+    recommends, so the editor gives it the text of a file together with the
+    policy.
     """
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None, *,
+                 ok_to_use_defaults: bool = False) -> None:
         """Declare the members of the subclass and then apply the JSON."""
         self.declare_members()
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def declare_members(self) -> None:
         """Assign the configuration members and their default values."""

@@ -106,8 +106,11 @@
   * [NOT\_CONFIG](#edit_cfg_json.loading.NOT_CONFIG)
   * [UNKNOWN\_KEY](#edit_cfg_json.loading.UNKNOWN_KEY)
   * [INCOMPLETE](#edit_cfg_json.loading.INCOMPLETE)
+  * [NOT\_FILLABLE](#edit_cfg_json.loading.NOT_FILLABLE)
+  * [WRONG\_SHAPE](#edit_cfg_json.loading.WRONG_SHAPE)
   * [BAD\_VALUES](#edit_cfg_json.loading.BAD_VALUES)
   * [NO\_DEFAULTS](#edit_cfg_json.loading.NO_DEFAULTS)
+  * [REFUSED\_AS](#edit_cfg_json.loading.REFUSED_AS)
   * [FILLED\_MESSAGE](#edit_cfg_json.loading.FILLED_MESSAGE)
   * [AUTO\_CHANGED](#edit_cfg_json.loading.AUTO_CHANGED)
   * [DROPPED\_FORM](#edit_cfg_json.loading.DROPPED_FORM)
@@ -125,6 +128,7 @@
     * [message](#edit_cfg_json.loading.LoadReport.message)
     * [filled](#edit_cfg_json.loading.LoadReport.filled)
     * [reasons](#edit_cfg_json.loading.LoadReport.reasons)
+    * [filled\_paths](#edit_cfg_json.loading.LoadReport.filled_paths)
   * [LoadedConfig](#edit_cfg_json.loading.LoadedConfig)
     * [config](#edit_cfg_json.loading.LoadedConfig.config)
     * [report](#edit_cfg_json.loading.LoadedConfig.report)
@@ -134,6 +138,7 @@
   * [\_no\_defaults](#edit_cfg_json.loading._no_defaults)
   * [\_type\_refusal](#edit_cfg_json.loading._type_refusal)
   * [\_attempt](#edit_cfg_json.loading._attempt)
+  * [\_refused\_as](#edit_cfg_json.loading._refused_as)
   * [\_named](#edit_cfg_json.loading._named)
   * [\_supplied\_name](#edit_cfg_json.loading._supplied_name)
   * [\_change\_lines](#edit_cfg_json.loading._change_lines)
@@ -790,6 +795,7 @@
     * [refreshing](#edit_cfg_json.rows.RowContext.refreshing)
   * [\_children\_of](#edit_cfg_json.rows._children_of)
   * [\_rewritten](#edit_cfg_json.rows._rewritten)
+  * [\_filled](#edit_cfg_json.rows._filled)
   * [\_row\_of](#edit_cfg_json.rows._row_of)
   * [built\_rows](#edit_cfg_json.rows.built_rows)
   * [\_shown](#edit_cfg_json.rows._shown)
@@ -842,8 +848,12 @@
   * [FILE\_NAME](#edit_cfg_json.constructing.FILE_NAME)
   * [MEMBER\_NAME](#edit_cfg_json.constructing.MEMBER_NAME)
   * [JSON\_TEXT\_NAMES](#edit_cfg_json.constructing.JSON_TEXT_NAMES)
+  * [DEFAULTS\_NAME](#edit_cfg_json.constructing.DEFAULTS_NAME)
+  * [\_parameters](#edit_cfg_json.constructing._parameters)
+  * [\_text\_name](#edit_cfg_json.constructing._text_name)
   * [\_arguments](#edit_cfg_json.constructing._arguments)
   * [built\_config](#edit_cfg_json.constructing.built_config)
+  * [read\_config](#edit_cfg_json.constructing.read_config)
   * [parsed\_config](#edit_cfg_json.constructing.parsed_config)
 * [edit\_cfg\_json.descriptions](#edit_cfg_json.descriptions)
   * [CHOICES\_FORM](#edit_cfg_json.descriptions.CHOICES_FORM)
@@ -869,18 +879,16 @@
 * [edit\_cfg\_json.auto\_change](#edit_cfg_json.auto_change)
   * [HOOK\_DATA\_VERSION](#edit_cfg_json.auto_change.HOOK_DATA_VERSION)
   * [WRITE\_ERRORS](#edit_cfg_json.auto_change.WRITE_ERRORS)
-  * [PARSE\_ERRORS](#edit_cfg_json.auto_change.PARSE_ERRORS)
-  * [KEY\_METHOD](#edit_cfg_json.auto_change.KEY_METHOD)
-  * [RECORDED](#edit_cfg_json.auto_change.RECORDED)
   * [NO\_MEMBER](#edit_cfg_json.auto_change.NO_MEMBER)
   * [REMOVING\_KINDS](#edit_cfg_json.auto_change.REMOVING_KINDS)
   * [FileChanges](#edit_cfg_json.auto_change.FileChanges)
-    * [filled](#edit_cfg_json.auto_change.FileChanges.filled)
+    * [filled\_paths](#edit_cfg_json.auto_change.FileChanges.filled_paths)
     * [dropped](#edit_cfg_json.auto_change.FileChanges.dropped)
     * [changed](#edit_cfg_json.auto_change.FileChanges.changed)
     * [reasons](#edit_cfg_json.auto_change.FileChanges.reasons)
     * [unplaced](#edit_cfg_json.auto_change.FileChanges.unplaced)
     * [detail](#edit_cfg_json.auto_change.FileChanges.detail)
+    * [filled](#edit_cfg_json.auto_change.FileChanges.filled)
     * [anything](#edit_cfg_json.auto_change.FileChanges.anything)
   * [\_written](#edit_cfg_json.auto_change._written)
   * [\_held](#edit_cfg_json.auto_change._held)
@@ -889,10 +897,7 @@
   * [\_by\_member](#edit_cfg_json.auto_change._by_member)
   * [\_version\_read](#edit_cfg_json.auto_change._version_read)
   * [\_printed](#edit_cfg_json.auto_change._printed)
-  * [\_ParsedKeys](#edit_cfg_json.auto_change._ParsedKeys)
-    * [\_\_init\_\_](#edit_cfg_json.auto_change._ParsedKeys.__init__)
-  * [\_record\_keys](#edit_cfg_json.auto_change._record_keys)
-  * [\_filled](#edit_cfg_json.auto_change._filled)
+  * [\_kept](#edit_cfg_json.auto_change._kept)
   * [\_compared](#edit_cfg_json.auto_change._compared)
   * [\_consumed](#edit_cfg_json.auto_change._consumed)
   * [\_recorded](#edit_cfg_json.auto_change._recorded)
@@ -2532,12 +2537,12 @@ for itself, and `loader` is where it says it. Reading a file is also the only
 place the answer is needed: everything the editor does afterwards works on the
 object this produced, by copying it.
 
-Three things can be wrong with an input file, and `config_as_json` reports
-two of them as the same `KeyError`. Which of those two it is follows from
-retrying the load with the declared defaults filling in what the file lacks:
-that rescues a file which is merely incomplete, and it still refuses a key
-the configuration does not declare. So the two are told apart by what the
-retry does and never by reading the text of a message.
+Three things can be wrong with the keys of an input file: a key that is
+missing, a key the configuration does not declare, and a value whose shape
+does not match the declaration. `config_as_json` raises an exception of its
+own type for each, so they are told apart by that type and never by reading
+the text of a message. A missing key is the one that the declared defaults
+can rescue, so it is what makes a load try again with them.
 
 A file whose values a validator refuses cannot be opened either. That is not
 squeamishness: a member validator returns the value that is stored back into
@@ -2597,6 +2602,23 @@ Message of the refusal of a file with a key that is not declared.
 
 Message of the refusal of an incomplete file under a strict policy.
 
+<a id="edit_cfg_json.loading.NOT_FILLABLE"></a>
+
+#### NOT\_FILLABLE
+
+Message of the refusal of an incomplete file that defaults cannot rescue.
+
+The policy allowed the declared defaults to fill in what the file lacks, and
+the retry with them still lacked a value. A nested object built by a factory
+that does not accept `ok_to_use_defaults` is what that means in practice, and
+so is a loader that ignores it.
+
+<a id="edit_cfg_json.loading.WRONG_SHAPE"></a>
+
+#### WRONG\_SHAPE
+
+Message of the refusal of a file with a value of the wrong JSON shape.
+
 <a id="edit_cfg_json.loading.BAD_VALUES"></a>
 
 #### BAD\_VALUES
@@ -2608,6 +2630,17 @@ Message of the refusal of a file whose values a validator refuses.
 #### NO\_DEFAULTS
 
 Message of the refusal of a class the editor cannot construct.
+
+<a id="edit_cfg_json.loading.REFUSED_AS"></a>
+
+#### REFUSED\_AS
+
+Message of a refusal, by the type of the failure behind it.
+
+The first type that the failure is an instance of decides, so each subclass
+comes before its base. A plain `KeyError` is not about the keys of the file:
+`config_as_json` raises the types above for those, and a `KeyError` of any
+other kind comes from a validator or a converter refusing a value.
 
 <a id="edit_cfg_json.loading.FILLED_MESSAGE"></a>
 
@@ -2756,7 +2789,8 @@ Names of the members the declared defaults supplied.
 
 These are the members the input file did not hold. The model marks the
 row of each of them, so the user can see which values are not the ones
-the file asked for.
+the file asked for. A value the file left out of a nested object or a
+dict is not here but in `filled_paths`, which holds these as well.
 
 <a id="edit_cfg_json.loading.LoadReport.reasons"></a>
 
@@ -2771,6 +2805,18 @@ the row of each of these, so that a value which is not the one in the file
 can be seen to be one, and the text says which of those things happened
 wherever the load recorded it. A member the declared defaults filled in is
 not here but in `filled`, which says the same thing more precisely.
+
+<a id="edit_cfg_json.loading.LoadReport.filled_paths"></a>
+
+#### filled\_paths
+
+Paths of the values the declared defaults supplied, at every depth.
+
+A path names the outermost value the input file did not hold: a member
+it left out altogether is one path, and a value it left out of a nested
+object or a dict is a path into that member. The model marks the row at
+each of them, so the user can see which values are not the ones the file
+asked for.
 
 <a id="edit_cfg_json.loading.LoadedConfig"></a>
 
@@ -2878,10 +2924,10 @@ Return what one `TypeError` during a load amounts to.
 
 It can mean two quite different things: a configuration this editor cannot
 construct at all, and a value of the file that is of a type the class
-refuses. The two are told apart the same way the two kinds of `KeyError`
-are, by trying the construction that answers it — here a construction with
-no file at all, which succeeds for a class whose own values are fine and
-fails for one that needs an argument nobody has.
+refuses. The two are told apart by trying the construction that answers
+it, which is a construction with no file at all: it succeeds for a class
+whose own values are fine and fails for one that needs an argument nobody
+has.
 
 **Arguments**:
 
@@ -2905,10 +2951,10 @@ def _attempt(source: ConfigSource, text: str, ok_to_use_defaults: bool,
 
 Try once to build one configuration object from one file text.
 
-The stream is the caller's, because a key that does not match is
-reported to the caller and what was said about it is needed there. What
-the load recorded about the file needs no such passing on: it is held by
-the configuration object that the load produced.
+The stream is the caller's, because a missing key is reported to the
+caller and what was said about it is needed there. What the load recorded
+about the file needs no such passing on: it is held by the configuration
+object that the load produced.
 
 **Arguments**:
 
@@ -2926,8 +2972,28 @@ the configuration object that the load produced.
 
 **Raises**:
 
-- `KeyError` - The keys of the file do not match the declared members.
+- `ConfigMissingKey` - The file does not hold a key that is required.
 - `ConfigLoadError` - The file cannot be opened for editing.
+
+<a id="edit_cfg_json.loading._refused_as"></a>
+
+#### \_refused\_as
+
+```python
+def _refused_as(error: Exception) -> str
+```
+
+Return the message of the refusal that one failure amounts to.
+
+**Arguments**:
+
+- `error` - The failure that the load reported, a `KeyError` or a
+  `ValueError` of some kind.
+  
+
+**Returns**:
+
+  The message that `REFUSED_AS` gives the type of that failure.
 
 <a id="edit_cfg_json.loading._named"></a>
 
@@ -3045,8 +3111,7 @@ neither: that is said by the mark which says it more precisely.
 #### \_report
 
 ```python
-def _report(config: Config, text: str, said: str,
-            permissive: bool) -> LoadReport
+def _report(config: Config, text: str, said: str) -> LoadReport
 ```
 
 Return what one load did beyond reading the values of its file.
@@ -3060,8 +3125,6 @@ configuration class itself said while it read.
 - `config` - Configuration object that the load built.
 - `text` - The whole text of the input file.
 - `said` - What the configuration class said about the file.
-- `permissive` - Whether the load was allowed to fill in what the file
-  left out.
   
 
 **Returns**:
@@ -3081,7 +3144,9 @@ Load one file text with the defaults filling in what it lacks.
 A key the configuration does not declare is still refused, because
 filling in governs the keys that are missing and nothing else. Dropping
 an unknown key would lose whatever the file meant by it, and such a file
-is either from a newer version or has a misspelled key in it.
+is either from a newer version or has a misspelled key in it. A key that
+is still missing is refused as well, because something in this
+configuration did not fill it in.
 
 **Arguments**:
 
@@ -3107,14 +3172,14 @@ def _rescue(source: ConfigSource, text: str, policy: LoadPolicy,
             said: str) -> LoadedConfig
 ```
 
-Retry a load that the keys of the file made fail.
+Retry a load that failed because the file lacks a key.
 
-The retry is what tells the two failures apart that `check_key_match`
-reports as the same `KeyError`. A retry that succeeds says the file was
-incomplete, and a retry that fails again says the file holds a key that
-is not declared here. An incomplete file is opened under
-`STRICT_THEN_DEFAULTS` and refused under `STRICT`, which is the whole
-difference between those two policies.
+An incomplete file is opened under `STRICT_THEN_DEFAULTS` and refused
+under `STRICT`, which is the whole difference between those two policies.
+The retry happens under `STRICT` as well, because `config_as_json` checks
+for a missing key before it checks for an unknown one: a file that also
+holds a key not declared here is refused for that key, which is the worse
+of its two faults and the one that no policy can rescue.
 
 **Arguments**:
 
@@ -6767,13 +6832,11 @@ class ConfigLoader(Protocol)
 
 Construct the application's configuration object for the editor.
 
-This is `config_as_json.ConfigFactory` with one parameter added and one
-left out, so a factory an application already has is nearly one of these.
-The one that is added is the thing a load has to be told and a
-construction does not: whether the declared defaults may fill in what the
-file leaves out. The one left out is `member_name`, which says where a
-nested object is, because what a loader is asked for is the whole
-configuration and that is a member of nothing.
+This is `config_as_json.ConfigFactory` with one parameter left out, so a
+factory an application already has is nearly one of these. The one left
+out is `member_name`, which says where a nested object is, because what a
+loader is asked for is the whole configuration and that is a member of
+nothing.
 
 It is checkable at runtime because a program of this library is told the
 name of one on a command line, and a name that turns out to be something
@@ -6826,10 +6889,12 @@ to an application that needs the same thing with an argument of its own
 bound into it:
 
 
-The callable is asked for a configuration holding its declared values, and
-the JSON text is then applied with `Config.parse_json`. Constructing and
-parsing are two steps because the load policy belongs to the second of
-them: `Config.__init__` takes no `ok_to_use_defaults` at all.
+A callable that declares `ok_to_use_defaults` and a JSON text parameter is
+given the JSON text and the load policy, so its class validates only the
+values of the text. Any other callable is asked for a configuration
+holding its declared values, and the JSON text is then applied with
+`Config.parse_json`, which takes the load policy whatever the constructor
+declares.
 
 A loader written by hand is the door for anything this cannot express, and
 a class chosen by looking at the JSON is what that means in practice.
@@ -10419,13 +10484,11 @@ while it parses, so such a class cannot be built at all. That is why `Settings`
 and `ActionSettings` stay frozen, which is what section 9.1 of
 `doc/detailed_design.md` asks of them for reasons of its own.
 
-**The key combinations are a dict of lists and not a nested object.** A nested
-`Config` object is read whole — `config_as_json` constructs one from its own
-JSON without the permissive flag of the parse around it — so every settings
-file would have had to name every action. A dict member is filled in per key
-instead, its keys are checked against the ones this class declares, and a
-member validator completes what a file left out. So a settings file may name
-one action and the editor still shows all of them.
+**The key combinations are a dict of lists.** Its keys are checked against the
+ones this class declares, and a load that may use the declared defaults fills
+in each action a file leaves out, so a settings file may name one action and
+the editor still shows all of them. A member validator completes a value that
+did not come from such a load, which is a value assigned by hand.
 
 **The priorities of the user interfaces are a dict with no declared keys at
 all**, which is `_unchecked_dicts`, and that is the difference between them
@@ -10443,18 +10506,17 @@ on.
 
 **An action added to `ActionSettings` is a change of file format**, because
 the keys of a dict member are matched against the ones this class declares
-before any validator of this class is asked anything, and they are matched
-whatever policy the parse was given. So every settings file written before that
-action existed would be refused, and a whole application would fail to start
-over a key of the editor it embeds. `ADDED_ACTIONS` is what those files are
-read by, and section 9.10 of `doc/detailed_design.md` is what says that an
-action added later belongs in it.
+before any validator of this class is asked anything, and a strict load
+refuses a file that lacks one of them. An application that declares these
+settings as a member of its own configuration and reads its file strictly
+would then fail to start over a key of the editor it embeds. `ADDED_ACTIONS` is
+what those files are read by, whatever the policy is, and section 9.10 of
+`doc/detailed_design.md` is what says that an action added later belongs in it.
 
 **A setting added to `Settings` is one as well**, for the neighbouring reason:
-a member this class declares and a file does not hold is refused whatever
-policy the parse was given, because a nested configuration object is read
-whole. `ADDED_SETTINGS` is the same rule for a member that `ADDED_ACTIONS` is
-for a key of `actions`.
+a strict load refuses a file that does not hold a member this class declares,
+at whatever depth these settings are. `ADDED_SETTINGS` is the same rule for a
+member that `ADDED_ACTIONS` is for a key of `actions`.
 
 <a id="edit_cfg_json.settings_config.UNKNOWN_ACTION"></a>
 
@@ -10512,8 +10574,8 @@ Settings that previous released versions did not write into a file.
 They are to a member of this class what `ADDED_ACTIONS` is to a key of its
 `actions` member, and they are needed for the same reason: a settings file of
 an earlier release does not hold them, and a member this class declares and
-the file leaves out is refused whatever policy the parse was given. Only a
-member added after a release belongs here.
+the file leaves out is refused by a strict load. Only a member added after a
+release belongs here.
 
 <a id="edit_cfg_json.settings_config._OldSettings"></a>
 
@@ -10560,13 +10622,14 @@ once.
 class _ActionKeys(MemberValidator)
 ```
 
-Complete the actions a file left out, and refuse what they refuse.
+Complete the actions a value left out, and refuse what they refuse.
 
-A settings file is a file somebody writes by hand to change one or two
-things, so what it does not name keeps the default of the editor. The
-completed value is what is stored back into the member, which is what makes
-the editor show every action of a file that named one of them, and what
-lets the combinations of the others be edited there.
+A value read from a file holds every action already: a load that may use
+the declared defaults fills in the ones the file left out, and a strict
+load refuses such a file. A value assigned by hand may hold fewer, and what
+it does not name keeps the default of the editor. The completed value is
+what is stored back into the member, so the member holds every action of
+the editor whatever put its value there.
 
 <a id="edit_cfg_json.settings_config._ActionKeys.validate_member"></a>
 
@@ -10879,7 +10942,9 @@ setting whatever the file held.
 def __init__(from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
              stderr_file: TextIO = sys.stderr,
-             member_name: Optional[str] = None) -> None
+             member_name: Optional[str] = None,
+             *,
+             ok_to_use_defaults: bool = False) -> None
 ```
 
 Declare every setting of the editor, and read the file there is.
@@ -10897,6 +10962,8 @@ stated once and the two cannot come to disagree.
   configuration, so that what is said about one setting names
   the whole path to it. None for a settings file of its own,
   where these settings are the whole configuration.
+- `ok_to_use_defaults` - Whether the declared values may fill in what
+  the JSON source does not hold.
 
 <a id="edit_cfg_json.settings_config.SettingsConfig._get_read_old_config"></a>
 
@@ -10911,8 +10978,8 @@ Return how a settings file of an earlier release is read.
 `config_as_json` asks for this once the file has been parsed and before
 it checks that every declared key is there, which is the only point at
 which an action that a file cannot hold can be supplied: that check is
-what refuses such a file, and it runs whatever policy the load was
-given, because a nested configuration object is read whole.
+what refuses such a file under a strict load, and a rule supplies the
+action whatever policy the load was given.
 
 **Returns**:
 
@@ -14300,13 +14367,14 @@ differently.
 Whether the declared defaults supplied this value.
 
 It is set when a load that was allowed to use the defaults filled in a
-member the input file did not hold, and it stays set for the rest of the
+value the input file did not hold, and it stays set for the rest of the
 session: that the file did not hold this value remains true whatever the
 user then types into it. It belongs to the model for the same reason as
 the flag above, so that two backends cannot show it differently.
 
-Only a member of the configuration carries it, because the declared
-defaults supply a whole member and never one value inside one.
+The defaults fill in a value at whatever depth the file lacks it, so a
+value inside a nested object or a dict carries it as well as a member
+of the configuration does.
 
 <a id="edit_cfg_json.rows.MemberRow.load_reason"></a>
 
@@ -14914,6 +14982,31 @@ say, and a validator had no part in it.
 
   Whether the row is marked as one a validator wrote.
 
+<a id="edit_cfg_json.rows._filled"></a>
+
+#### \_filled
+
+```python
+def _filled(path: ConfigPath, report: LoadReport) -> bool
+```
+
+Return whether the declared defaults supplied the value at one path.
+
+A report names that in two ways, and either of them is enough: by the
+name of a member the file left out altogether, and by the path of a
+value at any depth. A report made with names only, which is what there
+was before paths, still marks its members.
+
+**Arguments**:
+
+- `path` - Path that addresses the node.
+- `report` - What the load of the input file did.
+  
+
+**Returns**:
+
+  Whether the row at that path is marked as filled in.
+
 <a id="edit_cfg_json.rows._row_of"></a>
 
 #### \_row\_of
@@ -14925,10 +15018,12 @@ def _row_of(path: ConfigPath, value: JsonType, context: RowContext,
 
 Return the row of one node of one configuration.
 
-What the load did is looked up by the name of a member of the
+Why the load changed a value is looked up by the name of a member of the
 configuration, because that is what the load recorded it for: a record
 about a value inside a member is a record about that member, and a member
-of a nested configuration object is inside the member that holds it.
+of a nested configuration object is inside the member that holds it. What
+the declared defaults filled in is looked up by the path itself, because
+the load knows that at every depth.
 
 **Arguments**:
 
@@ -15644,6 +15739,16 @@ principle 4 of section 3 of `doc/detailed_design.md` applied to a constructor:
 what cannot be said is not said, and the editor is then only less pleasant
 rather than unusable.
 
+**The text of an input file is given to a constructor that takes the load
+policy**, which is a constructor declaring both a JSON text parameter and
+`ok_to_use_defaults`. Its class then validates once, on the values of the file:
+the declared values are never validated on their own, which saves a pass that
+may be costly and lets a class whose declared values are not valid on their own
+read a file. Any other class is constructed holding its declared values first,
+and the text is applied to it with `Config.parse_json`, which is where the load
+policy can always be given. That is the rule `config_as_json` follows for the
+nested objects it constructs.
+
 **An object holding the edit buffer.** Validating the buffer, and saying which
 member of a refused buffer was refused, both need an object holding the values
 that are on the screen. There the class is not asked at all: the object the
@@ -15655,11 +15760,6 @@ plan is applied — and it needs nothing whatever of the constructor. So a class
 that needs an argument this library knows nothing about is edited, validated
 and saved exactly as well as any other, and only reading a file needs the
 loader that the application supplies for it.
-
-**The JSON text is therefore never given to a constructor**, which is what
-makes that true. It would gain nothing if it were: `Config.__init__` passes the
-text straight to `parse_json` itself, and the one thing that has to go with it
-is the load policy, which `__init__` does not take.
 
 <a id="edit_cfg_json.constructing.STREAM_NAME"></a>
 
@@ -15694,21 +15794,72 @@ Every name a configuration class gives its JSON text parameter.
 `Config.__init__` names it `from_json_data_text`, and the example
 configuration classes that `config_as_json` ships name it `from_json_text` in
 the constructors they declare, as does `ConfigFactory`. Both names are
-therefore in use in practice, so both are looked for. Nothing is ever passed
-under either of them but `None`: a class that declares the parameter without a
-default of its own has to be given one, and a class that declares none is
-constructed without it.
+therefore in use in practice, so both are looked for. The text of an input file
+is passed under it only together with the load policy, and `None` is passed
+otherwise: a class that declares the parameter without a default of its own has
+to be given one, and a class that declares none is constructed without it.
+
+<a id="edit_cfg_json.constructing.DEFAULTS_NAME"></a>
+
+#### DEFAULTS\_NAME
+
+Name of the constructor parameter that takes the load policy.
+
+`Config.__init__` declares it, and so does a class that passes it on to
+`Config.__init__` as `config_as_json` recommends. A class that declares it can
+be given the text of an input file, because it can then be told the policy that
+the text is to be read with.
+
+<a id="edit_cfg_json.constructing._parameters"></a>
+
+#### \_parameters
+
+```python
+def _parameters(
+        factory: Callable[..., Config]) -> Mapping[str, inspect.Parameter]
+```
+
+Return the parameters that one configuration class declares.
+
+**Arguments**:
+
+- `factory` - Class, or callable with its own arguments already bound,
+  that constructs the configuration.
+  
+
+**Returns**:
+
+  The parameters of its constructor, by name.
+
+<a id="edit_cfg_json.constructing._text_name"></a>
+
+#### \_text\_name
+
+```python
+def _text_name(parameters: Mapping[str, inspect.Parameter]) -> Optional[str]
+```
+
+Return the name a constructor gives its JSON text, None for no name.
+
+**Arguments**:
+
+- `parameters` - The parameters of the constructor, by name.
+  
+
+**Returns**:
+
+  The first name of `JSON_TEXT_NAMES` that the constructor declares.
 
 <a id="edit_cfg_json.constructing._arguments"></a>
 
 #### \_arguments
 
 ```python
-def _arguments(factory: Callable[..., Config],
+def _arguments(parameters: Mapping[str, inspect.Parameter],
                stream: TextIO) -> dict[str, object]
 ```
 
-Return what to call one configuration class with.
+Return what to call one configuration class with for its defaults.
 
 The values are a stream and `None`, and which parameter each of them
 belongs to differs from class to class, so there is no one type that they
@@ -15716,8 +15867,7 @@ share.
 
 **Arguments**:
 
-- `factory` - Class, or callable with its own arguments already bound,
-  that constructs the configuration.
+- `parameters` - The parameters of the constructor, by name.
 - `stream` - Stream that collects what the class says about itself.
   
 
@@ -15765,6 +15915,47 @@ the parameter is constructed exactly like one that does not.
   refusal of `config_as_json` is a subclass of this.
 - `AttributeError` - The class declares no public member at all.
 
+<a id="edit_cfg_json.constructing.read_config"></a>
+
+#### read\_config
+
+```python
+def read_config(factory: Callable[..., Config], text: str, *, stream: TextIO,
+                ok_to_use_defaults: bool) -> Config
+```
+
+Construct one configuration holding the values of one JSON text.
+
+A constructor that declares a JSON text parameter and `ok_to_use_defaults`
+is given both, so the class validates once, and only the values of the
+text. Any other class is constructed holding its declared values, which
+are validated on their own, and the text is then applied to it with
+`Config.parse_json`. A constructor that accepts the policy only through
+`**kwargs` is one of the latter, because the signature does not say that
+it passes the policy on.
+
+**Arguments**:
+
+- `factory` - Class to construct, or a callable that constructs it with
+  arguments of its own already bound.
+- `text` - JSON text holding the values of an input file.
+- `stream` - Stream that collects what the class says about the text.
+- `ok_to_use_defaults` - Whether the declared defaults may fill in what the
+  text does not hold.
+  
+
+**Returns**:
+
+  A configuration object holding the values of the text.
+  
+
+**Raises**:
+
+- `KeyError` - The keys of the text do not match the declared members.
+- `TypeError` - The class cannot be constructed this way.
+- `ValueError` - The values are ones the class refuses.
+- `AttributeError` - The class declares no public member at all.
+
 <a id="edit_cfg_json.constructing.parsed_config"></a>
 
 #### parsed\_config
@@ -15791,11 +15982,9 @@ file recorded stays as the load left it however often a buffer is parsed.
 One method of the copy can be replaced, on the object and not on the class,
 which is how the editor reaches a state that the class does not offer: a
 parse that validates nothing, so that the plan can be walked step by step
-afterwards, and a parse that stops at the key check, so that what the
-declared defaults filled in can be read off it. Replacing it on the object
-leaves the class of the application untouched, and `parse_json` does not
-mistake the replacement for a member, because it counts only the attributes
-that are not callable.
+afterwards. Replacing it on the object leaves the class of the application
+untouched, and `parse_json` does not mistake the replacement for a member,
+because it counts only the attributes that are not callable.
 
 **Arguments**:
 
@@ -16257,13 +16446,13 @@ the comparison still finds every changed member, and what the records would
 have added is taken from `print_changes`, which is the library's own report and
 is version independent. That text is shown as it stands and is never read.
 
-**What the declared defaults filled in is asked of the parse.** It is the one
-of the three that has a mark of its own, so it has to be exact, and the keys
-of the file do not answer it: a key the rules for an older format renamed into
-a member was in the file under another name, and a value those rules supplied
-was in the file under no name at all. What the defaults filled in is exactly
-what the key check of the parse was not given, so the parse is what is asked,
-into a copy of the loaded object whose key check records and stops.
+**What the declared defaults filled in is asked of the loaded object.** It is
+the one of the three that has a mark of its own, so it has to be exact, and
+the keys of the file do not answer it: a key the rules for an older format
+renamed into a member was in the file under another name, and a value those
+rules supplied was in the file under no name at all.
+`Config.kept_value_paths()` names exactly the values the parse kept because
+the file lacked them, at every depth, so that is what is asked.
 
 <a id="edit_cfg_json.auto_change.HOOK_DATA_VERSION"></a>
 
@@ -16285,31 +16474,6 @@ A class may leave part of its own writing to code outside itself, and there is
 then nothing to compare the file with. Such a class cannot be shown at all,
 because the editor reads the values it shows the very same way, so saying
 nothing about the changes here is what leaves that refusal where it belongs.
-
-<a id="edit_cfg_json.auto_change.PARSE_ERRORS"></a>
-
-#### PARSE\_ERRORS
-
-Every way the parse that records the keys can fail before it records them.
-
-It cannot fail for a text that a load has already read, since the probe differs
-from the object that read it in the one method that is not reached until the
-keys have been recorded. It is caught because a mark is not worth an exception:
-what the defaults filled in is then simply not claimed, and every member of it
-is reported as one the load changed instead, which is true of it as well and
-says less.
-
-<a id="edit_cfg_json.auto_change.KEY_METHOD"></a>
-
-#### KEY\_METHOD
-
-Name of the method that the probe below has replaced with a recording.
-
-<a id="edit_cfg_json.auto_change.RECORDED"></a>
-
-#### RECORDED
-
-What the exception that carries those keys says for itself.
 
 <a id="edit_cfg_json.auto_change.NO_MEMBER"></a>
 
@@ -16348,14 +16512,17 @@ Every field is empty for a file whose values the load took exactly as they
 were, which is the ordinary case and the one in which the editor says
 nothing at all about the load.
 
-<a id="edit_cfg_json.auto_change.FileChanges.filled"></a>
+<a id="edit_cfg_json.auto_change.FileChanges.filled_paths"></a>
 
-#### filled
+#### filled\_paths
 
-Members whose value the declared defaults of the class supplied.
+Paths of the values that the declared defaults of the class supplied.
 
-Empty for a load that was not allowed to use the defaults at all, and
-empty for a file that held every declared key.
+A path names the outermost value the file lacked, at whatever depth, so
+a member the file left out altogether is one path and a value left out
+of a nested object is a path into that member. Empty for a load that was
+not allowed to use the defaults at all, and empty for a file that held
+every declared key.
 
 <a id="edit_cfg_json.auto_change.FileChanges.dropped"></a>
 
@@ -16375,10 +16542,10 @@ message is the only place they can be reported.
 Members whose value the load itself put there or altered.
 
 This is what the comparison found, so a member that a validator or the
-parsing normalized is here and nowhere else. A member the declared defaults
-filled in is deliberately not one of them: it is marked already, by a mark
-that says more than this one would, and one member carrying two marks about
-the same thing would be worse than either of them alone.
+parsing normalized is here and nowhere else. A member holding a value the
+declared defaults filled in is deliberately not one of them: that value is
+marked already, by a mark that says more than this one would, and carrying
+two marks about the same thing would be worse than either of them alone.
 
 <a id="edit_cfg_json.auto_change.FileChanges.reasons"></a>
 
@@ -16413,6 +16580,20 @@ It is empty whenever the records were read, and it is the report of
 `ConfigAutoChangeHook.print_changes` when they were not. It is shown as it
 stands and never read: which version records what is the library's to say,
 and a text that was parsed would be a second way of depending on it.
+
+<a id="edit_cfg_json.auto_change.FileChanges.filled"></a>
+
+#### filled
+
+```python
+@property
+def filled() -> frozenset[str]
+```
+
+Return the members that the file left out altogether.
+
+The declared defaults supplied the whole of each of them, so their
+paths in `filled_paths` are their names alone.
 
 <a id="edit_cfg_json.auto_change.FileChanges.anything"></a>
 
@@ -16595,128 +16776,37 @@ Return the report that the library writes about its own records.
 
   That report, and nothing at all when there was nothing to report.
 
-<a id="edit_cfg_json.auto_change._ParsedKeys"></a>
+<a id="edit_cfg_json.auto_change._kept"></a>
 
-## \_ParsedKeys Objects
-
-```python
-class _ParsedKeys(Exception)
-```
-
-The keys of one parse, carried out of the parse that recorded them.
-
-It is internal because it exists only to carry two lists of names out of
-one method of one throwaway object, and it is an exception because the
-parse it comes from is not wanted beyond that point.
-
-<a id="edit_cfg_json.auto_change._ParsedKeys.__init__"></a>
-
-#### \_\_init\_\_
+#### \_kept
 
 ```python
-def __init__(declared: Sequence[str], held: Sequence[str]) -> None
+def _kept(config: Config) -> frozenset[ConfigPath]
 ```
 
-Say which keys were declared and which the parsed data held.
+Return the paths of the values the declared defaults supplied.
 
-**Arguments**:
-
-- `declared` - The members that the configuration class declares.
-- `held` - The keys the data held once the rules for an older format
-  had finished with it.
-
-<a id="edit_cfg_json.auto_change._record_keys"></a>
-
-#### \_record\_keys
-
-```python
-def _record_keys(expected_keys: list[str],
-                 j_keys: list[str],
-                 ok_to_use_defaults: bool,
-                 stderr_file: TextIO,
-                 allowed_missing_keys: Optional[list[str]] = None,
-                 *,
-                 member_name: Optional[str] = None,
-                 dict_keys: bool = False) -> None
-```
-
-Record the keys of one parse, and stop that parse there.
-
-This stands in for `Config.check_key_match` on the probe below, so the
-parameters are that method's and in its order, because that is how
-`Config.parse_json` calls it. There is no object among them for the same
-reason as in `validation`: an attribute of an object is not a bound method,
-and the real method is a static one in any case.
-
-Only the check of the members is stood in for. The keys of a dict member
-are checked by the same method called on the class, which an attribute of
-one object does not reach, so the keys that arrive here are always the
-keys of the configuration itself.
-
-**Arguments**:
-
-- `expected_keys` - The members that the configuration class declares.
-- `j_keys` - The keys of the data that the parse is about to apply.
-- `ok_to_use_defaults` - Whether missing keys may keep their default, which
-  is the caller's own answer and is not what is being asked here.
-- `stderr_file` - Stream for diagnostics, which a check that refuses
-  nothing writes nothing to.
-- `allowed_missing_keys` - Keys that may be missing whatever the policy is,
-  which a check that refuses nothing has no use for either.
-- `member_name` - Path of the object whose keys these are, which the real
-  method names a missing key below. It is the whole configuration
-  here, because only the top level check is stood in for.
-- `dict_keys` - Whether the keys are keys of a plain dictionary, which
-  these never are for the same reason.
-  
-
-**Raises**:
-
-- `_ParsedKeys` - Always, carrying the two sets of keys.
-
-<a id="edit_cfg_json.auto_change._filled"></a>
-
-#### \_filled
-
-```python
-def _filled(config: Config, text: str) -> frozenset[str]
-```
-
-Return the members whose value the declared defaults supplied.
-
-A load that was allowed to fill in what the file left out cannot afterwards
-be asked which of its values came from the file, and the keys of the file
-do not answer it either: the rules for an older format may have renamed a
-key of the file into a member, or supplied a value for a member the file
-never had. What the defaults filled in is exactly what the key check of
-the parse was not given, so the parse is what is asked.
-
-The file is therefore parsed a second time, into a copy of the loaded
-object whose key check records what it was given and stops the parse there.
-Stopping is what keeps this from repeating anything: everything after the
-key check is what the real load has already done, so the application's own
-validators still run once, on the object that is really being edited. The
-copy records into a copy of the hook as well, so what the load recorded is
-left exactly as the load left it.
+`config_as_json` indexes a list with an int and the editor with the text
+of that int, so every step is turned into text. A step of a dict key is
+text already.
 
 **Arguments**:
 
 - `config` - Configuration object that the load produced.
-- `text` - The whole text of the input file.
   
 
 **Returns**:
 
-  The names of the members that the declared defaults supplied, and
-  nothing at all when the parse did not reach the key check.
+  The path of every value the parse kept, as a path of the editor, and
+  nothing at all after a strict parse.
 
 <a id="edit_cfg_json.auto_change._compared"></a>
 
 #### \_compared
 
 ```python
-def _compared(config: Config, text: str,
-              permissive: bool) -> tuple[FileChanges, Mapping[str, JsonType]]
+def _compared(config: Config,
+              text: str) -> tuple[FileChanges, Mapping[str, JsonType]]
 ```
 
 Return what comparing one load with its file found, and the members.
@@ -16725,9 +16815,6 @@ Return what comparing one load with its file found, and the members.
 
 - `config` - Configuration object that the load produced.
 - `text` - The whole text of the input file.
-- `permissive` - Whether the load was allowed to fill in what the file left
-  out. A load that was not fills nothing in, so there is nothing to
-  ask the parse about.
   
 
 **Returns**:
@@ -16794,7 +16881,7 @@ nothing here holds.
 #### file\_changes
 
 ```python
-def file_changes(config: Config, text: str, permissive: bool) -> FileChanges
+def file_changes(config: Config, text: str) -> FileChanges
 ```
 
 Return what one successful load did to the file that it read.
@@ -16806,8 +16893,6 @@ Return what one successful load did to the file that it read.
   object holds the hook of its own most recent parse whether the
   application asked for one or not.
 - `text` - The whole text of the input file.
-- `permissive` - Whether the load was allowed to fill in what the file left
-  out.
   
 
 **Returns**:
@@ -16857,9 +16942,11 @@ validator, since it is running the very steps the real pass runs.
 
 Every way in which a configuration class refuses an edit buffer.
 
-`config_as_json` reports a key that is missing or unknown as `KeyError`,
-text that is not JSON as `ConfigBadJson`, and a value that a validator
-refuses as `InvalidConfiguration`, `InvalidConfigurationValue` or
+`config_as_json` reports a key that is missing or unknown, and a value of
+the wrong JSON shape, as `ConfigMissingKey`, `ConfigUnknownKey` and
+`ConfigWrongShape`, which are all `KeyError` subclasses. It reports text that
+is not JSON as `ConfigBadJson`, and a value that a validator refuses as
+`InvalidConfiguration`, `InvalidConfigurationValue` or
 `InvalidConfigurationType`. Those four are all `ValueError` subclasses, so
 these three classes are exactly those failures and nothing besides them.
 

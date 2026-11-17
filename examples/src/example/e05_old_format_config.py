@@ -143,11 +143,15 @@ class OldFormatConfig(Config):
     object the load produced, so `NoHookConfig` below reports the same.
     """
 
+    # The constructor shape that `config_as_json` documents has five
+    # arguments, and the hook makes it six. The number is not a choice.
+    # pylint: disable-next=too-many-arguments
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None, *,
+                 ok_to_use_defaults: bool = False) -> None:
         """Initialize the configuration with its default values.
 
         Args:
@@ -163,7 +167,12 @@ class OldFormatConfig(Config):
             member_name: Path for reaching this object from the top level
                 configuration, so that a diagnostic about a value inside it
                 names the whole path. None for the top level itself.
+            ok_to_use_defaults: Whether the default values may fill in what
+                the JSON source does not hold.
         """
+        # The constructor shape that `config_as_json` documents is written
+        # out in every example, so that each example can be read on its own.
+        # pylint: disable=duplicate-code
         self.format_version: int = CURRENT_FORMAT
         self.report_name: str = 'daily-summary'
         self.owner: str = 'Ada Lovelace'
@@ -171,7 +180,8 @@ class OldFormatConfig(Config):
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
-                         member_name=member_name)
+                         member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def _get_read_old_config(self) -> ReadOldConfiguration:
         """Return the rules that turn an older file into a current one."""
@@ -208,7 +218,7 @@ class NoHookConfig(OldFormatConfig):
     nowhere to put a hook.
 
     That is on purpose, and it is what most configuration classes look like:
-    the four keyword arguments that `config_as_json` documents, and no more.
+    the keyword arguments that `config_as_json` documents, and no more.
     Such a class is edited exactly as well **and reported on exactly as
     fully**, because `Config` gives it a hook of its own and the editor reads
     that one. Nothing an application has to opt into is needed for any of this.
@@ -217,7 +227,8 @@ class NoHookConfig(OldFormatConfig):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None, *,
+                 ok_to_use_defaults: bool = False) -> None:
         """Initialize the configuration, with no hook to be given.
 
         Args:
@@ -227,6 +238,8 @@ class NoHookConfig(OldFormatConfig):
             member_name: Path for reaching this object from the top level
                 configuration, so that a diagnostic about a value inside it
                 names the whole path. None for the top level itself.
+            ok_to_use_defaults: Whether the default values may fill in what
+                the JSON source does not hold.
         """
         # Leaving the hook out here costs this class nothing at all: the
         # editor reads the records from the object the load produced, and
@@ -234,7 +247,8 @@ class NoHookConfig(OldFormatConfig):
         # over the same file is what shows that.
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
 
 def main(args: Optional[list[str]] = None) -> None:

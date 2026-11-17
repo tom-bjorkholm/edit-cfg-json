@@ -41,7 +41,7 @@ from collections.abc import Callable
 from typing import NamedTuple, Optional, Protocol, TextIO, runtime_checkable
 import sys
 from config_as_json import Config, PathOrStr
-from edit_cfg_json.constructing import built_config
+from edit_cfg_json.constructing import built_config, read_config
 
 NO_FILE_NAME = ('The editor reads its own input files, so this loader takes '
                 'JSON text and not a file name.')
@@ -62,13 +62,11 @@ becomes a refusal like any other.
 class ConfigLoader(Protocol):  # pylint: disable=too-few-public-methods
     """Construct the application's configuration object for the editor.
 
-    This is `config_as_json.ConfigFactory` with one parameter added and one
-    left out, so a factory an application already has is nearly one of these.
-    The one that is added is the thing a load has to be told and a
-    construction does not: whether the declared defaults may fill in what the
-    file leaves out. The one left out is `member_name`, which says where a
-    nested object is, because what a loader is asked for is the whole
-    configuration and that is a member of nothing.
+    This is `config_as_json.ConfigFactory` with one parameter left out, so a
+    factory an application already has is nearly one of these. The one left
+    out is `member_name`, which says where a nested object is, because what a
+    loader is asked for is the whole configuration and that is a member of
+    nothing.
 
     It is checkable at runtime because a program of this library is told the
     name of one on a command line, and a name that turns out to be something
@@ -110,10 +108,12 @@ def derived_loader(factory: Callable[..., Config]) -> ConfigLoader:
     loader = derived_loader(partial(TeamConfig, KNOWN_TEAMS))
     ````
 
-    The callable is asked for a configuration holding its declared values, and
-    the JSON text is then applied with `Config.parse_json`. Constructing and
-    parsing are two steps because the load policy belongs to the second of
-    them: `Config.__init__` takes no `ok_to_use_defaults` at all.
+    A callable that declares `ok_to_use_defaults` and a JSON text parameter is
+    given the JSON text and the load policy, so its class validates only the
+    values of the text. Any other callable is asked for a configuration
+    holding its declared values, and the JSON text is then applied with
+    `Config.parse_json`, which takes the load policy whatever the constructor
+    declares.
 
     A loader written by hand is the door for anything this cannot express, and
     a class chosen by looking at the JSON is what that means in practice.
@@ -129,7 +129,7 @@ def derived_loader(factory: Callable[..., Config]) -> ConfigLoader:
              from_json_filename: Optional[PathOrStr] = None,
              ok_to_use_defaults: bool = False,
              stderr_file: TextIO = sys.stderr) -> Config:
-        """Construct the configuration and apply the JSON text to it.
+        """Construct the configuration holding the JSON text, if one is given.
 
         Raises:
             ValueError: A file name was given. It is refused rather than
@@ -138,12 +138,10 @@ def derived_loader(factory: Callable[..., Config]) -> ConfigLoader:
         """
         if from_json_filename is not None:
             raise ValueError(NO_FILE_NAME)
-        config = built_config(factory, stream=stderr_file)
-        if from_json_data_text is not None:
-            config.parse_json(from_json_text=from_json_data_text,
-                              ok_to_use_defaults=ok_to_use_defaults,
-                              stderr_file=stderr_file)
-        return config
+        if from_json_data_text is None:
+            return built_config(factory, stream=stderr_file)
+        return read_config(factory, from_json_data_text, stream=stderr_file,
+                           ok_to_use_defaults=ok_to_use_defaults)
     return load
 
 

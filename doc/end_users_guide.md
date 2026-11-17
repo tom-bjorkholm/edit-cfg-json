@@ -617,7 +617,7 @@ writes.
 
 | Message | What it means |
 | --- | --- |
-| *This file did not hold every value. What it left out was filled in from the defaults, and is marked.* | The file was incomplete and was opened anyway. The filled-in members carry `(filled from default)`, and saving writes them out properly. |
+| *This file did not hold every value. What it left out was filled in from the defaults, and is marked.* | The file was incomplete and was opened anyway. The filled-in values carry `(filled from default)`, also inside a nested object, and saving writes them out properly. |
 | *Reading this file changed it, so what is shown is not what the file holds. What the load put there or altered is marked, and saving writes what is shown.* | The file is in an older format, or a value was normalized while it was read. The changed members carry a mark saying so. |
 | *This file holds keys that this configuration does not use, and saving leaves them out: ...* | The named keys are not part of this configuration and will not be in the file after you save. |
 | *These values were supplied because this file is in an older format: ...* | The application supplied these values because the file is too old to hold them at all. |
@@ -625,10 +625,12 @@ writes.
 If the file **cannot** be opened at all, the editor does not open on it; the
 application tells you instead. The messages are of this kind: the file cannot
 be read, it is not text, it does not hold configuration that can be read, it
-holds a key this configuration does not have, or the values in it are not
-valid. The last two have to be corrected in a text editor before the editor
-will open the file, because there is no valid configuration for it to show
-you.
+is incomplete in a way the application cannot fill in, it holds a key this
+configuration does not have, it holds a value whose shape does not match the
+configuration (such as a single value where a list belongs), or the values in
+it are not valid. The last four have to be corrected in a text editor before
+the editor will open the file, because there is no valid configuration for it
+to show you.
 
 ---
 
@@ -1245,7 +1247,7 @@ writes.
 
 | Message | What it means |
 | --- | --- |
-| *This file did not hold every value. What it left out was filled in from the defaults, and is marked.* | The file was incomplete and was opened anyway. The filled-in members carry `(filled from default)`, and saving writes them out properly. |
+| *This file did not hold every value. What it left out was filled in from the defaults, and is marked.* | The file was incomplete and was opened anyway. The filled-in values carry `(filled from default)`, also inside a nested object, and saving writes them out properly. |
 | *Reading this file changed it, so what is shown is not what the file holds. What the load put there or altered is marked, and saving writes what is shown.* | The file is in an older format, or a value was normalized while it was read. The changed members carry a mark saying so. |
 | *This file holds keys that this configuration does not use, and saving leaves them out: ...* | The named keys are not part of this configuration and will not be in the file after you save. |
 | *These values were supplied because this file is in an older format: ...* | The application supplied these values because the file is too old to hold them at all. |
@@ -1253,10 +1255,12 @@ writes.
 If the file **cannot** be opened at all, the editor does not open on it; the
 application tells you instead. The messages are of this kind: the file cannot
 be read, it is not text, it does not hold configuration that can be read, it
-holds a key this configuration does not have, or the values in it are not
-valid. The last two have to be corrected in a text editor before the editor
-will open the file, because there is no valid configuration for it to show
-you.
+is incomplete in a way the application cannot fill in, it holds a key this
+configuration does not have, it holds a value whose shape does not match the
+configuration (such as a single value where a list belongs), or the values in
+it are not valid. The last four have to be corrected in a text editor before
+the editor will open the file, because there is no valid configuration for it
+to show you.
 
 ---
 

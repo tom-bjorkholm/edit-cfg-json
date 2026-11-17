@@ -319,15 +319,22 @@ class FlatConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None, *,
+                 ok_to_use_defaults: bool = False) -> None:
         """Initialize the configuration with its default values.
 
-        The four keyword arguments are the ones that `config_as_json`
+        The four arguments before the `*` are the ones that `config_as_json`
         expects of a configuration class. Keeping to them is what lets the
-        editor construct the class itself, which is how it validates: the
-        buffer is written as JSON text and handed to this constructor. The
-        last of them says where a nested object is, and is `None` for a
-        configuration that is nested in nothing, as this one is.
+        editor construct the class itself. The last of them says where a
+        nested object is, and is `None` for a configuration that is nested in
+        nothing, as this one is.
+
+        The keyword-only `ok_to_use_defaults` is the load policy: whether the
+        default values may fill in what a file leaves out. Declaring it and
+        passing it on is a good habit that `config_as_json` recommends. The
+        editor then hands the text of a file to this constructor together with
+        the policy, so the validators run once, on the values of the file,
+        instead of once on the default values and once more on the file.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
@@ -336,7 +343,12 @@ class FlatConfig(Config):
             member_name: Path for reaching this object from the top level
                 configuration, so that a diagnostic about a value inside it
                 names the whole path. None for the top level itself.
+            ok_to_use_defaults: Whether the default values may fill in what
+                the JSON source does not hold.
         """
+        # The constructor shape that `config_as_json` documents is written
+        # out in every example, so that each example can be read on its own.
+        # pylint: disable=duplicate-code
         # The members are assigned before super().__init__() is called.
         # These assignments are both the schema and the default values, and
         # they are the only description of the configuration that exists.
@@ -348,7 +360,8 @@ class FlatConfig(Config):
         self.answer: int = 42
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the validators that refuse and the one that rewrites.

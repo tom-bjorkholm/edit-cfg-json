@@ -10,12 +10,12 @@ for itself, and `loader` is where it says it. Reading a file is also the only
 place the answer is needed: everything the editor does afterwards works on the
 object this produced, by copying it.
 
-Three things can be wrong with an input file, and `config_as_json` reports
-two of them as the same `KeyError`. Which of those two it is follows from
-retrying the load with the declared defaults filling in what the file lacks:
-that rescues a file which is merely incomplete, and it still refuses a key
-the configuration does not declare. So the two are told apart by what the
-retry does and never by reading the text of a message.
+Three things can be wrong with the keys of an input file: a key that is
+missing, a key the configuration does not declare, and a value whose shape
+does not match the declaration. `config_as_json` raises an exception of its
+own type for each, so they are told apart by that type and never by reading
+the text of a message. A missing key is the one that the declared defaults
+can rescue, so it is what makes a load try again with them.
 
 A file whose values a validator refuses cannot be opened either. That is not
 squeamishness: a member validator returns the value that is stored back into
@@ -33,12 +33,14 @@ beside the words for everything else that one load has to report.
 # MIT License
 
 from collections.abc import Iterable, Mapping, Sequence
+from contextlib import suppress
 from enum import Enum, auto
 from io import StringIO
 from pathlib import Path
 from types import MappingProxyType
 from typing import NamedTuple, Optional
-from config_as_json import Config, ConfigBadJson, PathOrStr, RocfChange, \
+from config_as_json import Config, ConfigBadJson, ConfigMissingKey, \
+    ConfigPath, ConfigUnknownKey, ConfigWrongShape, PathOrStr, RocfChange, \
     RocfChangeKind
 from edit_cfg_json.auto_change import FileChanges, file_changes
 from edit_cfg_json.constructing import built_config
@@ -78,12 +80,39 @@ INCOMPLETE = ('This file does not hold every value, and a complete file '
               'is asked for.')
 """Message of the refusal of an incomplete file under a strict policy."""
 
+NOT_FILLABLE = ('This file does not hold every value, and this '
+                'configuration cannot fill in what it lacks.')
+"""Message of the refusal of an incomplete file that defaults cannot rescue.
+
+The policy allowed the declared defaults to fill in what the file lacks, and
+the retry with them still lacked a value. A nested object built by a factory
+that does not accept `ok_to_use_defaults` is what that means in practice, and
+so is a loader that ignores it.
+"""
+
+WRONG_SHAPE = ('This file holds a value whose shape does not match this '
+               'configuration, such as a single value where a list or an '
+               'object is declared.')
+"""Message of the refusal of a file with a value of the wrong JSON shape."""
+
 BAD_VALUES = ('The values in this file are not valid, so it cannot be '
               'opened. Correct the file with a text editor first.')
 """Message of the refusal of a file whose values a validator refuses."""
 
 NO_DEFAULTS = 'The editor cannot construct {name} on its own.'
 """Message of the refusal of a class the editor cannot construct."""
+
+REFUSED_AS: tuple[tuple[type[Exception], str], ...] = (
+    (ConfigBadJson, NOT_CONFIG), (ConfigUnknownKey, UNKNOWN_KEY),
+    (ConfigWrongShape, WRONG_SHAPE), (KeyError, BAD_VALUES),
+    (ValueError, BAD_VALUES))
+"""Message of a refusal, by the type of the failure behind it.
+
+The first type that the failure is an instance of decides, so each subclass
+comes before its base. A plain `KeyError` is not about the keys of the file:
+`config_as_json` raises the types above for those, and a `KeyError` of any
+other kind comes from a validator or a converter refusing a value.
+"""
 
 FILLED_MESSAGE = ('This file did not hold every value. What it left out was '
                   'filled in from the defaults, and is marked.')
@@ -200,7 +229,8 @@ class LoadReport(NamedTuple):
 
     These are the members the input file did not hold. The model marks the
     row of each of them, so the user can see which values are not the ones
-    the file asked for.
+    the file asked for. A value the file left out of a nested object or a
+    dict is not here but in `filled_paths`, which holds these as well.
     """
 
     reasons: Mapping[str, str] = MappingProxyType({})
@@ -213,6 +243,16 @@ class LoadReport(NamedTuple):
     can be seen to be one, and the text says which of those things happened
     wherever the load recorded it. A member the declared defaults filled in is
     not here but in `filled`, which says the same thing more precisely.
+    """
+
+    filled_paths: frozenset[ConfigPath] = frozenset()
+    """Paths of the values the declared defaults supplied, at every depth.
+
+    A path names the outermost value the input file did not hold: a member
+    it left out altogether is one path, and a value it left out of a nested
+    object or a dict is a path into that member. The model marks the row at
+    each of them, so the user can see which values are not the ones the file
+    asked for.
     """
 
 
@@ -282,10 +322,10 @@ def _type_refusal(source: ConfigSource, said: StringIO,
 
     It can mean two quite different things: a configuration this editor cannot
     construct at all, and a value of the file that is of a type the class
-    refuses. The two are told apart the same way the two kinds of `KeyError`
-    are, by trying the construction that answers it — here a construction with
-    no file at all, which succeeds for a class whose own values are fine and
-    fails for one that needs an argument nobody has.
+    refuses. The two are told apart by trying the construction that answers
+    it, which is a construction with no file at all: it succeeds for a class
+    whose own values are fine and fails for one that needs an argument nobody
+    has.
 
     Args:
         source: Configuration being loaded, and how it is constructed.
@@ -306,10 +346,10 @@ def _attempt(source: ConfigSource, text: str, ok_to_use_defaults: bool,
              said: StringIO) -> Config:
     """Try once to build one configuration object from one file text.
 
-    The stream is the caller's, because a key that does not match is
-    reported to the caller and what was said about it is needed there. What
-    the load recorded about the file needs no such passing on: it is held by
-    the configuration object that the load produced.
+    The stream is the caller's, because a missing key is reported to the
+    caller and what was said about it is needed there. What the load recorded
+    about the file needs no such passing on: it is held by the configuration
+    object that the load produced.
 
     Args:
         source: Configuration being loaded, and how it is constructed.
@@ -322,22 +362,35 @@ def _attempt(source: ConfigSource, text: str, ok_to_use_defaults: bool,
         A configuration object holding the values of the file.
 
     Raises:
-        KeyError: The keys of the file do not match the declared members.
+        ConfigMissingKey: The file does not hold a key that is required.
         ConfigLoadError: The file cannot be opened for editing.
     """
     try:
         return source.made(stream=said, text=text,
                            ok_to_use_defaults=ok_to_use_defaults)
-    except ConfigBadJson as error:
-        raise ConfigLoadError(NOT_CONFIG,
-                              _explained(said=said, error=error)) from error
+    except ConfigMissingKey:
+        raise
     except AttributeError as error:
         raise _no_defaults(source=source, said=said, error=error) from error
     except TypeError as error:
         raise _type_refusal(source=source, said=said, error=error) from error
-    except ValueError as error:
-        raise ConfigLoadError(BAD_VALUES,
+    except (KeyError, ValueError) as error:
+        raise ConfigLoadError(_refused_as(error),
                               _explained(said=said, error=error)) from error
+
+
+def _refused_as(error: Exception) -> str:
+    """Return the message of the refusal that one failure amounts to.
+
+    Args:
+        error: The failure that the load reported, a `KeyError` or a
+            `ValueError` of some kind.
+
+    Returns:
+        The message that `REFUSED_AS` gives the type of that failure.
+    """
+    return next(message for kind, message in REFUSED_AS
+                if isinstance(error, kind))
 
 
 def _named(names: Iterable[str]) -> str:
@@ -435,8 +488,7 @@ def _reasons(changes: FileChanges) -> dict[str, str]:
             if name not in changes.filled}
 
 
-def _report(config: Config, text: str, said: str,
-            permissive: bool) -> LoadReport:
+def _report(config: Config, text: str, said: str) -> LoadReport:
     """Return what one load did beyond reading the values of its file.
 
     The order of what is said follows the order in which it happened: what the
@@ -447,17 +499,16 @@ def _report(config: Config, text: str, said: str,
         config: Configuration object that the load built.
         text: The whole text of the input file.
         said: What the configuration class said about the file.
-        permissive: Whether the load was allowed to fill in what the file
-            left out.
 
     Returns:
         The report of one load.
     """
-    changes = file_changes(config=config, text=text, permissive=permissive)
-    lines = [FILLED_MESSAGE if changes.filled else ''] + \
+    changes = file_changes(config=config, text=text)
+    lines = [FILLED_MESSAGE if changes.filled_paths else ''] + \
         _change_lines(changes) + [said.strip()]
     return LoadReport(message='\n'.join(line for line in lines if line),
-                      filled=changes.filled, reasons=_reasons(changes))
+                      filled=changes.filled, reasons=_reasons(changes),
+                      filled_paths=changes.filled_paths)
 
 
 def _permissive(source: ConfigSource, text: str) -> LoadedConfig:
@@ -466,7 +517,9 @@ def _permissive(source: ConfigSource, text: str) -> LoadedConfig:
     A key the configuration does not declare is still refused, because
     filling in governs the keys that are missing and nothing else. Dropping
     an unknown key would lose whatever the file meant by it, and such a file
-    is either from a newer version or has a misspelled key in it.
+    is either from a newer version or has a misspelled key in it. A key that
+    is still missing is refused as well, because something in this
+    configuration did not fill it in.
 
     Args:
         source: Configuration being loaded, and how it is constructed.
@@ -482,24 +535,24 @@ def _permissive(source: ConfigSource, text: str) -> LoadedConfig:
     try:
         config = _attempt(source=source, text=text, said=said,
                           ok_to_use_defaults=True)
-    except KeyError as error:
-        raise ConfigLoadError(UNKNOWN_KEY,
+    except ConfigMissingKey as error:
+        raise ConfigLoadError(NOT_FILLABLE,
                               _explained(said=said, error=error)) from error
     return LoadedConfig(config=config,
                         report=_report(config=config, text=text,
-                                       said=said.getvalue(), permissive=True))
+                                       said=said.getvalue()))
 
 
 def _rescue(source: ConfigSource, text: str, policy: LoadPolicy,
             said: str) -> LoadedConfig:
-    """Retry a load that the keys of the file made fail.
+    """Retry a load that failed because the file lacks a key.
 
-    The retry is what tells the two failures apart that `check_key_match`
-    reports as the same `KeyError`. A retry that succeeds says the file was
-    incomplete, and a retry that fails again says the file holds a key that
-    is not declared here. An incomplete file is opened under
-    `STRICT_THEN_DEFAULTS` and refused under `STRICT`, which is the whole
-    difference between those two policies.
+    An incomplete file is opened under `STRICT_THEN_DEFAULTS` and refused
+    under `STRICT`, which is the whole difference between those two policies.
+    The retry happens under `STRICT` as well, because `config_as_json` checks
+    for a missing key before it checks for an unknown one: a file that also
+    holds a key not declared here is refused for that key, which is the worse
+    of its two faults and the one that no policy can rescue.
 
     Args:
         source: Configuration being loaded, and how it is constructed.
@@ -513,10 +566,12 @@ def _rescue(source: ConfigSource, text: str, policy: LoadPolicy,
     Raises:
         ConfigLoadError: The file cannot be opened for editing.
     """
-    rescued = _permissive(source=source, text=text)
-    if policy is LoadPolicy.STRICT:
-        raise ConfigLoadError(INCOMPLETE, said)
-    return rescued
+    if policy is not LoadPolicy.STRICT:
+        return _permissive(source=source, text=text)
+    with suppress(ConfigMissingKey):
+        _attempt(source=source, text=text, said=StringIO(),
+                 ok_to_use_defaults=True)
+    raise ConfigLoadError(INCOMPLETE, said)
 
 
 def _load_text(source: ConfigSource, text: str,
@@ -540,12 +595,12 @@ def _load_text(source: ConfigSource, text: str,
     try:
         config = _attempt(source=source, text=text, said=said,
                           ok_to_use_defaults=False)
-    except KeyError:
+    except ConfigMissingKey:
         return _rescue(source=source, text=text, policy=policy,
                        said=said.getvalue())
     return LoadedConfig(config=config,
                         report=_report(config=config, text=text,
-                                       permissive=False, said=said.getvalue()))
+                                       said=said.getvalue()))
 
 
 def default_config(config_type: type[Config]) -> Config:

@@ -9,6 +9,10 @@ it `from_json_text`. Nothing is ever passed under either name but `None`, and a
 class that declares the parameter without a default of its own has to be given
 that.
 
+The values of an input file need one as well. A constructor that takes the
+load policy is given the text of the file with it, and any other class is
+constructed holding its declared values and given the text afterwards.
+
 An object holding an edit buffer is the other, and it is a copy of an object
 the editor already has with `Config.parse_json` applied to it. These tests are
 about what that runs, because it is what makes a class the editor cannot
@@ -20,14 +24,18 @@ unreachable.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Callable
 from io import StringIO
 from typing import Optional, TextIO
 import json
 import pytest
-from config_as_json import Config, ConfigAutoChangeHook, ValidationPlan
-from edit_cfg_json.constructing import built_config, parsed_config
-from .sample_cfg import AltNameCfg, ExtraArgCfg, FlatCfg, HookCfg, \
-    NoKeywordCfg, NoStreamCfg, NoTextCfg, RangeCfg
+from config_as_json import Config, ConfigAutoChangeHook, ConfigMissingKey, \
+    ValidationPlan
+from edit_cfg_json.constructing import built_config, parsed_config, \
+    read_config
+from .defaults_cfg import BadDefaultCfg, defaults_only
+from .sample_cfg import AltNameCfg, CountedCfg, ExtraArgCfg, FlatCfg, \
+    HookCfg, NoKeywordCfg, NoStreamCfg, NoTextCfg, RangeCfg, VALIDATOR_RUNS
 
 
 @pytest.mark.parametrize('config_type,name,answer',
@@ -140,3 +148,54 @@ def test_real_plan_reachable() -> None:
                            method=_no_plan)
     assert type(parsed).get_validation_plan(parsed, stderr_file=StringIO())
     assert not parsed.get_validation_plan(stderr_file=StringIO())
+
+
+@pytest.mark.parametrize('factory,passes', [(CountedCfg, 1),
+                                            (defaults_only(CountedCfg), 2)])
+def test_read_validations(factory: Callable[..., Config], passes: int) -> None:
+    """Test a constructor that takes the policy validates only the text.
+
+    The other way of reading a text validates the declared values first, on
+    their own, and the values of the text afterwards.
+    """
+    VALIDATOR_RUNS.clear()
+    read_config(factory, json.dumps({'name': 'n', 'answer': 1}),
+                stream=StringIO(), ok_to_use_defaults=False)
+    assert VALIDATOR_RUNS == ['name', 'answer'] * passes
+
+
+@pytest.mark.parametrize('permissive', [False, True])
+def test_bad_defaults_read(permissive: bool) -> None:
+    """Test a class whose declared values are refused can read a text."""
+    config = read_config(BadDefaultCfg, json.dumps({'answer': 5}),
+                         stream=StringIO(), ok_to_use_defaults=permissive)
+    assert getattr(config, 'answer') == 5
+
+
+def test_bad_defaults_refused() -> None:
+    """Test a class refusing its declared values is refused the other way."""
+    with pytest.raises(ValueError):
+        read_config(defaults_only(BadDefaultCfg), json.dumps({'answer': 5}),
+                    stream=StringIO(), ok_to_use_defaults=False)
+
+
+@pytest.mark.parametrize('factory', [FlatCfg, defaults_only(FlatCfg),
+                                     AltNameCfg])
+def test_read_keeps_defaults(factory: Callable[..., Config]) -> None:
+    """Test both ways fill in what the text lacks and say what they kept.
+
+    `AltNameCfg` names its text its own way and does not take the policy, so
+    it is constructed first and given the text afterwards.
+    """
+    config = read_config(factory, json.dumps({'name': 'partial'}),
+                         stream=StringIO(), ok_to_use_defaults=True)
+    assert getattr(config, 'name') == 'partial'
+    assert config.kept_value_paths() == [('answer',)]
+
+
+@pytest.mark.parametrize('factory', [FlatCfg, defaults_only(FlatCfg)])
+def test_read_strict(factory: Callable[..., Config]) -> None:
+    """Test both ways refuse a text that lacks a value under a strict load."""
+    with pytest.raises(ConfigMissingKey):
+        read_config(factory, json.dumps({'name': 'partial'}),
+                    stream=StringIO(), ok_to_use_defaults=False)

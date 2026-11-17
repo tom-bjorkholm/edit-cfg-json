@@ -16,7 +16,8 @@ from pathlib import Path
 import json
 import sys
 import pytest
-from config_as_json import InvalidConfiguration
+from config_as_json import ConfigMissingKey, ConfigUnknownKey, \
+    InvalidConfiguration
 from edit_cfg_json import ActionSettings, EditModel, SETTINGS_DESCRIPTIONS, \
     Settings, SettingsConfig, declared_actions, described_below, \
     model_as_text, row_description
@@ -128,8 +129,8 @@ def test_partial_file() -> None:
 
     A settings file is written by hand to change one or two things, and the
     `actions` member is the one where that is not free: it is one dict, and a
-    file naming one action would leave the editor holding that one alone
-    without the validator that completes it.
+    load that may use the declared defaults fills in each action that the file
+    does not name.
     """
     config = _parsed('{"actions": {"save": ["ctrl+w"]}, "backup_count": 4}')
     assert config.backup_count == 4
@@ -183,7 +184,7 @@ def test_unknown_action() -> None:
     against the keys its class declares while the file is parsed, so a
     misspelled action name is a mistake reported where it was made.
     """
-    with pytest.raises(KeyError):
+    with pytest.raises(ConfigUnknownKey):
         _parsed('{"actions": {"quitt": ["ctrl+w"]}}')
 
 
@@ -334,9 +335,10 @@ def test_reads_old_shape() -> None:
     """Test a file of an earlier release of the editor is read.
 
     The keys of a dict member are matched against the ones the class declares
-    before any validator of the class is asked anything, and that happens
-    whatever policy the parse was given. So without rules for an older file
-    every settings file written before an action existed would be refused.
+    before any validator of the class is asked anything, and a strict parse
+    refuses a file that lacks one of them. So without rules for an older file
+    a strict parse would refuse every settings file written before an action
+    existed.
     """
     config = SettingsConfig()
     config.parse_json(_old_shape_text(), ok_to_use_defaults=False,
@@ -376,17 +378,38 @@ def test_named_action_kept() -> None:
 def test_other_gaps_refused() -> None:
     """Test the rules rescue an older file and no other incomplete one.
 
-    They supply two entries of one member, so a file that leaves a member out
-    is refused as it was before they existed. That is what keeps a settings
-    block inside an application's own configuration read whole.
+    They supply what an earlier release did not write, so a strict parse of
+    a file that leaves another member out is refused as it was before they
+    existed.
     """
     data = json.loads(_old_shape_text())
     assert isinstance(data, dict)
     del data['file_extension']
     text = json.dumps(data)
-    with pytest.raises(KeyError):
+    with pytest.raises(ConfigMissingKey):
         SettingsConfig().parse_json(text, ok_to_use_defaults=False,
                                     stderr_file=sys.stderr)
+
+
+def test_policy_taken() -> None:
+    """Test the constructor takes the load policy and passes it on.
+
+    A file that names one action and one setting is completed from what the
+    editor declares, and the values it left out are the ones kept.
+    """
+    config = SettingsConfig('{"actions": {"save": ["ctrl+w"]}}',
+                            stderr_file=StringIO(), ok_to_use_defaults=True)
+    kept = config.kept_value_paths()
+    assert config.actions['quit'] == list(ActionSettings().quit)
+    assert ('backup_count',) in kept
+    assert ('actions', 'quit') in kept
+    assert ('actions', 'save') not in kept
+
+
+def test_strict_by_default() -> None:
+    """Test the constructor reads strictly when it is not told otherwise."""
+    with pytest.raises(ConfigMissingKey):
+        SettingsConfig('{"backup_count": 4}', stderr_file=StringIO())
 
 
 @pytest.mark.parametrize('given', ['{}', '{"tk": 0}',

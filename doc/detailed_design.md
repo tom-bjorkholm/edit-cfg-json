@@ -507,7 +507,8 @@ cannot drift:
 - **changed by validator** — set when a validation pass rewrote the
   value, cleared when the user next edits that field
 - **filled from default** — set when a permissive load supplied a value
-  the input file did not contain
+  the input file did not contain, at whatever depth: a member, a value inside
+  a nested object, or a key of a dict
 - **changed by the load** — what reading the input file did to this value
   (section 5.3). It is text rather than a flag, because the load records which
   rule put the value there and at which older key it found it, and a member
@@ -1562,13 +1563,20 @@ it does too, and inside an editor that would cost the user the whole session.
 Every call the editor makes to a loader goes through one function, which turns
 `SystemExit` into the `ValueError` every caller already reports.
 
-**`Config.__init__` takes no `ok_to_use_defaults`.** Confirmed against the
-implementation of `config_as_json`: the parameter belongs to
-`Config.parse_json()` and `Config.read()`, and `__init__` calls both with the
-default `False`. So the derived loader has one path for both policies:
-construct the class with no JSON source, which leaves it holding its declared
-defaults, then call `parse_json()` with the `ok_to_use_defaults` the policy
-asks for.
+**The derived loader hands the text to a constructor that takes the policy.**
+Since `config_as_json` 1.9, `Config.__init__` takes a keyword-only
+`ok_to_use_defaults`, and `config_as_json` recommends that a derived class
+accept it and pass it on. A constructor that declares it and a JSON text
+parameter is called with the text and the policy, so the class validates once,
+on the values of the file. That is worth having: the validation of a class may
+be costly, and a class whose declared values are not valid on their own can
+then read a file. Any other class is constructed with no JSON source, which
+leaves it holding its declared defaults, and `parse_json()` is then called
+with the `ok_to_use_defaults` the policy asks for. That is the same rule
+`config_as_json` follows for the nested objects it constructs. The signature is
+read rather than guessed, as for every other parameter (principle 4), so a
+constructor that takes the policy only through `**kwargs` is given the second
+path, which works for every class.
 
 The editor also reads the file itself rather than passing a file name to
 `Config.read()`, which calls `file_must_exist()` and so ends the process with
@@ -1597,18 +1605,32 @@ class LoadPolicy(Enum):
 application can override, because whether a partially specified file is
 acceptable is an application decision.
 
-**The retry rescues only one of two failures.** `ok_to_use_defaults` governs
-*missing* keys only, while `Config.check_key_match()` raises `KeyError` both
-for a missing required key and for an **unknown** key in the file. The retry
-does not help the second case and should not: an unknown key is a typo or a
-file from a newer version, and discarding it would lose data.
+**Only a missing key is retried.** `ok_to_use_defaults` governs *missing*
+keys only, at every depth, nested objects and checked dicts included.
+`config_as_json` raises an exception of its own type for each fault of the keys
+of a file: `ConfigMissingKey`, `ConfigUnknownKey` and `ConfigWrongShape`, all
+three of them `KeyError` subclasses. The failure is classified by that type,
+and no diagnostic text is ever read to classify it, so the classification is
+unaffected by ROCF renaming a key before the check runs. A retry does not help
+an unknown key and should not: an unknown key is a typo or a file from a newer
+version, and discarding it would lose data.
 
-**That is also how the two are told apart.** A retry that succeeds says the
-file was merely incomplete, and a retry that raises `KeyError` again says there
-is an unknown key. No diagnostic text is read to classify a failure, so the
-classification is unaffected by ROCF renaming a key before the check runs.
-`STRICT` runs the retry as well, because it needs the same distinction to pick
-a message; there the retry never opens the file.
+**`STRICT` runs the retry as well**, because `config_as_json` checks for a
+missing key before it checks for an unknown one: a file that lacks a key and
+also holds an unknown one is refused for the unknown key, which is the worse
+of its two faults and the one no policy can rescue. There the retry never
+opens the file.
+
+**A retry can still lack a key.** A nested object built by a
+`factory_function` that does not accept `ok_to_use_defaults` is read strictly,
+and so is a loader that ignores the policy. Such a file is refused with a
+message of its own, rather than one saying that the file holds a key this
+configuration does not have.
+
+**A plain `KeyError` is a refused value.** `config_as_json` raises the three
+types above for the keys of a file, so a `KeyError` of any other kind comes
+from a validator or a converter, and it is reported as values the class
+refuses.
 
 The outcomes, each with a message of its own:
 
@@ -1617,6 +1639,10 @@ The outcomes, each with a message of its own:
   `STRICT` the same file is refused, with its own wording.
 - unknown key → "your file contains a key I do not recognise"; the file
   cannot be opened
+- a value of the wrong JSON shape, such as a single value where a list or an
+  object is declared → the file cannot be opened
+- missing keys that the retry cannot fill in → the file cannot be opened, and
+  the message says that the configuration cannot fill in what the file lacks
 - `ConfigBadJson` → the file cannot be read as configuration. This covers text
   that is not JSON *and* JSON whose values cannot be converted, an enum name
   that names no member being the case that arises in practice, since
@@ -1637,15 +1663,17 @@ The outcomes, each with a message of its own:
   message names the class. Such an application supplies the explicit loader of
   section 5.1 instead.
 
-The per-field *filled from default* flag is what the key check of the parse was
-not given. A load that was allowed to use defaults cannot be asked afterwards,
-and the keys of the file do not answer it either, because ROCF may have renamed
-a key into a member and the flag would then claim that a renamed member had
-been filled in from a default. So the parse is asked, by a copy of the loaded
-object whose `check_key_match` records what it was given and stops the parse
-there — the same borrowing as section 6.3. Stopping is what keeps the
-application's own validators running once, on the object that is really being
-edited.
+The per-field *filled from default* flag is what `Config.kept_value_paths()`
+of the loaded object answers. It names each value that the parse kept because
+the file lacked it, at every depth, by the outermost absent key. The keys of
+the file do not answer it, because ROCF may have renamed a key into a member
+and the flag would then claim that a renamed member had been filled in from a
+default; a value ROCF supplied is not a kept value either. Asking the loaded
+object parses nothing again, so the application's own validators run once, on
+the object that is really being edited. `LoadReport.filled_paths` carries the
+paths, and `LoadReport.filled` keeps its meaning: the members the file left
+out altogether. A row is marked when either of them names it, so a report built
+with names only still marks its members.
 
 ### 5.3 Making automatic changes visible
 
@@ -1853,8 +1881,7 @@ one copy rather than a throwaway subclass, for two reasons: it works for a
 class the editor cannot construct, which a subclass does not, and it leaves the
 real method where the walk needs it. `parse_json` does not mistake the
 replacement for a member, because it counts the attributes that are not
-callable. The same borrowing answers what the declared defaults filled in
-(section 5.2), with the key check left out instead.
+callable.
 
 **The walk differs from `Config.validate()` in two deliberate ways.** A refused
 member is recorded and the walk goes on, so every member the user has to
@@ -3107,13 +3134,18 @@ while a `--ui` name belongs to whatever packages happen to be installed. The
 shape of the value is still checked, so a file with text where a table belongs
 is refused.
 
-**The key combinations are a dict member and not a nested object.**
-`config_as_json` reads a nested configuration object whole — without the
-permissive flag of the parse around it — so every settings file would then have
-had to name every action. A dict member is filled in per key instead, its keys
-are checked against the ones the class declares, which is the same protection
-against a misspelled action name that section 9.1 gets from one attribute per
-action, and a member validator completes what a file left out.
+**The key combinations are a dict member.** Its keys are checked against the
+ones the class declares, which is the same protection against a misspelled
+action name that section 9.1 gets from one attribute per action, and a load
+that may use the declared defaults fills in each action a file left out. A
+member validator completes a value that did not come from such a load, which
+is a value assigned by hand.
+
+**`SettingsConfig` takes `ok_to_use_defaults`** and passes it on, as
+`config_as_json` recommends, so it is read in one step wherever it is
+constructed from a file: by `load_settings`, and by `config_as_json` for a
+block inside an application's configuration that the configuration did not
+hold an object for already.
 
 **Nothing here restates what a valid setting is.** Each member validator hands
 the value to what `Settings` and `ActionSettings` already say — principle 1 of
@@ -3169,14 +3201,14 @@ format**, and so is a setting added to `Settings` and any other change to what
 `SettingsConfig` declares.
 `config_as_json` matches the keys of a dict member against the ones the class
 declares while the file is parsed, before any validator of that class is asked
-anything, and it does so whatever policy the load was given. So every settings
-file written before that action existed is refused — and an application that
-declares `SettingsConfig` as one member of its own configuration is refused
-whatever policy *it* chose, because a nested configuration object is read whole
-(section 9.8). Such an application fails to start over a key of the editor it
-embeds, and the refusal names the wrong fault, because a missing declared key
-and an undeclared key of the file are told apart by retrying the load and the
-retry fails as well (section 5.2).
+anything, and a strict load refuses a file that lacks one of them. A load that
+may use the declared defaults fills them in instead, at every depth, so a
+settings block inside an application's configuration is completed exactly like
+a settings file of its own. But an application that declares `SettingsConfig`
+as one member of its own configuration and loads strictly refuses every file
+written before that action existed. Such an application fails to start over a
+key of the editor it embeds, and even a permissive load would mark as filled
+in what an older version simply did not write.
 
 **So each such change is accompanied by a rule for reading the older file**,
 which is `config_as_json`'s Read Old Configuration File support and is what
@@ -3190,10 +3222,10 @@ things hold for those rules.
   that has always existed would accept a file no version ever produced, and
   would hide a key or a setting that somebody removed by hand.
 - **A member added to the class needs the same rule as an action**, and for the
-  neighbouring reason: a member `SettingsConfig` declares has to be there at
-  all, and it is asked for whatever policy the parse was given, because a
-  nested configuration object is read whole. `ADDED_SETTINGS` is to a member
-  what `ADDED_ACTIONS` is to a key of `actions`.
+  neighbouring reason: a strict load refuses a file that does not hold a member
+  `SettingsConfig` declares, at whatever depth the settings are.
+  `ADDED_SETTINGS` is to a member what `ADDED_ACTIONS` is to a key of
+  `actions`.
 - **What is supplied is read from `Settings` and `ActionSettings` and not
   written again**, for the same reason the declared values of the class are
   (section 9.8): the default of a setting is stated once.
@@ -3202,8 +3234,9 @@ things hold for those rules.
   holding those entries. That is harmless, and deliberately not guarded
   against: a settings file is written by `--edit-settings` saving one, which
   writes every member and every action, so a file without that member is not a
-  file any version wrote. Such a file is still refused, because the key check
-  then asks for the actions the rules say nothing about.
+  file any version wrote. A strict load still refuses such a file, because the
+  key check then asks for the actions the rules say nothing about, and a load
+  that may use the declared defaults fills those in.
 
 **A run that needed such a rule says so.** `load_settings` names the file the
 lookup used and asks for it to be opened with `--edit-settings` and saved,

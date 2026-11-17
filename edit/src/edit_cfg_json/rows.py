@@ -154,13 +154,14 @@ class MemberRow(NamedTuple):
     """Whether the declared defaults supplied this value.
 
     It is set when a load that was allowed to use the defaults filled in a
-    member the input file did not hold, and it stays set for the rest of the
+    value the input file did not hold, and it stays set for the rest of the
     session: that the file did not hold this value remains true whatever the
     user then types into it. It belongs to the model for the same reason as
     the flag above, so that two backends cannot show it differently.
 
-    Only a member of the configuration carries it, because the declared
-    defaults supply a whole member and never one value inside one.
+    The defaults fill in a value at whatever depth the file lacks it, so a
+    value inside a nested object or a dict carries it as well as a member
+    of the configuration does.
     """
 
     load_reason: str = ''
@@ -671,14 +672,35 @@ def _rewritten(was: Optional[MemberRow], value: JsonType,
     return was.changed_by_validator or values_differ(value, was.value)
 
 
+def _filled(path: ConfigPath, report: LoadReport) -> bool:
+    """Return whether the declared defaults supplied the value at one path.
+
+    A report names that in two ways, and either of them is enough: by the
+    name of a member the file left out altogether, and by the path of a
+    value at any depth. A report made with names only, which is what there
+    was before paths, still marks its members.
+
+    Args:
+        path: Path that addresses the node.
+        report: What the load of the input file did.
+
+    Returns:
+        Whether the row at that path is marked as filled in.
+    """
+    named = len(path) == 1 and path[0] in report.filled
+    return named or path in report.filled_paths
+
+
 def _row_of(path: ConfigPath, value: JsonType, context: RowContext,
             previous: Mapping[ConfigPath, MemberRow]) -> MemberRow:
     """Return the row of one node of one configuration.
 
-    What the load did is looked up by the name of a member of the
+    Why the load changed a value is looked up by the name of a member of the
     configuration, because that is what the load recorded it for: a record
     about a value inside a member is a record about that member, and a member
-    of a nested configuration object is inside the member that holds it.
+    of a nested configuration object is inside the member that holds it. What
+    the declared defaults filled in is looked up by the path itself, because
+    the load knows that at every depth.
 
     Args:
         path: Path that addresses the node.
@@ -703,7 +725,7 @@ def _row_of(path: ConfigPath, value: JsonType, context: RowContext,
                                         refreshing=context.refreshing),
         offer=context.offers[path], types=facts.types.get(path, ()),
         nothing_allowed=path in facts.nothing, held=facts.held.get(path),
-        filled_from_default=member in context.report.filled,
+        filled_from_default=_filled(path=path, report=context.report),
         load_reason=context.report.reasons.get(member, ''),
         description=member_description(
             descriptions=context.descriptions, path=path,

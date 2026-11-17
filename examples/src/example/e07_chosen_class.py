@@ -145,11 +145,15 @@ class CadConfig(Config):
     FINEST_GRID: float = FINEST_DRAWING_GRID
     """Finest grid this mode allows, which the subclasses answer."""
 
+    # The constructor shape that `config_as_json` documents has five
+    # arguments, and the hook makes it six. The number is not a choice.
+    # pylint: disable-next=too-many-arguments
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None, *,
+                 ok_to_use_defaults: bool = False) -> None:
         """Initialize the configuration of one mode.
 
         Args:
@@ -160,6 +164,8 @@ class CadConfig(Config):
             member_name: Path for reaching this object from the top level
                 configuration, so that a diagnostic about a value inside it
                 names the whole path. None for the top level itself.
+            ok_to_use_defaults: Whether the default values may fill in what
+                the JSON source does not hold.
         """
         # The constructor shape that `config_as_json` documents is the same
         # in every configuration class, so two examples declaring it are two
@@ -173,7 +179,8 @@ class CadConfig(Config):
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
-                         member_name=member_name)
+                         member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the rules of this mode, one of which the subclass says.
@@ -262,11 +269,12 @@ def chosen_config(*, from_json_data_text: Optional[str] = None,
     """Construct the configuration class that the JSON selects.
 
     This is an `edit_cfg_json.ConfigLoader` written out, and the four keyword
-    arguments are the whole of the protocol. One of them is what makes it more
-    than `config_as_json.ConfigFactory`: the policy for members a file leaves
-    out. That is also why a configuration is constructed and the JSON is
-    applied to it afterwards rather than being handed to the constructor —
-    `Config.__init__` takes no `ok_to_use_defaults`.
+    arguments are the whole of the protocol. They are those of
+    `config_as_json.ConfigFactory` without `member_name`, which only a nested
+    object needs. One of them is the policy for members a file leaves out,
+    and both classes below take it in their constructors, so the JSON text
+    and the policy are handed to the constructor together and each class
+    validates once, on the values of the file.
 
     Args:
         from_json_data_text: JSON text to apply, or None for the values that

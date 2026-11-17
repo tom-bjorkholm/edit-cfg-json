@@ -65,21 +65,23 @@ way the editor opens, which makes this the one place where a pull-down decides
 whether there are pull-downs: changing it changes the *next* run, exactly as
 changing a key here does, for the reason the section below gives.
 
-## A block inside a file is not the same as a file
+## A block inside a file and a file of its own
 
 A **settings file** of its own may name one thing and leave the rest out, and
 the editor still shows every setting there is. A settings **block inside
-another configuration** may not: `config_as_json` reads a nested configuration
-object whole, whatever policy the parse around it was given, so the `editor`
-block of `e17_tool.json` holds every member of `SettingsConfig` and a file
-that left one of them out would be refused with *No value for* that member *in
-JSON data*. That is why the data file of this example is as long as it is, and
-it is a fact about nested configuration objects rather than about this class —
-example 9 is where that is taught.
+another configuration** may do the same whenever the policy lets the declared
+values fill in what a file leaves out, which is what the default policy
+`strict-then-defaults` and the policy `defaults` both do: `config_as_json`
+completes a nested configuration object from the values it already holds,
+exactly as it completes the configuration around it. The editor then marks
+each value that the block left out as filled in. Under `--policy strict` the
+block has to hold every member of `SettingsConfig`, and a file that left one of
+them out is refused with *No value for* that member *in JSON data*. That is a
+fact about nested configuration objects rather than about this class — example
+9 is where nested objects are taught.
 
-An application that wants its user to name one setting and no more therefore
-keeps the settings in a file of their own and reads them with
-`edit_cfg_json.load_settings`, which is what the two editor programs do.
+The `editor` block of `e17_tool.json` holds every member, so that it opens
+with every value from the file and nothing marked, whatever the policy is.
 
 ## A block that an older version of the editor wrote
 
@@ -87,12 +89,12 @@ Read the two paragraphs above together and something follows that this example
 is the place to show: **anything added to the settings of the editor is a
 change of this file format**. The keys of `actions` are matched against the
 ones `SettingsConfig` declares and a member it declares has to be there at all,
-both of them happen whatever policy the parse was given, and `find`,
+a strict load refuses a block that lacks either of them, and `find`,
 `find_next`, `choose` and `choose_values` did not exist in the first release.
 So an `editor` block written before them holds seven actions where the class
 now declares ten and leaves one member out altogether, and without something
-being done about it this whole application would refuse to start over the keys
-and the settings of the editor it embeds.
+being done about it a strict load of this whole application would refuse to
+start over the keys and the settings of the editor it embeds.
 
 `SettingsConfig` declares rules for reading such a file, which is
 `config_as_json`'s Read Old Configuration File support and is what example 5
@@ -201,7 +203,8 @@ class ToolConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None, *,
+                 ok_to_use_defaults: bool = False) -> None:
         """Initialize the configuration with its default values.
 
         Args:
@@ -211,6 +214,8 @@ class ToolConfig(Config):
             member_name: Path for reaching this object from the top level
                 configuration, so that a diagnostic about a value inside it
                 names the whole path. None for the top level itself.
+            ok_to_use_defaults: Whether the default values may fill in what
+                the JSON source does not hold.
         """
         self.report_folder: str = '/var/lib/tool/reports'
         self.verbose: bool = False
@@ -221,7 +226,8 @@ class ToolConfig(Config):
         self.editor: SettingsConfig = SettingsConfig()
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def nested_configs(self) -> NestedConfigs:
         """Return the one member of this class that holds a nested object.

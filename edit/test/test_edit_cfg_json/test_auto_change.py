@@ -25,7 +25,7 @@ from config_as_json import Config, ConfigAutoChangeHook, RocfChange, \
     RocfChangeKind
 from edit_cfg_json import EditModel, LoadPolicy, LoadedConfig, load_config, \
     model_as_text, row_marks
-from edit_cfg_json.auto_change import FileChanges, _filled
+from edit_cfg_json.auto_change import FileChanges
 from edit_cfg_json.loading import AUTO_CHANGED, DEFAULT_POLICY, DROPPED_FORM, \
     FILLED_MESSAGE, MORE_REASONS_FORM, NORMALIZED_REASON, REASON_FORMS, \
     SUPPLIED_FORM
@@ -121,6 +121,7 @@ def _dropped(names: str) -> str:
 
 @pytest.mark.parametrize('changes, anything', [
     (FileChanges(), False),
+    (FileChanges(filled_paths=frozenset({('name',)})), False),
     (FileChanges(dropped=frozenset({DROPPED_KEY})), True),
     (FileChanges(changed=frozenset({'name'})), True),
     (FileChanges(reasons={'name': ()}), True),
@@ -245,18 +246,6 @@ def test_unplaced_no_value(tmp_path: Path) -> None:
     assert SUPPLIED_FORM.format(names='note') in model.load_message
     assert SUPPLIED_NOTE not in model.load_message
     assert AUTO_CHANGED in model.load_message
-
-
-def test_filled_needs_keys() -> None:
-    """Test a text the class cannot parse claims no filled-in member.
-
-    A load has already read the text by the time this is asked, so a parse
-    that fails before the key check is a state that no load reaches. The
-    answer is a mark that is not claimed rather than an exception, because
-    every member of such a load is reported as one the load changed instead,
-    which is true of it as well and says less.
-    """
-    assert _filled(FlatCfg(), '[]') == frozenset()
 
 
 def test_several_records(tmp_path: Path) -> None:
@@ -426,11 +415,10 @@ def test_older_and_incomplete(builder: Callable[[], Config],
 def test_filling_is_cheap(tmp_path: Path) -> None:
     """Test that asking what the defaults filled in validates nothing.
 
-    Which members the declared defaults supplied is answered by a second parse
-    of the same text, and that parse is stopped at the key check that answers
-    it. Everything after that check is what the load has already done, so a
-    file that needed the defaults costs the application's own validators
-    exactly what a complete file costs them and nothing more.
+    Which values the declared defaults supplied is asked of the loaded object,
+    which recorded it while it was parsed. So a file that needed the defaults
+    costs the application's own validators exactly what a complete file costs
+    them and nothing more.
     """
     VALIDATOR_RUNS.clear()
     _loaded(CountedCfg(), tmp_path, {'name': 'a name', 'answer': 1})
@@ -443,10 +431,9 @@ def test_filling_is_cheap(tmp_path: Path) -> None:
 def test_records_survive(tmp_path: Path) -> None:
     """Test the records of the load are the load's own and not a later parse.
 
-    Asking what the declared defaults filled in parses the same text again, and
-    a parse clears the hook it records into before it starts. It is a copy of
-    the configuration object that parses, so it is a copy of the hook that is
-    cleared, and what the load recorded is still there to be read afterwards.
+    Asking what the declared defaults filled in parses nothing again, and
+    neither does anything else the report asks, so what the load recorded is
+    still there to be read afterwards.
     """
     loaded = _loaded(OldKeyHookCfg(), tmp_path, {DROPPED_KEY: False},
                      LoadPolicy.DEFAULTS)

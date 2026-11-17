@@ -22,6 +22,8 @@ from pathlib import Path
 import json
 import pytest
 from edit_cfg_json import SETTINGS_DESCRIPTIONS, Settings, described_below
+from edit_cfg_json.loading import FILLED_MESSAGE
+from edit_cfg_json.model_text import FILLED_MARK
 from example import e17_settings_config
 from example.e17_settings_config import DESCRIPTIONS, ToolConfig
 from .helpers import data_file, dump, head, input_tail, open_tk_ui, \
@@ -137,25 +139,24 @@ def test_flag_setting_refused(capsys: pytest.CaptureFixture[str]) -> None:
     assert 'validation: invalid, see editor.confirm_overwrite' in shown
 
 
-def test_block_read_whole(capsys: pytest.CaptureFixture[str],
-                          tmp_path: Path) -> None:
-    """Test a settings block that leaves a member out cannot be opened.
+def test_block_filled(capsys: pytest.CaptureFixture[str],
+                      tmp_path: Path) -> None:
+    """Test a settings block that leaves a member out is completed.
 
-    A nested configuration object is read whole whatever policy the parse
-    around it was given, which is why the data file of this example is as long
-    as it is. A settings *file* of its own is a different thing and may name
-    one setting, which is what `edit_cfg_json.load_settings` reads.
+    A nested configuration object is completed from its declared defaults
+    when the policy allows them, like the configuration around it, and the
+    value that the file did not hold is marked as one that was filled in.
     """
     partial = tmp_path / 'partial.json'
     partial.write_text(json.dumps({'report_folder': '/tmp/r',
                                    'verbose': False,
                                    'editor': {'backup_count': 3}}),
                        encoding='UTF-8')
-    with pytest.raises(SystemExit) as ended:
-        e17_settings_config.main(['--ui', 'dump', '--policy', 'defaults',
-                                  '-i', str(partial)])
-    assert ended.value.code != 0
-    assert 'No value for' in capsys.readouterr().err
+    shown = _dump(capsys, '--policy', 'defaults', '-i', str(partial), '--fold',
+                  'editor')
+    assert FILLED_MESSAGE in shown
+    assert 'backup_count: int = 3\n' in shown
+    assert f'backup_suffix: str = .bak{FILLED_MARK}' in shown
 
 
 def test_editor_runs_with() -> None:

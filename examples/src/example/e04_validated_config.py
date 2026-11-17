@@ -161,7 +161,8 @@ class ValidatedConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None, *,
+                 ok_to_use_defaults: bool = False) -> None:
         """Initialize the configuration with its default values.
 
         Args:
@@ -171,13 +172,19 @@ class ValidatedConfig(Config):
             member_name: Path for reaching this object from the top level
                 configuration, so that a diagnostic about a value inside it
                 names the whole path. None for the top level itself.
+            ok_to_use_defaults: Whether the default values may fill in what
+                the JSON source does not hold.
         """
+        # The constructor shape that `config_as_json` documents is written
+        # out in every example, so that each example can be read on its own.
+        # pylint: disable=duplicate-code
         self.job_name: str = 'nightly-backup'
         self.retries: int = 2
         self.timeout_seconds: int = 120
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return two rules about single members and one about all of them.

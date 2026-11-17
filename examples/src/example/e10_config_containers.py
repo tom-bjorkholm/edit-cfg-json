@@ -217,17 +217,18 @@ class ReportOutputConfig(Config):
     declaration in `CourseReportsConfig` below.
     """
 
-    # The four keyword arguments below are the constructor that
+    # The keyword arguments below are the constructor that
     # `config_as_json` builds a nested object with, whether that object is a
     # member, an element of a list or a value of a dict. It is the same
     # contract in all three cases, which is why one class covers all of them.
-    # The last of them is the path that this object is reached by, such as
+    # The fourth of them is the path that this object is reached by, such as
     # `every_report[1]`, and passing it on is what makes a refusal from
     # inside this object say which report it is about.
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None, *,
+                 ok_to_use_defaults: bool = False) -> None:
         """Initialize one report with its default values.
 
         Args:
@@ -237,7 +238,12 @@ class ReportOutputConfig(Config):
             member_name: Path for reaching this object from the top level
                 configuration, so that a diagnostic about a value inside it
                 names the whole path. None for the top level itself.
+            ok_to_use_defaults: Whether the default values may fill in what
+                the JSON source does not hold.
         """
+        # The constructor shape that `config_as_json` documents is written
+        # out in every example, so that each example can be read on its own.
+        # pylint: disable=duplicate-code
         # Three members, shown in this order because this is the order they
         # are assigned in. Three is also what keeps the dict of two reports
         # below open when the editor starts and folds the list of three.
@@ -246,7 +252,8 @@ class ReportOutputConfig(Config):
         self.max_rows: int = 1000
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the one rule that every report of this example obeys.
@@ -371,7 +378,8 @@ class CourseReportsConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None, *,
+                 ok_to_use_defaults: bool = False) -> None:
         """Initialize the course reports with their default values.
 
         Args:
@@ -381,6 +389,8 @@ class CourseReportsConfig(Config):
             member_name: Path for reaching this object from the top level
                 configuration, so that a diagnostic about a value inside it
                 names the whole path. None for the top level itself.
+            ok_to_use_defaults: Whether the default values may fill in what
+                the JSON source does not hold.
         """
         # One plain member first, so that an ordinary row can be seen beside
         # the two containers of objects.
@@ -394,7 +404,8 @@ class CourseReportsConfig(Config):
             _reports_by_id(stderr_file)
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def every_report(self) -> list[ReportOutputConfig]:
         """Return every report of this export, however it is held.

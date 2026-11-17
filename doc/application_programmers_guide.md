@@ -281,13 +281,15 @@ class AppConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None, *,
+                 ok_to_use_defaults: bool = False) -> None:
         """Initialize the configuration with its default values."""
         self.name: str = 'nightly'
         self.workers: int = 4
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the rules this application has for its own values."""
@@ -317,6 +319,14 @@ member of nothing. A class written before that argument existed is
 constructed without it and warns that it should be changed, in the editor
 exactly as in your own program; the editor needs nothing else of you for
 this.
+
+`ok_to_use_defaults` is keyword-only, and it says whether the default values
+may fill in what a file leaves out. Taking it and passing it on is a habit
+`config_as_json` recommends, and the editor makes use of it: it hands the text
+of a file to such a constructor together with the load policy, so your
+validators run once, on the values of the file. A class without it is
+constructed with its default values first and then given the file, which
+validates the default values as well and works just the same otherwise.
 
 Three notes on reading the programs below.
 
@@ -1182,8 +1192,10 @@ described: `edit_cfg_json.load_settings` and `edit_cfg_json.settings_file`
 are the same five-place lookup the programs use, available to your
 application.
 
-A settings **block** inside your own configuration is read whole, so it has to
-hold every key. A settings **file** of its own need name only what it changes.
+A settings **file** of its own need name only what it changes, and so may a
+settings **block** inside your own configuration, unless you load it with
+`LoadPolicy.STRICT`. What a block leaves out is then filled in from what
+`SettingsConfig` declares, and marked.
 
 **One of these settings is not about the editor's behaviour but about which
 editor.** `ui_priorities` is what case 7 and the `edit-cfg-json` program read

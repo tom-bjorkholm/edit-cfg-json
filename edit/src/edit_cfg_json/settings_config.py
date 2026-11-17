@@ -15,13 +15,11 @@ while it parses, so such a class cannot be built at all. That is why `Settings`
 and `ActionSettings` stay frozen, which is what section 9.1 of
 `doc/detailed_design.md` asks of them for reasons of its own.
 
-**The key combinations are a dict of lists and not a nested object.** A nested
-`Config` object is read whole — `config_as_json` constructs one from its own
-JSON without the permissive flag of the parse around it — so every settings
-file would have had to name every action. A dict member is filled in per key
-instead, its keys are checked against the ones this class declares, and a
-member validator completes what a file left out. So a settings file may name
-one action and the editor still shows all of them.
+**The key combinations are a dict of lists.** Its keys are checked against the
+ones this class declares, and a load that may use the declared defaults fills
+in each action a file leaves out, so a settings file may name one action and
+the editor still shows all of them. A member validator completes a value that
+did not come from such a load, which is a value assigned by hand.
 
 **The priorities of the user interfaces are a dict with no declared keys at
 all**, which is `_unchecked_dicts`, and that is the difference between them
@@ -39,18 +37,17 @@ on.
 
 **An action added to `ActionSettings` is a change of file format**, because
 the keys of a dict member are matched against the ones this class declares
-before any validator of this class is asked anything, and they are matched
-whatever policy the parse was given. So every settings file written before that
-action existed would be refused, and a whole application would fail to start
-over a key of the editor it embeds. `ADDED_ACTIONS` is what those files are
-read by, and section 9.10 of `doc/detailed_design.md` is what says that an
-action added later belongs in it.
+before any validator of this class is asked anything, and a strict load
+refuses a file that lacks one of them. An application that declares these
+settings as a member of its own configuration and reads its file strictly
+would then fail to start over a key of the editor it embeds. `ADDED_ACTIONS` is
+what those files are read by, whatever the policy is, and section 9.10 of
+`doc/detailed_design.md` is what says that an action added later belongs in it.
 
 **A setting added to `Settings` is one as well**, for the neighbouring reason:
-a member this class declares and a file does not hold is refused whatever
-policy the parse was given, because a nested configuration object is read
-whole. `ADDED_SETTINGS` is the same rule for a member that `ADDED_ACTIONS` is
-for a key of `actions`.
+a strict load refuses a file that does not hold a member this class declares,
+at whatever depth these settings are. `ADDED_SETTINGS` is the same rule for a
+member that `ADDED_ACTIONS` is for a key of `actions`.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -113,8 +110,8 @@ ADDED_SETTINGS = ('choose_values', 'ui_priorities')
 They are to a member of this class what `ADDED_ACTIONS` is to a key of its
 `actions` member, and they are needed for the same reason: a settings file of
 an earlier release does not hold them, and a member this class declares and
-the file leaves out is refused whatever policy the parse was given. Only a
-member added after a release belongs here.
+the file leaves out is refused by a strict load. Only a member added after a
+release belongs here.
 """
 
 
@@ -149,13 +146,14 @@ class _OldSettings(ReadOldConfiguration):
 
 
 class _ActionKeys(MemberValidator):  # pylint: disable=too-few-public-methods
-    """Complete the actions a file left out, and refuse what they refuse.
+    """Complete the actions a value left out, and refuse what they refuse.
 
-    A settings file is a file somebody writes by hand to change one or two
-    things, so what it does not name keeps the default of the editor. The
-    completed value is what is stored back into the member, which is what makes
-    the editor show every action of a file that named one of them, and what
-    lets the combinations of the others be edited there.
+    A value read from a file holds every action already: a load that may use
+    the declared defaults fills in the ones the file left out, and a strict
+    load refuses such a file. A value assigned by hand may hold fewer, and what
+    it does not name keeps the default of the editor. The completed value is
+    what is stored back into the member, so the member holds every action of
+    the editor whatever put its value there.
     """
 
     def validate_member(self, config: Config, member_name: str,
@@ -414,7 +412,8 @@ class SettingsConfig(Config):  # pylint: disable=too-many-instance-attributes
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None, *,
+                 ok_to_use_defaults: bool = False) -> None:
         """Declare every setting of the editor, and read the file there is.
 
         The declared values are read from `Settings` and `ActionSettings`
@@ -429,6 +428,8 @@ class SettingsConfig(Config):  # pylint: disable=too-many-instance-attributes
                 configuration, so that what is said about one setting names
                 the whole path to it. None for a settings file of its own,
                 where these settings are the whole configuration.
+            ok_to_use_defaults: Whether the declared values may fill in what
+                the JSON source does not hold.
         """
         declared = Settings()
         # The keys of this one are the `--ui` names of whatever user
@@ -446,7 +447,8 @@ class SettingsConfig(Config):  # pylint: disable=too-many-instance-attributes
         self.ui_priorities: dict[str, int] = dict(declared.ui_priorities)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file, member_name=member_name)
+                        stderr_file=stderr_file, member_name=member_name,
+                        ok_to_use_defaults=ok_to_use_defaults)
 
     def _get_read_old_config(self) -> ReadOldConfiguration:
         """Return how a settings file of an earlier release is read.
@@ -454,8 +456,8 @@ class SettingsConfig(Config):  # pylint: disable=too-many-instance-attributes
         `config_as_json` asks for this once the file has been parsed and before
         it checks that every declared key is there, which is the only point at
         which an action that a file cannot hold can be supplied: that check is
-        what refuses such a file, and it runs whatever policy the load was
-        given, because a nested configuration object is read whole.
+        what refuses such a file under a strict load, and a rule supplies the
+        action whatever policy the load was given.
 
         Returns:
             The rules that make a settings file of an earlier release readable.

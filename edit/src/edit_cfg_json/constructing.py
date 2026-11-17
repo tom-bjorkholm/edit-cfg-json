@@ -11,6 +11,16 @@ principle 4 of section 3 of `doc/detailed_design.md` applied to a constructor:
 what cannot be said is not said, and the editor is then only less pleasant
 rather than unusable.
 
+**The text of an input file is given to a constructor that takes the load
+policy**, which is a constructor declaring both a JSON text parameter and
+`ok_to_use_defaults`. Its class then validates once, on the values of the file:
+the declared values are never validated on their own, which saves a pass that
+may be costly and lets a class whose declared values are not valid on their own
+read a file. Any other class is constructed holding its declared values first,
+and the text is applied to it with `Config.parse_json`, which is where the load
+policy can always be given. That is the rule `config_as_json` follows for the
+nested objects it constructs.
+
 **An object holding the edit buffer.** Validating the buffer, and saying which
 member of a refused buffer was refused, both need an object holding the values
 that are on the screen. There the class is not asked at all: the object the
@@ -22,11 +32,6 @@ plan is applied — and it needs nothing whatever of the constructor. So a class
 that needs an argument this library knows nothing about is edited, validated
 and saved exactly as well as any other, and only reading a file needs the
 loader that the application supplies for it.
-
-**The JSON text is therefore never given to a constructor**, which is what
-makes that true. It would gain nothing if it were: `Config.__init__` passes the
-text straight to `parse_json` itself, and the one thing that has to go with it
-is the load policy, which `__init__` does not take.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -60,31 +65,63 @@ JSON_TEXT_NAMES = ('from_json_data_text', 'from_json_text')
 `Config.__init__` names it `from_json_data_text`, and the example
 configuration classes that `config_as_json` ships name it `from_json_text` in
 the constructors they declare, as does `ConfigFactory`. Both names are
-therefore in use in practice, so both are looked for. Nothing is ever passed
-under either of them but `None`: a class that declares the parameter without a
-default of its own has to be given one, and a class that declares none is
-constructed without it.
+therefore in use in practice, so both are looked for. The text of an input file
+is passed under it only together with the load policy, and `None` is passed
+otherwise: a class that declares the parameter without a default of its own has
+to be given one, and a class that declares none is constructed without it.
+"""
+
+DEFAULTS_NAME = 'ok_to_use_defaults'
+"""Name of the constructor parameter that takes the load policy.
+
+`Config.__init__` declares it, and so does a class that passes it on to
+`Config.__init__` as `config_as_json` recommends. A class that declares it can
+be given the text of an input file, because it can then be told the policy that
+the text is to be read with.
 """
 
 
-def _arguments(factory: Callable[..., Config],
+def _parameters(factory: Callable[..., Config]
+                ) -> Mapping[str, inspect.Parameter]:
+    """Return the parameters that one configuration class declares.
+
+    Args:
+        factory: Class, or callable with its own arguments already bound,
+            that constructs the configuration.
+
+    Returns:
+        The parameters of its constructor, by name.
+    """
+    return inspect.signature(factory).parameters
+
+
+def _text_name(parameters: Mapping[str, inspect.Parameter]) -> Optional[str]:
+    """Return the name a constructor gives its JSON text, None for no name.
+
+    Args:
+        parameters: The parameters of the constructor, by name.
+
+    Returns:
+        The first name of `JSON_TEXT_NAMES` that the constructor declares.
+    """
+    return next((name for name in JSON_TEXT_NAMES if name in parameters), None)
+
+
+def _arguments(parameters: Mapping[str, inspect.Parameter],
                stream: TextIO) -> dict[str, object]:
-    """Return what to call one configuration class with.
+    """Return what to call one configuration class with for its defaults.
 
     The values are a stream and `None`, and which parameter each of them
     belongs to differs from class to class, so there is no one type that they
     share.
 
     Args:
-        factory: Class, or callable with its own arguments already bound,
-            that constructs the configuration.
+        parameters: The parameters of the constructor, by name.
         stream: Stream that collects what the class says about itself.
 
     Returns:
         The keyword arguments for one construction of that class.
     """
-    parameters: Mapping[str, inspect.Parameter] = \
-        inspect.signature(factory).parameters
     arguments: dict[str, object] = {}
     if STREAM_NAME in parameters:
         arguments[STREAM_NAME] = stream
@@ -92,8 +129,7 @@ def _arguments(factory: Callable[..., Config],
         arguments[FILE_NAME] = None
     if MEMBER_NAME in parameters:
         arguments[MEMBER_NAME] = None
-    text_name = next((name for name in JSON_TEXT_NAMES if name in parameters),
-                     None)
+    text_name = _text_name(parameters)
     if text_name is not None:
         arguments[text_name] = None
     return arguments
@@ -127,7 +163,48 @@ def built_config(factory: Callable[..., Config], *, stream: TextIO) -> Config:
             refusal of `config_as_json` is a subclass of this.
         AttributeError: The class declares no public member at all.
     """
-    return factory(**_arguments(factory=factory, stream=stream))
+    return factory(**_arguments(parameters=_parameters(factory),
+                                stream=stream))
+
+
+def read_config(factory: Callable[..., Config], text: str, *, stream: TextIO,
+                ok_to_use_defaults: bool) -> Config:
+    """Construct one configuration holding the values of one JSON text.
+
+    A constructor that declares a JSON text parameter and `ok_to_use_defaults`
+    is given both, so the class validates once, and only the values of the
+    text. Any other class is constructed holding its declared values, which
+    are validated on their own, and the text is then applied to it with
+    `Config.parse_json`. A constructor that accepts the policy only through
+    `**kwargs` is one of the latter, because the signature does not say that
+    it passes the policy on.
+
+    Args:
+        factory: Class to construct, or a callable that constructs it with
+            arguments of its own already bound.
+        text: JSON text holding the values of an input file.
+        stream: Stream that collects what the class says about the text.
+        ok_to_use_defaults: Whether the declared defaults may fill in what the
+            text does not hold.
+
+    Returns:
+        A configuration object holding the values of the text.
+
+    Raises:
+        KeyError: The keys of the text do not match the declared members.
+        TypeError: The class cannot be constructed this way.
+        ValueError: The values are ones the class refuses.
+        AttributeError: The class declares no public member at all.
+    """
+    parameters = _parameters(factory)
+    text_name = _text_name(parameters)
+    if text_name is None or DEFAULTS_NAME not in parameters:
+        config = built_config(factory, stream=stream)
+        config.parse_json(from_json_text=text, stderr_file=stream,
+                          ok_to_use_defaults=ok_to_use_defaults)
+        return config
+    return factory(**_arguments(parameters=parameters, stream=stream)
+                   | {text_name: text, DEFAULTS_NAME: ok_to_use_defaults})
 
 
 # One argument per independent thing about the parse: the object, the text,
@@ -150,11 +227,9 @@ def parsed_config(config: Config, text: str, *, stream: TextIO,
     One method of the copy can be replaced, on the object and not on the class,
     which is how the editor reaches a state that the class does not offer: a
     parse that validates nothing, so that the plan can be walked step by step
-    afterwards, and a parse that stops at the key check, so that what the
-    declared defaults filled in can be read off it. Replacing it on the object
-    leaves the class of the application untouched, and `parse_json` does not
-    mistake the replacement for a member, because it counts only the attributes
-    that are not callable.
+    afterwards. Replacing it on the object leaves the class of the application
+    untouched, and `parse_json` does not mistake the replacement for a member,
+    because it counts only the attributes that are not callable.
 
     Args:
         config: Configuration object whose class and copy are used. It is not

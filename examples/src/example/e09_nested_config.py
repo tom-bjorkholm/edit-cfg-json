@@ -231,13 +231,22 @@ class TableOutputConfig(Config):
     """
 
     # The one thing a nested class does need is the constructor that
-    # `config_as_json` builds a nested object with, which is the three keyword
+    # `config_as_json` builds a nested object with, which takes the keyword
     # arguments below. That is the whole of the contract, unless the class
     # holding it declares a `factory_function` of its own.
+    #
+    # The keyword-only `ok_to_use_defaults` is what lets a file leave a value
+    # out of a nested object under a policy that allows it: the value then
+    # keeps its default here, exactly as a member of the outer class does. A
+    # class without it is completed as well, by being constructed with its
+    # defaults first and read afterwards. Taking it and passing it on spares
+    # the defaults a validation of their own, and it is required of a class
+    # whose defaults are not valid on their own.
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None, *,
+                 ok_to_use_defaults: bool = False) -> None:
         """Initialize one output section with its default values.
 
         Args:
@@ -247,7 +256,12 @@ class TableOutputConfig(Config):
             member_name: Path for reaching this object from the top level
                 configuration, so that a diagnostic about a value inside it
                 names the whole path. None for the top level itself.
+            ok_to_use_defaults: Whether the default values may fill in what
+                the JSON source does not hold.
         """
+        # The constructor shape that `config_as_json` documents is written
+        # out in every example, so that each example can be read on its own.
+        # pylint: disable=duplicate-code
         # These three are the members of this class, and the editor shows them
         # as the rows below the object. They are shown in this order, because
         # this is the order they are assigned in, and not in the sorted order
@@ -257,7 +271,8 @@ class TableOutputConfig(Config):
         self.encoding: str = 'utf-8'
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the validators of one output section.
@@ -331,7 +346,8 @@ class CourseExportConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None, *,
+                 ok_to_use_defaults: bool = False) -> None:
         """Initialize the course export with its default values.
 
         Args:
@@ -341,6 +357,8 @@ class CourseExportConfig(Config):
             member_name: Path for reaching this object from the top level
                 configuration, so that a diagnostic about a value inside it
                 names the whole path. None for the top level itself.
+            ok_to_use_defaults: Whether the default values may fill in what
+                the JSON source does not hold.
         """
         # One plain member first, so that an ordinary row can be seen beside
         # the two nested objects.
@@ -357,7 +375,8 @@ class CourseExportConfig(Config):
         self.audit_output: Optional[TableOutputConfig] = None
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def nested_configs(self) -> NestedConfigs:
         """Return which members hold nested configuration objects.

@@ -37,13 +37,13 @@ the comparison still finds every changed member, and what the records would
 have added is taken from `print_changes`, which is the library's own report and
 is version independent. That text is shown as it stands and is never read.
 
-**What the declared defaults filled in is asked of the parse.** It is the one
-of the three that has a mark of its own, so it has to be exact, and the keys
-of the file do not answer it: a key the rules for an older format renamed into
-a member was in the file under another name, and a value those rules supplied
-was in the file under no name at all. What the defaults filled in is exactly
-what the key check of the parse was not given, so the parse is what is asked,
-into a copy of the loaded object whose key check records and stops.
+**What the declared defaults filled in is asked of the loaded object.** It is
+the one of the three that has a mark of its own, so it has to be exact, and
+the keys of the file do not answer it: a key the rules for an older format
+renamed into a member was in the file under another name, and a value those
+rules supplied was in the file under no name at all.
+`Config.kept_value_paths()` names exactly the values the parse kept because
+the file lacked them, at every depth, so that is what is asked.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -53,11 +53,10 @@ from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from io import StringIO
 from types import MappingProxyType
-from typing import NamedTuple, Optional, TextIO
+from typing import NamedTuple, Optional
 import json
-from config_as_json import Config, ConfigAutoChangeHook, \
+from config_as_json import Config, ConfigAutoChangeHook, ConfigPath, \
     HookDataVersionError, JsonType, RocfChange, RocfChangeKind
-from edit_cfg_json.constructing import parsed_config
 from edit_cfg_json.leaf_value import canonical_text
 
 HOOK_DATA_VERSION = 1
@@ -76,23 +75,6 @@ then nothing to compare the file with. Such a class cannot be shown at all,
 because the editor reads the values it shows the very same way, so saying
 nothing about the changes here is what leaves that refusal where it belongs.
 """
-
-PARSE_ERRORS = (KeyError, TypeError, ValueError)
-"""Every way the parse that records the keys can fail before it records them.
-
-It cannot fail for a text that a load has already read, since the probe differs
-from the object that read it in the one method that is not reached until the
-keys have been recorded. It is caught because a mark is not worth an exception:
-what the defaults filled in is then simply not claimed, and every member of it
-is reported as one the load changed instead, which is true of it as well and
-says less.
-"""
-
-KEY_METHOD = 'check_key_match'
-"""Name of the method that the probe below has replaced with a recording."""
-
-RECORDED = 'The keys of one parse were recorded.'
-"""What the exception that carries those keys says for itself."""
 
 NO_MEMBER = ''
 """What the records that reached no member of this configuration are under.
@@ -125,11 +107,14 @@ class FileChanges(NamedTuple):
     nothing at all about the load.
     """
 
-    filled: frozenset[str] = frozenset()
-    """Members whose value the declared defaults of the class supplied.
+    filled_paths: frozenset[ConfigPath] = frozenset()
+    """Paths of the values that the declared defaults of the class supplied.
 
-    Empty for a load that was not allowed to use the defaults at all, and
-    empty for a file that held every declared key.
+    A path names the outermost value the file lacked, at whatever depth, so
+    a member the file left out altogether is one path and a value left out
+    of a nested object is a path into that member. Empty for a load that was
+    not allowed to use the defaults at all, and empty for a file that held
+    every declared key.
     """
 
     dropped: frozenset[str] = frozenset()
@@ -145,10 +130,10 @@ class FileChanges(NamedTuple):
     """Members whose value the load itself put there or altered.
 
     This is what the comparison found, so a member that a validator or the
-    parsing normalized is here and nowhere else. A member the declared defaults
-    filled in is deliberately not one of them: it is marked already, by a mark
-    that says more than this one would, and one member carrying two marks about
-    the same thing would be worse than either of them alone.
+    parsing normalized is here and nowhere else. A member holding a value the
+    declared defaults filled in is deliberately not one of them: that value is
+    marked already, by a mark that says more than this one would, and carrying
+    two marks about the same thing would be worse than either of them alone.
     """
 
     reasons: Mapping[str, tuple[RocfChange, ...]] = MappingProxyType({})
@@ -178,6 +163,16 @@ class FileChanges(NamedTuple):
     stands and never read: which version records what is the library's to say,
     and a text that was parsed would be a second way of depending on it.
     """
+
+    @property
+    def filled(self) -> frozenset[str]:
+        """Return the members that the file left out altogether.
+
+        The declared defaults supplied the whole of each of them, so their
+        paths in `filled_paths` are their names alone.
+        """
+        return frozenset(path[0] for path in self.filled_paths
+                         if len(path) == 1)
 
     @property
     def anything(self) -> bool:
@@ -325,118 +320,31 @@ def _printed(hook: ConfigAutoChangeHook) -> str:
     return said.getvalue().strip()
 
 
-class _ParsedKeys(Exception):
-    """The keys of one parse, carried out of the parse that recorded them.
+def _kept(config: Config) -> frozenset[ConfigPath]:
+    """Return the paths of the values the declared defaults supplied.
 
-    It is internal because it exists only to carry two lists of names out of
-    one method of one throwaway object, and it is an exception because the
-    parse it comes from is not wanted beyond that point.
-    """
-
-    def __init__(self, declared: Sequence[str], held: Sequence[str]) -> None:
-        """Say which keys were declared and which the parsed data held.
-
-        Args:
-            declared: The members that the configuration class declares.
-            held: The keys the data held once the rules for an older format
-                had finished with it.
-        """
-        self.declared = tuple(declared)
-        self.held = tuple(held)
-        super().__init__(RECORDED)
-
-
-# The parameters are the ones of `Config.check_key_match`, which is what
-# this stands in for, so there is no choice about how many there are.
-# pylint: disable-next=too-many-arguments
-def _record_keys(expected_keys: list[str], j_keys: list[str],
-                 ok_to_use_defaults: bool, stderr_file: TextIO,
-                 allowed_missing_keys: Optional[list[str]] = None, *,
-                 member_name: Optional[str] = None,
-                 dict_keys: bool = False) -> None:
-    """Record the keys of one parse, and stop that parse there.
-
-    This stands in for `Config.check_key_match` on the probe below, so the
-    parameters are that method's and in its order, because that is how
-    `Config.parse_json` calls it. There is no object among them for the same
-    reason as in `validation`: an attribute of an object is not a bound method,
-    and the real method is a static one in any case.
-
-    Only the check of the members is stood in for. The keys of a dict member
-    are checked by the same method called on the class, which an attribute of
-    one object does not reach, so the keys that arrive here are always the
-    keys of the configuration itself.
-
-    Args:
-        expected_keys: The members that the configuration class declares.
-        j_keys: The keys of the data that the parse is about to apply.
-        ok_to_use_defaults: Whether missing keys may keep their default, which
-            is the caller's own answer and is not what is being asked here.
-        stderr_file: Stream for diagnostics, which a check that refuses
-            nothing writes nothing to.
-        allowed_missing_keys: Keys that may be missing whatever the policy is,
-            which a check that refuses nothing has no use for either.
-        member_name: Path of the object whose keys these are, which the real
-            method names a missing key below. It is the whole configuration
-            here, because only the top level check is stood in for.
-        dict_keys: Whether the keys are keys of a plain dictionary, which
-            these never are for the same reason.
-
-    Raises:
-        _ParsedKeys: Always, carrying the two sets of keys.
-    """
-    _ = (ok_to_use_defaults, stderr_file, allowed_missing_keys, member_name,
-         dict_keys)
-    raise _ParsedKeys(declared=expected_keys, held=j_keys)
-
-
-def _filled(config: Config, text: str) -> frozenset[str]:
-    """Return the members whose value the declared defaults supplied.
-
-    A load that was allowed to fill in what the file left out cannot afterwards
-    be asked which of its values came from the file, and the keys of the file
-    do not answer it either: the rules for an older format may have renamed a
-    key of the file into a member, or supplied a value for a member the file
-    never had. What the defaults filled in is exactly what the key check of
-    the parse was not given, so the parse is what is asked.
-
-    The file is therefore parsed a second time, into a copy of the loaded
-    object whose key check records what it was given and stops the parse there.
-    Stopping is what keeps this from repeating anything: everything after the
-    key check is what the real load has already done, so the application's own
-    validators still run once, on the object that is really being edited. The
-    copy records into a copy of the hook as well, so what the load recorded is
-    left exactly as the load left it.
+    `config_as_json` indexes a list with an int and the editor with the text
+    of that int, so every step is turned into text. A step of a dict key is
+    text already.
 
     Args:
         config: Configuration object that the load produced.
-        text: The whole text of the input file.
 
     Returns:
-        The names of the members that the declared defaults supplied, and
-        nothing at all when the parse did not reach the key check.
+        The path of every value the parse kept, as a path of the editor, and
+        nothing at all after a strict parse.
     """
-    try:
-        parsed_config(config, text, stream=StringIO(), replace=KEY_METHOD,
-                      method=_record_keys)
-    except _ParsedKeys as keys:
-        return frozenset(keys.declared) - frozenset(keys.held)
-    except PARSE_ERRORS:
-        pass
-    return frozenset()
+    return frozenset(tuple(str(step) for step in path)
+                     for path in config.kept_value_paths())
 
 
-def _compared(config: Config, text: str,
-              permissive: bool) -> tuple[FileChanges,
-                                         Mapping[str, JsonType]]:
+def _compared(config: Config, text: str) -> tuple[FileChanges,
+                                                  Mapping[str, JsonType]]:
     """Return what comparing one load with its file found, and the members.
 
     Args:
         config: Configuration object that the load produced.
         text: The whole text of the input file.
-        permissive: Whether the load was allowed to fill in what the file left
-            out. A load that was not fills nothing in, so there is nothing to
-            ask the parse about.
 
     Returns:
         What the comparison alone found, and the members that this
@@ -448,11 +356,12 @@ def _compared(config: Config, text: str,
     """
     written = _written(config)
     held = _held(text)
-    filled = _filled(config=config, text=text) if permissive else frozenset()
-    return FileChanges(filled=filled,
+    kept = _kept(config)
+    holding = frozenset(path[0] for path in kept)
+    return FileChanges(filled_paths=kept,
                        dropped=frozenset(held) - frozenset(written),
                        changed=_altered(written=written,
-                                        held=held) - filled), written
+                                        held=held) - holding), written
 
 
 def _consumed(records: Iterable[RocfChange]) -> frozenset[str]:
@@ -499,7 +408,7 @@ def _recorded(changes: FileChanges, hook: ConfigAutoChangeHook,
         unplaced=tuple(change for change in loose if change.old_path is None))
 
 
-def file_changes(config: Config, text: str, permissive: bool) -> FileChanges:
+def file_changes(config: Config, text: str) -> FileChanges:
     """Return what one successful load did to the file that it read.
 
     Args:
@@ -508,16 +417,13 @@ def file_changes(config: Config, text: str, permissive: bool) -> FileChanges:
             object holds the hook of its own most recent parse whether the
             application asked for one or not.
         text: The whole text of the input file.
-        permissive: Whether the load was allowed to fill in what the file left
-            out.
 
     Returns:
         What the load did, with every field empty for a file that the load
         took exactly as it stood.
     """
     try:
-        changes, written = _compared(config=config, text=text,
-                                     permissive=permissive)
+        changes, written = _compared(config=config, text=text)
     except WRITE_ERRORS:
         return FileChanges()
     return _recorded(changes=changes, hook=config.auto_change_hook(),

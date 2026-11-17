@@ -13,15 +13,17 @@ about a refusal, including ending the process.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+from collections.abc import Callable
 from functools import partial
 from io import StringIO
 from typing import Optional
 import json
 import pytest
-from config_as_json import ConfigAutoChangeHook
+from config_as_json import Config, ConfigAutoChangeHook
 from edit_cfg_json import ConfigLoader, derived_loader
 from edit_cfg_json.loader import LOADER_EXITED, NO_FILE_NAME, ConfigSource, \
     ask_loader
+from .defaults_cfg import defaults_only
 from .sample_cfg import HOME_VALUE, PICKED_NAME, ExtraArgCfg, FlatCfg, \
     HookCfg, PickedCfg, exiting_loader, extra_arg_loader, picking_loader
 
@@ -40,16 +42,18 @@ def test_text_is_applied() -> None:
     assert getattr(config, 'name') == 'from text'
 
 
+@pytest.mark.parametrize('factory', [FlatCfg, defaults_only(FlatCfg)])
 @pytest.mark.parametrize('permissive,expected', [(True, 42), (False, None)])
-def test_policy_honoured(permissive: bool, expected: Optional[int]) -> None:
+def test_policy_honoured(factory: Callable[..., Config], permissive: bool,
+                         expected: Optional[int]) -> None:
     """Test a derived loader fills in what the text leaves out, or refuses.
 
-    The policy belongs to the parse and not to the constructor, which is why
-    the loader constructs the class and applies the text afterwards:
-    `Config.__init__` takes no `ok_to_use_defaults` at all.
+    It does so both ways it can construct a class: by giving the text and the
+    policy to a constructor that takes the policy, and by constructing the
+    class first and applying the text with the policy afterwards.
     """
     text = json.dumps({'name': 'partial'})
-    loader = derived_loader(FlatCfg)
+    loader = derived_loader(factory)
     if expected is None:
         with pytest.raises(KeyError):
             loader(from_json_data_text=text, stderr_file=StringIO(),

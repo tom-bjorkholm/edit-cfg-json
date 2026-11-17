@@ -168,7 +168,8 @@ class DescribedConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None, *,
+                 ok_to_use_defaults: bool = False) -> None:
         """Initialize the configuration with its default values.
 
         Args:
@@ -178,6 +179,8 @@ class DescribedConfig(Config):
             member_name: Path for reaching this object from the top level
                 configuration, so that a diagnostic about a value inside it
                 names the whole path. None for the top level itself.
+            ok_to_use_defaults: Whether the default values may fill in what
+                the JSON source does not hold.
         """
         # These four assignments are the whole schema, as in every other
         # example. What is new here is that three of them are explained in
@@ -188,7 +191,8 @@ class DescribedConfig(Config):
         self.priority: Priority = Priority.ROUTINE
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
         """Return the converter that turns a member name into a member.
