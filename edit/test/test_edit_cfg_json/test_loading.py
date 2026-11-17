@@ -25,7 +25,7 @@ from edit_cfg_json.loading import BAD_VALUES, DEFAULT_POLICY, FILLED_MESSAGE, \
     UNKNOWN_KEY, WRONG_SHAPE
 from .container_cfg import DeepConfigCfg, NestedCfg
 from .defaults_cfg import UNKNOWN_NAME, BadDefaultCfg, LegacyFactoryCfg, \
-    LookupCfg
+    LegacyNestedCfg, LookupCfg
 from .sample_cfg import NOT_A_NUMBER, PICKED_NAME, EnumCfg, ExtraArgCfg, \
     FlatCfg, HookCfg, OmitCfg, PickedCfg, RangeCfg, WholeOnlyCfg, \
     exiting_loader, extra_arg_loader, no_member_loader, picking_loader
@@ -69,6 +69,23 @@ FILLED_CASES = [
 The paths are those of the rows of the editor, which index a list with the
 text of the index. Each names the outermost value the file lacks, so a member
 the file leaves out altogether is one path.
+"""
+
+LEGACY_FULL: dict[str, object] = {
+    'inner': FULL_INNER, 'items': [FULL_INNER], 'parts': {'a': FULL_INNER},
+    'limits': {'low': 1}}
+"""Values of a file that holds every member of `LegacyNestedCfg`."""
+
+LEGACY_GAPS: list[tuple[dict[str, object], tuple[str, ...], str]] = [
+    ({'inner': {'width': 9}}, ('inner', 'height'), 'inner.height'),
+    ({'items': [{'height': 8}]}, ('items', '0', 'width'), 'items[0].width'),
+    ({'parts': {'a': {'width': 9}}}, ('parts', 'a', 'height'),
+     'parts[a].height'),
+    ({'limits': {}}, ('limits', 'low'), 'limits[low]')]
+"""What replaces part of `LEGACY_FULL`, the row path and the reported path.
+
+Each leaves out one value at a depth below the members: in a nested object,
+in one inside a list, in one inside a dict, and in a checked dict.
 """
 
 WRONG_SHAPES = [{'inner': 5, 'limits': {'low': 1}},
@@ -162,9 +179,9 @@ def test_incomplete_filled(tmp_path: Path, policy: LoadPolicy) -> None:
 def test_incomplete_strict(tmp_path: Path) -> None:
     """Test a strict policy refuses a file that leaves a value out.
 
-    The retry that tells an incomplete file from one with an unknown key
-    happens under this policy too, because the two need different messages.
-    The retry only decides which message; it never opens the file.
+    The retry that looks for an unknown key behind the missing one happens
+    under this policy too, because `config_as_json` reports a missing key
+    first. The retry only decides which message; it never opens the file.
     """
     error = _refusal(config=FlatCfg(), policy=LoadPolicy.STRICT,
                      in_file=_written(tmp_path, INCOMPLETE_DATA))
@@ -177,8 +194,7 @@ def test_unknown_key(tmp_path: Path, policy: LoadPolicy) -> None:
     """Test a key the configuration does not declare is never rescued.
 
     Filling in from the defaults governs the keys that are missing and
-    nothing else, so this file is refused by every policy. That is what makes
-    the retry able to tell the two failures apart.
+    nothing else, so this file is refused by every policy.
     """
     error = _refusal(config=FlatCfg(), policy=policy,
                      in_file=_written(tmp_path, UNKNOWN_DATA))
@@ -624,6 +640,49 @@ def test_not_fillable(tmp_path: Path, policy: LoadPolicy,
                      in_file=_written(tmp_path, data))
     assert error.message == message
     assert 'No value for inner.height' in error.diagnostics
+
+
+@pytest.mark.parametrize('policy', FILLING_POLICIES)
+@pytest.mark.parametrize(('gap', 'path'), [case[:2] for case in LEGACY_GAPS])
+def test_legacy_filled(tmp_path: Path, policy: LoadPolicy,
+                       gap: dict[str, object], path: tuple[str, ...]) -> None:
+    """Test a class written for 1.8 has a value left out deep filled in.
+
+    No constructor of it accepts `ok_to_use_defaults`, as in an application
+    unchanged since 1.0.0, and the file is still merely incomplete.
+    """
+    loaded = load_config(config=LegacyNestedCfg(), policy=policy,
+                         in_file=_written(tmp_path, LEGACY_FULL | gap))
+    assert loaded.report.filled_paths == frozenset({path})
+    assert FILLED_MESSAGE in loaded.report.message
+
+
+@pytest.mark.parametrize(('gap', 'named'),
+                         [(gap, named) for gap, _, named in LEGACY_GAPS])
+def test_legacy_strict(tmp_path: Path, gap: dict[str, object],
+                       named: str) -> None:
+    """Test a strict policy refuses that file as incomplete, naming the path.
+
+    It is never refused as holding a key this configuration does not have.
+    """
+    error = _refusal(config=LegacyNestedCfg(), policy=LoadPolicy.STRICT,
+                     in_file=_written(tmp_path, LEGACY_FULL | gap))
+    assert error.message == INCOMPLETE
+    assert f'No value for {named} ' in error.diagnostics
+
+
+@pytest.mark.parametrize('policy', EVERY_POLICY)
+def test_legacy_unknown(tmp_path: Path, policy: LoadPolicy) -> None:
+    """Test a key a nested object of a 1.8 class lacks is refused as that.
+
+    The nested object of the file also lacks a value, which `config_as_json`
+    reports first, and the key that no policy rescues is still what decides.
+    """
+    data = LEGACY_FULL | {'inner': {'width': 9, 'depth': 3}}
+    error = _refusal(config=LegacyNestedCfg(), policy=policy,
+                     in_file=_written(tmp_path, data))
+    assert error.message == UNKNOWN_KEY
+    assert 'Unexpected parameter inner.depth' in error.diagnostics
 
 
 @pytest.mark.parametrize('policy', EVERY_POLICY)

@@ -149,11 +149,13 @@ worth knowing, because they are four different mistakes:
   that half converted state as if it were the file would be worse than saying
   that the file has to be corrected in a text editor first.
 
-The first two cases are one `KeyError` as far as `config_as_json` is
-concerned, and the editor tells them apart by retrying the load with the
-defaults filling in: that rescues a file which is merely incomplete, and it
-still refuses an unknown key. Nothing anywhere reads the text of a message to
-decide which of the two it was.
+`config_as_json` raises an exception of its own type for each of the first
+two cases: `ConfigMissingKey` for a value the file does not hold, and
+`ConfigUnknownKey` for a key this configuration does not have. The editor
+tells them apart by that type, at every depth of a configuration, so a value
+left out of a nested object is missing in exactly the way one left out here
+is. Nothing anywhere reads the text of a message to decide which of the two
+it was.
 
 ## Writing the file again
 

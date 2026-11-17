@@ -7,10 +7,12 @@ fails over something that is not an unknown key: a nested object built by a
 factory that is never told the defaults may be used, and a validator that
 refuses a value with a plain `KeyError`.
 
-The rest are about a constructor that takes the load policy, which the editor
-gives the text of a file together with the policy: a class whose declared
-values its own rule refuses, and a way of constructing any class that does not
-take the text, which is what the editor does without that.
+The rest are about the constructor and the load policy. A constructor that
+takes the policy is given the text of a file together with it, which a class
+whose declared values its own rule refuses needs. A constructor that does not
+take the policy is how a class written for edit-cfg-json 1.0.0 looks, and a
+way of constructing any class without the text is what the editor does for
+such a class.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -104,6 +106,63 @@ class BadDefaultCfg(RangeCfg):
     def declare_members(self) -> None:
         """Assign a number above the highest that the range allows."""
         self.answer: int = HIGHEST + 1
+
+
+class LegacyCfg(SampleCfg):
+    """Base of the configurations whose constructor was written for 1.8.
+
+    It does not accept `ok_to_use_defaults`, which is how a class written for
+    edit-cfg-json 1.0.0 looks. The editor constructs such a class holding its
+    declared values and applies the text of a file afterwards, and
+    `config_as_json` does the same for a nested object of such a class.
+    """
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
+        """Declare the members of the subclass and then apply the JSON."""
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file, member_name=member_name)
+
+    def declare_members(self) -> None:
+        """Assign the members of the subclass, which this base has none of."""
+        raise NotImplementedError
+
+
+class LegacyInnerCfg(LegacyCfg):
+    """A nested object whose class was written for 1.8."""
+
+    def declare_members(self) -> None:
+        """Assign the two members of this nested object."""
+        self.width: int = 4
+        self.height: int = 6
+
+
+class LegacyNestedCfg(LegacyCfg):
+    """A configuration written for 1.8 that nests objects in every way.
+
+    Neither it nor its nested class accepts `ok_to_use_defaults`, which is
+    the configuration of an application unchanged since edit-cfg-json 1.0.0.
+    A value its file leaves out at any depth is still merely missing.
+    """
+
+    def declare_members(self) -> None:
+        """Assign one nested object, a list and a dict of them, and a dict."""
+        self.inner: LegacyInnerCfg = LegacyInnerCfg()
+        self.items: list[LegacyInnerCfg] = [LegacyInnerCfg()]
+        self.parts: dict[str, LegacyInnerCfg] = {'a': LegacyInnerCfg()}
+        self.limits: dict[str, int] = {'low': 1}
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return a declaration for each of the three kinds of nesting."""
+        return {'inner': ConfigNesting(kind=ConfigNestingKind.MEMBER,
+                                       config_type=LegacyInnerCfg),
+                'items': ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
+                                       config_type=LegacyInnerCfg),
+                'parts': ConfigNesting(kind=ConfigNestingKind.DICT_VALUE,
+                                       config_type=LegacyInnerCfg)}
 
 
 def defaults_only(config_type: type[SampleCfg]) -> Callable[..., Config]:

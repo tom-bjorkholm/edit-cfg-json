@@ -328,6 +328,18 @@ validators run once, on the values of the file. A class without it is
 constructed with its default values first and then given the file, which
 validates the default values as well and works just the same otherwise.
 
+**A `factory_function` in `nested_configs()` has to take it.** There it is
+more than a habit. `config_as_json` calls a factory that does not accept
+`ok_to_use_defaults` without it, with a `DeprecationWarning`, and the nested
+object the factory builds then reads its part of the file strictly. A file
+that leaves a value out of that object cannot be completed from the default
+values, so the editor refuses it even under a policy that fills in: *This
+file does not hold every value, and this configuration cannot fill in what it
+lacks.* The path of the missing value is in the diagnostics below that
+message. Accepting `ok_to_use_defaults: bool = False` in the factory and
+passing it on to the class it constructs is the whole fix. A nested class
+declared without a factory needs no such change.
+
 Three notes on reading the programs below.
 
 - `run_the_pipeline` and `reconfigure` are **your** code and no part of this
